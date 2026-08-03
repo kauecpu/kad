@@ -1,0 +1,123 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import type { ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+
+type StackHeaderProps = {
+  title?: string;
+  subtitle?: string;
+  onBack: () => void;
+  /** Ação à direita (ex.: botão de filtro ou salvar). Sem ela, um espaçador mantém o título centralizado. */
+  right?: ReactNode;
+  /** Ícone opcional à esquerda do título (ex.: ícone da disciplina). */
+  leadingIcon?: keyof typeof Ionicons.glyphMap;
+  leadingIconColor?: string;
+  /** Centraliza o título entre os botões (padrão) ou alinha à esquerda quando há subtítulo. */
+  center?: boolean;
+};
+
+/** Cabeçalho padrão das telas de pilha: botão voltar, título/subtítulo e ação opcional à direita. */
+export function StackHeader({
+  title,
+  subtitle,
+  onBack,
+  right,
+  leadingIcon,
+  leadingIconColor,
+  center = false,
+}: StackHeaderProps) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={{ paddingTop: insets.top, backgroundColor: colors.background }}>
+      <View style={[styles.bar, { borderBottomColor: colors.border }]}>
+        <Pressable
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.iconButton,
+            pressed && { backgroundColor: colors.surfaceAlt },
+          ]}>
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </Pressable>
+
+        {leadingIcon && leadingIconColor ? (
+          <View style={styles.leadingIcon}>
+            <Ionicons name={leadingIcon} size={20} color={leadingIconColor} />
+          </View>
+        ) : null}
+
+        <View style={[styles.titleGroup, center && styles.titleCenter]}>
+          {title ? (
+            <Text
+              style={[styles.title, center && styles.titleCenterText, { color: colors.text }]}
+              numberOfLines={1}
+              accessibilityRole="header">
+              {title}
+            </Text>
+          ) : null}
+          {subtitle ? (
+            <Text style={[styles.subtitle, { color: colors.textMuted }]} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+
+        {right ?? <View style={styles.iconButton} />}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  bar: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  iconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.6,
+  },
+  leadingIcon: {
+    width: 22,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleGroup: {
+    flex: 1,
+    gap: 1,
+  },
+  titleCenter: {
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: FontSize.heading,
+    fontWeight: FontWeight.bold,
+  },
+  titleCenterText: {
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: FontSize.small,
+  },
+});
