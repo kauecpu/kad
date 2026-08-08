@@ -1,0 +1,15 @@
+# O fundador responsável revisa todas as mudanças enquanto as equipes
+# e os nomes dos sócios ainda não foram cadastrados na organização.
+* @igorkauelima6-cpu
+
+# Áreas sensíveis sempre permanecem sob revisão do responsável técnico.
+/.github/ @igorkauelima6-cpu
+/supabase/ @igorkauelima6-cpu
+/.env.example @igorkauelima6-cpu
+
+# Depois de criar a organização, estas áreas podem apontar para o time frontend:
+# /app/ @NOME-DA-ORGANIZACAO/frontend
+# /components/ @NOME-DA-ORGANIZACAO/frontend
+# /assets/ @NOME-DA-ORGANIZACAO/frontend
+# /constants/ @NOME-DA-ORGANIZACAO/frontend
+# /hooks/ @NOME-DA-ORGANIZACAO/frontend
