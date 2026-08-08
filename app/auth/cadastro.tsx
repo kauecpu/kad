@@ -60,7 +60,6 @@ export default function SignUpScreen() {
   }>({});
   const [submitError, setSubmitError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
-  const [confirmationEmail, setConfirmationEmail] = useState<string>();
 
   const isWide = width >= 820;
   const passwordIsValid = password.length >= MIN_PASSWORD_LENGTH;
@@ -104,16 +103,15 @@ export default function SignUpScreen() {
       return;
     }
     if (result.requiresEmailConfirmation) {
-      setConfirmationEmail(email.trim());
+      router.replace('/auth/confirmar-email');
       return;
     }
-    router.replace('/inicio');
+    router.replace('/onboarding');
   };
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View
-        pointerEvents="none"
         style={[styles.backgroundAccent, { backgroundColor: colors.primarySoft }]}
       />
       <StackHeader title="Criar conta" onBack={() => router.back()} center />
@@ -136,7 +134,6 @@ export default function SignUpScreen() {
                 { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong },
               ]}>
               <View
-                pointerEvents="none"
                 style={[styles.brandGlow, { backgroundColor: colors.accentSoft }]}
               />
               <Image
@@ -172,31 +169,7 @@ export default function SignUpScreen() {
                 { backgroundColor: colors.surface, borderColor: colors.border },
                 cardShadow(colors.shadow, 2),
               ]}>
-              {confirmationEmail ? (
-                <View style={styles.confirmation}>
-                  <View style={[styles.confirmationIcon, { backgroundColor: colors.successSoft }]}>
-                    <Ionicons name="mail-unread-outline" size={27} color={colors.success} />
-                  </View>
-                  <View style={styles.confirmationCopy}>
-                    <Text style={[styles.eyebrow, { color: colors.success }]}>CONTA CRIADA</Text>
-                    <Text style={[styles.title, { color: colors.text }]}>Confirme seu e-mail</Text>
-                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>Enviamos um link de confirmação para:</Text>
-                    <Text style={[styles.confirmationEmail, { color: colors.text }]}>{confirmationEmail}</Text>
-                  </View>
-                  <View style={[styles.confirmationNotice, { backgroundColor: colors.surfaceAlt }]}>
-                    <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
-                    <Text style={[styles.confirmationHint, { color: colors.textMuted }]}>Abra o link recebido e depois volte para entrar. Se não encontrar, confira a caixa de spam.</Text>
-                  </View>
-                  <Button
-                    label="Ir para entrar"
-                    icon="log-in-outline"
-                    onPress={() => router.replace('/auth/login')}
-                    fullWidth
-                    size="lg"
-                  />
-                </View>
-              ) : (
-                <>
+              <>
                   <View style={styles.heading}>
                     <Text style={[styles.eyebrow, { color: colors.primary }]}>CRIE SEU ACESSO</Text>
                     <Text style={[styles.title, { color: colors.text }]}>Comece sua preparação</Text>
@@ -352,8 +325,7 @@ export default function SignUpScreen() {
                     <Text style={[styles.footerText, { color: colors.textMuted }]}>Já tem uma conta? </Text>
                     <Text style={[styles.link, { color: colors.primary }]}>Entrar</Text>
                   </Pressable>
-                </>
-              )}
+              </>
             </View>
           </View>
         </ScrollView>
@@ -399,6 +371,7 @@ const styles = StyleSheet.create({
   },
   brandGlow: {
     position: 'absolute',
+    pointerEvents: 'none',
     width: 190,
     height: 190,
     borderRadius: Radius.pill,
@@ -477,26 +450,9 @@ const styles = StyleSheet.create({
   },
   footerText: { fontSize: FontSize.small },
   link: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
-  confirmation: { flex: 1, justifyContent: 'center', gap: Spacing.lg },
-  confirmationIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmationCopy: { gap: Spacing.xs },
-  confirmationEmail: { fontSize: FontSize.heading, fontWeight: FontWeight.semibold },
-  confirmationNotice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    borderRadius: Radius.md,
-  },
-  confirmationHint: { flex: 1, fontSize: FontSize.small, lineHeight: 19 },
   backgroundAccent: {
     position: 'absolute',
+    pointerEvents: 'none',
     width: 420,
     height: 420,
     borderRadius: Radius.pill,

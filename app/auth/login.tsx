@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { StackHeader } from '@/components/ui/stack-header';
 import { TextField } from '@/components/ui/text-field';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { getPostAuthRoute } from '@/lib/onboarding';
 import { useAuth } from '@/providers/auth-provider';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15,8 +16,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function LoginScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const router = useRouter();
-  const { signIn, session } = useAuth();
+  const { authLinkChecking, linkError, recoveryReady, session, signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -24,8 +26,23 @@ export default function LoginScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (session) router.replace('/inicio');
-  }, [router, session]);
+    let active = true;
+
+    if (
+      session &&
+      !authLinkChecking &&
+      !recoveryReady &&
+      pathname === '/auth/login'
+    ) {
+      void getPostAuthRoute(session.user.id).then((route) => {
+        if (active) router.replace(route);
+      });
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [authLinkChecking, pathname, recoveryReady, router, session]);
 
   const submit = async () => {
     const nextErrors: { email?: string; password?: string } = {};
@@ -40,10 +57,12 @@ export default function LoginScreen() {
     setSubmitting(false);
     if (!result.ok) {
       setSubmitError(result.message);
+      if (result.requiresEmailConfirmation) router.push('/auth/confirmar-email');
       return;
     }
-    router.replace('/inicio');
   };
+
+  const visibleError = submitError ?? linkError;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -67,6 +86,8 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
               error={errors.email}
             />
             <TextField
@@ -77,6 +98,8 @@ export default function LoginScreen() {
               secureTextEntry
               showPasswordToggle
               autoCapitalize="none"
+              autoComplete="current-password"
+              textContentType="password"
               error={errors.password}
             />
             <Pressable
@@ -94,10 +117,9 @@ export default function LoginScreen() {
             disabled={submitting}
             fullWidth
           />
-          {submitError ? (
-            <Text style={[styles.submitError, { color: colors.danger }]}>{submitError}</Text>
+          {visibleError ? (
+            <Text style={[styles.submitError, { color: colors.danger }]}>{visibleError}</Text>
           ) : null}
-
           <Pressable
             onPress={() => router.replace('/auth/cadastro')}
             accessibilityRole="button"

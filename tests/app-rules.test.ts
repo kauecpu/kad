@@ -11,7 +11,16 @@ import {
   currentDailyUsage,
   subscriptionWithCurrentStatus,
 } from '../lib/access-rules.ts';
-import { authCallbackKindFromUrl, authCodeFromUrl } from '../lib/auth-security.ts';
+import { authErrorMessage } from '../lib/auth-errors.ts';
+import { authRouteAccess } from '../lib/auth-routing.ts';
+import {
+  EMAIL_OTP_LENGTH,
+  authCallbackKindFromUrl,
+  authCodeFromUrl,
+  isAuthCallbackUrl,
+  isValidEmailOtp,
+  normalizeEmailOtp,
+} from '../lib/auth-security.ts';
 import {
   findStudyPackForConcurso,
   matchesSalaryRanges,
@@ -255,6 +264,62 @@ test('callbacks de autenticação aceitam somente rotas previstas e códigos PKC
     authCodeFromUrl('kad://auth/login#access_token=exposto&refresh_token=exposto').code,
     undefined
   );
+  assert.equal(isAuthCallbackUrl('https://app.kad.com.br/auth/login'), false);
+  assert.equal(isAuthCallbackUrl('https://app.kad.com.br/auth/login?code=abc'), true);
+  assert.equal(
+    isAuthCallbackUrl('https://app.kad.com.br/auth/login?error=access_denied'),
+    true
+  );
+});
+
+test('erros de autenticação não expõem detalhes internos ao usuário', () => {
+  assert.equal(
+    authErrorMessage({ code: 'email_not_confirmed' }),
+    'Confirme seu e-mail antes de entrar.'
+  );
+  assert.equal(
+    authErrorMessage({ code: 'over_request_rate_limit' }),
+    'Muitas tentativas. Aguarde um momento e tente novamente.'
+  );
+  assert.equal(
+    authErrorMessage({ code: 'request_timeout' }),
+    'A conexão demorou demais. Verifique sua internet e tente novamente.'
+  );
+  assert.equal(
+    authErrorMessage({ message: 'sensitive provider failure details' }),
+    'Não foi possível concluir a operação. Tente novamente.'
+  );
+});
+
+test('códigos de confirmação por e-mail aceitam somente seis números', () => {
+  assert.equal(EMAIL_OTP_LENGTH, 6);
+  assert.equal(normalizeEmailOtp('12 34-56abc78-9'), '123456');
+  assert.equal(isValidEmailOtp('123456'), true);
+  assert.equal(isValidEmailOtp('12345'), false);
+  assert.equal(isValidEmailOtp('1234567'), false);
+  assert.equal(isValidEmailOtp('abcdef'), false);
+  assert.equal(
+    authErrorMessage({ code: 'otp_expired' }),
+    'Código inválido ou expirado. Solicite um novo código.'
+  );
+});
+
+test('as rotas de sessão separam visitante, conta autenticada e acesso público', () => {
+  assert.deepEqual(authRouteAccess({ hasSession: false, isGuest: false }), {
+    welcome: true,
+    auth: true,
+    app: false,
+  });
+  assert.deepEqual(authRouteAccess({ hasSession: false, isGuest: true }), {
+    welcome: false,
+    auth: true,
+    app: true,
+  });
+  assert.deepEqual(authRouteAccess({ hasSession: true, isGuest: false }), {
+    welcome: false,
+    auth: false,
+    app: true,
+  });
 });
 
 test('o KAD Diamante oferece os três ciclos com desconto progressivo', () => {

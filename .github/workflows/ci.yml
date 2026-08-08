@@ -1,0 +1,41 @@
+name: Qualidade
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v6
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências do aplicativo
+        run: npm ci
+
+      - name: Testar, validar tipos e lint
+        run: npm run check
+
+      - name: Instalar dependências do painel administrativo
+        run: npm ci --prefix admin
+
+      - name: Compilar painel administrativo
+        run: npm run admin:build

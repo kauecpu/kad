@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useApp } from '@/providers/app-provider';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 import { Colors } from '@/constants/theme';
+import { authRouteAccess } from '@/lib/auth-routing';
 import { SearchProvider } from '@/providers/search-provider';
 import { SimulationProvider } from '@/providers/simulation-provider';
 import { ConcursosProvider } from '@/providers/concursos-provider';
@@ -20,27 +21,19 @@ export const unstable_settings = {
 function RootNavigator() {
   const { scheme, hydrated } = useApp();
   const colors = Colors[scheme];
-  const { canAccessApp, isLoading } = useAuth();
-
-  if (isLoading || !hydrated) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
-    );
-  }
+  const { session, isGuest, isLoading } = useAuth();
+  const routeAccess = authRouteAccess({
+    hasSession: Boolean(session),
+    isGuest,
+  });
 
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/login" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/cadastro" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/recuperar-senha" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/nova-senha" options={{ headerShown: false }} />
-        <Stack.Screen name="legal/termos" options={{ headerShown: false }} />
-        <Stack.Screen name="legal/privacidade" options={{ headerShown: false }} />
-        <Stack.Protected guard={canAccessApp}>
+
+        <Stack.Protected guard={routeAccess.app}>
+          <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="questoes/buscar" options={{ headerShown: false }} />
           <Stack.Screen name="questoes/resultados" options={{ headerShown: false }} />
@@ -63,11 +56,44 @@ function RootNavigator() {
           <Stack.Screen name="redacao" options={{ headerShown: false }} />
           <Stack.Screen name="biblioteca" options={{ headerShown: false }} />
         </Stack.Protected>
+
+        <Stack.Protected guard={routeAccess.auth}>
+          <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/cadastro" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/confirmar-email" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/recuperar-senha" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Screen name="auth/nova-senha" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="onboarding-preview"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+
+        <Stack.Screen name="legal/termos" options={{ headerShown: false }} />
+        <Stack.Screen name="legal/privacidade" options={{ headerShown: false }} />
       </Stack>
+      {isLoading || !hydrated ? (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            styles.loadingOverlay,
+            { backgroundColor: colors.background },
+          ]}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : null}
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingOverlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+});
 
 export default function RootLayout() {
   return (
