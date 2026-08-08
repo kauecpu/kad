@@ -4,6 +4,9 @@ Aplicativo de preparação para concursos públicos desenvolvido com Expo e Reac
 O produto reúne questões comentadas, busca avançada, concursos, simulados e gestão de
 perfil e planos.
 
+> Repositório privado para uso interno da equipe KAD. Não compartilhe código,
+> documentação ou dados fora das pessoas autorizadas.
+
 > Autenticação, perfil, respostas, favoritas, concursos salvos, comentários, curtidas e
 > estatísticas comunitárias usam Supabase quando o projeto está configurado. Simulados,
 > tema e assinatura demonstrativa mantêm um cache local isolado por usuário.
@@ -23,20 +26,8 @@ perfil e planos.
 
 ## Planos demonstrativos
 
-| Recurso | Básico | KAD Diamante | KAD Círculo |
-| --- | --- | --- | --- |
-| Membros | 1 | 1 | 4 |
-| Questões | Até 10 por dia | Sem limite | Sem limite |
-| Gabarito comentado | Sim | Sim | Sim |
-| Alertas de editais | Não | Sim | Sim |
-| Estatísticas | Não | Sim | Sim |
-| Simulados | Não | Sim | Sim |
-| Plano de estudos | Não | Sim | Sim |
-
-Os preços e as assinaturas fazem parte da demonstração visual. Não existe integração
-com pagamento ou validação remota neste projeto. Os planos KAD oferecem ciclos mensal,
-trimestral e anual. O KAD Círculo inclui quatro acessos pelo preço de três assinaturas
-KAD Diamante do mesmo ciclo.
+Os planos e preços exibidos fazem parte da demonstração visual. Ainda não existe
+integração com pagamento nem autorização de assinatura no servidor.
 
 ## Tecnologias
 
@@ -64,46 +55,14 @@ npm install
 npm start
 ```
 
-## Configurando autenticação e banco
+## Autenticação e banco
 
-1. Crie um projeto no Supabase.
-2. Copie `.env.example` para `.env` e preencha a URL e a chave publicável do projeto.
-   Nunca use a chave `service_role` no aplicativo.
-3. Execute, em ordem, os arquivos de `supabase/migrations` no SQL Editor ou use
-   `supabase db push` após vincular o projeto.
-4. Publique a função segura de exclusão de conta:
+Copie `.env.example` para `.env` e preencha somente as variáveis públicas indicadas.
+Nunca use a chave `service_role` no aplicativo nem envie credenciais ao GitHub.
 
-   ```bash
-   supabase secrets set ALLOWED_WEB_ORIGINS=https://app.seudominio.com
-   supabase functions deploy delete-account
-   ```
-
-   Separe múltiplas origens web com vírgulas. `localhost` e `127.0.0.1` nas portas 8081 e
-   8082 já são aceitos para desenvolvimento. Aplicativos Android e iOS não precisam ser
-   adicionados a essa lista.
-
-5. Em Authentication > URL Configuration, adicione `kad://auth/nova-senha` aos Redirect URLs
-   para recuperação de senha no aplicativo instalado. Para testar no navegador, adicione também
-   a URL local correspondente exibida pelo Expo.
-6. Reinicie o Expo após alterar o `.env`.
-
-7. Em Authentication > Providers > Email, mantenha a confirmação de e-mail ativa e configure
-   `Email OTP length` como `6`. Antes de produção, configure um servidor SMTP próprio; o serviço
-   de testes do Supabase possui limites baixos de envio.
-
-8. Em Authentication > Email Templates > Confirm signup, use o assunto `Seu código de confirmação
-   do KAD` e copie o conteúdo de `supabase/templates/confirmation.html`. O marcador `{{ .Token }}`
-   é obrigatório para o Supabase enviar o código numérico em vez de um link.
-
-9. Em Authentication > Email Templates > Reset password, use o assunto `Redefina sua senha no KAD`
-   e copie o conteúdo de `supabase/templates/recovery.html`. O marcador
-   `{{ .ConfirmationURL }}` é obrigatório para abrir a tela de criação da nova senha.
-
-10. Valide confirmação e recuperação de senha em uma development build. O endereço do Expo Go
-   muda durante o desenvolvimento e não deve ser usado como callback permanente de produção.
-
-Sem essas variáveis, o app continua funcionando em modo visitante, mas cadastro,
-login e recuperação de senha informam que a conexão ainda não foi configurada.
+Migrações, funções, SMTP, redirecionamentos e demais configurações de produção devem
+ser executados apenas pelo responsável técnico. Sem as variáveis públicas, o app
+continua disponível no modo visitante.
 
 Para abrir pelo Expo Go usando túnel:
 
@@ -128,45 +87,22 @@ npm run lint       # ESLint configurado pelo Expo
 npm run check      # executa as três verificações
 ```
 
-Os testes cobrem:
-
-- isolamento da pesquisa entre seletores;
-- renovação e limite diário de questões;
-- expiração local de assinatura;
-- presença de canais oficiais nos concursos;
-- quantidade mínima e consistência do banco de questões;
-- presença de RLS nas tabelas pessoais e sociais;
-- ausência da antiga exclusão privilegiada exposta;
-- cálculo da taxa comunitária por totais reais.
+Os testes verificam regras de acesso, persistência, integridade dos dados e segurança.
 
 ## Estrutura
 
 ```text
-app/          rotas e telas do Expo Router
-admin/        painel administrativo web e fluxo editorial
-components/   componentes visuais reutilizáveis
-constants/    tokens de tema e espaçamento
-data/         dados demonstrativos de questões, concursos, planos e cargos
-hooks/        hooks de tema e plataforma
-lib/          filtros, regras de acesso, busca e simulados
-providers/    estado global e persistência local
-tests/        testes automatizados
-types/        tipos de domínio compartilhados
+app/                    rotas e telas do Expo Router
+components/             componentes visuais reutilizáveis
+lib/, providers/, types/ lógica e tipos usados pelo aplicativo
+tests/                  testes automatizados
 ```
 
 ## Arquitetura de estado
 
-- `AuthProvider`: sessão, cadastro, login, recuperação e exclusão da conta no Supabase.
-- `AppProvider`: perfil, respostas, favoritas e concursos salvos sincronizados, além do
-  cache local de assinatura, cota e tema.
-- `SearchProvider`: filtros da pesquisa de questões.
-- `SimulationProvider`: sessão atual do simulado, respostas e tempo restante.
-
-As políticas RLS isolam os dados pessoais. Comentários são compartilhados entre contas,
-mas apenas o autor pode editar ou excluir o próprio texto; cada curtida é única por
-usuário. A porcentagem comunitária é calculada a partir de `question_attempts`, sem expor
-as respostas individuais. O plano pago ainda é demonstrativo e não deve ser tratado como
-autorização real até existir integração de pagamento no servidor.
+O estado do aplicativo é organizado em providers por domínio. Dados sincronizados usam
+políticas de acesso no banco e testes automatizados. Assinaturas permanecem
+demonstrativas até existir validação no servidor.
 
 ## Dados demonstrativos
 
