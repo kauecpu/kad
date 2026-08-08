@@ -38,6 +38,21 @@ const editorialConcursosMigration = readFileSync(
   'utf8'
 );
 
+const deleteAccountFunction = readFileSync(
+  new NodeURL('../supabase/functions/delete-account/index.ts', import.meta.url),
+  'utf8'
+);
+
+const confirmationEmailTemplate = readFileSync(
+  new NodeURL('../supabase/templates/confirmation.html', import.meta.url),
+  'utf8'
+);
+
+const recoveryEmailTemplate = readFileSync(
+  new NodeURL('../supabase/templates/recovery.html', import.meta.url),
+  'utf8'
+);
+
 test('dados pessoais e de estudo possuem RLS', () => {
   for (const table of [
     'question_attempts',
@@ -150,4 +165,20 @@ test('mutações de concursos exigem permissão e registram auditoria', () => {
   assert.match(editorialConcursosMigration, /insert into private\.admin_audit_logs/);
   assert.match(editorialConcursosMigration, /function public\.admin_delete_concurso\(p_concurso_id text\)/);
   assert.match(editorialConcursosMigration, /revoke all on function public\.admin_save_concurso\(jsonb\) from public, anon/);
+});
+
+test('exclusão de conta confirma a senha no servidor e aceita origens configuradas', () => {
+  assert.match(deleteAccountFunction, /ALLOWED_WEB_ORIGINS/);
+  assert.match(deleteAccountFunction, /http:\/\/localhost:8082/);
+  assert.match(deleteAccountFunction, /http:\/\/127\.0\.0\.1:8082/);
+  assert.match(deleteAccountFunction, /auth\.signInWithPassword/);
+  assert.match(deleteAccountFunction, /auth\.admin\.deleteUser\(user\.id\)/);
+  assert.match(deleteAccountFunction, /Origin not allowed/);
+});
+
+test('templates de autenticação usam OTP e recuperação em português', () => {
+  assert.match(confirmationEmailTemplate, /\{\{ \.Token \}\}/);
+  assert.match(recoveryEmailTemplate, /lang="pt-BR"/);
+  assert.match(recoveryEmailTemplate, /Redefina sua senha/);
+  assert.match(recoveryEmailTemplate, /\{\{ \.ConfirmationURL \}\}/);
 });

@@ -74,14 +74,33 @@ npm start
 4. Publique a função segura de exclusão de conta:
 
    ```bash
+   supabase secrets set ALLOWED_WEB_ORIGINS=https://app.seudominio.com
    supabase functions deploy delete-account
    ```
 
-5. Em Authentication > URL Configuration, adicione `kad://auth/login` e
-   `kad://auth/nova-senha` aos Redirect URLs para confirmação de cadastro e recuperação
-   de senha no aplicativo instalado. Para testar no navegador, adicione também as URLs
-   locais correspondentes exibidas pelo Expo.
+   Separe múltiplas origens web com vírgulas. `localhost` e `127.0.0.1` nas portas 8081 e
+   8082 já são aceitos para desenvolvimento. Aplicativos Android e iOS não precisam ser
+   adicionados a essa lista.
+
+5. Em Authentication > URL Configuration, adicione `kad://auth/nova-senha` aos Redirect URLs
+   para recuperação de senha no aplicativo instalado. Para testar no navegador, adicione também
+   a URL local correspondente exibida pelo Expo.
 6. Reinicie o Expo após alterar o `.env`.
+
+7. Em Authentication > Providers > Email, mantenha a confirmação de e-mail ativa e configure
+   `Email OTP length` como `6`. Antes de produção, configure um servidor SMTP próprio; o serviço
+   de testes do Supabase possui limites baixos de envio.
+
+8. Em Authentication > Email Templates > Confirm signup, use o assunto `Seu código de confirmação
+   do KAD` e copie o conteúdo de `supabase/templates/confirmation.html`. O marcador `{{ .Token }}`
+   é obrigatório para o Supabase enviar o código numérico em vez de um link.
+
+9. Em Authentication > Email Templates > Reset password, use o assunto `Redefina sua senha no KAD`
+   e copie o conteúdo de `supabase/templates/recovery.html`. O marcador
+   `{{ .ConfirmationURL }}` é obrigatório para abrir a tela de criação da nova senha.
+
+10. Valide confirmação e recuperação de senha em uma development build. O endereço do Expo Go
+   muda durante o desenvolvimento e não deve ser usado como callback permanente de produção.
 
 Sem essas variáveis, o app continua funcionando em modo visitante, mas cadastro,
 login e recuperação de senha informam que a conexão ainda não foi configurada.

@@ -44,6 +44,9 @@ export default function AlterarSenhaScreen() {
     if (next.length < MIN_PASSWORD_LENGTH) {
       nextErrors.next = `A nova senha deve ter ao menos ${MIN_PASSWORD_LENGTH} caracteres.`;
     }
+    if (current && next === current) {
+      nextErrors.next = 'A nova senha deve ser diferente da senha atual.';
+    }
     if (next && confirm !== next) nextErrors.confirm = 'As senhas não coincidem.';
 
     setErrors(nextErrors);
@@ -93,6 +96,8 @@ export default function AlterarSenhaScreen() {
             secureTextEntry
             showPasswordToggle
             autoCapitalize="none"
+            autoComplete="current-password"
+            textContentType="password"
             error={errors.current}
           />
           <TextField
@@ -103,6 +108,8 @@ export default function AlterarSenhaScreen() {
             secureTextEntry
             showPasswordToggle
             autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
             error={errors.next}
           />
           <TextField
@@ -113,6 +120,8 @@ export default function AlterarSenhaScreen() {
             secureTextEntry
             showPasswordToggle
             autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
             error={errors.confirm}
           />
 

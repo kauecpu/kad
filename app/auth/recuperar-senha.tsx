@@ -53,7 +53,9 @@ export default function PasswordRecoveryScreen() {
                 <Ionicons name="mail-outline" size={24} color={colors.success} />
               </View>
               <Text style={[styles.title, { color: colors.text }]}>Confira seu e-mail</Text>
-              <Text style={[styles.subtitle, { color: colors.textMuted }]}>Enviamos as instruções para {email.trim()}.</Text>
+              <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                Se existir uma conta para {email.trim()}, enviaremos as instruções. Confira também a caixa de spam.
+              </Text>
               <Button label="Voltar para entrar" variant="secondary" onPress={() => router.replace('/auth/login')} fullWidth />
             </View>
           ) : (
@@ -70,6 +72,8 @@ export default function PasswordRecoveryScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
                 error={error}
               />
               <Button

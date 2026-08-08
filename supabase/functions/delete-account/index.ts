@@ -1,8 +1,16 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+const configuredWebOrigins = (Deno.env.get('ALLOWED_WEB_ORIGINS') ?? '')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
 const allowedWebOrigins = new Set([
   'http://localhost:8081',
   'http://127.0.0.1:8081',
+  'http://localhost:8082',
+  'http://127.0.0.1:8082',
+  ...configuredWebOrigins,
 ]);
 
 function responseHeaders(origin: string | null) {

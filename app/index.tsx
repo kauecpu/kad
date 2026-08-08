@@ -1,22 +1,76 @@
-import { useRouter } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Redirect, usePathname, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
 import { FontSize, FontWeight, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { getPostAuthRoute, type PostAuthRoute } from '@/lib/onboarding';
 import { useAuth } from '@/providers/auth-provider';
 
 export default function WelcomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const router = useRouter();
-  const { continueAsGuest } = useAuth();
+  const { authLinkChecking, canAccessApp, continueAsGuest, isGuest, recoveryReady, session } =
+    useAuth();
+  const [guestError, setGuestError] = useState<string>();
+  const [postAuthRoute, setPostAuthRoute] = useState<PostAuthRoute>();
+
+  useEffect(() => {
+    let active = true;
+
+    if (!session) {
+      setPostAuthRoute(undefined);
+      return () => {
+        active = false;
+      };
+    }
+
+    void getPostAuthRoute(session.user.id).then((route) => {
+      if (active) setPostAuthRoute(route);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [session]);
 
   const openAsGuest = async () => {
-    await continueAsGuest();
+    setGuestError(undefined);
+    const result = await continueAsGuest();
+    if (!result.ok) {
+      setGuestError(result.message ?? 'Não foi possível iniciar o modo visitante.');
+      return;
+    }
     router.replace('/inicio');
   };
+
+  if (
+    canAccessApp &&
+    !authLinkChecking &&
+    !recoveryReady &&
+    pathname === '/'
+  ) {
+    if (session && !postAuthRoute) {
+      return (
+        <View style={[styles.loading, { backgroundColor: colors.background }]}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      );
+    }
+    return <Redirect href={isGuest ? '/inicio' : (postAuthRoute ?? '/inicio')} />;
+  }
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -67,6 +121,11 @@ export default function WelcomeScreen() {
               style={({ pressed }) => [styles.guestAction, pressed && styles.pressed]}>
               <Text style={[styles.guestText, { color: colors.textMuted }]}>Continuar como visitante</Text>
             </Pressable>
+            {guestError ? (
+              <Text accessibilityRole="alert" style={[styles.guestError, { color: colors.danger }]}>
+                {guestError}
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -90,6 +149,7 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: {
     flexGrow: 1,
     width: '100%',
@@ -129,6 +189,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   guestText: { fontSize: FontSize.body, fontWeight: FontWeight.medium },
+  guestError: { fontSize: FontSize.small, lineHeight: 18, textAlign: 'center' },
   legal: {
     fontSize: FontSize.tiny,
     textAlign: 'center',

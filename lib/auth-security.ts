@@ -1,4 +1,14 @@
 export const MIN_PASSWORD_LENGTH = 12;
+export const EMAIL_OTP_LENGTH = 6;
+export const EMAIL_OTP_RESEND_SECONDS = 60;
+
+export function normalizeEmailOtp(value: string): string {
+  return value.replace(/\D/g, '').slice(0, EMAIL_OTP_LENGTH);
+}
+
+export function isValidEmailOtp(value: string): boolean {
+  return value.replace(/\D/g, '').length === EMAIL_OTP_LENGTH;
+}
 
 export type AuthCallbackKind = 'confirmation' | 'recovery';
 
@@ -43,4 +53,9 @@ export function authCodeFromUrl(url: string): {
   } catch {
     return { callback };
   }
+}
+
+export function isAuthCallbackUrl(url: string): boolean {
+  const { callback, code, errorDescription } = authCodeFromUrl(url);
+  return Boolean(callback && (code || errorDescription));
 }

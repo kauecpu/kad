@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,19 +15,12 @@ export default function NewPasswordScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { updatePassword, recoveryReady, linkError } = useAuth();
+  const { updatePassword, recoveryReady, authLinkChecking, linkError } = useAuth();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
   const [updated, setUpdated] = useState(false);
-  const [validationTimedOut, setValidationTimedOut] = useState(false);
-
-  useEffect(() => {
-    if (recoveryReady || linkError) return;
-    const timeout = setTimeout(() => setValidationTimedOut(true), 2500);
-    return () => clearTimeout(timeout);
-  }, [linkError, recoveryReady]);
 
   const submit = async () => {
     if (password.length < MIN_PASSWORD_LENGTH) {
@@ -63,7 +56,7 @@ export default function NewPasswordScreen() {
               <Text style={[styles.subtitle, { color: colors.textMuted }]}>Sua conta já está pronta para continuar.</Text>
               <Button label="Continuar" onPress={() => router.replace('/inicio')} fullWidth />
             </View>
-          ) : linkError || validationTimedOut ? (
+          ) : linkError || (!authLinkChecking && !recoveryReady) ? (
             <View style={styles.success}>
               <Text style={[styles.title, { color: colors.text }]}>Link inválido</Text>
               <Text style={[styles.subtitle, { color: colors.textMuted }]}> 
@@ -76,7 +69,7 @@ export default function NewPasswordScreen() {
                 fullWidth
               />
             </View>
-          ) : !recoveryReady ? (
+          ) : authLinkChecking || !recoveryReady ? (
             <View style={styles.success}>
               <Text style={[styles.title, { color: colors.text }]}>Validando link...</Text>
               <Text style={[styles.subtitle, { color: colors.textMuted }]}>Isso leva apenas alguns segundos.</Text>
@@ -95,6 +88,8 @@ export default function NewPasswordScreen() {
                   secureTextEntry
                   showPasswordToggle
                   autoCapitalize="none"
+                  autoComplete="new-password"
+                  textContentType="newPassword"
                 />
                 <TextField
                   label="Confirmar nova senha"
@@ -103,6 +98,8 @@ export default function NewPasswordScreen() {
                   secureTextEntry
                   showPasswordToggle
                   autoCapitalize="none"
+                  autoComplete="new-password"
+                  textContentType="newPassword"
                   error={error}
                 />
               </View>
