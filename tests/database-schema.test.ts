@@ -38,6 +38,11 @@ const editorialConcursosMigration = readFileSync(
   'utf8'
 );
 
+const editorialImportMigration = readFileSync(
+  new NodeURL('../supabase/migrations/202608090001_editorial_import_pipeline.sql', import.meta.url),
+  'utf8'
+);
+
 const deleteAccountFunction = readFileSync(
   new NodeURL('../supabase/functions/delete-account/index.ts', import.meta.url),
   'utf8'
@@ -165,6 +170,33 @@ test('mutações de concursos exigem permissão e registram auditoria', () => {
   assert.match(editorialConcursosMigration, /insert into private\.admin_audit_logs/);
   assert.match(editorialConcursosMigration, /function public\.admin_delete_concurso\(p_concurso_id text\)/);
   assert.match(editorialConcursosMigration, /revoke all on function public\.admin_save_concurso\(jsonb\) from public, anon/);
+});
+
+test('lotes editoriais ficam privados e são acessados somente por RPC protegida', () => {
+  assert.match(editorialImportMigration, /create table if not exists private\.editorial_import_batches/);
+  assert.match(editorialImportMigration, /create table if not exists private\.editorial_import_items/);
+  assert.match(editorialImportMigration, /alter table private\.editorial_import_batches enable row level security/);
+  assert.match(editorialImportMigration, /revoke all on table private\.editorial_import_items from public, anon, authenticated/);
+  assert.match(editorialImportMigration, /function public\.admin_create_import_batch/);
+  assert.match(editorialImportMigration, /private\.has_admin_permission\('content\.write'\)/);
+});
+
+test('questões importadas só ficam públicas depois da revisão editorial', () => {
+  assert.match(editorialImportMigration, /create table if not exists public\.questions/);
+  assert.match(editorialImportMigration, /using \(publication_status = 'published'\)/);
+  assert.match(editorialImportMigration, /jsonb_build_object\(\s*'publicationStatus', 'draft'/);
+  assert.match(editorialImportMigration, /private\.has_admin_permission\('content\.publish'\)/);
+  assert.match(editorialImportMigration, /function public\.admin_save_question/);
+});
+
+test('pipeline detecta duplicatas, audita e protege rollback de conteúdo publicado', () => {
+  assert.match(editorialImportMigration, /questions_source_identity_idx/);
+  assert.match(editorialImportMigration, /concursos_source_identity_idx/);
+  assert.match(editorialImportMigration, /'import\.applied'/);
+  assert.match(editorialImportMigration, /'import\.rolled_back'/);
+  assert.match(editorialImportMigration, /v_current_status = 'published'/);
+  assert.match(editorialImportMigration, /v_current_batch is distinct from p_batch_id/);
+  assert.match(editorialImportMigration, /v_current_updated_at > v_item\.imported_at/);
 });
 
 test('exclusão de conta confirma a senha no servidor e aceita origens configuradas', () => {

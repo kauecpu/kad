@@ -6,7 +6,9 @@ import { AdminLayout } from './layout/admin-layout';
 import { DashboardPage } from './pages/dashboard-page';
 import { ConcursosPage } from './pages/concursos-page';
 import { LoginPage } from './pages/login-page';
+import { ImportsPage } from './pages/imports-page';
 import { ModulePage } from './pages/module-page';
+import { QuestionsPage } from './pages/questions-page';
 import { SettingsPage } from './pages/settings-page';
 
 export function App() {
@@ -27,7 +29,8 @@ export function App() {
       <Route element={access ? <AdminLayout /> : <Navigate to="/login" replace />}>
         <Route index element={<DashboardPage />} />
         <Route path="concursos" element={<ConcursosPage />} />
-        <Route path="questoes" element={<ModulePage kind="questoes" />} />
+        <Route path="questoes" element={<QuestionsPage />} />
+        <Route path="importacoes" element={<ImportsPage />} />
         <Route path="comunidade" element={<ModulePage kind="comunidade" />} />
         <Route path="usuarios" element={<ModulePage kind="usuarios" />} />
         <Route path="auditoria" element={<ModulePage kind="auditoria" />} />
