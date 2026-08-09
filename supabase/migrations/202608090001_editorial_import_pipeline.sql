@@ -499,6 +499,161 @@ begin
 end;
 $$;
 
+create or replace function private.editorial_import_record_errors(p_record jsonb)
+returns text[]
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  v_errors text[] := '{}'::text[];
+  v_kind text;
+  v_data jsonb;
+  v_source jsonb;
+  v_resource_id text;
+  v_provider text;
+  v_external_id text;
+  v_source_url text;
+  v_role jsonb;
+begin
+  if jsonb_typeof(coalesce(p_record, 'null'::jsonb)) <> 'object' then
+    return array['O registro deve ser um objeto JSON.'];
+  end if;
+
+  v_kind := nullif(trim(p_record->>'kind'), '');
+  v_data := p_record->'data';
+  v_source := p_record->'source';
+  v_resource_id := trim(v_data->>'id');
+  v_provider := trim(v_source->>'provider');
+  v_external_id := trim(v_source->>'externalId');
+  v_source_url := trim(v_source->>'url');
+
+  if coalesce(p_record->>'schemaVersion', '') <> '1' then
+    v_errors := array_append(v_errors, 'schemaVersion deve ser 1.');
+  end if;
+
+  if coalesce(v_kind, '') not in ('concurso', 'question') then
+    v_errors := array_append(v_errors, 'kind deve ser concurso ou question.');
+  end if;
+
+  if jsonb_typeof(coalesce(v_source, 'null'::jsonb)) <> 'object' then
+    v_errors := array_append(v_errors, 'source é obrigatório.');
+  else
+    if coalesce(char_length(v_provider), 0) < 2 or coalesce(char_length(v_external_id), 0) < 1 then
+      v_errors := array_append(v_errors, 'source.provider e source.externalId são obrigatórios.');
+    end if;
+    if coalesce(v_source_url, '') !~ '^https://' then
+      v_errors := array_append(v_errors, 'source.url deve usar HTTPS.');
+    end if;
+    if nullif(v_source->>'collectedAt', '') is null then
+      v_errors := array_append(v_errors, 'source.collectedAt é obrigatório.');
+    else
+      begin
+        perform (v_source->>'collectedAt')::timestamptz;
+      exception when others then
+        v_errors := array_append(v_errors, 'source.collectedAt deve ser uma data ISO válida.');
+      end;
+    end if;
+  end if;
+
+  if jsonb_typeof(coalesce(v_data, 'null'::jsonb)) <> 'object' then
+    v_errors := array_append(v_errors, 'data é obrigatório.');
+    return v_errors;
+  end if;
+
+  if v_resource_id is null or v_resource_id !~ '^[a-z0-9][a-z0-9-]{2,119}$' then
+    v_errors := array_append(v_errors, 'data.id possui formato inválido.');
+  elsif v_kind = 'concurso' and char_length(v_resource_id) > 80 then
+    v_errors := array_append(v_errors, 'data.id de concurso deve ter no máximo 80 caracteres.');
+  end if;
+
+  if v_kind = 'concurso' then
+    if coalesce(char_length(trim(v_data->>'shortName')), 0) not between 2 and 40
+      or coalesce(char_length(trim(v_data->>'organ')), 0) not between 3 and 180
+      or coalesce(char_length(trim(v_data->>'title')), 0) not between 3 and 180
+      or coalesce(char_length(trim(v_data->>'board')), 0) not between 2 and 80 then
+      v_errors := array_append(v_errors, 'Concurso sem identificação válida.');
+    end if;
+    if coalesce(trim(v_data->>'iconColor'), '#6D28D9') !~ '^#[0-9A-Fa-f]{6}$' then
+      v_errors := array_append(v_errors, 'data.iconColor deve ser uma cor hexadecimal.');
+    end if;
+    if coalesce(trim(v_data->>'region'), '') not in ('Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul', 'Nacional')
+      or coalesce(char_length(trim(v_data->>'state')), 0) not between 2 and 30 then
+      v_errors := array_append(v_errors, 'Região ou estado do concurso é inválido.');
+    end if;
+    if coalesce(trim(v_data->>'status'), '') not in ('aberto', 'previsto', 'encerrado') then
+      v_errors := array_append(v_errors, 'Situação do edital é inválida.');
+    end if;
+    if coalesce(trim(v_data->>'editalUrl'), '') !~ '^https://' then
+      v_errors := array_append(v_errors, 'data.editalUrl deve usar HTTPS.');
+    end if;
+    if coalesce(v_data->>'vacancies', '') !~ '^\d+$'
+      or coalesce(v_data->>'salaryMin', '') !~ '^\d+(\.\d{1,2})?$'
+      or coalesce(v_data->>'salaryMax', '') !~ '^\d+(\.\d{1,2})?$' then
+      v_errors := array_append(v_errors, 'Vagas e faixas salariais devem ser números não negativos.');
+    elsif (v_data->>'salaryMax')::numeric < (v_data->>'salaryMin')::numeric then
+      v_errors := array_append(v_errors, 'data.salaryMax não pode ser menor que data.salaryMin.');
+    end if;
+    if nullif(v_data->>'fee', '') is not null
+      and (v_data->>'fee') !~ '^\d+(\.\d{1,2})?$' then
+      v_errors := array_append(v_errors, 'data.fee deve ser um número não negativo.');
+    end if;
+    if jsonb_typeof(coalesce(v_data->'highlights', '[]'::jsonb)) <> 'array' then
+      v_errors := array_append(v_errors, 'data.highlights deve ser uma lista.');
+    end if;
+    if (nullif(v_data->>'registrationStart', '') is not null and (v_data->>'registrationStart') !~ '^\d{4}-\d{2}-\d{2}$')
+      or (nullif(v_data->>'registrationEnd', '') is not null and (v_data->>'registrationEnd') !~ '^\d{4}-\d{2}-\d{2}$')
+      or (nullif(v_data->>'examDate', '') is not null and (v_data->>'examDate') !~ '^\d{4}-\d{2}-\d{2}$') then
+      v_errors := array_append(v_errors, 'Datas do concurso devem usar YYYY-MM-DD.');
+    end if;
+    if jsonb_typeof(coalesce(v_data->'levels', 'null'::jsonb)) <> 'array' then
+      v_errors := array_append(v_errors, 'Concurso deve possuir ao menos um nível de escolaridade.');
+    elsif jsonb_array_length(v_data->'levels') = 0 then
+      v_errors := array_append(v_errors, 'Concurso deve possuir ao menos um nível de escolaridade.');
+    elsif exists (
+      select 1 from jsonb_array_elements_text(v_data->'levels') as level_value
+      where level_value not in ('Fundamental', 'Médio', 'Superior')
+    ) then
+      v_errors := array_append(v_errors, 'Nível de escolaridade inválido.');
+    end if;
+    if jsonb_typeof(coalesce(v_data->'roles', 'null'::jsonb)) <> 'array' then
+      v_errors := array_append(v_errors, 'Concurso deve possuir ao menos um cargo.');
+    elsif jsonb_array_length(v_data->'roles') = 0 then
+      v_errors := array_append(v_errors, 'Concurso deve possuir ao menos um cargo.');
+    else
+      for v_role in select value from jsonb_array_elements(v_data->'roles') loop
+        if coalesce(char_length(trim(v_role->>'name')), 0) not between 3 and 180
+          or coalesce(trim(v_role->>'level'), '') not in ('Fundamental', 'Médio', 'Superior')
+          or coalesce(v_role->>'vacancies', '') !~ '^\d+$'
+          or coalesce(v_role->>'salary', '') !~ '^\d+(\.\d{1,2})?$' then
+          v_errors := array_append(v_errors, 'Cargo com nome, nível, vagas ou salário inválido.');
+          exit;
+        end if;
+      end loop;
+    end if;
+  elsif v_kind = 'question' then
+    if coalesce(char_length(trim(v_data->>'discipline')), 0) < 2
+      or coalesce(char_length(trim(v_data->>'topic')), 0) < 2
+      or coalesce(char_length(trim(v_data->>'statement')), 0) < 10
+      or coalesce(char_length(trim(v_data->>'explanation')), 0) < 10 then
+      v_errors := array_append(v_errors, 'Questão sem conteúdo mínimo.');
+    end if;
+    if jsonb_typeof(coalesce(v_data->'alternatives', 'null'::jsonb)) <> 'array' then
+      v_errors := array_append(v_errors, 'Questão deve possuir entre duas e cinco alternativas.');
+    elsif jsonb_array_length(v_data->'alternatives') not between 2 and 5 then
+      v_errors := array_append(v_errors, 'Questão deve possuir entre duas e cinco alternativas.');
+    end if;
+    if coalesce(trim(v_data->>'correct'), '') not in ('A', 'B', 'C', 'D', 'E') then
+      v_errors := array_append(v_errors, 'Gabarito inválido.');
+    end if;
+  end if;
+
+  return v_errors;
+end;
+$$;
+
+revoke all on function private.editorial_import_record_errors(jsonb) from public;
+
 create or replace function public.admin_create_import_batch(
   p_filename text,
   p_records jsonb
@@ -550,83 +705,13 @@ begin
     from jsonb_array_elements(p_records) with ordinality
   loop
     v_item_count := v_item_count + 1;
-    v_errors := '{}'::text[];
     v_kind := nullif(trim(v_record->>'kind'), '');
     v_resource_id := trim(v_record->'data'->>'id');
     v_provider := trim(v_record->'source'->>'provider');
     v_external_id := trim(v_record->'source'->>'externalId');
     v_source_url := trim(v_record->'source'->>'url');
     v_source_key := concat_ws(':', v_kind, v_provider, v_external_id);
-
-    if coalesce(v_record->>'schemaVersion', '') <> '1' then
-      v_errors := array_append(v_errors, 'schemaVersion deve ser 1.');
-    end if;
-
-    if coalesce(v_kind, '') not in ('concurso', 'question') then
-      v_errors := array_append(v_errors, 'kind deve ser concurso ou question.');
-    end if;
-
-    if jsonb_typeof(coalesce(v_record->'source', 'null'::jsonb)) <> 'object' then
-      v_errors := array_append(v_errors, 'source é obrigatório.');
-    end if;
-
-    if char_length(v_provider) < 2 or char_length(v_external_id) < 1 then
-      v_errors := array_append(v_errors, 'source.provider e source.externalId são obrigatórios.');
-    end if;
-
-    if v_source_url !~ '^https://' then
-      v_errors := array_append(v_errors, 'source.url deve usar HTTPS.');
-    end if;
-
-    if nullif(v_record->'source'->>'collectedAt', '') is null then
-      v_errors := array_append(v_errors, 'source.collectedAt é obrigatório.');
-    else
-      begin
-        perform (v_record->'source'->>'collectedAt')::timestamptz;
-      exception when others then
-        v_errors := array_append(v_errors, 'source.collectedAt deve ser uma data ISO válida.');
-      end;
-    end if;
-
-    if jsonb_typeof(coalesce(v_record->'data', 'null'::jsonb)) <> 'object' then
-      v_errors := array_append(v_errors, 'data é obrigatório.');
-    end if;
-
-    if v_resource_id is null or v_resource_id !~ '^[a-z0-9][a-z0-9-]{2,119}$' then
-      v_errors := array_append(v_errors, 'data.id possui formato inválido.');
-    end if;
-
-    if v_kind = 'concurso' then
-      if char_length(trim(v_record->'data'->>'shortName')) < 2
-        or char_length(trim(v_record->'data'->>'organ')) < 3
-        or char_length(trim(v_record->'data'->>'title')) < 3
-        or char_length(trim(v_record->'data'->>'board')) < 2 then
-        v_errors := array_append(v_errors, 'Concurso sem identificação mínima.');
-      end if;
-      if trim(v_record->'data'->>'editalUrl') !~ '^https://' then
-        v_errors := array_append(v_errors, 'data.editalUrl deve usar HTTPS.');
-      end if;
-      if jsonb_typeof(coalesce(v_record->'data'->'roles', 'null'::jsonb)) <> 'array' then
-        v_errors := array_append(v_errors, 'Concurso deve possuir ao menos um cargo.');
-      elsif jsonb_array_length(v_record->'data'->'roles') = 0 then
-        v_errors := array_append(v_errors, 'Concurso deve possuir ao menos um cargo.');
-      end if;
-    elsif v_kind = 'question' then
-      if char_length(trim(v_record->'data'->>'discipline')) < 2
-        or char_length(trim(v_record->'data'->>'topic')) < 2
-        or char_length(trim(v_record->'data'->>'statement')) < 10
-        or char_length(trim(v_record->'data'->>'explanation')) < 10 then
-        v_errors := array_append(v_errors, 'Questão sem conteúdo mínimo.');
-      end if;
-      if jsonb_typeof(coalesce(v_record->'data'->'alternatives', 'null'::jsonb)) <> 'array' then
-        v_errors := array_append(v_errors, 'Questão deve possuir entre duas e cinco alternativas.');
-      elsif jsonb_array_length(v_record->'data'->'alternatives') not between 2 and 5 then
-        v_errors := array_append(v_errors, 'Questão deve possuir entre duas e cinco alternativas.');
-      end if;
-      if trim(v_record->'data'->>'correct') not in ('A', 'B', 'C', 'D', 'E') then
-        v_errors := array_append(v_errors, 'Gabarito inválido.');
-      end if;
-    end if;
+    v_errors := private.editorial_import_record_errors(v_record);
 
     if exists (
       select 1 from private.editorial_import_items
@@ -825,6 +910,139 @@ begin
 end;
 $$;
 
+create or replace function public.admin_update_import_item(
+  p_item_id uuid,
+  p_record jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_batch_id uuid;
+  v_batch_status text;
+  v_kind text;
+  v_resource_id text;
+  v_provider text;
+  v_external_id text;
+  v_source_url text;
+  v_source_key text;
+  v_errors text[];
+  v_status text;
+  v_decision text;
+  v_duplicate boolean;
+begin
+  if not private.has_admin_permission('content.write') then
+    raise exception 'Admin permission required' using errcode = '42501';
+  end if;
+
+  select item.batch_id, batch.status
+  into v_batch_id, v_batch_status
+  from private.editorial_import_items as item
+  join private.editorial_import_batches as batch on batch.id = item.batch_id
+  where item.id = p_item_id
+  for update of item, batch;
+
+  if v_batch_id is null then
+    raise exception 'Import item not found' using errcode = 'P0002';
+  end if;
+
+  if v_batch_status <> 'staging' then
+    raise exception 'Import item can no longer be changed' using errcode = '55000';
+  end if;
+
+  v_kind := nullif(trim(p_record->>'kind'), '');
+  v_resource_id := trim(p_record->'data'->>'id');
+  v_provider := trim(p_record->'source'->>'provider');
+  v_external_id := trim(p_record->'source'->>'externalId');
+  v_source_url := trim(p_record->'source'->>'url');
+  v_source_key := concat_ws(':', v_kind, v_provider, v_external_id);
+  v_errors := private.editorial_import_record_errors(p_record);
+
+  if exists (
+    select 1
+    from private.editorial_import_items
+    where batch_id = v_batch_id
+      and id <> p_item_id
+      and source_key = v_source_key
+  ) then
+    v_errors := array_append(v_errors, 'Registro duplicado dentro do mesmo lote.');
+  end if;
+
+  v_duplicate := case v_kind
+    when 'concurso' then exists (
+      select 1 from public.concursos
+      where id = v_resource_id
+        or (source_provider = v_provider and source_external_id = v_external_id)
+    )
+    when 'question' then exists (
+      select 1 from public.questions
+      where id = v_resource_id
+        or (source_provider = v_provider and source_external_id = v_external_id)
+    )
+    else false
+  end;
+
+  if cardinality(v_errors) > 0 then
+    v_status := 'invalid';
+    v_decision := 'skip';
+  elsif v_duplicate then
+    v_status := 'duplicate';
+    v_decision := 'skip';
+  else
+    v_status := 'ready';
+    v_decision := 'import';
+  end if;
+
+  update private.editorial_import_items
+  set kind = v_kind,
+      resource_id = v_resource_id,
+      source_key = v_source_key,
+      source_url = v_source_url,
+      payload = p_record,
+      status = v_status,
+      decision = v_decision,
+      errors = to_jsonb(v_errors)
+  where id = p_item_id;
+
+  update private.editorial_import_batches as batch
+  set ready_count = counts.ready_count,
+      duplicate_count = counts.duplicate_count,
+      invalid_count = counts.invalid_count
+  from (
+    select
+      count(*) filter (where status = 'ready')::integer as ready_count,
+      count(*) filter (where status = 'duplicate')::integer as duplicate_count,
+      count(*) filter (where status = 'invalid')::integer as invalid_count
+    from private.editorial_import_items
+    where batch_id = v_batch_id
+  ) as counts
+  where batch.id = v_batch_id;
+
+  insert into private.admin_audit_logs (
+    actor_id, action, resource_type, resource_id, metadata
+  ) values (
+    auth.uid(),
+    'import.item_updated',
+    'editorial_import_item',
+    p_item_id::text,
+    jsonb_build_object(
+      'batch_id', v_batch_id,
+      'kind', v_kind,
+      'resource_id', v_resource_id,
+      'status', v_status
+    )
+  );
+
+  return jsonb_build_object(
+    'status', v_status,
+    'decision', v_decision,
+    'errors', to_jsonb(v_errors)
+  );
+end;
+$$;
+
 create or replace function public.admin_save_question(p_question jsonb)
 returns jsonb
 language plpgsql
@@ -971,6 +1189,7 @@ revoke all on function public.admin_create_import_batch(text, jsonb) from public
 revoke all on function public.admin_list_import_batches() from public, anon;
 revoke all on function public.admin_get_import_batch(uuid) from public, anon;
 revoke all on function public.admin_set_import_item_decision(uuid, text) from public, anon;
+revoke all on function public.admin_update_import_item(uuid, jsonb) from public, anon;
 revoke all on function public.admin_apply_import_batch(uuid) from public, anon;
 revoke all on function public.admin_rollback_import_batch(uuid) from public, anon;
 
@@ -980,6 +1199,7 @@ grant execute on function public.admin_create_import_batch(text, jsonb) to authe
 grant execute on function public.admin_list_import_batches() to authenticated;
 grant execute on function public.admin_get_import_batch(uuid) to authenticated;
 grant execute on function public.admin_set_import_item_decision(uuid, text) to authenticated;
+grant execute on function public.admin_update_import_item(uuid, jsonb) to authenticated;
 grant execute on function public.admin_apply_import_batch(uuid) to authenticated;
 grant execute on function public.admin_rollback_import_batch(uuid) to authenticated;
 

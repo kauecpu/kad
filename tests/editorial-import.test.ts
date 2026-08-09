@@ -1,7 +1,18 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { URL as NodeURL } from 'node:url';
 
 import { parseEditorialImport } from '../admin/src/lib/editorial-import.ts';
+
+const importsPage = readFileSync(
+  new NodeURL('../admin/src/pages/imports-page.tsx', import.meta.url),
+  'utf8',
+);
+const importsApi = readFileSync(
+  new NodeURL('../admin/src/lib/imports-api.ts', import.meta.url),
+  'utf8',
+);
 
 const validQuestion = {
   schemaVersion: 1,
@@ -40,4 +51,10 @@ test('parser informa a linha inválida sem aceitar lote parcial', () => {
   const result = parseEditorialImport(`${JSON.stringify(validQuestion)}\n{invalido}`);
   assert.equal(result.records.length, 0);
   assert.deepEqual(result.issues, [{ line: 2, message: 'Linha JSON inválida.' }]);
+});
+
+test('painel permite revisar, corrigir e revalidar registros no staging', () => {
+  assert.match(importsPage, /Registro JSON — revise ou corrija antes de importar/);
+  assert.match(importsPage, /Salvar e revalidar/);
+  assert.match(importsApi, /admin_update_import_item/);
 });

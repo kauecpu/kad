@@ -178,6 +178,7 @@ test('lotes editoriais ficam privados e são acessados somente por RPC protegida
   assert.match(editorialImportMigration, /alter table private\.editorial_import_batches enable row level security/);
   assert.match(editorialImportMigration, /revoke all on table private\.editorial_import_items from public, anon, authenticated/);
   assert.match(editorialImportMigration, /function public\.admin_create_import_batch/);
+  assert.match(editorialImportMigration, /function public\.admin_update_import_item/);
   assert.match(editorialImportMigration, /private\.has_admin_permission\('content\.write'\)/);
 });
 
@@ -193,6 +194,7 @@ test('pipeline detecta duplicatas, audita e protege rollback de conteúdo public
   assert.match(editorialImportMigration, /questions_source_identity_idx/);
   assert.match(editorialImportMigration, /concursos_source_identity_idx/);
   assert.match(editorialImportMigration, /'import\.applied'/);
+  assert.match(editorialImportMigration, /'import\.item_updated'/);
   assert.match(editorialImportMigration, /'import\.rolled_back'/);
   assert.match(editorialImportMigration, /v_current_status = 'published'/);
   assert.match(editorialImportMigration, /v_current_batch is distinct from p_batch_id/);

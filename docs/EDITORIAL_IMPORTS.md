@@ -5,12 +5,13 @@ O coletor vive no repositório separado `kad-collector`. Este repositório receb
 ## Fluxo
 
 1. O coletor exporta JSONL/NDJSON (um objeto JSON por linha) ou uma lista JSON.
-2. O administrador abre **Importações**, seleciona o arquivo e corrige erros de contrato.
+2. O administrador abre **Importações** e seleciona o arquivo para validar os envelopes localmente.
 3. O Supabase revalida até 500 registros, detecta duplicatas por `kind + source.provider + source.externalId` e cria um lote privado.
-4. O administrador escolhe importar, atualizar o registro existente ou ignorar cada duplicata.
-5. Ao aplicar o lote, concursos e questões entram como `draft`, mesmo que o arquivo tente informar outro estado.
-6. A publicação acontece somente nas telas **Concursos** e **Banco de questões**, por usuário com `content.publish`.
-7. Um lote aplicado pode ser desfeito. Conteúdo já publicado ou alterado depois da importação é protegido contra reversão automática.
+4. No staging, o administrador inspeciona fonte e conteúdo, corrige o JSON de registros inválidos e solicita nova validação.
+5. O administrador escolhe importar, atualizar o registro existente ou ignorar cada duplicata.
+6. Ao aplicar o lote, concursos e questões entram como `draft`, mesmo que o arquivo tente informar outro estado.
+7. A publicação acontece somente nas telas **Concursos** e **Banco de questões**, por usuário com `content.publish`.
+8. Um lote aplicado pode ser desfeito. Conteúdo já publicado ou alterado depois da importação é protegido contra reversão automática.
 
 ## Envelope versão 1
 

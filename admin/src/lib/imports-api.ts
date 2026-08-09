@@ -35,6 +35,14 @@ export async function setImportDecision(itemId: string, decision: ImportDecision
   if (error) throw error;
 }
 
+export async function updateImportItem(itemId: string, record: EditorialImportRecord): Promise<void> {
+  const { error } = await requireSupabase().rpc('admin_update_import_item', {
+    p_item_id: itemId,
+    p_record: record,
+  });
+  if (error) throw error;
+}
+
 export async function applyImportBatch(id: string): Promise<{ imported: number; skipped: number; failed: number }> {
   const { data, error } = await requireSupabase().rpc('admin_apply_import_batch', { p_batch_id: id });
   if (error) throw error;

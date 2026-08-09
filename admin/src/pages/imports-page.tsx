@@ -1,6 +1,8 @@
 import {
   CheckCircle2,
   CircleAlert,
+  ExternalLink,
+  FilePenLine,
   FileJson2,
   History,
   LoaderCircle,
@@ -19,8 +21,15 @@ import {
   loadImportBatches,
   rollbackImportBatch,
   setImportDecision,
+  updateImportItem,
 } from '../lib/imports-api';
-import type { AdminImportBatch, AdminImportBatchDetail, ImportDecision } from '../types';
+import type {
+  AdminImportBatch,
+  AdminImportBatchDetail,
+  AdminImportItem,
+  EditorialImportRecord,
+  ImportDecision,
+} from '../types';
 
 const STATUS_LABEL: Record<string, string> = {
   staging: 'Aguardando revisão', imported: 'Importado', import_partial: 'Importação parcial',
@@ -38,6 +47,9 @@ export function ImportsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<AdminImportItem | null>(null);
+  const [editorText, setEditorText] = useState('');
+  const [editorError, setEditorError] = useState<string | null>(null);
   const canWrite = !isPreview && Boolean(access?.permissions.includes('content.write'));
 
   const refresh = async (selectedId?: string) => {
@@ -81,6 +93,42 @@ export function ImportsPage() {
     finally { setBusy(false); }
   };
 
+  const openItem = (item: AdminImportItem) => {
+    setEditingItem(item);
+    setEditorText(JSON.stringify(item.payload, null, 2));
+    setEditorError(null);
+  };
+
+  const saveItem = async () => {
+    if (!editingItem || !detail || detail.status !== 'staging' || !canWrite) return;
+    setEditorError(null);
+    let record: unknown;
+    try {
+      record = JSON.parse(editorText);
+    } catch {
+      setEditorError('O conteúdo precisa ser um objeto JSON válido.');
+      return;
+    }
+
+    const parsed = parseEditorialImport(JSON.stringify(record));
+    if (parsed.issues.length || parsed.records.length !== 1) {
+      setEditorError(parsed.issues[0]?.message ?? 'O registro não segue o envelope editorial.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await updateImportItem(editingItem.id, parsed.records[0] as EditorialImportRecord);
+      await refresh(detail.id);
+      setEditingItem(null);
+      setNotice('Registro atualizado e revalidado no staging.');
+    } catch {
+      setEditorError('Não foi possível atualizar o registro. Confira o contrato e tente novamente.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const apply = async () => {
     if (!detail || !window.confirm('Importar os itens selecionados como rascunhos?')) return;
     setBusy(true); setError(null);
@@ -118,10 +166,10 @@ export function ImportsPage() {
           <div className="import-card-heading"><span><Upload size={20}/></span><div><h2>Novo lote</h2><p>Arquivos JSONL, NDJSON ou JSON com até 500 registros.</p></div></div>
           <label className="file-drop">
             <FileJson2 size={28}/><strong>{file?.name ?? 'Selecionar arquivo do coletor'}</strong><span>O conteúdo é apenas pré-validado até você enviar.</span>
-            <input type="file" accept=".json,.jsonl,.ndjson,application/json" onChange={(event) => void chooseFile(event.target.files?.[0] ?? null)} disabled={!canWrite || busy}/>
+            <input type="file" accept=".json,.jsonl,.ndjson,application/json" onChange={(event) => void chooseFile(event.target.files?.[0] ?? null)} disabled={busy || (!isPreview && !canWrite)}/>
           </label>
           {preview ? <div className={`import-preview ${preview.issues.length ? 'import-preview--error' : ''}`}>
-            <strong>{preview.issues.length ? `${preview.issues.length} problema(s)` : `${preview.records.length} registro(s) válido(s)`}</strong>
+            <strong>{preview.issues.length ? `${preview.issues.length} problema(s)` : `${preview.records.length} envelope(s) válido(s)`}</strong>
             {preview.issues.slice(0, 5).map((issue) => <span key={`${issue.line}-${issue.message}`}>Linha {issue.line}: {issue.message}</span>)}
           </div> : null}
           <button className="primary-button" type="button" onClick={() => void sendBatch()} disabled={!preview?.records.length || busy || !canWrite}>{busy ? <LoaderCircle className="spin" size={17}/> : <Upload size={17}/>} Enviar para revisão</button>
@@ -140,8 +188,60 @@ export function ImportsPage() {
           {detail.status === 'staging' ? <button className="primary-button" onClick={() => void apply()} disabled={!canWrite || busy || readyToImport === 0}><CheckCircle2 size={17}/> Importar {readyToImport} como rascunho(s)</button> : null}
           {detail.status === 'imported' || detail.status === 'import_partial' ? <button className="secondary-button" onClick={() => void rollback()} disabled={!canWrite || busy}><RotateCcw size={17}/> Desfazer lote</button> : null}
         </div></div>
-        <div className="editorial-table-shell"><table className="editorial-table"><thead><tr><th>#</th><th>Tipo e registro</th><th>Validação</th><th>Decisão</th></tr></thead><tbody>{detail.items.map((item) => <tr key={item.id}><td>{item.position}</td><td><div className="import-item-cell"><strong>{item.kind === 'question' ? 'Questão' : 'Concurso'} · {item.resourceId || 'sem ID'}</strong><span>{item.sourceKey}</span></div></td><td><span className={`import-status import-status--${item.status}`}>{STATUS_LABEL[item.status] ?? item.status}</span>{item.errors.map((message) => <small className="item-error" key={message}>{message}</small>)}</td><td>{detail.status === 'staging' && (item.status === 'ready' || item.status === 'duplicate') ? <select value={item.decision} onChange={(event) => void changeDecision(item.id, event.target.value as ImportDecision)} disabled={busy || !canWrite}>{item.status === 'ready' ? <option value="import">Importar</option> : <option value="upsert">Atualizar existente</option>}<option value="skip">Ignorar</option></select> : <span>{item.decision === 'skip' ? 'Ignorado' : 'Processado'}</span>}</td></tr>)}</tbody></table></div>
+        <div className="editorial-table-shell"><table className="editorial-table"><thead><tr><th>#</th><th>Tipo e registro</th><th>Validação</th><th>Decisão</th><th>Conteúdo</th></tr></thead><tbody>{detail.items.map((item) => <tr key={item.id}><td>{item.position}</td><td><div className="import-item-cell"><strong>{item.kind === 'question' ? 'Questão' : item.kind === 'concurso' ? 'Concurso' : 'Registro inválido'} · {item.resourceId || 'sem ID'}</strong><span>{item.sourceKey}</span><ImportItemSummary item={item}/></div></td><td><span className={`import-status import-status--${item.status}`}>{STATUS_LABEL[item.status] ?? item.status}</span>{item.errors.map((message) => <small className="item-error" key={message}>{message}</small>)}</td><td>{detail.status === 'staging' && (item.status === 'ready' || item.status === 'duplicate') ? <select value={item.decision} onChange={(event) => void changeDecision(item.id, event.target.value as ImportDecision)} disabled={busy || !canWrite}>{item.status === 'ready' ? <option value="import">Importar</option> : <option value="upsert">Atualizar existente</option>}<option value="skip">Ignorar</option></select> : <span>{item.decision === 'skip' ? 'Ignorado' : 'Processado'}</span>}</td><td><button type="button" className="table-text-button" onClick={() => openItem(item)}><FilePenLine size={15}/>{detail.status === 'staging' && canWrite ? 'Revisar' : 'Ver'}</button></td></tr>)}</tbody></table></div>
       </section> : null}
+      {editingItem ? <ImportItemEditor item={editingItem} text={editorText} error={editorError} editable={detail?.status === 'staging' && canWrite} busy={busy} onTextChange={setEditorText} onClose={() => setEditingItem(null)} onSave={saveItem}/> : null}
     </div>
   );
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function ImportItemSummary({ item }: { item: AdminImportItem }) {
+  const payload = isObject(item.payload) ? item.payload : {};
+  const data = isObject(payload.data) ? payload.data : {};
+  if (item.kind === 'concurso') {
+    const title = typeof data.title === 'string' ? data.title : 'Concurso sem título';
+    const organ = typeof data.organ === 'string' ? data.organ : 'Órgão não informado';
+    return <small>{organ} · {title}</small>;
+  }
+  if (item.kind === 'question') {
+    return <small>{typeof data.discipline === 'string' ? data.discipline : 'Disciplina não informada'}</small>;
+  }
+  return null;
+}
+
+function ImportItemEditor({
+  item,
+  text,
+  error,
+  editable,
+  busy,
+  onTextChange,
+  onClose,
+  onSave,
+}: {
+  item: AdminImportItem;
+  text: string;
+  error: string | null;
+  editable: boolean;
+  busy: boolean;
+  onTextChange: (value: string) => void;
+  onClose: () => void;
+  onSave: () => Promise<void>;
+}) {
+  const payload = isObject(item.payload) ? item.payload : {};
+  const source = isObject(payload.source) ? payload.source : {};
+  const data = isObject(payload.data) ? payload.data : {};
+  const roles = Array.isArray(data.roles) ? data.roles.filter(isObject) : [];
+  const sourceUrl = typeof source.url === 'string' && source.url.startsWith('https://') ? source.url : undefined;
+
+  return <div className="editor-backdrop"><aside className="concurso-editor import-item-editor" role="dialog" aria-modal="true" aria-labelledby="import-item-title"><form onSubmit={(event) => { event.preventDefault(); void onSave(); }}><header className="editor-header"><div><span className="page-eyebrow">STAGING DO COLETOR</span><h2 id="import-item-title">{item.kind === 'concurso' ? String(data.title || item.resourceId || 'Concurso') : String(item.resourceId || 'Registro importado')}</h2></div><button type="button" className="editor-close" onClick={onClose} aria-label="Fechar editor"><X size={20}/></button></header><div className="editor-body">
+    {error ? <div className="form-error"><CircleAlert size={17}/>{error}</div> : null}
+    <section className="import-record-overview"><div><span>Órgão</span><strong>{String(data.organ || 'Não informado')}</strong></div><div><span>Banca</span><strong>{String(data.board || 'Não informada')}</strong></div><div><span>Cargos</span><strong>{roles.length}</strong></div><div><span>Origem</span><strong>{String(source.provider || 'Não informada')}</strong></div></section>
+    {sourceUrl ? <a className="source-link" href={sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={14}/> Abrir fonte coletada</a> : null}
+    <label className="form-field"><span>{editable ? 'Registro JSON — revise ou corrija antes de importar' : 'Registro JSON processado'}</span><textarea className="import-json-editor" rows={24} value={text} onChange={(event) => onTextChange(event.target.value)} readOnly={!editable} spellCheck={false}/></label>
+  </div><footer className="editor-footer"><button className="secondary-button" type="button" onClick={onClose}>Fechar</button>{editable ? <button className="primary-button" disabled={busy}>{busy ? <LoaderCircle className="spin" size={17}/> : null}Salvar e revalidar</button> : null}</footer></form></aside></div>;
 }

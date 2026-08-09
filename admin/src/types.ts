@@ -103,6 +103,7 @@ export type EditorialImportRecord = {
     externalId: string;
     url: string;
     collectedAt: string;
+    fingerprint?: string;
   };
   data: Record<string, unknown> & { id: string };
 };
@@ -126,6 +127,7 @@ export type AdminImportItem = {
   kind?: EditorialImportKind;
   resourceId?: string;
   sourceKey?: string;
+  sourceUrl?: string;
   status: ImportItemStatus;
   decision: ImportDecision;
   errors: string[];
