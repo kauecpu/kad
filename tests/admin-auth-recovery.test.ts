@@ -26,6 +26,8 @@ test('a nova senha exige sessão de recuperação e encerra a sessão após a tr
   assert.match(adminSupabase, /detectSessionInUrl: true/);
   assert.match(adminNewPassword, /!supabase \|\| !session/);
   assert.match(adminNewPassword, /supabase\.auth\.updateUser\(\{ password \}\)/);
+  assert.match(adminNewPassword, /password\.length < 12/);
+  assert.match(adminNewPassword, /updateError\.code === 'weak_password'/);
   assert.match(adminNewPassword, /await signOut\(\)/);
   assert.match(adminAuthContext, /auth\.signOut\(\{ scope: 'local' \}\)/);
 });

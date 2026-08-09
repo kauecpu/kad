@@ -19,8 +19,8 @@ export function NewPasswordPage() {
     event.preventDefault();
     setError(null);
 
-    if (password.length < 8) {
-      setError('Use pelo menos 8 caracteres na nova senha.');
+    if (password.length < 12) {
+      setError('Use pelo menos 12 caracteres na nova senha.');
       return;
     }
 
@@ -38,7 +38,11 @@ export function NewPasswordPage() {
     const { error: updateError } = await supabase.auth.updateUser({ password });
     if (updateError) {
       setSubmitting(false);
-      setError('Não foi possível atualizar a senha. Solicite um novo link e tente novamente.');
+      setError(
+        updateError.code === 'weak_password'
+          ? 'A senha não atende aos requisitos de segurança. Use pelo menos 12 caracteres.'
+          : 'Não foi possível atualizar a senha. Solicite um novo link e tente novamente.',
+      );
       return;
     }
 
@@ -78,9 +82,9 @@ export function NewPasswordPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Pelo menos 8 caracteres"
+                placeholder="Pelo menos 12 caracteres"
                 autoComplete="new-password"
-                minLength={8}
+                minLength={12}
                 required
               />
               <button
@@ -91,6 +95,7 @@ export function NewPasswordPage() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <small>Use 12 ou mais caracteres.</small>
           </label>
 
           <label className="form-field">
@@ -103,7 +108,7 @@ export function NewPasswordPage() {
                 onChange={(event) => setConfirmation(event.target.value)}
                 placeholder="Digite a senha novamente"
                 autoComplete="new-password"
-                minLength={8}
+                minLength={12}
                 required
               />
             </div>
