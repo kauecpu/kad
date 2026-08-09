@@ -187,7 +187,8 @@ export function DashboardPage() {
             <ReadinessItem title="Papéis e permissões" description="Owner, admin, editor, moderação e suporte" ready />
             <ReadinessItem title="Métricas protegidas" description="RPC acessível somente a administradores" ready />
             <ReadinessItem title="CRUD de concursos" description="Criação, revisão, publicação e auditoria" ready />
-            <ReadinessItem title="Banco de questões" description="Próximo módulo editorial" />
+            <ReadinessItem title="Importações do coletor" description="Staging, correção, duplicatas e rollback" ready />
+            <ReadinessItem title="Banco de questões" description="Revisão editorial e publicação" ready />
           </div>
         </article>
       </section>
@@ -195,14 +196,14 @@ export function DashboardPage() {
       <section className="next-step-card">
         <div className="next-step-card__icon"><Sparkles size={22} /></div>
         <div>
-          <span className="panel-card__eyebrow">PRÓXIMO MARCO</span>
-          <h2>Levar o banco de questões para o fluxo editorial</h2>
+          <span className="panel-card__eyebrow">FLUXO DO COLETOR</span>
+          <h2>Revisar os concursos recebidos antes da publicação</h2>
           <p>
-            Concursos já possuem cadastro, revisão e publicação. O próximo passo é aplicar o mesmo
-            padrão ao acervo de questões, incluindo alternativas, gabarito e explicação.
+            Arquivos do KAD Collector entram em staging privado. Revise a fonte, corrija registros,
+            trate duplicatas e importe os concursos como rascunhos antes de publicá-los.
           </p>
         </div>
-        <Link to="/questoes" className="secondary-button">Ver próximo módulo</Link>
+        <Link to="/importacoes" className="secondary-button">Abrir importações</Link>
       </section>
     </div>
   );
