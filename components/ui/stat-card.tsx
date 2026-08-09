@@ -1,7 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 import { toneColors, type Tone } from './tone';
@@ -16,13 +16,13 @@ type StatCardProps = {
 
 export function StatCard({ label, value, icon, tone = 'primary', hint }: StatCardProps) {
   const { colors } = useTheme();
-  const { foreground } = toneColors(colors, tone);
+  const { background, foreground } = toneColors(colors, tone);
 
   return (
     <View
       style={[
         styles.container,
-        { borderTopColor: foreground },
+        { backgroundColor: background },
       ]}>
       <View style={styles.labelRow}>
         <Ionicons name={icon} size={16} color={foreground} />
@@ -42,10 +42,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     minWidth: 100,
-    paddingVertical: Spacing.sm + 2,
-    paddingHorizontal: 2,
-    borderTopWidth: 2,
-    gap: 4,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    gap: 6,
   },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   value: {

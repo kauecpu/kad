@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
@@ -20,12 +20,15 @@ export function TextField({
   icon,
   style,
   secureTextEntry,
+  onFocus,
+  onBlur,
   showPasswordToggle = false,
   ...inputProps
 }: TextFieldProps) {
   const { colors } = useTheme();
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const borderColor = error ? colors.danger : colors.border;
+  const [focused, setFocused] = useState(false);
+  const borderColor = error ? colors.danger : focused ? colors.primary : 'transparent';
   const hasPasswordToggle = showPasswordToggle && secureTextEntry;
 
   return (
@@ -44,13 +47,21 @@ export function TextField({
         <TextInput
           {...inputProps}
           secureTextEntry={secureTextEntry && !passwordVisible}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
           accessibilityLabel={label}
           placeholderTextColor={colors.textSubtle}
           style={[
             styles.input,
             icon && styles.inputWithIcon,
             hasPasswordToggle && styles.inputWithAction,
-            { color: colors.text, backgroundColor: colors.surface, borderColor },
+            { color: colors.text, backgroundColor: colors.surfaceAlt, borderColor },
             style,
           ]}
         />
@@ -92,7 +103,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: FontSize.body,
-    minHeight: 48,
+    minHeight: 52,
   },
   inputWithAction: {
     paddingRight: 52,
@@ -103,7 +114,7 @@ const styles = StyleSheet.create({
   leadingIcon: {
     position: 'absolute',
     left: Spacing.md,
-    top: 15,
+    top: 16,
     zIndex: 1,
   },
   passwordAction: {

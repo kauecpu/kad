@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
@@ -25,8 +25,8 @@ export function EmptyState({
 
   return (
     <View style={styles.container}>
-      <View style={[styles.iconWrapper, { backgroundColor: colors.surfaceAlt }]}>
-        <Ionicons name={icon} size={26} color={colors.textSubtle} />
+      <View style={[styles.iconWrapper, { backgroundColor: colors.primarySoft }]}>
+        <Ionicons name={icon} size={26} color={colors.primary} />
       </View>
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       {description ? (
@@ -47,12 +47,12 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   iconWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: Radius.pill,
+    width: 68,
+    height: 68,
+    borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   title: {
     fontSize: FontSize.heading,

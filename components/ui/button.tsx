@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
@@ -58,7 +58,10 @@ export function Button({
           borderColor: border,
         },
         fullWidth && styles.fullWidth,
-        (pressed || disabled) && { opacity: disabled ? 0.45 : 0.8 },
+        (pressed || disabled) && {
+          opacity: disabled ? 0.45 : 0.9,
+          transform: [{ scale: disabled ? 1 : 0.985 }],
+        },
         style,
       ]}>
       {icon ? <Ionicons name={icon} size={size === 'lg' ? 20 : 17} color={foreground} /> : null}
@@ -83,11 +86,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   md: {
-    paddingVertical: Spacing.sm + 3,
+    minHeight: 46,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
   },
   lg: {
-    paddingVertical: Spacing.md + 2,
+    minHeight: 52,
+    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
   },
   fullWidth: {

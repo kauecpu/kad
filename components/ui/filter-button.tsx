@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, FontWeight, Radius } from '@/constants/theme';
@@ -24,8 +24,8 @@ export function FilterButton({ onPress, activeCount = 0 }: FilterButtonProps) {
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: active ? colors.primary : colors.surface,
-          borderColor: active ? colors.primary : colors.border,
+          backgroundColor: active ? colors.primary : colors.surfaceAlt,
+          borderColor: 'transparent',
         },
         pressed && styles.pressed,
       ]}>
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: Radius.md,
-    borderWidth: 1,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

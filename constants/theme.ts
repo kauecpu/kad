@@ -8,74 +8,76 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 const light = {
-  background: '#F7F4EE',
-  surface: '#FCFBF8',
-  surfaceAlt: '#F0ECE4',
-  surfaceSunken: '#EAE4DA',
+  background: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceAlt: '#F4F6FA',
+  surfaceSunken: '#E9EDF3',
 
-  text: '#1D1916',
-  textMuted: '#554E47',
-  textSubtle: '#7B736B',
+  text: '#0D1826',
+  textMuted: '#425466',
+  textSubtle: '#6B7787',
 
-  border: '#DED7CC',
-  borderStrong: '#CDBEDF',
+  border: '#E7EBF0',
+  borderStrong: '#D5DCE6',
 
   primary: '#6D28D9',
-  primarySoft: '#F1EBFA',
+  primarySoft: '#F3EEFF',
   primaryStrong: '#4C1D95',
   onPrimary: '#FFFFFF',
 
-  success: '#1E874B',
-  successSoft: '#E3F4EA',
+  success: '#167447',
+  successSoft: '#E9F7EF',
 
-  danger: '#C0392B',
-  dangerSoft: '#FBE6E3',
+  danger: '#B42318',
+  dangerSoft: '#FDECEA',
 
-  warning: '#B7791F',
-  warningSoft: '#FBF0DA',
+  warning: '#9A6700',
+  warningSoft: '#FFF6D8',
 
   accent: '#6D28D9',
-  accentSoft: '#F3E8FF',
+  accentSoft: '#F3EEFF',
 
-  tabInactive: '#52525B',
-  overlay: 'rgba(0, 0, 0, 0.45)',
-  shadow: '#000000',
+  tabActive: '#7657F6',
+  tabInactive: '#7B8794',
+  overlay: 'rgba(13, 24, 38, 0.48)',
+  shadow: '#0B1420',
 };
 
 export type ThemeColors = typeof light;
 
 const dark: ThemeColors = {
-  background: '#100D0C',
-  surface: '#191513',
-  surfaceAlt: '#27211E',
-  surfaceSunken: '#0C0A09',
+  background: '#0B1118',
+  surface: '#121A23',
+  surfaceAlt: '#1A2430',
+  surfaceSunken: '#070C12',
 
-  text: '#FFFFFF',
-  textMuted: '#C3B8AE',
-  textSubtle: '#91857B',
+  text: '#F4F7FA',
+  textMuted: '#B4C0CC',
+  textSubtle: '#82909F',
 
-  border: '#352E29',
-  borderStrong: '#594868',
+  border: '#263241',
+  borderStrong: '#3C4B5D',
 
-  primary: '#8B5CF6',
-  primarySoft: '#2A1E42',
-  primaryStrong: '#6D28D9',
-  onPrimary: '#FFFFFF',
+  primary: '#A78BFA',
+  primarySoft: '#251F3D',
+  primaryStrong: '#8B5CF6',
+  onPrimary: '#0B1118',
 
-  success: '#3DDC84',
-  successSoft: '#12301F',
+  success: '#5DD39E',
+  successSoft: '#112C24',
 
-  danger: '#FF6B6B',
-  dangerSoft: '#331B1B',
+  danger: '#FF8B8B',
+  dangerSoft: '#321C22',
 
-  warning: '#F0B429',
-  warningSoft: '#302410',
+  warning: '#F5C451',
+  warningSoft: '#302711',
 
-  accent: '#8B5CF6',
-  accentSoft: '#2A1E42',
+  accent: '#A78BFA',
+  accentSoft: '#251F3D',
 
-  tabInactive: '#9C98AE',
-  overlay: 'rgba(0, 0, 0, 0.65)',
+  tabActive: '#A78BFA',
+  tabInactive: '#8D9AA8',
+  overlay: 'rgba(2, 6, 12, 0.72)',
   shadow: '#000000',
 };
 
@@ -86,27 +88,27 @@ export const Spacing = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 20,
-  xxl: 28,
-  xxxl: 40,
+  xl: 24,
+  xxl: 32,
+  xxxl: 48,
 } as const;
 
 /** Limite visual para manter leitura confortável em tablets, desktop e telas dobráveis. */
 export const CONTENT_MAX_WIDTH = 840;
 
 export const Radius = {
-  sm: 4,
-  md: 7,
-  lg: 9,
-  xl: 12,
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 24,
   pill: 999,
 } as const;
 
 export const FontSize = {
-  display: 26,
-  title: 21,
-  heading: 16,
-  body: 14,
+  display: 30,
+  title: 24,
+  heading: 18,
+  body: 15,
   small: 13,
   tiny: 11,
 } as const;
@@ -126,7 +128,7 @@ export const Typography = {
   display: { fontSize: FontSize.display, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
   title: { fontSize: FontSize.title, fontWeight: FontWeight.bold, letterSpacing: -0.3 },
   heading: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
-  body: { fontSize: FontSize.body, fontWeight: FontWeight.regular, lineHeight: 21 },
+  body: { fontSize: FontSize.body, fontWeight: FontWeight.regular, lineHeight: 22 },
   bodyMedium: { fontSize: FontSize.body, fontWeight: FontWeight.medium },
   small: { fontSize: FontSize.small, fontWeight: FontWeight.regular },
   smallMedium: { fontSize: FontSize.small, fontWeight: FontWeight.medium },
@@ -140,13 +142,13 @@ export function cardShadow(shadowColor: string, elevation = 2): ViewStyle {
   return Platform.select<ViewStyle>({
     ios: {
       shadowColor,
-      shadowOpacity: 0.07,
-      shadowRadius: elevation * 5,
-      shadowOffset: { width: 0, height: elevation },
+      shadowOpacity: 0.08,
+      shadowRadius: elevation * 8,
+      shadowOffset: { width: 0, height: elevation * 3 },
     },
     android: { elevation },
     default: {
-      boxShadow: `0 ${elevation}px ${elevation * 5}px rgba(0, 0, 0, 0.08)`,
+      boxShadow: `0 ${elevation * 3}px ${elevation * 12}px rgba(0, 0, 0, 0.08)`,
     },
   });
 }

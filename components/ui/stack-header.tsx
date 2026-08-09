@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,7 +34,7 @@ export function StackHeader({
 
   return (
     <View style={{ paddingTop: insets.top, backgroundColor: colors.background }}>
-      <View style={[styles.bar, { borderBottomColor: colors.border }]}>
+      <View style={styles.bar}>
         <Pressable
           onPress={onBack}
           accessibilityRole="button"
@@ -42,13 +42,14 @@ export function StackHeader({
           hitSlop={8}
           style={({ pressed }) => [
             styles.iconButton,
-            pressed && { backgroundColor: colors.surfaceAlt },
+            { backgroundColor: colors.surfaceAlt },
+            pressed && styles.pressed,
           ]}>
           <Ionicons name="chevron-back" size={22} color={colors.text} />
         </Pressable>
 
         {leadingIcon && leadingIconColor ? (
-          <View style={styles.leadingIcon}>
+          <View style={[styles.leadingIcon, { backgroundColor: colors.primarySoft }]}>
             <Ionicons name={leadingIcon} size={20} color={leadingIconColor} />
           </View>
         ) : null}
@@ -84,12 +85,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Spacing.sm + 2,
   },
   iconButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -98,8 +98,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   leadingIcon: {
-    width: 22,
-    height: 38,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -112,7 +113,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FontSize.heading,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: -0.2,
   },
   titleCenterText: {
     textAlign: 'center',

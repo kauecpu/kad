@@ -1,6 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet, Text } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { FontSize, FontWeight } from '@/constants/theme';
@@ -11,11 +12,38 @@ export const unstable_settings = {
 };
 
 function tabIcon(
-  defaultName: keyof typeof Ionicons.glyphMap,
-  selectedName: keyof typeof Ionicons.glyphMap
+  outlineName: keyof typeof MaterialCommunityIcons.glyphMap,
+  filledName: keyof typeof MaterialCommunityIcons.glyphMap
 ) {
-  return function TabIcon({ color, focused }: { color: string; focused: boolean }) {
-    return <Ionicons name={focused ? selectedName : defaultName} size={22} color={color} />;
+  return function TabIcon({ focused }: { color: string; focused: boolean }) {
+    const { colors } = useTheme();
+    const active = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+    useEffect(() => {
+      const animation = Animated.timing(active, {
+        toValue: focused ? 1 : 0,
+        duration: 110,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      });
+      animation.start();
+      return () => animation.stop();
+    }, [active, focused]);
+
+    return (
+      <Animated.View style={styles.tabGlyph}>
+        <Animated.View
+          style={[
+            styles.tabGlyphLayer,
+            { opacity: active.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
+          ]}>
+          <MaterialCommunityIcons name={outlineName} size={24} color={colors.tabInactive} />
+        </Animated.View>
+        <Animated.View style={[styles.tabGlyphLayer, { opacity: active }]}>
+          <MaterialCommunityIcons name={filledName} size={24} color={colors.tabActive} />
+        </Animated.View>
+      </Animated.View>
+    );
   };
 }
 
@@ -26,7 +54,7 @@ export default function MainLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
         tabBarButton: HapticTab,
         tabBarHideOnKeyboard: true,
@@ -34,16 +62,22 @@ export default function MainLayout() {
           styles.tabBar,
           { backgroundColor: colors.surface, borderTopColor: colors.border },
         ],
-        tabBarLabelStyle: styles.tabLabel,
+        tabBarIconStyle: styles.tabIcon,
+        tabBarLabel: ({ children }) => (
+          <Text style={[styles.tabLabel, { color: colors.tabInactive }]}>{children}</Text>
+        ),
         sceneStyle: { backgroundColor: colors.background },
       }}>
       <Tabs.Screen
         name="inicio"
-        options={{ title: 'Início', tabBarIcon: tabIcon('home-outline', 'home') }}
+        options={{ title: 'Início', tabBarIcon: tabIcon('home-variant-outline', 'home-variant') }}
       />
       <Tabs.Screen
         name="questoes"
-        options={{ title: 'Questões', tabBarIcon: tabIcon('reader-outline', 'reader') }}
+        options={{
+          title: 'Questões',
+          tabBarIcon: tabIcon('book-outline', 'book'),
+        }}
       />
       <Tabs.Screen
         name="concursos"
@@ -51,11 +85,11 @@ export default function MainLayout() {
       />
       <Tabs.Screen
         name="simulados"
-        options={{ title: 'Simulados', tabBarIcon: tabIcon('stopwatch-outline', 'stopwatch') }}
+        options={{ title: 'Simulados', tabBarIcon: tabIcon('clock-outline', 'clock') }}
       />
       <Tabs.Screen
         name="perfil"
-        options={{ title: 'Perfil', tabBarIcon: tabIcon('person-outline', 'person') }}
+        options={{ title: 'Perfil', tabBarIcon: tabIcon('account-outline', 'account') }}
       />
     </Tabs>
   );
@@ -63,15 +97,31 @@ export default function MainLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    minHeight: 58,
-    paddingTop: 5,
-    paddingBottom: 5,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    elevation: 0,
-    shadowOpacity: 0,
+    minHeight: 62,
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 4,
+    borderTopWidth: 0,
+    elevation: 8,
+    shadowColor: '#000000',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -3 },
+  },
+  tabIcon: {
+    marginTop: 1,
+  },
+  tabGlyph: {
+    width: 24,
+    height: 24,
+  },
+  tabGlyphLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabLabel: {
-    fontSize: FontSize.tiny,
+    fontSize: FontSize.tiny - 1,
     fontWeight: FontWeight.medium,
   },
 });

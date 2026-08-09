@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, FontWeight, Spacing } from '@/constants/theme';
@@ -46,7 +46,7 @@ export function ListRow({
         !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
         pressed && { backgroundColor: colors.surfaceAlt },
       ]}>
-      <View style={styles.iconWrapper}>
+      <View style={[styles.iconWrapper, { backgroundColor: iconTone.background }]}>
         <Ionicons name={icon} size={17} color={iconTone.foreground} />
       </View>
 
@@ -70,25 +70,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-    paddingHorizontal: Spacing.md,
+    minHeight: 68,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
   iconWrapper: {
-    width: 22,
-    height: 32,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textGroup: {
     flex: 1,
-    gap: 1,
+    gap: 3,
   },
   label: {
     fontSize: FontSize.body,
-    fontWeight: FontWeight.medium,
+    fontWeight: FontWeight.semibold,
   },
   description: {
     fontSize: FontSize.small,
+    lineHeight: 18,
   },
   value: {
     fontSize: FontSize.small,

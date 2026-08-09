@@ -1,9 +1,9 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type ScreenHeaderProps = {
@@ -33,9 +33,8 @@ export function ScreenHeader({
       style={[
         styles.container,
         {
-          paddingTop: insets.top + Spacing.md,
+          paddingTop: insets.top + Spacing.sm,
           backgroundColor: colors.background,
-          borderBottomColor: colors.border,
         },
       ]}>
       <View style={styles.inner}>
@@ -48,6 +47,7 @@ export function ScreenHeader({
               hitSlop={8}
               style={({ pressed }) => [
                 styles.backButton,
+                { backgroundColor: colors.surfaceAlt },
                 pressed && styles.pressed,
               ]}>
               <Ionicons name="arrow-back" size={20} color={colors.text} />
@@ -70,16 +70,14 @@ export function ScreenHeader({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+  container: {},
   inner: {
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm + 2,
-    gap: Spacing.sm + 2,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.md,
   },
   titleRow: {
     flexDirection: 'row',
@@ -92,9 +90,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 7,
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -104,9 +102,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.display,
     fontWeight: FontWeight.bold,
-    letterSpacing: -0.35,
+    letterSpacing: -0.65,
   },
   subtitle: {
     fontSize: FontSize.small,
+    lineHeight: 18,
   },
 });

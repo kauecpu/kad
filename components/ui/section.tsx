@@ -18,18 +18,20 @@ export function Section({ title, actionLabel, onAction, children }: SectionProps
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.titleGroup}>
-          <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
-            {title}
-          </Text>
-          <View style={[styles.marker, { backgroundColor: colors.primary }]} />
-        </View>
+        <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
+          {title}
+        </Text>
         {actionLabel && onAction ? (
           <Pressable
             onPress={onAction}
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
-            hitSlop={8}>
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.actionButton,
+              { backgroundColor: colors.primarySoft },
+              pressed && styles.pressed,
+            ]}>
             <Text style={[styles.action, { color: colors.primary }]}>{actionLabel}</Text>
           </Pressable>
         ) : null}
@@ -41,7 +43,7 @@ export function Section({ title, actionLabel, onAction, children }: SectionProps
 
 const styles = StyleSheet.create({
   container: {
-    gap: Spacing.sm,
+    gap: Spacing.md,
   },
   header: {
     flexDirection: 'row',
@@ -49,20 +51,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 2,
   },
-  titleGroup: {
-    gap: 4,
-  },
   title: {
     fontSize: FontSize.heading,
-    fontWeight: FontWeight.semibold,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
   },
-  marker: {
-    width: 28,
-    height: 2,
+  actionButton: {
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
     borderRadius: Radius.pill,
   },
   action: {
     fontSize: FontSize.small,
     fontWeight: FontWeight.semibold,
   },
+  pressed: { opacity: 0.72 },
 });

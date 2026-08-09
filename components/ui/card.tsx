@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ReactNode } from 'react';
 
-import { Radius, Spacing } from '@/constants/theme';
+import { cardShadow, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type CardProps = {
@@ -20,6 +20,7 @@ export function Card({ children, onPress, style, padded = true, accessibilityLab
     styles.card,
     padded && styles.padded,
     { backgroundColor: colors.surface, borderColor: colors.border },
+    cardShadow(colors.shadow, 1),
     style,
   ];
 
@@ -41,13 +42,13 @@ export function Card({ children, onPress, style, padded = true, accessibilityLab
 const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 0,
   },
   padded: {
-    padding: Spacing.md,
+    padding: Spacing.lg,
   },
   pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.995 }],
+    opacity: 0.92,
+    transform: [{ scale: 0.985 }],
   },
 });

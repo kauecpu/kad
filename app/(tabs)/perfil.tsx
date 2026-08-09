@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -16,7 +16,7 @@ import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDate, formatPercent } from '@/lib/format';
-import { useApp } from '@/providers/app-provider';
+import { useApp, useAppTheme } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { useSimulation } from '@/providers/simulation-provider';
 import type { SubscriptionPlan, ThemePreference } from '@/types';
@@ -35,6 +35,7 @@ const THEME_OPTIONS: SegmentedOption<ThemePreference>[] = [
 
 export default function PerfilScreen() {
   const { colors } = useTheme();
+  const { themePreference, setThemePreference } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const {
@@ -50,8 +51,6 @@ export default function PerfilScreen() {
     updateProfile,
     resetProgress,
     deleteAccount,
-    themePreference,
-    setThemePreference,
   } = useApp();
   const { session, isConfigured, signOut } = useAuth();
   const { clearSimulationData } = useSimulation();
@@ -278,6 +277,8 @@ export default function PerfilScreen() {
               options={THEME_OPTIONS}
               value={themePreference}
               onChange={setThemePreference}
+              animated
+              haptic
             />
           </Card>
         </Section>
