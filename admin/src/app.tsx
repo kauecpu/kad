@@ -7,6 +7,8 @@ import { DashboardPage } from './pages/dashboard-page';
 import { ConcursosPage } from './pages/concursos-page';
 import { LoginPage } from './pages/login-page';
 import { ModulePage } from './pages/module-page';
+import { NewPasswordPage } from './pages/new-password-page';
+import { RecoverPasswordPage } from './pages/recover-password-page';
 import { SettingsPage } from './pages/settings-page';
 
 export function App() {
@@ -24,6 +26,8 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/recuperar-senha" element={<RecoverPasswordPage />} />
+      <Route path="/auth/nova-senha" element={<NewPasswordPage />} />
       <Route element={access ? <AdminLayout /> : <Navigate to="/login" replace />}>
         <Route index element={<DashboardPage />} />
         <Route path="concursos" element={<ConcursosPage />} />

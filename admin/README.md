@@ -16,6 +16,16 @@ values ('UUID_DO_USUARIO', 'owner');
 
 4. Execute `npm run dev` dentro desta pasta.
 
+Para a recuperação de senha no painel web, adicione a URL abaixo em
+**Authentication > URL Configuration > Redirect URLs** no projeto Supabase:
+
+```text
+http://127.0.0.1:8082/auth/nova-senha
+```
+
+Em ambientes publicados, adicione também a mesma rota usando a origem de cada implantação. O
+painel envia essa origem explicitamente ao Supabase e não depende da `Site URL` do aplicativo.
+
 Para revisar apenas a interface vazia, execute `npm run dev:preview`. Esse modo não consulta
 dados reais, não simula métricas ou concursos e só funciona no servidor de desenvolvimento.
 Rascunhos criados nele ficam exclusivamente na sessão atual e não podem ser publicados.

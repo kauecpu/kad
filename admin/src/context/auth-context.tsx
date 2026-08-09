@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (isPreviewMode) return;
-    await supabase?.auth.signOut();
+    await supabase?.auth.signOut({ scope: 'local' });
     setSession(null);
     setAccess(null);
     setError(null);
