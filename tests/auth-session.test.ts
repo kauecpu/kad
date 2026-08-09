@@ -10,8 +10,10 @@ function source(path: string) {
 const rootLayout = source('../app/_layout.tsx');
 const welcomeScreen = source('../app/index.tsx');
 const loginScreen = source('../app/auth/login.tsx');
+const signupScreen = source('../app/auth/cadastro.tsx');
 const confirmationScreen = source('../app/auth/confirmar-email.tsx');
 const onboardingScreen = source('../app/onboarding.tsx');
+const profileScreen = source('../app/(tabs)/perfil.tsx');
 const onboardingStorage = source('../lib/onboarding.ts');
 const authProvider = source('../providers/auth-provider.tsx');
 
@@ -41,6 +43,31 @@ test('a rota raiz permanece como âncora e redireciona sessões para o início',
 test('sair da conta revoga apenas a sessão deste aparelho', () => {
   assert.match(authProvider, /auth\.signOut\(\{ scope: 'local' \}\)/);
   assert.doesNotMatch(authProvider, /auth\.signOut\(\);/);
+});
+
+test('sair da conta usa uma confirmação compatível com a web', () => {
+  assert.match(profileScreen, /Platform\.OS === 'web'/);
+  assert.match(profileScreen, /globalThis\.confirm/);
+  assert.match(profileScreen, /void performSignOut\(\)/);
+});
+
+test('cadastro solicita nome, e-mail, senha e confirmação da senha', () => {
+  assert.match(signupScreen, /label="Nome completo"/);
+  assert.match(signupScreen, /label="E-mail"/);
+  assert.match(signupScreen, /label="Senha"/);
+  assert.doesNotMatch(signupScreen, /label="Usuário"/);
+  assert.match(signupScreen, /label="Repetir senha"/);
+  assert.match(signupScreen, /password !== passwordConfirmation/);
+  assert.match(signupScreen, /signUp\(name\.trim\(\), email\.trim\(\), password\)/);
+  assert.match(authProvider, /data: \{ name \}/);
+  assert.doesNotMatch(authProvider, /supabase\.rpc\(\s*'is_username_available'/);
+});
+
+test('confirmação de e-mail orienta contas que já existem sem expô-las', () => {
+  assert.match(confirmationScreen, /Se este e-mail for novo/);
+  assert.match(confirmationScreen, /Este e-mail pode já estar cadastrado/);
+  assert.match(confirmationScreen, /router\.replace\('\/auth\/login'\)/);
+  assert.match(confirmationScreen, /router\.push\('\/auth\/recuperar-senha'\)/);
 });
 
 test('o e-mail de confirmação fica somente em memória e o valor legado é removido', () => {
