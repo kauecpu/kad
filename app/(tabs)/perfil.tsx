@@ -1,7 +1,7 @@
 import Ionicons from '@/components/ui/app-icon';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/ui/avatar';
@@ -92,20 +92,30 @@ export default function PerfilScreen() {
     );
   };
 
+  const performSignOut = async () => {
+    const result = await signOut();
+    if (!result.ok) {
+      Alert.alert('Não foi possível sair', result.message);
+      return;
+    }
+    router.replace('/');
+  };
+
   const handleSignOut = () => {
-    Alert.alert('Sair da conta', 'Deseja encerrar esta sessão?', [
+    const title = 'Sair da conta';
+    const message = 'Deseja encerrar esta sessão?';
+
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm(`${title}\n\n${message}`)) void performSignOut();
+      return;
+    }
+
+    Alert.alert(title, message, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Sair',
         style: 'destructive',
-        onPress: async () => {
-          const result = await signOut();
-          if (!result.ok) {
-            Alert.alert('Não foi possível sair', result.message);
-            return;
-          }
-          router.replace('/');
-        },
+        onPress: performSignOut,
       },
     ]);
   };

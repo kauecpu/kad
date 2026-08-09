@@ -27,7 +27,6 @@ import {
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { MIN_PASSWORD_LENGTH } from '@/lib/auth-security';
-import { isValidUsername, normalizeUsername } from '@/lib/profile';
 import { useAuth } from '@/providers/auth-provider';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -38,7 +37,7 @@ const BENEFITS = [
   { icon: 'shield-checkmark-outline' as const, label: 'Seus dados protegidos e sob seu controle' },
 ];
 
-type FieldError = 'name' | 'username' | 'email' | 'password' | 'passwordConfirmation';
+type FieldError = 'name' | 'email' | 'password' | 'passwordConfirmation';
 
 export default function SignUpScreen() {
   const { colors } = useTheme();
@@ -47,13 +46,11 @@ export default function SignUpScreen() {
   const router = useRouter();
   const { signUp } = useAuth();
   const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [errors, setErrors] = useState<{
     name?: string;
-    username?: string;
     email?: string;
     password?: string;
     passwordConfirmation?: string;
@@ -73,15 +70,11 @@ export default function SignUpScreen() {
   const submit = async () => {
     const nextErrors: {
       name?: string;
-      username?: string;
       email?: string;
       password?: string;
       passwordConfirmation?: string;
     } = {};
     if (!name.trim()) nextErrors.name = 'Informe seu nome.';
-    if (!isValidUsername(username)) {
-      nextErrors.username = 'Use de 3 a 24 letras, números ou underline.';
-    }
     if (!EMAIL_REGEX.test(email.trim())) nextErrors.email = 'Informe um e-mail válido.';
     if (password.length < MIN_PASSWORD_LENGTH) {
       nextErrors.password = `Use pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`;
@@ -96,7 +89,7 @@ export default function SignUpScreen() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
-    const result = await signUp(name.trim(), username, email.trim(), password);
+    const result = await signUp(name.trim(), email.trim(), password);
     setSubmitting(false);
     if (!result.ok) {
       setSubmitError(result.message);
@@ -190,22 +183,6 @@ export default function SignUpScreen() {
                       autoComplete="name"
                       textContentType="name"
                       error={errors.name}
-                    />
-                    <TextField
-                      label="Usuário"
-                      value={username}
-                      onChangeText={(value) => {
-                        setUsername(normalizeUsername(value));
-                        clearFieldError('username');
-                      }}
-                      placeholder="seu_usuario"
-                      helper="Identificador único · 3 a 24 caracteres"
-                      icon="at-outline"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      autoComplete="username"
-                      textContentType="username"
-                      error={errors.username}
                     />
                     <TextField
                       label="E-mail"

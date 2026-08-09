@@ -155,7 +155,7 @@ export default function ConfirmEmailScreen() {
             <Text style={[styles.eyebrow, { color: colors.primary }]}>FALTA SÓ UM PASSO</Text>
             <Text style={[styles.title, { color: colors.text }]}>Digite o código recebido</Text>
             <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-              Enviamos um código de {EMAIL_OTP_LENGTH} dígitos para confirmar que o e-mail é seu.
+              Se este e-mail for novo, enviaremos um código de {EMAIL_OTP_LENGTH} dígitos para confirmar o cadastro.
             </Text>
           </View>
 
@@ -219,14 +219,33 @@ export default function ConfirmEmailScreen() {
             fullWidth
           />
 
-          <Pressable
-            onPress={() => router.replace('/auth/login')}
-            accessibilityRole="button"
-            accessibilityLabel="Voltar para entrar"
-            style={({ pressed }) => [styles.footerAction, pressed && styles.pressed]}>
-            <Text style={[styles.footerText, { color: colors.textMuted }]}>Já confirmou? </Text>
-            <Text style={[styles.link, { color: colors.primary }]}>Voltar para entrar</Text>
-          </Pressable>
+          <View
+            style={[
+              styles.accountHelp,
+              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+            ]}>
+            <Ionicons name="person-circle-outline" size={22} color={colors.primary} />
+            <View style={styles.accountHelpBody}>
+              <Text style={[styles.accountHelpTitle, { color: colors.text }]}>Não recebeu o código?</Text>
+              <Text style={[styles.accountHelpText, { color: colors.textMuted }]}>Este e-mail pode já estar cadastrado. Tente entrar ou recuperar sua senha.</Text>
+              <View style={styles.accountActions}>
+                <Pressable
+                  onPress={() => router.replace('/auth/login')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Entrar na conta existente"
+                  style={({ pressed }) => [styles.accountAction, pressed && styles.pressed]}>
+                  <Text style={[styles.link, { color: colors.primary }]}>Entrar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => router.push('/auth/recuperar-senha')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Recuperar senha"
+                  style={({ pressed }) => [styles.accountAction, pressed && styles.pressed]}>
+                  <Text style={[styles.link, { color: colors.primary }]}>Recuperar senha</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -280,12 +299,19 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   message: { flex: 1, fontSize: FontSize.small, lineHeight: 19 },
-  footerAction: {
+  accountHelp: {
     flexDirection: 'row',
-    alignSelf: 'center',
-    padding: Spacing.sm,
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.md,
   },
-  footerText: { fontSize: FontSize.small },
+  accountHelpBody: { flex: 1, gap: 4 },
+  accountHelpTitle: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
+  accountHelpText: { fontSize: FontSize.small, lineHeight: 19 },
+  accountActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  accountAction: { paddingVertical: Spacing.xs },
   link: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
   pressed: { opacity: 0.6 },
 });
