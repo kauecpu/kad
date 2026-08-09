@@ -48,6 +48,7 @@ import type {
 
 const LEGACY_STORAGE_KEY = '@kad/app-state/v1';
 const STORAGE_KEY_PREFIX = '@kad/app-state/v2';
+const THEME_STORAGE_KEY = '@kad/theme-preference/v1';
 
 type PersistedState = {
   profile: UserProfile;
@@ -58,6 +59,8 @@ type PersistedState = {
   savedConcursos: string[];
   themePreference: ThemePreference;
 };
+
+type AppDataState = Omit<PersistedState, 'themePreference'>;
 
 type StoredSubscription = Omit<Partial<Subscription>, 'plan'> & {
   /** Formatos antigos são aceitos somente para migrar o estado local existente. */
@@ -79,7 +82,7 @@ const INITIAL_STATE: PersistedState = {
   themePreference: 'system',
 };
 
-type AppContextValue = PersistedState & {
+type AppContextValue = AppDataState & {
   /** Falso até o estado salvo em disco ser carregado. */
   hydrated: boolean;
   performance: Performance;
@@ -89,11 +92,6 @@ type AppContextValue = PersistedState & {
   dailyQuestionsRemaining: number;
   canViewStatistics: boolean;
   canUseSimulations: boolean;
-  /** Preferência escolhida pelo usuário (sistema, claro ou escuro). */
-  themePreference: ThemePreference;
-  /** Esquema de cores efetivo, já resolvido a partir da preferência e do sistema. */
-  scheme: 'light' | 'dark';
-  setThemePreference: (preference: ThemePreference) => void;
   canAnswerQuestion: (questionId: string) => boolean;
   answerQuestion: (question: Question, selected: AlternativeId) => void;
   resetQuestion: (questionId: string) => void;
@@ -106,7 +104,14 @@ type AppContextValue = PersistedState & {
   deleteAccount: () => Promise<void>;
 };
 
+type ThemeContextValue = {
+  themePreference: ThemePreference;
+  scheme: 'light' | 'dark';
+  setThemePreference: (preference: ThemePreference) => void;
+};
+
 const AppContext = createContext<AppContextValue | null>(null);
+const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 /** Migra formatos antigos e trata como expirado um plano com renovação no passado. */
 function normalizeSubscription(stored?: StoredSubscription): Subscription {
@@ -134,7 +139,7 @@ function normalizeSubscription(stored?: StoredSubscription): Subscription {
   return subscriptionWithCurrentStatus(subscription);
 }
 
-function stateForLocalStorage(state: PersistedState, authenticated: boolean): StoredState {
+function stateForLocalStorage(state: AppDataState, authenticated: boolean): StoredState {
   if (!authenticated) return state;
 
   const { name, username, avatarUri } = state.profile;
@@ -142,6 +147,10 @@ function stateForLocalStorage(state: PersistedState, authenticated: boolean): St
     ...state,
     profile: { name, username, avatarUri },
   };
+}
+
+function isThemePreference(value: string | null): value is ThemePreference {
+  return value === 'system' || value === 'light' || value === 'dark';
 }
 
 function computePerformance(answers: Record<string, AnswerRecord>): Performance {
@@ -224,8 +233,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     Promise.all([
       AsyncStorage.getItem(storageKey),
       fallbackKey ? AsyncStorage.getItem(fallbackKey) : Promise.resolve(null),
+      AsyncStorage.getItem(THEME_STORAGE_KEY),
     ])
-      .then(([scopedRaw, legacyRaw]) => {
+      .then(([scopedRaw, legacyRaw, storedTheme]) => {
         if (!active) return;
         const raw = scopedRaw ?? legacyRaw;
         const baseProfile: UserProfile = userId
@@ -237,7 +247,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
           : INITIAL_STATE.profile;
         if (!raw) {
-          setState({ ...INITIAL_STATE, profile: baseProfile });
+          setState({
+            ...INITIAL_STATE,
+            profile: baseProfile,
+            themePreference: isThemePreference(storedTheme)
+              ? storedTheme
+              : INITIAL_STATE.themePreference,
+          });
           return;
         }
         const parsed = JSON.parse(raw) as StoredState;
@@ -255,7 +271,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           favoriteQuestionIds: parsed.favoriteQuestionIds ?? [],
           dailyQuestionUsage: currentDailyUsage(parsed.dailyQuestionUsage),
           savedConcursos: parsed.savedConcursos ?? [],
-          themePreference: parsed.themePreference ?? 'system',
+          themePreference: isThemePreference(storedTheme)
+            ? storedTheme
+            : parsed.themePreference ?? 'system',
         });
       })
       .catch(() => {
@@ -272,11 +290,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated || !storageKey) return;
-    const storedState = stateForLocalStorage(state, Boolean(userId));
+    const storedState = stateForLocalStorage(
+      {
+        profile: state.profile,
+        subscription: state.subscription,
+        answers: state.answers,
+        favoriteQuestionIds: state.favoriteQuestionIds,
+        dailyQuestionUsage: state.dailyQuestionUsage,
+        savedConcursos: state.savedConcursos,
+      },
+      Boolean(userId)
+    );
     AsyncStorage.setItem(storageKey, JSON.stringify(storedState)).catch(() => {
       // Escrita falhou: o estado continua válido em memória nesta sessão.
     });
-  }, [state, hydrated, storageKey, userId]);
+  }, [
+    state.profile,
+    state.subscription,
+    state.answers,
+    state.favoriteQuestionIds,
+    state.dailyQuestionUsage,
+    state.savedConcursos,
+    hydrated,
+    storageKey,
+    userId,
+  ]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    AsyncStorage.setItem(THEME_STORAGE_KEY, state.themePreference).catch(() => {
+      // A preferência continua ativa em memória mesmo se a gravação local falhar.
+    });
+  }, [hydrated, state.themePreference]);
 
   useEffect(() => {
     if (!hydrated || !userId || !supabase) return;
@@ -441,7 +486,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const setThemePreference = useCallback((preference: ThemePreference) => {
-    setState((current) => ({ ...current, themePreference: preference }));
+    setState((current) =>
+      current.themePreference === preference
+        ? current
+        : { ...current, themePreference: preference }
+    );
   }, []);
 
   const subscribe = useCallback(
@@ -535,7 +584,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AppContextValue>(
     () => ({
-      ...state,
+      profile: state.profile,
+      subscription: state.subscription,
+      answers: state.answers,
+      favoriteQuestionIds: state.favoriteQuestionIds,
+      dailyQuestionUsage: state.dailyQuestionUsage,
+      savedConcursos: state.savedConcursos,
       hydrated,
       performance,
       isPremium,
@@ -544,34 +598,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
       dailyQuestionsRemaining,
       canViewStatistics: isPremium,
       canUseSimulations: isPremium,
-      scheme,
       canAnswerQuestion,
       answerQuestion,
       resetQuestion,
       toggleFavoriteQuestion,
       resetProgress,
       updateProfile,
-      setThemePreference,
       subscribe,
       cancelSubscription,
       toggleSavedConcurso,
       deleteAccount,
     }),
     [
-      state,
+      state.profile,
+      state.subscription,
+      state.answers,
+      state.favoriteQuestionIds,
+      state.dailyQuestionUsage,
+      state.savedConcursos,
       hydrated,
       performance,
       isPremium,
       dailyQuestionsAnswered,
       dailyQuestionsRemaining,
-      scheme,
       canAnswerQuestion,
       answerQuestion,
       resetQuestion,
       toggleFavoriteQuestion,
       resetProgress,
       updateProfile,
-      setThemePreference,
       subscribe,
       cancelSubscription,
       toggleSavedConcurso,
@@ -579,13 +634,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  const themeValue = useMemo<ThemeContextValue>(
+    () => ({
+      themePreference: state.themePreference,
+      scheme,
+      setThemePreference,
+    }),
+    [scheme, setThemePreference, state.themePreference]
+  );
+
+  return (
+    <AppContext.Provider value={value}>
+      <ThemeContext.Provider value={themeValue}>{children}</ThemeContext.Provider>
+    </AppContext.Provider>
+  );
 }
 
 export function useApp(): AppContextValue {
   const context = useContext(AppContext);
   if (!context) {
     throw new Error('useApp precisa ser usado dentro de AppProvider.');
+  }
+  return context;
+}
+
+export function useAppTheme(): ThemeContextValue {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useAppTheme precisa ser usado dentro de AppProvider.');
   }
   return context;
 }

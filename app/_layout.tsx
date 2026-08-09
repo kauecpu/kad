@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AppProvider, useApp } from '@/providers/app-provider';
+import { AppProvider, useApp, useAppTheme } from '@/providers/app-provider';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 import { Colors } from '@/constants/theme';
 import { authRouteAccess } from '@/lib/auth-routing';
@@ -19,8 +19,22 @@ export const unstable_settings = {
 };
 
 function RootNavigator() {
-  const { scheme, hydrated } = useApp();
+  const { hydrated } = useApp();
+  const { scheme } = useAppTheme();
   const colors = Colors[scheme];
+  const baseNavigationTheme = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const navigationTheme = {
+    ...baseNavigationTheme,
+    colors: {
+      ...baseNavigationTheme.colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.danger,
+    },
+  };
   const { session, isGuest, isLoading } = useAuth();
   const routeAccess = authRouteAccess({
     hasSession: Boolean(session),
@@ -28,7 +42,7 @@ function RootNavigator() {
   });
 
   return (
-    <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navigationTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
 

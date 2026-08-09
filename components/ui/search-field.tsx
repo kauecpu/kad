@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { FontSize, Radius, Spacing } from '@/constants/theme';
@@ -23,7 +23,7 @@ export function SearchField({
     <View
       style={[
         styles.container,
-        { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+        { backgroundColor: colors.surfaceAlt },
       ]}>
       <Ionicons name="search" size={18} color={colors.textSubtle} />
       <TextInput
@@ -55,10 +55,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    height: 44,
+    borderWidth: 0,
+    height: 48,
   },
   input: {
     flex: 1,

@@ -1,13 +1,12 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { deadlineInfo } from '@/lib/concursos';
-import { formatRelativeDay, formatSalaryShort } from '@/lib/format';
+import { formatSalaryShort } from '@/lib/format';
 import type { Concurso } from '@/types';
 
 type ConcursoCardProps = {
@@ -18,8 +17,22 @@ type ConcursoCardProps = {
 };
 
 function ConcursoCardComponent({ concurso, saved = false, onPress, onToggleSave }: ConcursoCardProps) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const deadline = deadlineInfo(concurso);
+  const deadlineColor =
+    deadline.tone === 'danger'
+      ? scheme === 'dark'
+        ? '#FF6B72'
+        : '#E5484D'
+      : deadline.tone === 'warning'
+        ? scheme === 'dark'
+          ? '#FFB454'
+          : '#E98613'
+        : deadline.tone === 'neutral'
+          ? colors.textSubtle
+          : scheme === 'dark'
+            ? '#72AFFF'
+            : '#3478F6';
   const iconName = (concurso.icon ?? 'business') as keyof typeof Ionicons.glyphMap;
   const salary =
     concurso.salaryMin === concurso.salaryMax
@@ -38,7 +51,7 @@ function ConcursoCardComponent({ concurso, saved = false, onPress, onToggleSave 
         accessibilityLabel={`${concurso.organ}: ${concurso.title}`}
         style={({ pressed }) => [styles.cardMain, pressed && styles.cardPressed]}>
         <View style={styles.headerRow}>
-          <View style={styles.logo}>
+          <View style={[styles.logo, { backgroundColor: colors.primarySoft }]}>
             <Ionicons name={iconName} size={20} color={colors.primary} />
           </View>
           <View style={[styles.headerText, onToggleSave && styles.headerTextWithSave]}>
@@ -51,32 +64,30 @@ function ConcursoCardComponent({ concurso, saved = false, onPress, onToggleSave 
           </View>
         </View>
 
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={13} color={colors.textSubtle} />
-          <Text style={[styles.location, { color: colors.textSubtle }]} numberOfLines={1}>
-            {location}
-          </Text>
-        </View>
-
-        <View style={styles.trustRow}>
-          <Ionicons name="shield-checkmark-outline" size={14} color={colors.primary} />
-          <Text style={[styles.trustText, { color: colors.textMuted }]}>
-            {concurso.contentSource === 'published'
-              ? `Fonte oficial verificada · Atualizado ${formatRelativeDay(concurso.updatedAt)}`
-              : `Dados demonstrativos · Atualizado ${formatRelativeDay(concurso.updatedAt)}`}
-          </Text>
-        </View>
-
-        <View style={[styles.quickFacts, { borderTopColor: colors.border }]}>
+        <View style={[styles.quickFacts, { backgroundColor: colors.surfaceAlt }]}>
           <View style={styles.quickFact}>
-            <Ionicons name="cash-outline" size={16} color={colors.primary} />
+            <View
+              style={[
+                styles.salaryIcon,
+                { backgroundColor: scheme === 'dark' ? '#143B31' : '#E7F8F1' },
+              ]}>
+              <Text
+                style={[
+                  styles.salaryIconText,
+                  { color: scheme === 'dark' ? '#5BE0AE' : '#109A6B' },
+                ]}>
+                $
+              </Text>
+            </View>
             <Text style={[styles.quickFactValue, { color: colors.text }]} numberOfLines={1}>
               {salary}
             </Text>
           </View>
           <View style={[styles.factDivider, { backgroundColor: colors.border }]} />
           <View style={styles.quickFact}>
-            <Ionicons name="people-outline" size={16} color={colors.primary} />
+            <View style={[styles.factIcon, { backgroundColor: colors.primarySoft }]}>
+              <Ionicons name="people-outline" size={15} color={colors.primary} />
+            </View>
             <Text style={[styles.quickFactValue, { color: colors.text }]} numberOfLines={1}>
               {`${concurso.vacancies.toLocaleString('pt-BR')} vagas`}
             </Text>
@@ -84,8 +95,19 @@ function ConcursoCardComponent({ concurso, saved = false, onPress, onToggleSave 
         </View>
 
         <View style={styles.footer}>
-          <Badge label={deadline.label} tone={deadline.tone} icon={deadline.icon} />
-          <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+          <View style={styles.deadline}>
+            <Ionicons name={deadline.icon} size={14} color={deadlineColor} />
+            <Text style={[styles.deadlineText, { color: deadlineColor }]}>{deadline.label}</Text>
+          </View>
+          <View style={styles.footerRight}>
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={13} color={colors.textSubtle} />
+              <Text style={[styles.location, { color: colors.textSubtle }]} numberOfLines={1}>
+                {location}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+          </View>
         </View>
       </Pressable>
 
@@ -115,16 +137,17 @@ export const ConcursoCard = memo(ConcursoCardComponent);
 
 const styles = StyleSheet.create({
   card: { position: 'relative' },
-  cardMain: { gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.lg },
+  cardMain: { gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.lg },
   cardPressed: { opacity: 0.85 },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   logo: {
-    width: 24,
+    width: 40,
     height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerText: { flex: 1, gap: 2 },
+  headerText: { flex: 1, gap: 2, justifyContent: 'center' },
   headerTextWithSave: { paddingRight: 32 },
   organ: {
     fontSize: FontSize.small,
@@ -143,20 +166,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -Spacing.xs },
-  location: { flex: 1, fontSize: FontSize.tiny },
-  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  trustText: { fontSize: FontSize.tiny, fontWeight: FontWeight.medium },
+  locationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, flex: 1 },
+  location: { flexShrink: 1, fontSize: FontSize.tiny, textAlign: 'right' },
   quickFacts: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    paddingTop: Spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
-  quickFact: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
-  quickFactValue: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
-  factDivider: { width: StyleSheet.hairlineWidth, height: 18 },
+  quickFact: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  salaryIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  salaryIconText: {
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+    lineHeight: 17,
+  },
+  factIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickFactValue: { flexShrink: 1, fontSize: FontSize.small, fontWeight: FontWeight.bold },
+  factDivider: { width: StyleSheet.hairlineWidth, height: 22 },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+  footerRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 },
+  deadline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  deadlineText: { fontSize: FontSize.tiny, fontWeight: FontWeight.semibold },
   pressed: { opacity: 0.6 },
 });

@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '@/components/ui/app-icon';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
@@ -15,9 +15,8 @@ type ChipProps = {
 export function Chip({ label, selected = false, onPress, icon }: ChipProps) {
   const { colors } = useTheme();
 
-  const background = selected ? colors.primarySoft : colors.surfaceAlt;
-  const foreground = selected ? colors.primary : colors.textMuted;
-  const border = selected ? colors.borderStrong : colors.border;
+  const background = selected ? colors.primary : colors.surfaceAlt;
+  const foreground = selected ? colors.onPrimary : colors.textMuted;
 
   return (
     <Pressable
@@ -30,8 +29,8 @@ export function Chip({ label, selected = false, onPress, icon }: ChipProps) {
         styles.container,
         {
           backgroundColor: background,
-          borderColor: border,
           opacity: pressed ? 0.7 : 1,
+          transform: [{ scale: pressed ? 0.97 : 1 }],
         },
       ]}>
       {icon ? <Ionicons name={icon} size={14} color={foreground} /> : null}
@@ -48,7 +47,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm - 1,
     borderRadius: Radius.pill,
-    borderWidth: 1,
+    borderWidth: 0,
   },
   label: {
     fontSize: FontSize.small,
