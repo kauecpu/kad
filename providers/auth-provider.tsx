@@ -21,7 +21,6 @@ import {
   isValidEmailOtp,
   normalizeEmailOtp,
 } from '@/lib/auth-security';
-import { normalizeUsername } from '@/lib/profile';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 const GUEST_STORAGE_KEY = '@kad/auth/guest-mode/v1';
@@ -48,7 +47,6 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signUp: (
     name: string,
-    username: string,
     email: string,
     password: string
   ) => Promise<AuthActionResult>;
@@ -211,37 +209,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(
     async (
       name: string,
-      username: string,
       email: string,
       password: string
     ): Promise<AuthActionResult> => {
       if (!supabase) return missingConfiguration();
-      const normalizedUsername = normalizeUsername(username);
-      const { data: usernameAvailable, error: usernameError } = await supabase.rpc(
-        'is_username_available',
-        { candidate_username: normalizedUsername }
-      );
-      if (usernameError) {
-        return {
-          ok: false,
-          message: 'Não foi possível verificar esse usuário. Tente novamente em instantes.',
-        };
-      }
-      if (!usernameAvailable) {
-        return { ok: false, message: 'Este usuário já está em uso.' };
-      }
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { name, username: normalizedUsername },
+          data: { name },
           emailRedirectTo: Linking.createURL('auth/login'),
         },
       });
       if (error) {
-        if (error.message.toLocaleLowerCase('en-US').includes('username')) {
-          return { ok: false, message: 'Este usuário já está em uso.' };
-        }
         return { ok: false, message: authErrorMessage(error) };
       }
       if (!data.session) rememberPendingVerificationEmail(email);
