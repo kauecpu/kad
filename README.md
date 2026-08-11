@@ -8,8 +8,8 @@ perfil e planos.
 > documentação ou dados fora das pessoas autorizadas.
 
 > Autenticação, perfil, respostas, favoritas, concursos salvos, comentários, curtidas e
-> estatísticas comunitárias usam Supabase quando o projeto está configurado. Simulados,
-> tema e assinatura demonstrativa mantêm um cache local isolado por usuário.
+> estatísticas comunitárias usam Supabase quando o projeto está configurado. Simulados e
+> tema mantêm um cache local isolado por usuário; assinaturas são validadas no servidor.
 
 ## Funcionalidades
 
@@ -24,10 +24,15 @@ perfil e planos.
 - Perfil editável, tema claro/escuro e escolha de cargo desejado.
 - Plano Básico e assinaturas KAD Diamante e KAD Círculo.
 
-## Planos demonstrativos
+## Pagamentos e assinaturas
 
-Os planos e preços exibidos fazem parte da demonstração visual. Ainda não existe
-integração com pagamento nem autorização de assinatura no servidor.
+O checkout web do KAD Diamante usa Mercado Pago e aceita os meios disponibilizados pelo
+provedor, incluindo Pix e cartão. O acesso só é liberado após a confirmação do webhook;
+nenhuma credencial de pagamento fica no aplicativo. A configuração e o procedimento de
+publicação estão em [`docs/PAYMENTS.md`](docs/PAYMENTS.md).
+
+Compras dentro dos aplicativos Android e iOS permanecem desativadas até a integração
+com Google Play Billing e Apple In-App Purchase.
 
 ## Tecnologias
 
@@ -101,8 +106,8 @@ tests/                  testes automatizados
 ## Arquitetura de estado
 
 O estado do aplicativo é organizado em providers por domínio. Dados sincronizados usam
-políticas de acesso no banco e testes automatizados. Assinaturas permanecem
-demonstrativas até existir validação no servidor.
+políticas de acesso no banco e testes automatizados. A assinatura é lida do Supabase e
+nunca é persistida localmente como fonte de autorização.
 
 ## Dados demonstrativos
 

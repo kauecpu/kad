@@ -16,6 +16,7 @@ const SECTIONS: LegalSection[] = [
       'Autenticação: identificadores da conta, registros de sessão e informações necessárias para proteger o acesso. A senha é processada pelo serviço de autenticação e não fica disponível em texto legível para o KAD.',
       'Estudos: respostas, acertos, erros, questões favoritas, concursos salvos, progresso, redações e histórico de simulados.',
       'Comunidade: comentários, curtidas, nome e nome de usuário associados à publicação.',
+      'Assinaturas e pagamentos: plano, período contratado, valor, moeda, status, datas, identificadores da transação e do provedor e informações necessárias para conciliação e prevenção de fraude. O KAD não recebe o número completo nem o código de segurança do cartão.',
       'Dispositivo: tema, preferências locais, rascunhos, foto escolhida e dados técnicos necessários ao funcionamento e à segurança.',
     ],
   },
@@ -35,6 +36,7 @@ const SECTIONS: LegalSection[] = [
       'Criar, autenticar e proteger sua conta.',
       'Personalizar o perfil e sincronizar preferências e progresso.',
       'Entregar questões, simulados, estatísticas e recursos da comunidade.',
+      'Processar contratações, confirmar pagamentos, liberar benefícios e administrar cancelamentos e reembolsos.',
       'Prevenir fraude, abuso e incidentes de segurança.',
       'Corrigir falhas, atender solicitações e cumprir obrigações legais.',
     ],
@@ -44,7 +46,7 @@ const SECTIONS: LegalSection[] = [
     title: 'Dados locais e dados na nuvem',
     paragraphs: [
       'No modo visitante, perfil, respostas, favoritos, concursos salvos, preferências, redações e simulados ficam armazenados no próprio aparelho.',
-      'Quando você entra em uma conta, dados do perfil, respostas, questões favoritas, concursos salvos, comentários e interações compatíveis podem ser sincronizados com a infraestrutura em nuvem do KAD. Na versão atual, rascunhos de redação, foto local, tema, assinatura demonstrativa e histórico de simulados permanecem no dispositivo.',
+      'Quando você entra em uma conta, dados do perfil, respostas, questões favoritas, concursos salvos, comentários, interações compatíveis e o estado da assinatura podem ser sincronizados com a infraestrutura em nuvem do KAD. Na versão atual, rascunhos de redação, foto local, tema e histórico de simulados permanecem no dispositivo.',
       'Dados que permanecem apenas no aparelho não podem ser recuperados pelo KAD depois de apagados, da limpeza do aplicativo ou da perda do dispositivo.',
     ],
   },
@@ -62,6 +64,8 @@ const SECTIONS: LegalSection[] = [
     ],
     bullets: [
       'Supabase, como provedor de autenticação, banco de dados, armazenamento e funções de infraestrutura.',
+      'Mercado Pago, para processar pagamentos e assinaturas disponíveis na versão web, validar transações e prevenir fraude.',
+      'Apple e Google, quando compras ou assinaturas forem disponibilizadas nos aplicativos distribuídos por suas lojas.',
       'Fornecedores técnicos estritamente necessários, sujeitos a deveres de segurança e confidencialidade.',
       'Autoridades públicas, quando houver obrigação legal, ordem válida ou necessidade de exercício regular de direitos.',
       'Terceiros envolvidos em reorganização societária, com preservação dos direitos e informações aos titulares quando aplicável.',
@@ -108,10 +112,11 @@ const SECTIONS: LegalSection[] = [
     note: 'Você já pode editar parte do perfil, apagar dados locais e solicitar a exclusão da conta no aplicativo. Os demais pedidos serão recebidos pelo canal formal de privacidade após sua publicação.',
   },
   {
-    title: 'Armazenamento no navegador e métricas',
+    title: 'Armazenamento no navegador, pagamentos e métricas',
     paragraphs: [
       'Na versão web, o KAD usa armazenamento do navegador para manter sessão, preferências e dados locais necessários. No aplicativo móvel, utiliza mecanismos equivalentes do dispositivo, incluindo armazenamento protegido para credenciais quando disponível.',
-      'Analytics, rastreamento publicitário, notificações comerciais e pagamentos reais não estão ativos nesta versão. Esta Política será revisada antes da ativação de qualquer recurso que altere materialmente o tratamento de dados.',
+      'Ao iniciar um pagamento, você é direcionado ao ambiente seguro do provedor. O KAD recebe somente os dados de status e conciliação necessários para confirmar a assinatura, prestar suporte, cumprir obrigações e prevenir fraude.',
+      'Analytics, rastreamento publicitário e notificações comerciais não estão ativos nesta versão. Esta Política será revisada antes da ativação de qualquer recurso que altere materialmente o tratamento de dados.',
     ],
   },
   {
@@ -137,9 +142,9 @@ export default function PrivacyScreen() {
       title="Política de Privacidade"
       documentIcon="shield-checkmark-outline"
       introduction="Transparência sobre os dados usados pelo KAD, por que eles são necessários e quais escolhas estão sob seu controle."
-      effectiveDate="2 de agosto de 2026"
+      effectiveDate="11 de agosto de 2026"
       readingTime="9 minutos"
-      version="1.0"
+      version="1.1"
       sections={SECTIONS}
     />
   );

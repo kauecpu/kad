@@ -5,25 +5,31 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { AppState } from 'react-native';
+import { AppState as ReactNativeAppState } from 'react-native';
 
 import {
   BASIC_DAILY_QUESTION_LIMIT,
-  CIRCLE_BILLING_OPTIONS,
   DEFAULT_PROFILE,
   DEFAULT_SUBSCRIPTION,
-  DIAMOND_BILLING_OPTIONS,
 } from '@/data/user';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   canAnswerWithDailyLimit,
   currentDailyUsage,
+  subscriptionHasAccess,
   subscriptionWithCurrentStatus,
 } from '@/lib/access-rules';
 import { sanitizeLegacyGuestProfile } from '@/lib/profile';
+import {
+  cancelRemoteSubscription,
+  createSubscriptionCheckout,
+  loadRemoteSubscription,
+  type SubscriptionActionResult,
+} from '@/lib/subscriptions';
 import { supabase } from '@/lib/supabase';
 import {
   loadRemoteStudyData,
@@ -52,7 +58,6 @@ const THEME_STORAGE_KEY = '@kad/theme-preference/v1';
 
 type PersistedState = {
   profile: UserProfile;
-  subscription: Subscription;
   answers: Record<string, AnswerRecord>;
   favoriteQuestionIds: string[];
   dailyQuestionUsage: DailyQuestionUsage;
@@ -60,19 +65,14 @@ type PersistedState = {
   themePreference: ThemePreference;
 };
 
-type AppDataState = Omit<PersistedState, 'themePreference'>;
+type AppState = PersistedState & { subscription: Subscription };
+type AppDataState = Omit<AppState, 'themePreference'>;
 
-type StoredSubscription = Omit<Partial<Subscription>, 'plan'> & {
-  /** Formatos antigos são aceitos somente para migrar o estado local existente. */
-  plan?: SubscriptionPlan | 'gold' | 'free' | 'monthly' | 'annual';
-};
-
-type StoredState = Omit<Partial<PersistedState>, 'profile' | 'subscription'> & {
+type StoredState = Omit<Partial<PersistedState>, 'profile'> & {
   profile?: Partial<UserProfile>;
-  subscription?: StoredSubscription;
 };
 
-const INITIAL_STATE: PersistedState = {
+const INITIAL_STATE: AppState = {
   profile: DEFAULT_PROFILE,
   subscription: DEFAULT_SUBSCRIPTION,
   answers: {},
@@ -92,14 +92,19 @@ type AppContextValue = AppDataState & {
   dailyQuestionsRemaining: number;
   canViewStatistics: boolean;
   canUseSimulations: boolean;
+  subscriptionLoading: boolean;
   canAnswerQuestion: (questionId: string) => boolean;
   answerQuestion: (question: Question, selected: AlternativeId) => void;
   resetQuestion: (questionId: string) => void;
   toggleFavoriteQuestion: (questionId: string) => void;
   resetProgress: () => void;
   updateProfile: (patch: Partial<UserProfile>) => Promise<void>;
-  subscribe: (plan: Exclude<SubscriptionPlan, 'basic'>, billingCycle: BillingCycle) => void;
-  cancelSubscription: () => void;
+  subscribe: (
+    plan: Exclude<SubscriptionPlan, 'basic'>,
+    billingCycle: BillingCycle
+  ) => Promise<SubscriptionActionResult>;
+  cancelSubscription: () => Promise<SubscriptionActionResult>;
+  refreshSubscription: () => Promise<void>;
   toggleSavedConcurso: (concursoId: string) => void;
   deleteAccount: () => Promise<void>;
 };
@@ -113,38 +118,13 @@ type ThemeContextValue = {
 const AppContext = createContext<AppContextValue | null>(null);
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-/** Migra formatos antigos e trata como expirado um plano com renovação no passado. */
-function normalizeSubscription(stored?: StoredSubscription): Subscription {
-  const storedPlan = stored?.plan;
-  const isLegacyPaidPlan =
-    storedPlan === 'gold' || storedPlan === 'monthly' || storedPlan === 'annual';
-  const plan: SubscriptionPlan =
-    storedPlan === 'circle'
-      ? 'circle'
-      : storedPlan === 'diamond' || isLegacyPaidPlan
-        ? 'diamond'
-        : 'basic';
-  const billingCycle: BillingCycle | undefined =
-    storedPlan === 'monthly' || storedPlan === 'annual'
-    ? storedPlan
-    : stored?.billingCycle;
-
-  const subscription: Subscription = {
-    ...DEFAULT_SUBSCRIPTION,
-    ...stored,
-    plan,
-    billingCycle,
-  };
-
-  return subscriptionWithCurrentStatus(subscription);
-}
-
 function stateForLocalStorage(state: AppDataState, authenticated: boolean): StoredState {
-  if (!authenticated) return state;
+  const { subscription: _subscription, ...persistable } = state;
+  if (!authenticated) return persistable;
 
   const { name, username, avatarUri } = state.profile;
   return {
-    ...state,
+    ...persistable,
     profile: { name, username, avatarUri },
   };
 }
@@ -189,19 +169,16 @@ function isoToday(): string {
   return new Date().toISOString();
 }
 
-function isoDateInDays(days: number): string {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
 export function AppProvider({ children }: { children: ReactNode }) {
   const { session, isLoading: authLoading } = useAuth();
-  const [state, setState] = useState<PersistedState>(INITIAL_STATE);
+  const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const subscriptionRequestRef = useRef(0);
 
   const userId = session?.user.id ?? null;
+  const subscriptionOwnerRef = useRef(userId);
+  subscriptionOwnerRef.current = userId;
   const authEmail = session?.user.email?.trim() ?? '';
   const metadataName = session?.user.user_metadata?.name;
   const metadataUsername = session?.user.user_metadata?.username;
@@ -216,6 +193,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const ownerId = userId ?? 'guest';
   const storageKey = authLoading ? null : `${STORAGE_KEY_PREFIX}:${ownerId}`;
   const hydrated = storageKey !== null && hydratedStorageKey === storageKey;
+
+  const refreshSubscription = useCallback(async () => {
+    const requestId = ++subscriptionRequestRef.current;
+    if (!userId) {
+      setState((current) => ({ ...current, subscription: DEFAULT_SUBSCRIPTION }));
+      setSubscriptionLoading(false);
+      return;
+    }
+    setSubscriptionLoading(true);
+    try {
+      const subscription = await loadRemoteSubscription(userId);
+      if (
+        subscriptionRequestRef.current === requestId &&
+        subscriptionOwnerRef.current === userId
+      ) {
+        setState((current) => ({ ...current, subscription }));
+      }
+    } finally {
+      if (
+        subscriptionRequestRef.current === requestId &&
+        subscriptionOwnerRef.current === userId
+      ) {
+        setSubscriptionLoading(false);
+      }
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    subscriptionRequestRef.current += 1;
+    setSubscriptionLoading(false);
+  }, [userId]);
 
   useEffect(() => {
     if (!storageKey) return;
@@ -266,7 +274,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ...storedProfile,
             ...(userId ? { email: authEmail } : {}),
           },
-          subscription: normalizeSubscription(parsed.subscription),
+          subscription: DEFAULT_SUBSCRIPTION,
           answers: parsed.answers ?? {},
           favoriteQuestionIds: parsed.favoriteQuestionIds ?? [],
           dailyQuestionUsage: currentDailyUsage(parsed.dailyQuestionUsage),
@@ -306,7 +314,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, [
     state.profile,
-    state.subscription,
     state.answers,
     state.favoriteQuestionIds,
     state.dailyQuestionUsage,
@@ -367,6 +374,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [authEmail, hydrated, userId]);
 
   useEffect(() => {
+    if (!hydrated) return;
+    refreshSubscription().catch(() => {
+      // Sem confirmação do servidor, o plano Básico permanece como padrão seguro.
+    });
+  }, [hydrated, refreshSubscription]);
+
+  useEffect(() => {
+    if (!hydrated || !userId) return;
+    const subscription = ReactNativeAppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        refreshSubscription().catch(() => {
+          // Mantém o último estado confirmado quando a rede está indisponível.
+        });
+      }
+    });
+    return () => subscription.remove();
+  }, [hydrated, refreshSubscription, userId]);
+
+  useEffect(() => {
     const refreshTemporalState = () => {
       setState((current) => {
         const subscription = subscriptionWithCurrentStatus(current.subscription);
@@ -383,7 +409,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     refreshTemporalState();
     const interval = setInterval(refreshTemporalState, 60_000);
-    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+    const appStateSubscription = ReactNativeAppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') refreshTemporalState();
     });
 
@@ -397,8 +423,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((current) => {
       const usage = currentDailyUsage(current.dailyQuestionUsage);
       const alreadyCounted = usage.questionIds.includes(question.id);
-      const hasUnlimitedQuestions =
-        current.subscription.plan !== 'basic' && current.subscription.status === 'active';
+      const hasUnlimitedQuestions = subscriptionHasAccess(current.subscription);
 
       if (
         !hasUnlimitedQuestions &&
@@ -494,31 +519,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const subscribe = useCallback(
-    (plan: Exclude<SubscriptionPlan, 'basic'>, billingCycle: BillingCycle) => {
-      const billingOptions =
-        plan === 'circle' ? CIRCLE_BILLING_OPTIONS : DIAMOND_BILLING_OPTIONS;
-      const selected = billingOptions.find((item) => item.id === billingCycle);
-      setState((current) => ({
-        ...current,
-        subscription: {
-          plan,
-          billingCycle,
-          status: 'active',
-          startedAt: isoDateInDays(0),
-          renewsAt: isoDateInDays(selected?.durationDays ?? 30),
-          autoRenew: true,
-        },
-      }));
-    },
+    (plan: Exclude<SubscriptionPlan, 'basic'>, billingCycle: BillingCycle) =>
+      createSubscriptionCheckout(plan, billingCycle),
     []
   );
 
-  const cancelSubscription = useCallback(() => {
-    setState((current) => ({
-      ...current,
-      subscription: { ...current.subscription, autoRenew: false },
-    }));
-  }, []);
+  const cancelSubscription = useCallback(async () => {
+    const result = await cancelRemoteSubscription();
+    if (result.ok) await refreshSubscription();
+    return result;
+  }, [refreshSubscription]);
 
   const toggleSavedConcurso = useCallback((concursoId: string) => {
     const saved = !state.savedConcursos.includes(concursoId);
@@ -554,8 +564,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [storageKey, userId]);
 
   const performance = useMemo(() => computePerformance(state.answers), [state.answers]);
-  const isPremium =
-    state.subscription.plan !== 'basic' && state.subscription.status === 'active';
+  const isPremium = subscriptionHasAccess(state.subscription);
   const dailyUsage = currentDailyUsage(state.dailyQuestionUsage);
   const dailyQuestionsAnswered = dailyUsage.questionIds.length;
   const dailyQuestionsRemaining = Math.max(
@@ -593,6 +602,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       hydrated,
       performance,
       isPremium,
+      subscriptionLoading,
       dailyQuestionLimit: BASIC_DAILY_QUESTION_LIMIT,
       dailyQuestionsAnswered,
       dailyQuestionsRemaining,
@@ -606,6 +616,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateProfile,
       subscribe,
       cancelSubscription,
+      refreshSubscription,
       toggleSavedConcurso,
       deleteAccount,
     }),
@@ -619,6 +630,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       hydrated,
       performance,
       isPremium,
+      subscriptionLoading,
       dailyQuestionsAnswered,
       dailyQuestionsRemaining,
       canAnswerQuestion,
@@ -629,6 +641,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateProfile,
       subscribe,
       cancelSubscription,
+      refreshSubscription,
       toggleSavedConcurso,
       deleteAccount,
     ]

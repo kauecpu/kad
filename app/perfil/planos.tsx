@@ -1,6 +1,6 @@
 import Ionicons from '@/components/ui/app-icon';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,6 +20,7 @@ import {
 import { useTheme } from '@/hooks/use-theme';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useApp } from '@/providers/app-provider';
+import { useAuth } from '@/providers/auth-provider';
 import type { BillingCycle, SubscriptionPlan } from '@/types';
 
 const PLAN_LABEL: Record<SubscriptionPlan, string> = {
@@ -32,6 +33,8 @@ export default function PlansScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { checkout } = useLocalSearchParams<{ checkout?: string }>();
+  const { session } = useAuth();
   const {
     subscription,
     isPremium,
@@ -39,46 +42,128 @@ export default function PlansScreen() {
     dailyQuestionsAnswered,
     subscribe,
     cancelSubscription,
+    refreshSubscription,
+    subscriptionLoading,
   } = useApp();
   const [diamondCycle, setDiamondCycle] = useState<BillingCycle>('monthly');
   const [circleCycle, setCircleCycle] = useState<BillingCycle>('monthly');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [checkoutReturned, setCheckoutReturned] = useState(false);
 
-  const subscribeTo = (
+  useEffect(() => {
+    if (!checkout || !session) return;
+    setCheckoutReturned(true);
+    let stopped = false;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const confirmSubscription = async () => {
+      attempts += 1;
+      try {
+        await refreshSubscription();
+      } catch {
+        // Uma tentativa seguinte cobre atrasos temporários de rede ou do webhook.
+      } finally {
+        if (!stopped && attempts < 5) {
+          timer = setTimeout(() => void confirmSubscription(), 3_000);
+        }
+      }
+    };
+
+    void confirmSubscription();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [checkout, refreshSubscription, session]);
+
+  const notify = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      globalThis.alert(`${title}\n\n${message}`);
+      return;
+    }
+    Alert.alert(title, message);
+  };
+
+  const subscribeTo = async (
     plan: Exclude<SubscriptionPlan, 'basic'>,
     cycle: BillingCycle
   ) => {
-    const options = plan === 'circle' ? CIRCLE_BILLING_OPTIONS : DIAMOND_BILLING_OPTIONS;
-    const billing =
-      options.find((item) => item.id === cycle) ?? options[0];
-    const planName = plan === 'circle' ? 'KAD Círculo' : 'KAD Diamante';
-    const title = `Ativar demonstração do ${planName}`;
-    const message = `Esta versão não fará nenhuma cobrança. Deseja testar o plano de ${formatCurrency(billing.price)} ${billing.period}?`;
-
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm(`${title}\n\n${message}`)) subscribe(plan, cycle);
+    if (!session) {
+      notify('Conta necessária', 'Entre ou crie uma conta para assinar o KAD.');
+      router.push('/auth/login');
+      return;
+    }
+    if (Platform.OS !== 'web') {
+      notify(
+        'Pagamento móvel em preparação',
+        'As compras pelo aplicativo serão liberadas após a configuração da loja.'
+      );
       return;
     }
 
-    Alert.alert(
-      title,
-      message,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Ativar demonstração', onPress: () => subscribe(plan, cycle) },
-      ]
-    );
+    setCheckoutLoading(true);
+    try {
+      const result = await subscribe(plan, cycle);
+      if (!result.ok || !result.checkoutUrl) {
+        notify('Não foi possível abrir o pagamento', result.message ?? 'Tente novamente.');
+        return;
+      }
+      globalThis.location.assign(result.checkoutUrl);
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  const performCancel = async () => {
+    setCancelLoading(true);
+    try {
+      const result = await cancelSubscription();
+      notify(
+        result.ok ? 'Renovação cancelada' : 'Não foi possível cancelar',
+        result.ok
+          ? 'Seu acesso continuará disponível até o fim do período já pago.'
+          : result.message ?? 'Tente novamente em instantes.'
+      );
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   const cancel = () => {
-    Alert.alert(
-      'Cancelar renovação',
-      'Você continuará com acesso até o fim do período atual. Deseja continuar?',
-      [
-        { text: 'Voltar', style: 'cancel' },
-        { text: 'Cancelar renovação', style: 'destructive', onPress: cancelSubscription },
-      ]
-    );
+    const title = 'Cancelar renovação';
+    const message = 'Você continuará com acesso até o fim do período atual. Deseja continuar?';
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm(`${title}\n\n${message}`)) void performCancel();
+      return;
+    }
+    Alert.alert(title, message, [
+      { text: 'Voltar', style: 'cancel' },
+      {
+        text: 'Cancelar renovação',
+        style: 'destructive',
+        onPress: () => void performCancel(),
+      },
+    ]);
   };
+
+  const currentPlanDescription = isPremium
+    ? subscription.status === 'past_due'
+      ? `Acesso disponível até ${formatDate(subscription.renewsAt)} enquanto a renovação é regularizada.`
+      : subscription.autoRenew
+        ? `Acesso ativo até ${formatDate(subscription.renewsAt)}, com renovação automática.`
+        : `Acesso ativo até ${formatDate(subscription.renewsAt)}, sem renovação automática.`
+    : 'Gratuito, sem cobrança e com até 10 questões por dia.';
+  const currentBadge = subscriptionLoading
+    ? 'Atualizando'
+    : subscription.status === 'past_due'
+      ? 'Pendente'
+      : isPremium && !subscription.autoRenew
+        ? 'Renovação cancelada'
+        : isPremium
+          ? 'Ativo'
+          : 'Grátis';
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -90,6 +175,21 @@ export default function PlansScreen() {
           { paddingBottom: insets.bottom + Spacing.xxxl },
         ]}
         showsVerticalScrollIndicator={false}>
+        {checkoutReturned ? (
+          <View style={[styles.checkoutNotice, { backgroundColor: colors.primarySoft }]}>
+            <Ionicons name="time-outline" size={20} color={colors.primary} />
+            <View style={styles.checkoutNoticeText}>
+              <Text style={[styles.checkoutNoticeTitle, { color: colors.text }]}>
+                Confirmando pagamento
+              </Text>
+              <Text style={[styles.currentDescription, { color: colors.textMuted }]}>
+                O acesso será liberado assim que o Mercado Pago confirmar a cobrança. Use
+                “Atualizar assinatura” se a confirmação levar alguns instantes.
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         <Card style={styles.currentCard}>
           <View style={styles.currentHeader}>
             <View style={styles.currentText}>
@@ -98,38 +198,39 @@ export default function PlansScreen() {
                 {PLAN_LABEL[subscription.plan]}
               </Text>
               <Text style={[styles.currentDescription, { color: colors.textMuted }]}>
-                {isPremium
-                  ? `Acesso demonstrativo ativo até ${formatDate(subscription.renewsAt)}${subscription.autoRenew ? ' com renovação simulada.' : ' sem renovação simulada.'}`
-                  : 'Gratuito, sem cobrança e com até 10 questões por dia.'}
+                {currentPlanDescription}
               </Text>
             </View>
             <Badge
-              label={isPremium ? 'Demonstração' : 'Grátis'}
-              tone={isPremium ? 'accent' : 'neutral'}
+              label={currentBadge}
+              tone={subscription.status === 'past_due' ? 'warning' : isPremium ? 'accent' : 'neutral'}
             />
           </View>
-          {isPremium ? (
+          {isPremium && subscription.autoRenew ? (
             <Button
-              label={subscription.autoRenew ? 'Cancelar renovação' : 'Reativar renovação'}
-              variant={subscription.autoRenew ? 'danger' : 'secondary'}
-              icon={subscription.autoRenew ? 'close-circle-outline' : 'refresh'}
-              onPress={
-                subscription.autoRenew
-                  ? cancel
-                  : () =>
-                      subscribe(
-                        subscription.plan === 'circle' ? 'circle' : 'diamond',
-                        subscription.billingCycle ?? 'monthly'
-                      )
-              }
+              label={cancelLoading ? 'Cancelando renovação...' : 'Cancelar renovação'}
+              variant="danger"
+              icon="close-circle-outline"
+              onPress={cancel}
+              disabled={cancelLoading}
               fullWidth
             />
-          ) : (
+          ) : !isPremium ? (
             <ProgressBar
               value={(dailyQuestionsAnswered / dailyQuestionLimit) * 100}
               label={`${dailyQuestionsAnswered} de ${dailyQuestionLimit} questões usadas hoje`}
             />
-          )}
+          ) : null}
+          {session ? (
+            <Button
+              label={subscriptionLoading ? 'Atualizando...' : 'Atualizar assinatura'}
+              variant="secondary"
+              icon="refresh"
+              onPress={() => void refreshSubscription()}
+              disabled={subscriptionLoading}
+              fullWidth
+            />
+          ) : null}
         </Card>
 
         <PlanSection
@@ -165,6 +266,7 @@ export default function PlansScreen() {
           onSelectCycle={setDiamondCycle}
           active={subscription.plan === 'diamond' && isPremium}
           onSubscribe={() => subscribeTo('diamond', diamondCycle)}
+          checkoutLoading={checkoutLoading}
         />
 
         <PaidPlanSection
@@ -266,6 +368,7 @@ function PaidPlanSection({
   onSelectCycle,
   active,
   onSubscribe,
+  checkoutLoading = false,
   available = true,
 }: {
   title: string;
@@ -279,7 +382,8 @@ function PaidPlanSection({
   selectedCycle: BillingCycle;
   onSelectCycle: (cycle: BillingCycle) => void;
   active: boolean;
-  onSubscribe: () => void;
+  onSubscribe: () => void | Promise<void>;
+  checkoutLoading?: boolean;
   available?: boolean;
 }) {
   const { colors } = useTheme();
@@ -375,14 +479,30 @@ function PaidPlanSection({
             label={
               active
                 ? `${title} já está ativo`
-                : `Testar ${title.replace('Plano ', '')} · ${formatCurrency(selected.price)}`
+                : checkoutLoading
+                  ? 'Preparando pagamento...'
+                  : Platform.OS === 'web'
+                    ? `Assinar ${title.replace('Plano ', '')} · ${formatCurrency(selected.price)}`
+                    : 'Pagamento móvel em breve'
             }
-            icon={active ? 'checkmark-circle' : 'arrow-forward'}
+            icon={active ? 'checkmark-circle' : checkoutLoading ? 'time-outline' : 'arrow-forward'}
             size="lg"
             onPress={onSubscribe}
-            disabled={active}
+            disabled={active || checkoutLoading || Platform.OS !== 'web'}
             fullWidth
           />
+          <View style={[styles.paymentNotice, { backgroundColor: colors.surfaceAlt }]}>
+            <Ionicons
+              name={Platform.OS === 'web' ? 'shield-checkmark-outline' : 'phone-portrait-outline'}
+              size={18}
+              color={colors.textMuted}
+            />
+            <Text style={[styles.paymentNoticeText, { color: colors.textMuted }]}>
+              {Platform.OS === 'web'
+                ? 'Pix e cartão são processados no ambiente seguro do Mercado Pago. A disponibilidade da renovação via Pix depende do banco e da conta.'
+                : 'A compra pelo aplicativo será liberada após a configuração da Apple App Store e do Google Play.'}
+            </Text>
+          </View>
         </>
       ) : (
         <View style={[styles.freeNotice, { backgroundColor: colors.surfaceAlt }]}> 
@@ -453,6 +573,23 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   freeNoticeText: { flex: 1, fontSize: FontSize.small },
+  checkoutNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+  },
+  checkoutNoticeText: { flex: 1, gap: 3 },
+  checkoutNoticeTitle: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
+  paymentNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+  },
+  paymentNoticeText: { flex: 1, fontSize: FontSize.small, lineHeight: 19 },
   billingOptions: { gap: Spacing.sm },
   billingOption: {
     position: 'relative',

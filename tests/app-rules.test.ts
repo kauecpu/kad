@@ -9,6 +9,7 @@ import { CIRCLE_BILLING_OPTIONS, DIAMOND_BILLING_OPTIONS } from '../data/user.ts
 import {
   canAnswerWithDailyLimit,
   currentDailyUsage,
+  subscriptionHasAccess,
   subscriptionWithCurrentStatus,
 } from '../lib/access-rules.ts';
 import { authErrorMessage } from '../lib/auth-errors.ts';
@@ -29,6 +30,7 @@ import {
   sortConcursos,
 } from '../lib/concursos.ts';
 import { formatSalaryShort } from '../lib/format.ts';
+import { isTrustedPaymentCheckoutUrl } from '../lib/payment-security.ts';
 import {
   formatBrazilianPhone,
   isValidUsername,
@@ -45,6 +47,7 @@ import {
   recommendPackForGoal,
   simulationCandidates,
 } from '../lib/simulations.ts';
+import { subscriptionFromRemote } from '../lib/subscription-state.ts';
 import type { DailyQuestionUsage, Subscription } from '../types/index.ts';
 
 test('a pesquisa do seletor não passa de Banca para Estado', () => {
@@ -132,6 +135,78 @@ test('a assinatura expira sem precisar recarregar o estado salvo', () => {
     subscriptionWithCurrentStatus(subscription, new Date(2026, 6, 31, 0, 0)).status,
     'expired'
   );
+});
+
+test('o acesso pago exige período válido confirmado pelo servidor', () => {
+  const base: Subscription = {
+    plan: 'diamond',
+    billingCycle: 'monthly',
+    provider: 'mercado_pago',
+    status: 'active',
+    startedAt: '2026-08-01T12:00:00.000Z',
+    renewsAt: '2026-09-01T12:00:00.000Z',
+    autoRenew: true,
+  };
+  const duringPeriod = new Date('2026-08-15T12:00:00.000Z');
+
+  assert.equal(subscriptionHasAccess(base, duringPeriod), true);
+  assert.equal(subscriptionHasAccess({ ...base, status: 'past_due' }, duringPeriod), true);
+  assert.equal(subscriptionHasAccess({ ...base, status: 'canceled' }, duringPeriod), true);
+  assert.equal(subscriptionHasAccess({ ...base, renewsAt: 'inválida' }, duringPeriod), false);
+  assert.equal(
+    subscriptionHasAccess(base, new Date('2026-09-01T12:00:00.000Z')),
+    false
+  );
+});
+
+test('o estado remoto inválido nunca libera uma assinatura', () => {
+  const valid = subscriptionFromRemote(
+    {
+      plan: 'diamond',
+      billing_cycle: 'annual',
+      provider: 'mercado_pago',
+      provider_status: 'authorized',
+      status: 'active',
+      started_at: '2026-08-01T12:00:00.000Z',
+      current_period_end: '2027-08-01T12:00:00.000Z',
+      cancel_at_period_end: false,
+    },
+    new Date('2026-08-11T12:00:00.000Z')
+  );
+  const invalid = subscriptionFromRemote(
+    {
+      plan: 'diamond',
+      billing_cycle: 'annual',
+      provider: 'desconhecido',
+      provider_status: 'authorized',
+      status: 'active',
+      started_at: '2026-08-01T12:00:00.000Z',
+      current_period_end: '2027-08-01T12:00:00.000Z',
+      cancel_at_period_end: false,
+    },
+    new Date('2026-08-11T12:00:00.000Z')
+  );
+
+  assert.equal(valid.plan, 'diamond');
+  assert.equal(valid.autoRenew, true);
+  assert.equal(invalid.plan, 'basic');
+  assert.equal(subscriptionHasAccess(invalid), false);
+});
+
+test('o app só aceita checkout HTTPS em domínio oficial do Mercado Pago', () => {
+  assert.equal(
+    isTrustedPaymentCheckoutUrl('https://www.mercadopago.com.br/subscriptions/checkout'),
+    true
+  );
+  assert.equal(
+    isTrustedPaymentCheckoutUrl('https://checkout.mercadopago.com/subscriptions'),
+    true
+  );
+  assert.equal(
+    isTrustedPaymentCheckoutUrl('https://mercadopago.com.br.exemplo.com/roubo'),
+    false
+  );
+  assert.equal(isTrustedPaymentCheckoutUrl('http://mercadopago.com.br/inseguro'), false);
 });
 
 test('todos os concursos apontam para uma página oficial HTTPS', () => {
