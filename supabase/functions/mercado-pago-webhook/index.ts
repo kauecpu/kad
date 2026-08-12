@@ -37,6 +37,8 @@ type MercadoPagoAuthorizedPayment = {
   transaction_amount?: unknown;
   currency_id?: unknown;
   debit_date?: unknown;
+  date_created?: unknown;
+  last_modified?: unknown;
   payment?: { id?: unknown; status?: unknown };
 };
 
@@ -48,6 +50,7 @@ type MercadoPagoPayment = {
   status?: unknown;
   date_approved?: unknown;
   date_created?: unknown;
+  date_last_updated?: unknown;
 };
 
 function resourceIdFrom(request: Request, body: WebhookBody) {
@@ -105,6 +108,7 @@ async function applyPayment({
   transactionAmount,
   currency,
   paidAt,
+  providerObservedAt,
 }: {
   admin: SupabaseClient;
   checkout: CheckoutRow;
@@ -114,6 +118,7 @@ async function applyPayment({
   transactionAmount: unknown;
   currency: unknown;
   paidAt: string | null;
+  providerObservedAt: string | null;
 }) {
   const amountCents = amountInCents(transactionAmount);
   if (
@@ -133,6 +138,7 @@ async function applyPayment({
     p_amount_cents: amountCents,
     p_currency: currency,
     p_paid_at: paidAt,
+    p_provider_observed_at: providerObservedAt,
   });
   if (error) throw error;
 }
@@ -213,6 +219,8 @@ async function processAuthorizedPayment(
     transactionAmount: invoice.transaction_amount,
     currency: invoice.currency_id,
     paidAt: safeTimestamp(invoice.debit_date),
+    providerObservedAt:
+      safeTimestamp(invoice.last_modified) ?? safeTimestamp(invoice.date_created),
   });
   return true;
 }
@@ -242,6 +250,10 @@ async function processPayment(
     transactionAmount: payment.transaction_amount,
     currency: payment.currency_id,
     paidAt: safeTimestamp(payment.date_approved) ?? safeTimestamp(payment.date_created),
+    providerObservedAt:
+      safeTimestamp(payment.date_last_updated) ??
+      safeTimestamp(payment.date_approved) ??
+      safeTimestamp(payment.date_created),
   });
   return true;
 }

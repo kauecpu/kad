@@ -48,6 +48,14 @@ const paymentsMigration = readFileSync(
   'utf8'
 );
 
+const paymentHardeningMigration = readFileSync(
+  new NodeURL(
+    '../supabase/migrations/20260812024756_harden_payment_subscriptions.sql',
+    import.meta.url
+  ),
+  'utf8'
+);
+
 const paymentCatalog = readFileSync(
   new NodeURL('../supabase/functions/_shared/mercado-pago.ts', import.meta.url),
   'utf8'
@@ -55,6 +63,11 @@ const paymentCatalog = readFileSync(
 
 const paymentWebhook = readFileSync(
   new NodeURL('../supabase/functions/mercado-pago-webhook/index.ts', import.meta.url),
+  'utf8'
+);
+
+const paymentCheckout = readFileSync(
+  new NodeURL('../supabase/functions/create-payment-checkout/index.ts', import.meta.url),
   'utf8'
 );
 
@@ -152,6 +165,50 @@ test('webhook financeiro exige HMAC e consulta o recurso no provedor', () => {
   assert.match(paymentWebhook, /mercadoPagoRequest<MercadoPagoPayment>/);
   assert.match(supabaseConfig, /\[functions\.mercado-pago-webhook\]/);
   assert.match(supabaseConfig, /verify_jwt = false/);
+});
+
+test('checkout financeiro usa rate limiting concorrente no banco antes do provedor', () => {
+  assert.match(paymentHardeningMigration, /private\.payment_checkout_rate_limits/);
+  assert.match(paymentHardeningMigration, /pg_advisory_xact_lock/);
+  assert.match(paymentHardeningMigration, /attempt_count/);
+  assert.match(paymentHardeningMigration, /lease_expires_at/);
+  assert.match(paymentHardeningMigration, /interval '15 minutes'/);
+  assert.match(paymentHardeningMigration, /interval '10 seconds'/);
+  assert.match(paymentCheckout, /acquire_payment_checkout_lease/);
+  assert.match(paymentCheckout, /consume_payment_checkout_attempt/);
+  assert.match(paymentCheckout, /status: 429/);
+  assert.match(paymentCheckout, /'Retry-After'/);
+
+  const limiterPosition = paymentCheckout.indexOf('consume_payment_checkout_attempt');
+  const cancellationPosition = paymentCheckout.indexOf('await cancelPendingProviderSubscription');
+  const creationPosition = paymentCheckout.indexOf("'/preapproval'");
+  assert.ok(limiterPosition >= 0 && limiterPosition < cancellationPosition);
+  assert.ok(limiterPosition < creationPosition);
+});
+
+test('crédito de pagamento é imutável e estados de estorno são terminais', () => {
+  assert.match(paymentHardeningMigration, /credit_applied_at timestamptz/);
+  assert.match(paymentHardeningMigration, /provider_observed_at timestamptz/);
+  assert.match(paymentHardeningMigration, /terminal_status text/);
+  assert.match(paymentHardeningMigration, /protect_payment_transaction_markers/);
+  assert.match(paymentHardeningMigration, /credit_applied_at is null/);
+  assert.match(paymentHardeningMigration, /terminal_status is not null/);
+  assert.match(paymentHardeningMigration, /p_provider_observed_at/);
+  assert.match(
+    paymentHardeningMigration,
+    /if not incoming_is_terminal[\s\S]*?p_provider_observed_at < previous_transaction\.provider_observed_at then/
+  );
+  assert.match(
+    paymentHardeningMigration,
+    /revoke all on function public\.apply_mercado_pago_payment\([\s\S]*?from public, anon, authenticated/
+  );
+  assert.match(
+    paymentHardeningMigration,
+    /grant execute on function public\.apply_mercado_pago_payment\([\s\S]*?to service_role/
+  );
+  assert.match(paymentWebhook, /date_last_updated/);
+  assert.match(paymentWebhook, /last_modified/);
+  assert.match(paymentWebhook, /p_provider_observed_at/);
 });
 
 test('agregação comunitária privilegiada fica no schema privado', () => {
