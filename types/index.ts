@@ -158,11 +158,12 @@ export type BillingCycle = 'monthly' | 'quarterly' | 'annual';
 export type Subscription = {
   plan: SubscriptionPlan;
   billingCycle?: BillingCycle;
-  /** `expired` permite oferecer renovação sem perder o histórico do plano. */
-  status: 'active' | 'inactive' | 'expired';
+  /** Estados intermediários preservam o acesso já pago até `renewsAt`. */
+  status: 'active' | 'inactive' | 'past_due' | 'canceled' | 'expired';
   startedAt?: string;
   renewsAt?: string;
   autoRenew: boolean;
+  provider?: 'mercado_pago' | 'apple' | 'google';
 };
 
 export type DailyQuestionUsage = {

@@ -29,23 +29,36 @@ function expirationTime(renewsAt: string): number | null {
 }
 
 /**
- * Expira localmente um plano ativo assim que a renovação passa.
+ * Expira localmente um plano pago assim que o período já quitado termina.
  * Datas sem horário permanecem válidas até o fim do dia informado.
  */
 export function subscriptionWithCurrentStatus(
   subscription: Subscription,
   now = new Date()
 ): Subscription {
-  if (subscription.status !== 'active' || !subscription.renewsAt) {
+  if (
+    !['active', 'past_due', 'canceled'].includes(subscription.status) ||
+    !subscription.renewsAt
+  ) {
     return subscription;
   }
 
   const expiresAt = expirationTime(subscription.renewsAt);
-  if (expiresAt !== null && now.getTime() >= expiresAt) {
+  if (expiresAt === null || now.getTime() >= expiresAt) {
     return { ...subscription, status: 'expired' };
   }
 
   return subscription;
+}
+
+/** Acesso premium depende de um período confirmado pelo servidor e ainda vigente. */
+export function subscriptionHasAccess(
+  subscription: Subscription,
+  now = new Date()
+): boolean {
+  if (subscription.plan === 'basic' || !subscription.renewsAt) return false;
+  const current = subscriptionWithCurrentStatus(subscription, now);
+  return ['active', 'past_due', 'canceled'].includes(current.status);
 }
 
 export function canAnswerWithDailyLimit({

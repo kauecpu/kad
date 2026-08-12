@@ -1,0 +1,250 @@
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
+import {
+  checkoutReference,
+  isTrustedCheckoutUrl,
+  mercadoPagoRequest,
+  paymentPlan,
+  paymentReturnUrl,
+  paymentWebhookUrl,
+} from '../_shared/mercado-pago.ts';
+import {
+  corsHeaders,
+  jsonResponse,
+  rejectDisallowedOrigin,
+} from '../_shared/http.ts';
+
+type CheckoutRow = {
+  id: string;
+  plan: string;
+  billing_cycle: string;
+  provider_subscription_id: string | null;
+  checkout_url: string | null;
+  status: string;
+  created_at: string;
+  expires_at: string;
+};
+
+type MercadoPagoSubscription = {
+  id?: unknown;
+  init_point?: unknown;
+  status?: unknown;
+};
+
+function requiredSupabaseConfiguration() {
+  const url = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  return url && anonKey && serviceRoleKey
+    ? { url, anonKey, serviceRoleKey }
+    : null;
+}
+
+async function cancelPendingProviderSubscription(providerSubscriptionId: string) {
+  await mercadoPagoRequest(`/preapproval/${encodeURIComponent(providerSubscriptionId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'canceled' }),
+  });
+}
+
+Deno.serve(async (request) => {
+  const origin = request.headers.get('Origin');
+  const rejectedOrigin = rejectDisallowedOrigin(request);
+  if (rejectedOrigin) return rejectedOrigin;
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders(origin) });
+  }
+  if (request.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed' }, 405, origin);
+  }
+
+  const configuration = requiredSupabaseConfiguration();
+  if (!configuration) {
+    return jsonResponse(
+      { error: 'Server configuration is incomplete', code: 'server_not_configured' },
+      500,
+      origin
+    );
+  }
+
+  const authorization = request.headers.get('Authorization');
+  if (!authorization) {
+    return jsonResponse({ error: 'Unauthorized', code: 'unauthorized' }, 401, origin);
+  }
+
+  const userClient = createClient(configuration.url, configuration.anonKey, {
+    global: { headers: { Authorization: authorization } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const {
+    data: { user },
+    error: userError,
+  } = await userClient.auth.getUser();
+  if (userError || !user?.email) {
+    return jsonResponse({ error: 'Unauthorized', code: 'unauthorized' }, 401, origin);
+  }
+
+  const body = await request.json().catch(() => null) as
+    | { plan?: unknown; billingCycle?: unknown }
+    | null;
+  const selectedPlan = paymentPlan(body?.plan, body?.billingCycle);
+  if (!selectedPlan) {
+    return jsonResponse(
+      { error: 'Unsupported plan', code: 'unsupported_plan' },
+      400,
+      origin
+    );
+  }
+
+  const admin = createClient(configuration.url, configuration.serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  try {
+    const { data: subscription, error: subscriptionError } = await admin
+      .from('subscriptions')
+      .select('status, current_period_end')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (subscriptionError) throw subscriptionError;
+    if (
+      subscription &&
+      new Date(subscription.current_period_end).getTime() > Date.now() &&
+      ['active', 'past_due', 'canceled'].includes(subscription.status)
+    ) {
+      return jsonResponse(
+        { error: 'Subscription already has access', code: 'subscription_active' },
+        409,
+        origin
+      );
+    }
+
+    const { data: openCheckout, error: openCheckoutError } = await admin
+      .from('payment_checkout_sessions')
+      .select(
+        'id, plan, billing_cycle, provider_subscription_id, checkout_url, status, created_at, expires_at'
+      )
+      .eq('user_id', user.id)
+      .in('status', ['creating', 'pending'])
+      .maybeSingle<CheckoutRow>();
+    if (openCheckoutError) throw openCheckoutError;
+
+    if (
+      openCheckout?.status === 'pending' &&
+      new Date(openCheckout.expires_at).getTime() > Date.now() &&
+      openCheckout.plan === selectedPlan.plan &&
+      openCheckout.billing_cycle === selectedPlan.billingCycle &&
+      isTrustedCheckoutUrl(openCheckout.checkout_url)
+    ) {
+      return jsonResponse(
+        { checkoutUrl: openCheckout.checkout_url, checkoutId: openCheckout.id, reused: true },
+        200,
+        origin
+      );
+    }
+
+    if (openCheckout) {
+      const creatingAge = Date.now() - new Date(openCheckout.created_at).getTime();
+      if (openCheckout.status === 'creating' && creatingAge < 120_000) {
+        return jsonResponse(
+          { error: 'Checkout creation is already in progress', code: 'checkout_in_progress' },
+          409,
+          origin
+        );
+      }
+      if (openCheckout.provider_subscription_id) {
+        await cancelPendingProviderSubscription(openCheckout.provider_subscription_id);
+      }
+      const { error: closeError } = await admin
+        .from('payment_checkout_sessions')
+        .update({
+          status:
+            openCheckout.status === 'creating'
+              ? 'failed'
+              : new Date(openCheckout.expires_at).getTime() <= Date.now()
+                ? 'expired'
+                : 'canceled',
+        })
+        .eq('id', openCheckout.id);
+      if (closeError) throw closeError;
+    }
+
+    const { data: checkout, error: checkoutError } = await admin
+      .from('payment_checkout_sessions')
+      .insert({
+        user_id: user.id,
+        plan: selectedPlan.plan,
+        billing_cycle: selectedPlan.billingCycle,
+        provider: 'mercado_pago',
+        amount_cents: selectedPlan.amountCents,
+        currency: 'BRL',
+        status: 'creating',
+      })
+      .select('id')
+      .single();
+    if (checkoutError) throw checkoutError;
+
+    try {
+      const providerSubscription = await mercadoPagoRequest<MercadoPagoSubscription>(
+        '/preapproval',
+        {
+          method: 'POST',
+          headers: { 'X-Idempotency-Key': checkout.id },
+          body: JSON.stringify({
+            reason: selectedPlan.title,
+            external_reference: checkoutReference(checkout.id),
+            payer_email: user.email,
+            auto_recurring: {
+              frequency: selectedPlan.frequency,
+              frequency_type: selectedPlan.frequencyType,
+              transaction_amount: selectedPlan.amountCents / 100,
+              currency_id: 'BRL',
+            },
+            back_url: paymentReturnUrl(checkout.id),
+            notification_url: paymentWebhookUrl(),
+            status: 'pending',
+          }),
+        }
+      );
+      if (
+        typeof providerSubscription.id !== 'string' ||
+        !isTrustedCheckoutUrl(providerSubscription.init_point)
+      ) {
+        throw new Error('Provider returned an invalid checkout');
+      }
+
+      const { error: updateError } = await admin
+        .from('payment_checkout_sessions')
+        .update({
+          provider_subscription_id: providerSubscription.id,
+          checkout_url: providerSubscription.init_point,
+          status: 'pending',
+        })
+        .eq('id', checkout.id);
+      if (updateError) throw updateError;
+
+      return jsonResponse(
+        {
+          checkoutUrl: providerSubscription.init_point,
+          checkoutId: checkout.id,
+          reused: false,
+        },
+        200,
+        origin
+      );
+    } catch (error) {
+      await admin
+        .from('payment_checkout_sessions')
+        .update({ status: 'failed' })
+        .eq('id', checkout.id);
+      throw error;
+    }
+  } catch (error) {
+    console.error('create-payment-checkout failed', error instanceof Error ? error.message : error);
+    return jsonResponse(
+      { error: 'Unable to create checkout', code: 'checkout_unavailable' },
+      502,
+      origin
+    );
+  }
+});

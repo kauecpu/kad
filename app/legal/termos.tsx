@@ -79,10 +79,11 @@ const SECTIONS: LegalSection[] = [
   {
     title: 'Planos, pagamentos e cancelamento',
     paragraphs: [
-      'No estágio atual, os planos pagos, a assinatura Diamante e demais ofertas são demonstrações de interface: não há cobrança, renovação automática ou contratação real.',
-      'Antes de ativar pagamentos, o KAD apresentará preço total, periodicidade, benefícios, limitações, renovação, meios de cancelamento, reembolso e demais condições relevantes. Compras realizadas por lojas de aplicativos também poderão seguir as regras da plataforma, sem afastar direitos assegurados pela legislação brasileira.',
+      'Quando a contratação estiver disponível no seu ambiente, o KAD apresentará antes do pagamento o preço total, a periodicidade, os benefícios, a forma de renovação e as condições aplicáveis. Na versão web, o pagamento pode ser processado pelo Mercado Pago por Pix ou cartão, conforme a disponibilidade informada pelo próprio provedor.',
+      'Assinaturas recorrentes são renovadas ao fim de cada período enquanto a renovação automática estiver ativa. O cancelamento interrompe as cobranças futuras e preserva o acesso até o fim do período já pago, salvo estorno, fraude, inadimplência ou outra hipótese prevista em lei.',
+      'Compras realizadas pelos aplicativos para iOS ou Android seguirão também os meios de pagamento, o gerenciamento de assinatura e as regras da respectiva loja. Reembolsos, arrependimento e demais direitos do consumidor permanecem sujeitos à legislação brasileira e às condições obrigatórias aplicáveis.',
     ],
-    note: 'Nenhum valor deve ser informado ou cobrado nesta versão demonstrativa.',
+    note: 'Uma assinatura só é ativada depois que o servidor recebe e valida a confirmação do pagamento. O KAD não solicita nem armazena o número completo do cartão.',
   },
   {
     title: 'Serviços e links de terceiros',
@@ -133,10 +134,10 @@ export default function TermsScreen() {
     <LegalPage
       title="Termos de Uso"
       documentIcon="document-text-outline"
-      introduction="Regras claras para usar o KAD, participar da comunidade e entender os limites desta versão do serviço."
-      effectiveDate="2 de agosto de 2026"
+      introduction="Regras claras para usar o KAD, participar da comunidade e contratar os recursos disponíveis."
+      effectiveDate="11 de agosto de 2026"
       readingTime="8 minutos"
-      version="1.0"
+      version="1.1"
       sections={SECTIONS}
     />
   );

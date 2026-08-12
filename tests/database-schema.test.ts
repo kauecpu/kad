@@ -43,6 +43,26 @@ const editorialImportMigration = readFileSync(
   'utf8'
 );
 
+const paymentsMigration = readFileSync(
+  new NodeURL('../supabase/migrations/202608110001_payments_subscriptions.sql', import.meta.url),
+  'utf8'
+);
+
+const paymentCatalog = readFileSync(
+  new NodeURL('../supabase/functions/_shared/mercado-pago.ts', import.meta.url),
+  'utf8'
+);
+
+const paymentWebhook = readFileSync(
+  new NodeURL('../supabase/functions/mercado-pago-webhook/index.ts', import.meta.url),
+  'utf8'
+);
+
+const supabaseConfig = readFileSync(
+  new NodeURL('../supabase/config.toml', import.meta.url),
+  'utf8'
+);
+
 const deleteAccountFunction = readFileSync(
   new NodeURL('../supabase/functions/delete-account/index.ts', import.meta.url),
   'utf8'
@@ -73,6 +93,65 @@ test('dados pessoais e de estudo possuem RLS', () => {
 test('exclusão de conta privilegiada não permanece como RPC pública', () => {
   assert.match(migration, /drop function if exists public\.delete_own_account\(\)/);
   assert.doesNotMatch(migration, /create or replace function public\.delete_own_account/);
+});
+
+test('tabelas financeiras possuem RLS e não expõem auditoria ao aplicativo', () => {
+  for (const table of [
+    'payment_checkout_sessions',
+    'subscriptions',
+    'payment_transactions',
+    'payment_webhook_events',
+  ]) {
+    assert.match(
+      paymentsMigration,
+      new RegExp(`alter table public\\.${table} enable row level security`)
+    );
+  }
+  assert.match(
+    paymentsMigration,
+    /revoke all on public\.payment_transactions from anon, authenticated/
+  );
+  assert.match(
+    paymentsMigration,
+    /revoke all on public\.payment_webhook_events from anon, authenticated/
+  );
+  assert.match(paymentsMigration, /using \(\(select auth\.uid\(\)\) = user_id\)/);
+});
+
+test('RPCs financeiras privilegiadas são exclusivas do service role', () => {
+  assert.match(
+    paymentsMigration,
+    /revoke all on function public\.apply_mercado_pago_payment\([\s\S]*?from public, anon, authenticated/
+  );
+  assert.match(
+    paymentsMigration,
+    /grant execute on function public\.apply_mercado_pago_payment\([\s\S]*?to service_role/
+  );
+  assert.match(
+    paymentsMigration,
+    /revoke all on function public\.sync_mercado_pago_subscription\(text, text\)[\s\S]*?from public, anon, authenticated/
+  );
+});
+
+test('preço vem do servidor e a conciliação confere valor e moeda', () => {
+  assert.match(paymentCatalog, /amountCents: 1499/);
+  assert.match(paymentCatalog, /amountCents: 3999/);
+  assert.match(paymentCatalog, /amountCents: 14999/);
+  assert.match(
+    paymentsMigration,
+    /checkout\.amount_cents <> p_amount_cents or checkout\.currency <> upper\(p_currency\)/
+  );
+  assert.match(paymentsMigration, /provider_payment_id text primary key/);
+});
+
+test('webhook financeiro exige HMAC e consulta o recurso no provedor', () => {
+  assert.match(paymentCatalog, /crypto\.subtle\.sign\('HMAC'/);
+  assert.match(paymentCatalog, /request-id:/);
+  assert.match(paymentCatalog, /ts:/);
+  assert.match(paymentWebhook, /Invalid signature/);
+  assert.match(paymentWebhook, /mercadoPagoRequest<MercadoPagoPayment>/);
+  assert.match(supabaseConfig, /\[functions\.mercado-pago-webhook\]/);
+  assert.match(supabaseConfig, /verify_jwt = false/);
 });
 
 test('agregação comunitária privilegiada fica no schema privado', () => {

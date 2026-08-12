@@ -186,7 +186,9 @@ export default function PerfilScreen() {
                 </Text>
                 <Text style={[styles.planDescription, { color: colors.textMuted }]}>
                   {isPremium
-                    ? `Demonstração ativa até ${formatDate(subscription.renewsAt)}${subscription.autoRenew ? ' · renovação simulada' : ' · sem renovação simulada'}`
+                    ? subscription.status === 'past_due'
+                      ? `Acesso até ${formatDate(subscription.renewsAt)} · renovação pendente`
+                      : `Acesso até ${formatDate(subscription.renewsAt)}${subscription.autoRenew ? ' · renovação automática' : ' · renovação cancelada'}`
                     : `${dailyQuestionsRemaining} de ${dailyQuestionLimit} questões disponíveis hoje`}
                 </Text>
               </View>
