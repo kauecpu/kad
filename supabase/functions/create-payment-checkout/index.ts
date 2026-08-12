@@ -2,27 +2,30 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import {
   checkoutReference,
-  isTrustedCheckoutUrl,
   mercadoPagoRequest,
   paymentPlan,
   paymentReturnUrl,
   paymentWebhookUrl,
 } from '../_shared/mercado-pago.ts';
 import {
+  decideCheckoutAction,
+  isTrustedCheckoutUrl,
+  type OpenCheckout,
+} from '../_shared/payment-checkout.ts';
+import {
   corsHeaders,
   jsonResponse,
   rejectDisallowedOrigin,
 } from '../_shared/http.ts';
 
-type CheckoutRow = {
-  id: string;
-  plan: string;
-  billing_cycle: string;
-  provider_subscription_id: string | null;
-  checkout_url: string | null;
-  status: string;
-  created_at: string;
-  expires_at: string;
+type CheckoutLease = {
+  lease_token: string | null;
+  retry_after_seconds: number;
+};
+
+type CheckoutAttempt = {
+  allowed: boolean;
+  retry_after_seconds: number;
 };
 
 type MercadoPagoSubscription = {
@@ -45,6 +48,17 @@ async function cancelPendingProviderSubscription(providerSubscriptionId: string)
     method: 'PUT',
     body: JSON.stringify({ status: 'canceled' }),
   });
+}
+
+function rateLimitedResponse(origin: string | null, retryAfter: unknown) {
+  const seconds = Math.max(1, Math.ceil(Number(retryAfter) || 1));
+  return Response.json(
+    { error: 'Too many checkout attempts', code: 'checkout_rate_limited' },
+    {
+      status: 429,
+      headers: { ...corsHeaders(origin), 'Retry-After': String(seconds) },
+    }
+  );
 }
 
 Deno.serve(async (request) => {
@@ -99,8 +113,18 @@ Deno.serve(async (request) => {
   const admin = createClient(configuration.url, configuration.serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+  let leaseToken: string | null = null;
 
   try {
+    const { data: lease, error: leaseError } = await admin
+      .rpc('acquire_payment_checkout_lease', { p_user_id: user.id })
+      .single<CheckoutLease>();
+    if (leaseError) throw leaseError;
+    if (!lease?.lease_token) {
+      return rateLimitedResponse(origin, lease?.retry_after_seconds);
+    }
+    leaseToken = lease.lease_token;
+
     const { data: subscription, error: subscriptionError } = await admin
       .from('subscriptions')
       .select('status, current_period_end')
@@ -126,16 +150,11 @@ Deno.serve(async (request) => {
       )
       .eq('user_id', user.id)
       .in('status', ['creating', 'pending'])
-      .maybeSingle<CheckoutRow>();
+      .maybeSingle<OpenCheckout>();
     if (openCheckoutError) throw openCheckoutError;
 
-    if (
-      openCheckout?.status === 'pending' &&
-      new Date(openCheckout.expires_at).getTime() > Date.now() &&
-      openCheckout.plan === selectedPlan.plan &&
-      openCheckout.billing_cycle === selectedPlan.billingCycle &&
-      isTrustedCheckoutUrl(openCheckout.checkout_url)
-    ) {
+    const checkoutAction = decideCheckoutAction(openCheckout, selectedPlan);
+    if (checkoutAction === 'reuse' && openCheckout?.checkout_url) {
       return jsonResponse(
         { checkoutUrl: openCheckout.checkout_url, checkoutId: openCheckout.id, reused: true },
         200,
@@ -143,15 +162,26 @@ Deno.serve(async (request) => {
       );
     }
 
+    if (checkoutAction === 'in_progress') {
+      return jsonResponse(
+        { error: 'Checkout creation is already in progress', code: 'checkout_in_progress' },
+        409,
+        origin
+      );
+    }
+
+    const { data: attempt, error: attemptError } = await admin
+      .rpc('consume_payment_checkout_attempt', {
+        p_user_id: user.id,
+        p_lease_token: leaseToken,
+      })
+      .single<CheckoutAttempt>();
+    if (attemptError) throw attemptError;
+    if (!attempt?.allowed) {
+      return rateLimitedResponse(origin, attempt?.retry_after_seconds);
+    }
+
     if (openCheckout) {
-      const creatingAge = Date.now() - new Date(openCheckout.created_at).getTime();
-      if (openCheckout.status === 'creating' && creatingAge < 120_000) {
-        return jsonResponse(
-          { error: 'Checkout creation is already in progress', code: 'checkout_in_progress' },
-          409,
-          origin
-        );
-      }
       if (openCheckout.provider_subscription_id) {
         await cancelPendingProviderSubscription(openCheckout.provider_subscription_id);
       }
@@ -246,5 +276,13 @@ Deno.serve(async (request) => {
       502,
       origin
     );
+  } finally {
+    if (leaseToken) {
+      const { error: releaseError } = await admin.rpc('release_payment_checkout_lease', {
+        p_user_id: user.id,
+        p_lease_token: leaseToken,
+      });
+      if (releaseError) console.error('create-payment-checkout lease release failed');
+    }
   }
 });

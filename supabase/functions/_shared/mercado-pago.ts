@@ -86,23 +86,6 @@ export function amountInCents(value: unknown): number | null {
   return Math.round(amount * 100);
 }
 
-export function isTrustedCheckoutUrl(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    return (
-      url.protocol === 'https:' &&
-      (host === 'mercadopago.com' ||
-        host.endsWith('.mercadopago.com') ||
-        host === 'mercadopago.com.br' ||
-        host.endsWith('.mercadopago.com.br'))
-    );
-  } catch {
-    return false;
-  }
-}
-
 export function paymentReturnUrl(checkoutId: string): string {
   const configured = Deno.env.get('KAD_WEB_APP_URL')?.trim();
   if (!configured) throw new Error('KAD_WEB_APP_URL is missing');
