@@ -49,6 +49,12 @@ export class MercadoPagoApiError extends Error {
   }
 }
 
+function safeProviderCode(value: unknown) {
+  return typeof value === 'string' && /^[A-Za-z0-9_.:\-]{1,80}$/.test(value)
+    ? value
+    : undefined;
+}
+
 export function paymentPlan(
   plan: unknown,
   billingCycle: unknown
@@ -125,12 +131,12 @@ export async function mercadoPagoRequest<T>(
     },
   });
   const body = await response.json().catch(() => null) as
-    | { code?: string; error?: string; message?: string }
+    | { code?: unknown; error?: unknown }
     | null;
   if (!response.ok) {
     throw new MercadoPagoApiError(
       response.status,
-      body?.code ?? body?.error ?? body?.message
+      safeProviderCode(body?.code) ?? safeProviderCode(body?.error)
     );
   }
   return body as T;

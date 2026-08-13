@@ -155,6 +155,18 @@ test('preço vem do servidor e a conciliação confere valor e moeda', () => {
     /checkout\.amount_cents <> p_amount_cents or checkout\.currency <> upper\(p_currency\)/
   );
   assert.match(paymentsMigration, /provider_payment_id text primary key/);
+  assert.match(paymentCheckout, /liveMode === 'true'\) return userEmail/);
+  assert.match(paymentCheckout, /liveMode !== 'false'/);
+  assert.match(paymentCheckout, /MERCADO_PAGO_TEST_PAYER_EMAIL/);
+  assert.match(paymentCheckout, /payer_email: payerEmail/);
+  assert.match(paymentCheckout, /error instanceof MercadoPagoApiError/);
+  assert.match(paymentCheckout, /providerCode: error\.providerCode/);
+  assert.match(paymentCatalog, /function safeProviderCode\(value: unknown\)/);
+  assert.match(paymentCatalog, /\^\[A-Za-z0-9_.:\\-\]\{1,80\}\$/);
+  assert.doesNotMatch(
+    paymentCatalog,
+    /body\?\.code \?\? body\?\.error \?\? body\?\.message/
+  );
 });
 
 test('webhook financeiro exige HMAC e consulta o recurso no provedor', () => {
@@ -163,6 +175,9 @@ test('webhook financeiro exige HMAC e consulta o recurso no provedor', () => {
   assert.match(paymentCatalog, /ts:/);
   assert.match(paymentWebhook, /Invalid signature/);
   assert.match(paymentWebhook, /mercadoPagoRequest<MercadoPagoPayment>/);
+  assert.match(paymentWebhook, /mercadoPagoRequest<MercadoPagoChargeback>/);
+  assert.match(paymentWebhook, /\/v1\/chargebacks\/\$\{encodeURIComponent\(resourceId\)\}/);
+  assert.match(paymentWebhook, /eventType === 'topic_chargebacks_wh'/);
   assert.match(supabaseConfig, /\[functions\.mercado-pago-webhook\]/);
   assert.match(supabaseConfig, /verify_jwt = false/);
 });

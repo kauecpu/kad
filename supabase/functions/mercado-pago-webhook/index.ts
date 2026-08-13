@@ -53,6 +53,11 @@ type MercadoPagoPayment = {
   date_last_updated?: unknown;
 };
 
+type MercadoPagoChargeback = {
+  id?: unknown;
+  payments?: unknown;
+};
+
 function resourceIdFrom(request: Request, body: WebhookBody) {
   const url = new URL(request.url);
   return (
@@ -258,6 +263,37 @@ async function processPayment(
   return true;
 }
 
+async function processChargeback(
+  admin: SupabaseClient,
+  resourceId: string
+): Promise<boolean> {
+  const chargeback = await mercadoPagoRequest<MercadoPagoChargeback>(
+    `/v1/chargebacks/${encodeURIComponent(resourceId)}`
+  );
+  const providerChargebackId =
+    typeof chargeback.id === 'number' || typeof chargeback.id === 'string'
+      ? String(chargeback.id)
+      : null;
+  if (providerChargebackId !== resourceId || !Array.isArray(chargeback.payments)) {
+    throw new Error('Invalid provider chargeback resource');
+  }
+
+  const paymentIds = chargeback.payments
+    .filter((paymentId): paymentId is string | number =>
+      typeof paymentId === 'string' || typeof paymentId === 'number'
+    )
+    .map(String);
+  if (paymentIds.length === 0 || paymentIds.length !== chargeback.payments.length) {
+    throw new Error('Invalid provider chargeback payments');
+  }
+
+  let correlated = false;
+  for (const paymentId of paymentIds) {
+    correlated = (await processPayment(admin, paymentId)) || correlated;
+  }
+  return correlated;
+}
+
 Deno.serve(async (request) => {
   if (request.method !== 'POST') {
     return Response.json({ error: 'Method not allowed' }, { status: 405 });
@@ -332,6 +368,8 @@ Deno.serve(async (request) => {
       correlated = await processAuthorizedPayment(admin, resourceId);
     } else if (eventType === 'payment') {
       correlated = await processPayment(admin, resourceId);
+    } else if (eventType === 'topic_chargebacks_wh') {
+      correlated = await processChargeback(admin, resourceId);
     }
 
     const { error: processedError } = await admin

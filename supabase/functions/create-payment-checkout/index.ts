@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import {
   checkoutReference,
+  MercadoPagoApiError,
   mercadoPagoRequest,
   paymentPlan,
   paymentReturnUrl,
@@ -41,6 +42,24 @@ function requiredSupabaseConfiguration() {
   return url && anonKey && serviceRoleKey
     ? { url, anonKey, serviceRoleKey }
     : null;
+}
+
+function mercadoPagoPayerEmail(userEmail: string) {
+  const liveMode = Deno.env.get('MERCADO_PAGO_LIVE_MODE')?.trim();
+  if (liveMode === 'true') return userEmail;
+  if (liveMode !== 'false') {
+    throw new Error('MERCADO_PAGO_LIVE_MODE must be explicitly configured');
+  }
+
+  const testPayerEmail = Deno.env.get('MERCADO_PAGO_TEST_PAYER_EMAIL')?.trim();
+  if (
+    !testPayerEmail ||
+    testPayerEmail.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testPayerEmail)
+  ) {
+    throw new Error('MERCADO_PAGO_TEST_PAYER_EMAIL is invalid');
+  }
+  return testPayerEmail;
 }
 
 async function cancelPendingProviderSubscription(providerSubscriptionId: string) {
@@ -106,6 +125,17 @@ Deno.serve(async (request) => {
     return jsonResponse(
       { error: 'Unsupported plan', code: 'unsupported_plan' },
       400,
+      origin
+    );
+  }
+
+  let payerEmail: string;
+  try {
+    payerEmail = mercadoPagoPayerEmail(user.email);
+  } catch {
+    return jsonResponse(
+      { error: 'Server configuration is incomplete', code: 'server_not_configured' },
+      500,
       origin
     );
   }
@@ -223,7 +253,7 @@ Deno.serve(async (request) => {
           body: JSON.stringify({
             reason: selectedPlan.title,
             external_reference: checkoutReference(checkout.id),
-            payer_email: user.email,
+            payer_email: payerEmail,
             auto_recurring: {
               frequency: selectedPlan.frequency,
               frequency_type: selectedPlan.frequencyType,
@@ -270,7 +300,14 @@ Deno.serve(async (request) => {
       throw error;
     }
   } catch (error) {
-    console.error('create-payment-checkout failed', error instanceof Error ? error.message : error);
+    console.error(
+      'create-payment-checkout failed',
+      error instanceof MercadoPagoApiError
+        ? { message: error.message, providerCode: error.providerCode }
+        : error instanceof Error
+          ? error.message
+          : error
+    );
     return jsonResponse(
       { error: 'Unable to create checkout', code: 'checkout_unavailable' },
       502,
