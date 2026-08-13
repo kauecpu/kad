@@ -65,16 +65,22 @@ function optionalString(value: unknown): string | undefined {
 
 function email(value: unknown): string {
   if (typeof value !== 'string') throw new AuthEmailInputError('invalid_email');
+  if (CONTROL_CHARACTER.test(value)) throw new AuthEmailInputError('invalid_email');
   const trimmed = value.trim();
   if (
     trimmed.length === 0 ||
     trimmed.length > 254 ||
-    CONTROL_CHARACTER.test(trimmed) ||
     trimmed.split('@').length !== 2
   ) {
     throw new AuthEmailInputError('invalid_email');
   }
   return trimmed;
+}
+
+function optionalEmail(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (value === '') return '';
+  return email(value);
 }
 
 export function parseAuthEmailHookPayload(value: unknown): AuthEmailHookPayload {
@@ -106,7 +112,7 @@ export function parseAuthEmailHookPayload(value: unknown): AuthEmailHookPayload 
       site_url: requiredString(emailData.site_url),
       token_new: requiredString(emailData.token_new),
       token_hash_new: requiredString(emailData.token_hash_new),
-      ...(emailData.old_email === undefined ? {} : { old_email: optionalString(emailData.old_email) }),
+      ...(emailData.old_email === undefined ? {} : { old_email: optionalEmail(emailData.old_email) }),
       ...(emailData.old_phone === undefined ? {} : { old_phone: optionalString(emailData.old_phone) }),
       ...(emailData.provider === undefined ? {} : { provider: optionalString(emailData.provider) }),
       ...(emailData.factor_type === undefined ? {} : { factor_type: optionalString(emailData.factor_type) }),

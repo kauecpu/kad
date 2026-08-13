@@ -103,6 +103,24 @@ test('normaliza os e-mails do usuário antes de copiar o evento', () => {
   assert.equal(parsed.user.new_email, 'novo@exemplo.com');
 });
 
+test('recusa old_email inválido ou com quebra de cabeçalho', () => {
+  for (const oldEmail of ['sem-arroba', 'anterior@exemplo.com\r\nBcc: atacante@exemplo.com']) {
+    assert.throws(() => parseAuthEmailHookPayload({
+      ...validPayload,
+      email_data: { ...validPayload.email_data, old_email: oldEmail },
+    }), /invalid_email/);
+  }
+});
+
+test('recusa controles ASCII no início ou fim dos e-mails', () => {
+  for (const email of ['\tpessoa@exemplo.com', 'pessoa@exemplo.com\u007f']) {
+    assert.throws(() => parseAuthEmailHookPayload({
+      ...validPayload,
+      user: { ...validPayload.user, email },
+    }), /invalid_email/);
+  }
+});
+
 test('copia somente o evento válido declarado e mantém tokens vazios de notificação', () => {
   const parsed = parseAuthEmailHookPayload({
     ...validPayload,
