@@ -134,7 +134,7 @@ export default function HomeScreen() {
   const simulationProgress = session?.questions.length
     ? (answeredInSimulation / session.questions.length) * 100
     : 0;
-  const continueCard = session
+  const continueCard = session && isPremium
     ? {
         label: session.status === 'completed' ? 'Seu último simulado' : 'Você parou aqui',
         title: session.status === 'completed' ? 'Revisar resultado' : 'Voltar ao simulado',

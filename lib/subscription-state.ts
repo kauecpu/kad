@@ -63,8 +63,15 @@ export function subscriptionFromRemote(
       status: row.status,
       startedAt: row.started_at,
       renewsAt: row.current_period_end,
-      autoRenew: row.status === 'active' && row.cancel_at_period_end !== true,
+      autoRenew:
+        (row.status === 'active' || row.status === 'past_due') &&
+        row.cancel_at_period_end !== true,
     },
     now
   );
+}
+
+/** Reflete imediatamente um cancelamento confirmado, sem depender de nova leitura da rede. */
+export function subscriptionAfterCancellation(subscription: Subscription): Subscription {
+  return subscription.autoRenew ? { ...subscription, autoRenew: false } : subscription;
 }

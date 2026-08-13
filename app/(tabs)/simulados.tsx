@@ -173,15 +173,21 @@ export default function SimulationsScreen() {
         {session ? (
           <Pressable
             onPress={() =>
-              router.push(
-                session.status === 'completed'
-                  ? '/questoes/simulado/resultado'
-                  : '/questoes/simulado'
-              )
+              canUseSimulations
+                ? router.push(
+                    session.status === 'completed'
+                      ? '/questoes/simulado/resultado'
+                      : '/questoes/simulado'
+                  )
+                : openPlans()
             }
             accessibilityRole="button"
             accessibilityLabel={
-              session.status === 'completed' ? 'Ver resultado do simulado' : 'Continuar simulado'
+              canUseSimulations
+                ? session.status === 'completed'
+                  ? 'Ver resultado do simulado'
+                  : 'Continuar simulado'
+                : 'Conhecer planos para acessar o simulado salvo'
             }
             style={({ pressed }) => [
             styles.resumeCard,

@@ -6,14 +6,12 @@ import {
   mercadoPagoRequest,
   validateWebhookSignature,
 } from '../_shared/mercado-pago.ts';
-
-type WebhookBody = {
-  id?: string | number;
-  action?: string;
-  type?: string;
-  live_mode?: boolean;
-  data?: { id?: string | number };
-};
+import {
+  checkoutMatchesProviderSubscription,
+  type MercadoPagoWebhookBody,
+  parseMercadoPagoWebhookBody,
+  webhookEnvironmentMatches,
+} from '../_shared/mercado-pago-webhook.ts';
 
 type CheckoutRow = {
   id: string;
@@ -58,7 +56,7 @@ type MercadoPagoChargeback = {
   payments?: unknown;
 };
 
-function resourceIdFrom(request: Request, body: WebhookBody) {
+function resourceIdFrom(request: Request, body: MercadoPagoWebhookBody) {
   const url = new URL(request.url);
   return (
     url.searchParams.get('data.id') ??
@@ -91,7 +89,13 @@ async function findCheckout(
       .eq('provider', 'mercado_pago')
       .maybeSingle<CheckoutRow>();
     if (error) throw error;
-    if (data) return data;
+    if (
+      data &&
+      (!providerSubscriptionId ||
+        checkoutMatchesProviderSubscription(data.provider_subscription_id, providerSubscriptionId))
+    ) {
+      return data;
+    }
   }
   if (!providerSubscriptionId) return null;
   const { data, error } = await admin
@@ -296,12 +300,15 @@ async function processChargeback(
 
 Deno.serve(async (request) => {
   if (request.method !== 'POST') {
-    return Response.json({ error: 'Method not allowed' }, { status: 405 });
+    return Response.json(
+      { error: 'Method not allowed' },
+      { status: 405, headers: { Allow: 'POST' } }
+    );
   }
 
-  const body = await request.json().catch(() => null) as WebhookBody | null;
+  const body = parseMercadoPagoWebhookBody(await request.json().catch(() => null));
   const resourceId = body ? resourceIdFrom(request, body) : null;
-  const eventType = body?.type ?? new URL(request.url).searchParams.get('type');
+  const eventType = body?.type;
   const webhookSecret = Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET')?.trim();
   if (!body || !resourceId || !eventType || !webhookSecret) {
     return Response.json({ error: 'Invalid webhook' }, { status: 400 });
@@ -317,12 +324,7 @@ Deno.serve(async (request) => {
     return Response.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
-  const configuredLiveMode = Deno.env.get('MERCADO_PAGO_LIVE_MODE');
-  if (
-    configuredLiveMode &&
-    typeof body.live_mode === 'boolean' &&
-    body.live_mode !== (configuredLiveMode === 'true')
-  ) {
+  if (!webhookEnvironmentMatches(Deno.env.get('MERCADO_PAGO_LIVE_MODE'), body.live_mode)) {
     return Response.json({ error: 'Unexpected environment' }, { status: 401 });
   }
 

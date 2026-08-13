@@ -12,6 +12,7 @@ import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { simulationQuestionById } from '@/lib/simulations';
+import { useApp } from '@/providers/app-provider';
 import { useSimulation } from '@/providers/simulation-provider';
 
 function formatTimer(seconds: number): string {
@@ -24,6 +25,7 @@ export default function SimulationPlayerScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { canUseSimulations, subscriptionLoading } = useApp();
   const scrollRef = useRef<ScrollView>(null);
   const resumeHandled = useRef(false);
   const {
@@ -37,24 +39,30 @@ export default function SimulationPlayerScreen() {
   } = useSimulation();
 
   useEffect(() => {
-    if (!session || resumeHandled.current) return;
-    resumeHandled.current = true;
-    if (session.status === 'paused') resumeSimulation();
-  }, [resumeSimulation, session]);
+    if (!subscriptionLoading && !canUseSimulations) {
+      router.replace('/perfil/planos');
+    }
+  }, [canUseSimulations, router, subscriptionLoading]);
 
   useEffect(() => {
-    if (session?.status !== 'active') return;
+    if (!canUseSimulations || !session || resumeHandled.current) return;
+    resumeHandled.current = true;
+    if (session.status === 'paused') resumeSimulation();
+  }, [canUseSimulations, resumeSimulation, session]);
+
+  useEffect(() => {
+    if (!canUseSimulations || session?.status !== 'active') return;
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [session?.status, tick]);
+  }, [canUseSimulations, session?.status, tick]);
 
   useEffect(() => () => pauseSimulation(), [pauseSimulation]);
 
   useEffect(() => {
-    if (session?.status === 'completed') {
+    if (canUseSimulations && session?.status === 'completed') {
       router.replace('/questoes/simulado/resultado');
     }
-  }, [router, session?.status]);
+  }, [canUseSimulations, router, session?.status]);
 
   const currentItem = session?.questions[session.currentIndex];
   const currentQuestion = currentItem
@@ -115,6 +123,23 @@ export default function SimulationPlayerScreen() {
       <Text style={[styles.saveActionText, { color: colors.primary }]}>Salvar</Text>
     </Pressable>
   );
+
+  if (subscriptionLoading || !canUseSimulations) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <StackHeader title="Simulado" onBack={() => router.replace('/questoes')} />
+        <EmptyState
+          icon={subscriptionLoading ? 'time-outline' : 'lock-closed-outline'}
+          title={subscriptionLoading ? 'Verificando seu plano' : 'Simulados são um recurso premium'}
+          description={
+            subscriptionLoading
+              ? 'Aguarde enquanto confirmamos sua assinatura.'
+              : 'Escolha um plano KAD para continuar esta prova.'
+          }
+        />
+      </View>
+    );
+  }
 
   if (!session || !currentItem || !currentQuestion) {
     return (

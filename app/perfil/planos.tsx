@@ -19,6 +19,7 @@ import {
 } from '@/data/user';
 import { useTheme } from '@/hooks/use-theme';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { isValidPaymentCheckoutReturnId } from '@/lib/payment-security';
 import { useApp } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
 import type { BillingCycle, SubscriptionPlan } from '@/types';
@@ -52,7 +53,7 @@ export default function PlansScreen() {
   const [checkoutReturned, setCheckoutReturned] = useState(false);
 
   useEffect(() => {
-    if (!checkout || !session) return;
+    if (!isValidPaymentCheckoutReturnId(checkout) || !session) return;
     setCheckoutReturned(true);
     let stopped = false;
     let attempts = 0;
@@ -111,6 +112,11 @@ export default function PlansScreen() {
         return;
       }
       globalThis.location.assign(result.checkoutUrl);
+    } catch {
+      notify(
+        'Não foi possível abrir o pagamento',
+        'Confira sua conexão e tente novamente em instantes.'
+      );
     } finally {
       setCheckoutLoading(false);
     }
@@ -126,8 +132,24 @@ export default function PlansScreen() {
           ? 'Seu acesso continuará disponível até o fim do período já pago.'
           : result.message ?? 'Tente novamente em instantes.'
       );
+    } catch {
+      notify(
+        'Não foi possível cancelar',
+        'Confira sua conexão e tente novamente em instantes.'
+      );
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const refreshWithFeedback = async () => {
+    try {
+      await refreshSubscription();
+    } catch {
+      notify(
+        'Não foi possível atualizar',
+        'O estado anterior foi mantido. Confira sua conexão e tente novamente.'
+      );
     }
   };
 
@@ -148,13 +170,16 @@ export default function PlansScreen() {
     ]);
   };
 
+  const displayedPlan: SubscriptionPlan = isPremium ? subscription.plan : 'basic';
   const currentPlanDescription = isPremium
     ? subscription.status === 'past_due'
       ? `Acesso disponível até ${formatDate(subscription.renewsAt)} enquanto a renovação é regularizada.`
       : subscription.autoRenew
         ? `Acesso ativo até ${formatDate(subscription.renewsAt)}, com renovação automática.`
         : `Acesso ativo até ${formatDate(subscription.renewsAt)}, sem renovação automática.`
-    : 'Gratuito, sem cobrança e com até 10 questões por dia.';
+    : subscription.status === 'expired'
+      ? `Sua assinatura terminou em ${formatDate(subscription.renewsAt)}. O Plano Básico continua disponível.`
+      : 'Gratuito, sem cobrança e com até 10 questões por dia.';
   const currentBadge = subscriptionLoading
     ? 'Atualizando'
     : subscription.status === 'past_due'
@@ -163,7 +188,9 @@ export default function PlansScreen() {
         ? 'Renovação cancelada'
         : isPremium
           ? 'Ativo'
-          : 'Grátis';
+          : subscription.status === 'expired'
+            ? 'Expirado'
+            : 'Grátis';
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -195,7 +222,7 @@ export default function PlansScreen() {
             <View style={styles.currentText}>
               <Text style={[styles.eyebrow, { color: colors.textSubtle }]}>Seu plano atual</Text>
               <Text style={[styles.currentTitle, { color: colors.text }]}>
-                {PLAN_LABEL[subscription.plan]}
+                {PLAN_LABEL[displayedPlan]}
               </Text>
               <Text style={[styles.currentDescription, { color: colors.textMuted }]}>
                 {currentPlanDescription}
@@ -226,7 +253,7 @@ export default function PlansScreen() {
               label={subscriptionLoading ? 'Atualizando...' : 'Atualizar assinatura'}
               variant="secondary"
               icon="refresh"
-              onPress={() => void refreshSubscription()}
+              onPress={() => void refreshWithFeedback()}
               disabled={subscriptionLoading}
               fullWidth
             />
@@ -499,7 +526,7 @@ function PaidPlanSection({
             />
             <Text style={[styles.paymentNoticeText, { color: colors.textMuted }]}>
               {Platform.OS === 'web'
-                ? 'Pix e cartão são processados no ambiente seguro do Mercado Pago. A disponibilidade da renovação via Pix depende do banco e da conta.'
+                ? 'Pix e cartão são processados no Mercado Pago. A assinatura é recorrente no período escolhido e pode ser cancelada aqui a qualquer momento; o acesso pago permanece até o fim do período já quitado. A renovação via Pix depende do banco e da conta.'
                 : 'A compra pelo aplicativo será liberada após a configuração da Apple App Store e do Google Play.'}
             </Text>
           </View>

@@ -24,6 +24,7 @@ import {
   subscriptionWithCurrentStatus,
 } from '@/lib/access-rules';
 import { sanitizeLegacyGuestProfile } from '@/lib/profile';
+import { subscriptionAfterCancellation } from '@/lib/subscription-state';
 import {
   cancelRemoteSubscription,
   createSubscriptionCheckout,
@@ -526,7 +527,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const cancelSubscription = useCallback(async () => {
     const result = await cancelRemoteSubscription();
-    if (result.ok) await refreshSubscription();
+    if (result.ok) {
+      setState((current) => ({
+        ...current,
+        subscription: subscriptionAfterCancellation(current.subscription),
+      }));
+      await refreshSubscription().catch(() => {
+        // O provedor já confirmou o cancelamento; a próxima sincronização reconcilia o estado.
+      });
+    }
     return result;
   }, [refreshSubscription]);
 

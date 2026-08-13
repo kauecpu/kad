@@ -30,7 +30,10 @@ import {
   sortConcursos,
 } from '../lib/concursos.ts';
 import { formatSalaryShort } from '../lib/format.ts';
-import { isTrustedPaymentCheckoutUrl } from '../lib/payment-security.ts';
+import {
+  isTrustedPaymentCheckoutUrl,
+  isValidPaymentCheckoutReturnId,
+} from '../lib/payment-security.ts';
 import {
   formatBrazilianPhone,
   isValidUsername,
@@ -47,7 +50,10 @@ import {
   recommendPackForGoal,
   simulationCandidates,
 } from '../lib/simulations.ts';
-import { subscriptionFromRemote } from '../lib/subscription-state.ts';
+import {
+  subscriptionAfterCancellation,
+  subscriptionFromRemote,
+} from '../lib/subscription-state.ts';
 import type { DailyQuestionUsage, Subscription } from '../types/index.ts';
 
 test('a pesquisa do seletor não passa de Banca para Estado', () => {
@@ -193,6 +199,42 @@ test('o estado remoto inválido nunca libera uma assinatura', () => {
   assert.equal(subscriptionHasAccess(invalid), false);
 });
 
+test('assinatura em atraso continua cancelavel enquanto a renovacao estiver ativa', () => {
+  const subscription = subscriptionFromRemote(
+    {
+      plan: 'diamond',
+      billing_cycle: 'monthly',
+      provider: 'mercado_pago',
+      provider_status: 'paused',
+      status: 'past_due',
+      started_at: '2026-08-01T12:00:00.000Z',
+      current_period_end: '2026-09-01T12:00:00.000Z',
+      cancel_at_period_end: false,
+    },
+    new Date('2026-08-15T12:00:00.000Z')
+  );
+
+  assert.equal(subscription.status, 'past_due');
+  assert.equal(subscription.autoRenew, true);
+});
+
+test('cancelamento confirmado remove a renovacao mesmo se a recarga falhar', () => {
+  const current: Subscription = {
+    plan: 'diamond',
+    billingCycle: 'monthly',
+    provider: 'mercado_pago',
+    status: 'past_due',
+    startedAt: '2026-08-01T12:00:00.000Z',
+    renewsAt: '2026-09-01T12:00:00.000Z',
+    autoRenew: true,
+  };
+
+  assert.deepEqual(subscriptionAfterCancellation(current), {
+    ...current,
+    autoRenew: false,
+  });
+});
+
 test('o app só aceita checkout HTTPS em domínio oficial do Mercado Pago', () => {
   assert.equal(
     isTrustedPaymentCheckoutUrl('https://www.mercadopago.com.br/subscriptions/checkout'),
@@ -207,6 +249,13 @@ test('o app só aceita checkout HTTPS em domínio oficial do Mercado Pago', () =
     false
   );
   assert.equal(isTrustedPaymentCheckoutUrl('http://mercadopago.com.br/inseguro'), false);
+});
+
+test('retorno do checkout exige um identificador UUID valido', () => {
+  assert.equal(isValidPaymentCheckoutReturnId('94371c2e-c0f3-4580-b7e5-f481614d0763'), true);
+  assert.equal(isValidPaymentCheckoutReturnId('true'), false);
+  assert.equal(isValidPaymentCheckoutReturnId('../assinatura-de-outra-pessoa'), false);
+  assert.equal(isValidPaymentCheckoutReturnId(['94371c2e-c0f3-4580-b7e5-f481614d0763']), false);
 });
 
 test('todos os concursos apontam para uma página oficial HTTPS', () => {
