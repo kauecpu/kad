@@ -56,7 +56,6 @@
 - `package.json`: `standardwebhooks@1.0.0` como devDependency para os testes Node.
 - `package-lock.json`: lockfile atualizado pelo npm.
 - `supabase/config.toml`: `verify_jwt = false` somente para `send-auth-email`, além do webhook existente.
-- `tests/database-schema.test.ts`: garantias estáticas do entrypoint e da configuração.
 - `README.md`: link curto para `docs/EMAILS.md`.
 
 ---
@@ -329,7 +328,7 @@ test('valida assinatura, timestamp e corpo bruto', () => {
 ```
 
 Add focused cases for missing env names, invalid `SUPABASE_URL`, HTTP non-local Supabase URL, invalid from/reply-to, empty prefix list, missing webhook headers, invalid signature and a timestamp older than five minutes.
-Also cover hook-secret suffixes that are empty, invalid base64 or shorter than 16 decoded bytes; both accepted `whsec_...` formats; NUL/TAB/DEL in brand/from/reply-to; a Supabase URL with path, query, fragment or userinfo; and redirects with userinfo, a mismatched port or `/auth-evil` against `/auth`.
+Also cover hook-secret suffixes that are empty, invalid base64 or shorter than 24 decoded bytes; both accepted `whsec_...` formats; NUL/TAB/DEL in brand/from/reply-to; a Supabase URL with path, query, fragment or userinfo; and redirects with userinfo, a mismatched port or `/auth-evil` against `/auth`.
 
 - [ ] **Step 3: Executar os testes para confirmar a falha inicial**
 
@@ -438,7 +437,7 @@ Implement these checks:
 
 - Reject empty values and every ASCII control character in `U+0000–U+001F` or `U+007F` in all header-like settings.
 - Require `RESEND_API_KEY` to start with `re_`, without logging the value.
-- Normalize the optional `v1,` prefix, require the remaining `SEND_EMAIL_HOOK_SECRET` to be `whsec_` followed by canonical base64, and require 16–64 decoded bytes. Treat malformed secret material as `AuthEmailConfigurationError`, never as a request-level signature failure.
+- Normalize the optional `v1,` prefix, require the remaining `SEND_EMAIL_HOOK_SECRET` to be `whsec_` followed by canonical base64, and require 24–64 decoded bytes as specified by Standard Webhooks 1.0. Treat malformed secret material as `AuthEmailConfigurationError`, never as a request-level signature failure.
 - Keep `EMAIL_BRAND_NAME` between 1 and 80 Unicode characters and reject ASCII controls plus address-list/display-name delimiters `<`, `>`, `"`, `\\`, `,` and `;`.
 - Require mailbox-only values in `EMAIL_FROM_ADDRESS` and optional `EMAIL_REPLY_TO`; the transport formats `Brand <mailbox>`.
 - Parse `EMAIL_ALLOWED_REDIRECT_PREFIXES` as a comma-separated, deduplicated list.
@@ -883,7 +882,6 @@ git commit -m "feat: send auth emails through Resend API"
 - Create: `supabase/functions/send-auth-email/deno.json`
 - Create: `tests/auth-email-handler.test.ts`
 - Modify: `supabase/config.toml`
-- Modify: `tests/database-schema.test.ts`
 
 **Interfaces:**
 
@@ -970,40 +968,17 @@ Add assertions for:
 - Collected logs do not match the fixture email, OTP, token hash, `kad://`, HTML, API key or hook secret.
 - Public response bodies contain only `{ error: '<stable_code>' }` or `{}`.
 
-- [ ] **Step 2: Adicionar testes estáticos falhos de configuração**
-
-Extend `tests/database-schema.test.ts` to read the new config and entrypoint:
-
-```ts
-const authEmailFunction = readFileSync(
-  new NodeURL('../supabase/functions/send-auth-email/index.ts', import.meta.url),
-  'utf8'
-);
-const authEmailDenoConfig = readFileSync(
-  new NodeURL('../supabase/functions/send-auth-email/deno.json', import.meta.url),
-  'utf8'
-);
-
-test('hook de e-mail desativa JWT somente no endpoint assinado', () => {
-  assert.match(supabaseConfig, /\[functions\.send-auth-email\]\s+verify_jwt = false/);
-  assert.match(authEmailDenoConfig, /npm:standardwebhooks@1\.0\.0/);
-  assert.doesNotMatch(authEmailFunction, /SERVICE_ROLE|EXPO_PUBLIC_|RESEND_API_KEY\s*=/);
-  assert.match(authEmailFunction, /Deno\.env\.get\(name\)/);
-  assert.match(authEmailFunction, /Deno\.serve/);
-});
-```
-
-- [ ] **Step 3: Executar os testes para confirmar as falhas**
+- [ ] **Step 2: Executar os testes para confirmar as falhas**
 
 Run:
 
 ```powershell
-node --no-warnings --test tests/auth-email-handler.test.ts tests/database-schema.test.ts
+node --no-warnings --test tests/auth-email-handler.test.ts
 ```
 
-Expected: FAIL because the handler and entrypoint do not exist and config lacks the function section.
+Expected: FAIL because the handler does not exist.
 
-- [ ] **Step 4: Implementar leitura limitada do corpo e orquestração**
+- [ ] **Step 3: Implementar leitura limitada do corpo e orquestração**
 
 Create `supabase/functions/_shared/auth-email-handler.ts`:
 
@@ -1058,7 +1033,7 @@ Handler order must be:
 
 Map `ResendTransportError('permanent')` to 502 and transient to 503. Map unexpected internal failures to 500 with `internal_error`. `invalidConfigNames` may contain only canonical names from the fixed environment-variable allowlist. Logging code must construct an allowlisted object; never spread an error, payload, config or provider response.
 
-- [ ] **Step 5: Criar o entrypoint mínimo e import map Deno**
+- [ ] **Step 4: Criar o entrypoint mínimo e import map Deno**
 
 Create `supabase/functions/send-auth-email/deno.json`:
 
@@ -1099,7 +1074,7 @@ Deno.serve(handler);
 
 Do not add CORS headers: this is a server-to-server hook and the browser never calls it.
 
-- [ ] **Step 6: Configurar o endpoint assinado sem JWT**
+- [ ] **Step 5: Configurar o endpoint assinado sem JWT**
 
 Append to `supabase/config.toml` without altering the existing Mercado Pago section:
 
@@ -1109,30 +1084,32 @@ Append to `supabase/config.toml` without altering the existing Mercado Pago sect
 verify_jwt = false
 ```
 
-- [ ] **Step 7: Executar testes do handler e garantias estáticas**
+- [ ] **Step 6: Executar os testes comportamentais do handler**
 
 Run:
 
 ```powershell
-node --no-warnings --test tests/auth-email-handler.test.ts tests/database-schema.test.ts
+node --no-warnings --test tests/auth-email-handler.test.ts
 ```
 
 Expected: PASS.
 
-- [ ] **Step 8: Validar o grafo TypeScript no Deno**
+- [ ] **Step 7: Validar o grafo TypeScript e as configurações sem teste de texto**
 
 Run:
 
 ```powershell
 npx.cmd --yes deno@2.9.5 check --config supabase/functions/send-auth-email/deno.json supabase/functions/send-auth-email/index.ts
+npx.cmd --yes deno@2.9.5 eval --allow-read "import { parse } from 'jsr:@std/toml@1.0.11'; const c = parse(await Deno.readTextFile('supabase/config.toml')) as Record<string, unknown>; const f = c.functions as Record<string, { verify_jwt?: boolean }> | undefined; if (f?.['send-auth-email']?.verify_jwt !== false) throw new Error('send-auth-email verify_jwt must be false');"
+npx.cmd --yes supabase@2.114.0 functions serve --help
 ```
 
-Expected: `Check supabase/functions/send-auth-email/index.ts` and exit 0. This command checks the function locally; do not run `supabase functions deploy`.
+Expected: Deno check exits 0; the pinned TOML parser reads `config.toml` and verifies the semantic value; Supabase CLI recognizes the local `functions serve` command and `--no-verify-jwt` option. These commands do not start services or mutate a remote project. Do not run `supabase functions deploy`.
 
-- [ ] **Step 9: Commitar a Edge Function completa**
+- [ ] **Step 8: Commitar a Edge Function completa**
 
 ```powershell
-git add tests/auth-email-handler.test.ts tests/database-schema.test.ts supabase/config.toml supabase/functions/_shared/auth-email-handler.ts supabase/functions/send-auth-email/index.ts supabase/functions/send-auth-email/deno.json
+git add tests/auth-email-handler.test.ts supabase/config.toml supabase/functions/_shared/auth-email-handler.ts supabase/functions/send-auth-email/index.ts supabase/functions/send-auth-email/deno.json
 git commit -m "feat: add signed auth email Edge Function"
 ```
 
@@ -1144,41 +1121,15 @@ git commit -m "feat: add signed auth email Edge Function"
 
 - Create: `docs/EMAILS.md`
 - Modify: `README.md`
-- Modify: `tests/auth-email-handler.test.ts`
 
 **Interfaces:**
 
 - Consumes: final environment variable names, function slug and response behavior.
 - Produces: an activation and rollback runbook; no runtime API.
 
-- [ ] **Step 1: Escrever uma verificação falha do runbook**
+- [ ] **Step 1: Escrever o guia de ativação sem inserir credenciais**
 
-Add a source read to `tests/auth-email-handler.test.ts` and this test:
-
-```ts
-test('runbook separa preparação local de ativação remota', () => {
-  assert.match(emailRunbook, /RESEND_API_KEY/);
-  assert.match(emailRunbook, /SEND_EMAIL_HOOK_SECRET/);
-  assert.match(emailRunbook, /EMAIL_ALLOWED_REDIRECT_PREFIXES/);
-  assert.match(emailRunbook, /não habilite o Send Email Hook/i);
-  assert.match(emailRunbook, /rollback/i);
-  assert.match(emailRunbook, /SPF/);
-  assert.match(emailRunbook, /DKIM/);
-  assert.match(emailRunbook, /DMARC/);
-  assert.doesNotMatch(emailRunbook, /re_[A-Za-z0-9]{16,}/);
-  assert.doesNotMatch(emailRunbook, /whsec_[A-Za-z0-9+/=]{16,}/);
-});
-```
-
-Run:
-
-```powershell
-node --no-warnings --test tests/auth-email-handler.test.ts
-```
-
-Expected: FAIL because `docs/EMAILS.md` does not exist.
-
-- [ ] **Step 2: Escrever o guia de ativação sem inserir credenciais**
+This human-facing runbook is explicitly exempted from automated source-text tests by the project owner. Verify its content through the task review and the credential scan below.
 
 Create `docs/EMAILS.md` with these exact sections:
 
@@ -1194,7 +1145,7 @@ Create `docs/EMAILS.md` with these exact sections:
 
 The secret example block must contain variable names with `<defina-no-painel>` values, never strings that resemble real Resend or webhook credentials. State that `resend.dev` is restricted to controlled account testing and must not be used for end users.
 
-- [ ] **Step 3: Linkar o guia no README**
+- [ ] **Step 2: Linkar o guia no README**
 
 Add a short `## E-mails de autenticação` section after `## Autenticação e banco`:
 
@@ -1207,20 +1158,21 @@ definidos e verificados. Consulte [`docs/EMAILS.md`](docs/EMAILS.md) antes de co
 segredos, publicar a função ou habilitar o Send Email Hook.
 ```
 
-- [ ] **Step 4: Executar a verificação do runbook**
+- [ ] **Step 3: Revisar conteúdo e procurar credenciais**
 
 Run:
 
 ```powershell
-node --no-warnings --test tests/auth-email-handler.test.ts
+git diff --check
+rg -n 're_[A-Za-z0-9]{16,}|whsec_[A-Za-z0-9+/=]{16,}|service_role|EXPO_PUBLIC_RESEND|Authorization:\s*Bearer\s+re_' docs/EMAILS.md README.md
 ```
 
-Expected: PASS.
+Expected: `git diff --check` has no output. Review every `rg` match; the new email documentation must contain no credential-like value, `service_role`, client-side Resend variable or hardcoded Bearer key. The task reviewer must verify all nine required sections, activation order and rollback language from the brief.
 
-- [ ] **Step 5: Commitar a documentação operacional**
+- [ ] **Step 4: Commitar a documentação operacional**
 
 ```powershell
-git add README.md docs/EMAILS.md tests/auth-email-handler.test.ts
+git add README.md docs/EMAILS.md
 git commit -m "docs: document Resend auth email activation"
 ```
 
@@ -1243,7 +1195,7 @@ git commit -m "docs: document Resend auth email activation"
 Run:
 
 ```powershell
-node --no-warnings --test tests/auth-email-contract.test.ts tests/auth-email-plan.test.ts tests/resend-email.test.ts tests/auth-email-handler.test.ts tests/database-schema.test.ts
+node --no-warnings --test tests/auth-email-contract.test.ts tests/auth-email-plan.test.ts tests/resend-email.test.ts tests/auth-email-handler.test.ts
 ```
 
 Expected: all tests pass, 0 failures.

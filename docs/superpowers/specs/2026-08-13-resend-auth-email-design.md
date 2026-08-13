@@ -187,6 +187,8 @@ janela aceita pela biblioteca.
 ### Proteção de segredos e dados
 
 - A função não usa `service_role`.
+- O segredo simétrico do hook segue Standard Webhooks 1.0: base64 canônico de
+  24 a 64 bytes, com prefixo `whsec_` e o prefixo opcional `v1,` do Supabase.
 - O Expo não recebe chaves ou configurações privadas.
 - O código não registra destinatário completo, OTP, hashes, links ou corpos.
 - As mensagens de erro públicas não incluem respostas brutas do Resend.
@@ -268,6 +270,12 @@ os registros para impedir a presença de e-mail, token, hash, link ou segredo.
   disponível no ambiente.
 - Buscar padrões de chaves e segredos no diff.
 - Executar revisão de segurança do diff.
+
+O responsável aprovou que arquivos declarativos e documentação não recebam
+testes por regex do próprio texto. `config.toml` e `deno.json` são validados
+por parsing/typecheck e pelo Supabase CLI; o runbook passa por revisão de
+conteúdo e scan de credenciais. O TDD permanece obrigatório para o código
+TypeScript executável.
 
 Os testes automatizados não chamam a API do Resend. A integração usa um
 transporte falso e fixtures assinadas.
