@@ -2,7 +2,7 @@
 
 **Data:** 13 de agosto de 2026
 
-**Status:** desenho aprovado, aguardando revisão do documento
+**Status:** desenho e documento aprovados pelo responsável do projeto
 
 **Escopo:** e-mails gerados pelo Supabase Auth
 
@@ -216,8 +216,8 @@ idempotência quando representa o mesmo webhook.
 | corpo excessivo | `413` | não chama o verificador nem o Resend |
 | payload ou evento inválido | `422` | retorna código interno sem dados pessoais |
 | segredo ou configuração ausente | `500` | registra apenas os nomes ausentes |
-| `4xx` determinístico do Resend, exceto `409` e `429` | `502` | não repete a chamada |
-| rede, `409`, `429` ou `5xx` do Resend | `503` | permite nova tentativa segura |
+| `4xx` determinístico do Resend, incluindo `409 invalid_idempotent_request` | `502` | não repete a chamada |
+| rede, `409 concurrent_idempotent_requests`, `429` ou `5xx` do Resend | `503` | permite nova tentativa segura |
 
 A função só responde `200` depois que o Resend aceita todas as mensagens do
 evento. No caso de mudança segura de e-mail, uma aceitação parcial retorna erro
@@ -286,16 +286,21 @@ pendente da atividade de pagamentos.
 3. Publicar SPF, DKIM e DMARC no DNS.
 4. Desabilitar rastreamento de abertura e clique no domínio Resend.
 5. Criar uma chave Resend com acesso de envio restrito ao domínio.
-6. Definir os segredos da Edge Function no projeto Supabase.
+6. Definir todos os segredos da Edge Function, exceto o segredo ainda não
+   gerado do hook.
 7. Implantar `send-auth-email` com `verify_jwt = false`.
-8. Fazer um envio controlado antes de ativar o hook.
-9. Manter o provedor de e-mail do Supabase habilitado e criar o Send Email Hook
-   HTTPS.
-10. Gerar e salvar `SEND_EMAIL_HOOK_SECRET` sem gravá-lo em arquivo versionado.
+8. Manter o provedor de e-mail do Supabase habilitado, abrir a criação do Send
+   Email Hook HTTPS e gerar/copiar o segredo sem salvar ou habilitar o hook.
+9. Definir `SEND_EMAIL_HOOK_SECRET` em outro terminal e executar um canário
+   assinado controlado contra a função já implantada.
+10. Somente depois do canário, salvar/habilitar o hook. Se o Dashboard não
+    permitir separar a geração do segredo do salvamento, usar uma janela de
+    manutenção controlada com rollback imediato preparado.
 11. Testar cadastro, reenvio, recuperação e um evento de segurança.
 12. Conferir logs do Supabase e do Resend sem copiar dados pessoais para o PR.
 
-O responsável ativa o hook por último. Em caso de falha, ele desabilita o hook;
+O hook habilitado substitui o caminho SMTP interno, por isso o responsável o
+ativa por último. Em caso de falha, ele desabilita o hook;
 com o provedor de e-mail do Supabase habilitado, o fluxo volta ao SMTP
 configurado.
 
