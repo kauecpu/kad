@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace only the welcome onboarding wolf with the supplied seated-writing mascot, using a clean transparent PNG and the requested accessibility label.
+**Goal:** Remove every legacy onboarding wolf and replace all four slide variants with the supplied seated-writing mascot, using a clean transparent PNG and the requested accessibility label.
 
-**Architecture:** Keep the existing `KadMascot` component and onboarding layout. Add a dedicated welcome-mascot asset plus a small presentation descriptor consumed by `KadMascot`, so the welcome variant changes without affecting the nerd, book, or goal variants.
+**Architecture:** Keep the existing `KadMascot` component and onboarding layout. Add one dedicated new-model asset plus a small presentation descriptor consumed by `KadMascot`, and point every onboarding variant to that asset so no legacy wolf remains.
 
 **Tech Stack:** Expo SDK 54, React Native 0.81, TypeScript, Node test runner, PNG with alpha.
 
@@ -15,7 +15,7 @@
 - The final asset must have a transparent background with no white field, black corners, frame, shadow, or chroma fringe.
 - Render with React Native `Image` behavior, `resizeMode="contain"`, responsive sizing, no cropping or overlap, and accessibility label `Mascote KAD escrevendo com um lápis`.
 - Do not change copy, buttons, navigation, global colors, or any other screen.
-- Keep the existing nerd, book, and goal mascot assets unchanged.
+- Remove the legacy welcome, nerd, book, and goal mascot assets after migrating every variant to the new writing mascot.
 
 ---
 
@@ -24,6 +24,9 @@
 **Files:**
 - Create: `assets/images/kad-mascot-wolf-writing.png`
 - Delete after reference migration: `assets/images/kad-mascot-wolf.png`
+- Delete after reference migration: `assets/images/kad-mascot-wolf-nerd.png`
+- Delete after reference migration: `assets/images/kad-mascot-wolf-book.png`
+- Delete after reference migration: `assets/images/kad-mascot-wolf-goal.png`
 
 **Interfaces:**
 - Consumes: the two supplied JPEG references.
@@ -49,7 +52,7 @@ C:\Users\unluc\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\p
 
 Verify the PNG has an alpha channel, transparent corners, no green fringe, no black or white frame, and retains the complete wolf, pencil, shorts, and paper.
 
-### Task 2: Connect the new welcome presentation using TDD
+### Task 2: Connect the new mascot to every onboarding variant using TDD
 
 **Files:**
 - Create: `constants/mascots.ts`
@@ -58,7 +61,7 @@ Verify the PNG has an alpha channel, transparent corners, no green fringe, no bl
 
 **Interfaces:**
 - Produces: `getMascotAccessibilityLabel(variant: KadMascotVariant): string` and the `KadMascotVariant` type.
-- Consumes: the dedicated `kad-mascot-wolf-writing.png` source for the `welcome` variant.
+- Consumes: the dedicated `kad-mascot-wolf-writing.png` source for all four onboarding variants.
 
 - [ ] **Step 1: Write the failing accessibility-contract test**
 
@@ -68,8 +71,10 @@ import test from 'node:test';
 
 import { getMascotAccessibilityLabel } from '../constants/mascots.ts';
 
-test('o mascote de boas-vindas descreve a pose de escrita para leitores de tela', () => {
-  assert.equal(getMascotAccessibilityLabel('welcome'), 'Mascote KAD escrevendo com um lápis');
+test('todos os slides descrevem o novo mascote escrevendo para leitores de tela', () => {
+  for (const variant of ['welcome', 'nerd', 'book', 'goal'] as const) {
+    assert.equal(getMascotAccessibilityLabel(variant), 'Mascote KAD escrevendo com um lápis');
+  }
 });
 ```
 
@@ -77,20 +82,20 @@ test('o mascote de boas-vindas descreve a pose de escrita para leitores de tela'
 
 Run: `node --no-warnings --test tests/mascot-presentation.test.ts`
 
-Expected: FAIL because `constants/mascots.ts` does not exist.
+Expected: FAIL on `nerd` because the legacy variants still describe the old mascot.
 
 - [ ] **Step 3: Add the minimal descriptor and update the component**
 
-Create the exported variant type and label getter in `constants/mascots.ts`. Import them from `components/kad-mascot.tsx`, point only `MASCOT_SOURCES.welcome` to `kad-mascot-wolf-writing.png`, retain `resizeMode="contain"`, and keep the existing responsive `size` behavior.
+Create the exported variant type and label getter in `constants/mascots.ts`. Import them from `components/kad-mascot.tsx`, point every entry in `MASCOT_SOURCES` to `kad-mascot-wolf-writing.png`, retain `resizeMode="contain"`, and keep the existing responsive `size` behavior.
 
 ```ts
 export type KadMascotVariant = 'welcome' | 'nerd' | 'book' | 'goal';
 
 const MASCOT_LABELS: Record<KadMascotVariant, string> = {
   welcome: 'Mascote KAD escrevendo com um lápis',
-  nerd: 'Mascote lobo roxo com óculos estudando com um lápis',
-  book: 'Mascote lobo roxo lendo um livro',
-  goal: 'Mascote lobo roxo segurando uma bandeira de objetivo',
+  nerd: 'Mascote KAD escrevendo com um lápis',
+  book: 'Mascote KAD escrevendo com um lápis',
+  goal: 'Mascote KAD escrevendo com um lápis',
 };
 
 export function getMascotAccessibilityLabel(variant: KadMascotVariant) {
@@ -98,10 +103,13 @@ export function getMascotAccessibilityLabel(variant: KadMascotVariant) {
 }
 ```
 
-Use this welcome source in `MASCOT_SOURCES`:
+Use this source for `welcome`, `nerd`, `book`, and `goal` in `MASCOT_SOURCES`:
 
 ```ts
 welcome: require('../assets/images/kad-mascot-wolf-writing.png'),
+nerd: require('../assets/images/kad-mascot-wolf-writing.png'),
+book: require('../assets/images/kad-mascot-wolf-writing.png'),
+goal: require('../assets/images/kad-mascot-wolf-writing.png'),
 ```
 
 - [ ] **Step 4: Run the focused test and verify GREEN**
@@ -112,9 +120,9 @@ Expected: PASS with one test and zero failures.
 
 - [ ] **Step 5: Confirm the old asset is unreferenced, then delete it**
 
-Run: `rg -n "kad-mascot-wolf\.png" app components constants tests`
+Run: `rg -n "kad-mascot-wolf(-nerd|-book|-goal)?\.png" app components constants tests`
 
-Expected: no matches before deleting `assets/images/kad-mascot-wolf.png`.
+Expected: no matches before deleting all four legacy mascot files.
 
 ### Task 3: Visual and repository verification
 
@@ -132,7 +140,7 @@ Run: `npx.cmd expo start --web --port 8083`
 
 - [ ] **Step 2: Validate mobile widths visually**
 
-Open `/onboarding-preview` at 320px and 430px widths. Confirm the whole mascot is contained, does not overlap copy or controls, and the PNG has no residual background or border.
+Open all four slides of `/onboarding-preview` at 320px and 430px widths. Confirm every slide uses the new writing mascot, the whole image is contained, it does not overlap copy or controls, and the PNG has no residual background or border.
 
 - [ ] **Step 3: Validate light and dark modes**
 
