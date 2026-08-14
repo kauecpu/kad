@@ -10,3 +10,21 @@ const MASCOT_LABELS: Record<KadMascotVariant, string> = {
 export function getMascotAccessibilityLabel(variant: KadMascotVariant) {
   return MASCOT_LABELS[variant];
 }
+
+type OnboardingSlideAccessibilityLabelInput = {
+  index: number;
+  total: number;
+  title: string;
+  description: string;
+  mascot: KadMascotVariant;
+};
+
+export function getOnboardingSlideAccessibilityLabel({
+  index,
+  total,
+  title,
+  description,
+  mascot,
+}: OnboardingSlideAccessibilityLabelInput) {
+  return `Etapa ${index + 1} de ${total}. ${title}. ${description} ${getMascotAccessibilityLabel(mascot)}`;
+}

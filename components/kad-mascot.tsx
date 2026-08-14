@@ -8,10 +8,7 @@ import {
   type StyleProp,
 } from 'react-native';
 
-import {
-  getMascotAccessibilityLabel,
-  type KadMascotVariant,
-} from '@/constants/mascots';
+import { type KadMascotVariant } from '@/constants/mascots';
 
 export type { KadMascotVariant } from '@/constants/mascots';
 
@@ -86,7 +83,10 @@ export function KadMascot({
     <Animated.Image
       source={MASCOT_SOURCES[variant]}
       resizeMode="contain"
-      accessibilityLabel={getMascotAccessibilityLabel(variant)}
+      accessible={false}
+      aria-hidden
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       accessibilityIgnoresInvertColors
       style={[
         styles.image,
