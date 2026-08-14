@@ -23,8 +23,8 @@ Expo.
 Criar uma integração server-side que receba os eventos do Send Email Hook do
 Supabase Auth, valide a assinatura do evento, gere uma mensagem em português e
 envie o conteúdo pela API do Resend. A integração deve cobrir os eventos atuais
-do Supabase Auth e permitir que a equipe altere marca, remetente e reply-to por
-configuração.
+que possuem destinatário vinculável no payload, falhar fechado nos demais e
+permitir que a equipe altere marca, remetente e reply-to por configuração.
 
 ## Fora do escopo
 
@@ -131,15 +131,21 @@ os nomes e formatos esperados, sem valores reais.
 | `reauthentication` | e-mail da conta | código temporário de reautenticação |
 | `email_change` | endereço atual e novo | confirmação da mudança segura de e-mail |
 | `password_changed_notification` | e-mail da conta | aviso de senha alterada |
-| `email_changed_notification` | e-mail da conta | aviso de e-mail alterado |
+| `email_changed_notification` | e-mail anterior (`old_email`) | aviso de e-mail alterado |
 | `phone_changed_notification` | e-mail da conta | aviso de telefone alterado |
 | `identity_linked_notification` | e-mail da conta | aviso de identidade vinculada |
-| `identity_unlinked_notification` | e-mail da conta | aviso de identidade removida |
+| `identity_unlinked_notification` | não entregue | `422 unsupported_action`; o payload atual não vincula o destinatário anterior |
 | `mfa_factor_enrolled_notification` | e-mail da conta | aviso de fator MFA adicionado |
 | `mfa_factor_unenrolled_notification` | e-mail da conta | aviso de fator MFA removido |
 
 O planejador rejeita tipos desconhecidos. Essa decisão impede que um evento
 novo receba um template com instruções ou links incorretos.
+
+O planejador também rejeita `identity_unlinked_notification`. O Supabase captura
+o destinatário antes da desvinculação em seu fluxo nativo, mas o payload atual do
+Send Email Hook não expõe esse valor; `user.email` pode já apontar para uma
+identidade promovida. A notificação opcional deve permanecer desabilitada enquanto
+o hook estiver ativo, até que o contrato upstream forneça o destinatário vinculável.
 
 ### Mudança segura de e-mail
 
@@ -245,7 +251,8 @@ os registros para impedir a presença de e-mail, token, hash, link ou segredo.
 
 ### Testes unitários
 
-- Validar todos os tipos de evento da matriz.
+- Validar todos os tipos de evento entregáveis da matriz e a rejeição fechada de
+  `identity_unlinked_notification`.
 - Cobrir os modos seguro e simples de mudança de e-mail.
 - Verificar links, redirects aceitos e redirects recusados.
 - Confirmar HTML escapado e equivalência de conteúdo entre HTML e texto.
@@ -304,7 +311,9 @@ pendente da atividade de pagamentos.
 10. Somente depois do canário, salvar/habilitar o hook. Se o Dashboard não
     permitir separar a geração do segredo do salvamento, usar uma janela de
     manutenção controlada com rollback imediato preparado.
-11. Testar cadastro, reenvio, recuperação e um evento de segurança.
+11. Confirmar que a notificação opcional de identidade desvinculada permanece
+    desabilitada e testar cadastro, reenvio, recuperação e um evento de segurança
+    suportado.
 12. Conferir logs do Supabase e do Resend sem copiar dados pessoais para o PR.
 
 O hook habilitado substitui o caminho SMTP interno, por isso o responsável o
@@ -328,7 +337,8 @@ configurado.
 
 - O cliente Expo não contém referência à API key do Resend.
 - A Edge Function rejeita pedidos sem assinatura válida.
-- Os eventos listados geram HTML e texto em português.
+- Os eventos entregáveis listados geram HTML e texto em português; o evento de
+  identidade desvinculada falha fechado antes do transporte.
 - A função trata corretamente os dois destinatários da mudança segura de
   e-mail.
 - Marca, remetente, reply-to e redirects vêm do ambiente.

@@ -82,7 +82,12 @@ const ACTION_COPY: Record<Exclude<AuthEmailActionType, 'email_change' | `${strin
   },
 };
 
-const NOTIFICATION_COPY: Record<Extract<AuthEmailActionType, `${string}_notification`>, Copy> = {
+type DeliverableNotificationAction = Exclude<
+  Extract<AuthEmailActionType, `${string}_notification`>,
+  'identity_unlinked_notification'
+>;
+
+const NOTIFICATION_COPY: Record<DeliverableNotificationAction, Copy> = {
   password_changed_notification: {
     subjectSuffix: 'sua senha foi alterada',
     title: 'Senha alterada',
@@ -102,11 +107,6 @@ const NOTIFICATION_COPY: Record<Extract<AuthEmailActionType, `${string}_notifica
     subjectSuffix: 'novo acesso vinculado',
     title: 'Identidade vinculada',
     introduction: 'Um novo acesso foi vinculado à sua conta.',
-  },
-  identity_unlinked_notification: {
-    subjectSuffix: 'acesso removido',
-    title: 'Identidade removida',
-    introduction: 'Um acesso foi removido da sua conta.',
   },
   mfa_factor_enrolled_notification: {
     subjectSuffix: 'verificação em duas etapas ativada',
@@ -277,6 +277,23 @@ export function planAuthEmail(
   const actionType = payload.email_data.email_action_type;
 
   if (actionType === 'email_change') return planEmailChange(payload, config);
+
+  if (actionType === 'identity_unlinked_notification') {
+    // O hook não expõe o destinatário capturado antes do unlink; user.email pode já ser outro endereço.
+    invalidInput('unsupported_action');
+  }
+
+  if (actionType === 'email_changed_notification') {
+    const copy = NOTIFICATION_COPY[actionType];
+    return [plan(payload, config, {
+      subjectSuffix: copy.subjectSuffix,
+      recipientRole: 'primary',
+      to: requireValue(payload.email_data.old_email),
+      title: copy.title,
+      introduction: copy.introduction,
+      safetyNotice: SECURITY_SAFETY_NOTICE,
+    })];
+  }
 
   if (actionType in NOTIFICATION_COPY) {
     const copy = NOTIFICATION_COPY[actionType as keyof typeof NOTIFICATION_COPY];

@@ -200,6 +200,50 @@ test('retorna sucesso vazio somente após aceitação do Resend', async () => {
   assert.deepEqual(logs[0]?.acceptedEmailIds, ['email_1']);
 });
 
+test('envia alerta de e-mail alterado somente ao endereço anterior assinado', async () => {
+  const response = await handler(signedRequest(authEmailPayload('email_changed_notification', {
+    user: { email: 'novo-controlado@atacante.example' },
+    email_data: { old_email: 'titular-anterior@vitima.example' },
+  })));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(sent.map(({ message }) => message.to), [
+    'titular-anterior@vitima.example',
+  ]);
+});
+
+test('falha fechado para identity unlink sem destinatário vinculável', async () => {
+  let transportCreated = 0;
+  handler = makeHandler({
+    createTransport: () => {
+      transportCreated += 1;
+      return transport;
+    },
+  });
+
+  const response = await handler(signedRequest(authEmailPayload('identity_unlinked_notification', {
+    user: { email: 'endereco-promovido@atacante.example' },
+  })));
+
+  assert.equal(response.status, 422);
+  assert.deepEqual(await responseBody(response), { error: 'unsupported_action' });
+  assert.equal(transportCreated, 0);
+  assert.equal(sent.length, 0);
+});
+
+test('preserva o envio de notificação com destinatário vinculável', async () => {
+  const response = await handler(signedRequest(authEmailPayload('password_changed_notification')));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(sent.map(({ message }) => ({
+    actionType: message.actionType,
+    to: message.to,
+  })), [{
+    actionType: 'password_changed_notification',
+    to: 'pessoa@exemplo.com',
+  }]);
+});
+
 test('mapeia falha permanente do transporte para 502', async () => {
   handler = makeHandler({
     createTransport: () => ({

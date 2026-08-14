@@ -38,8 +38,10 @@ Use `resend.dev` apenas para testes com um destinatário controlado da própria 
 
 Execute a checagem Deno da função e os testes automatizados do repositório antes de configurar o hook.
 
+Mantenha a notificação opcional de identidade desvinculada (`identity_unlinked_notification`) desabilitada no Supabase enquanto este Send Email Hook estiver ativo. O payload atual do hook não informa o destinatário capturado antes da desvinculação; por segurança, a função rejeita esse evento com `422 unsupported_action` sem criar o transporte nem enviar mensagem. Reavalie essa restrição somente quando o contrato oficial do Supabase fornecer um destinatário vinculável e a integração tiver testes para o novo campo.
+
 ```powershell
-deno check supabase/functions/send-auth-email/index.ts
+deno check --no-lock supabase/functions/send-auth-email/index.ts
 npm run test
 ```
 
@@ -52,7 +54,7 @@ Depois de verificar o domínio, envie uma mensagem de teste pelo Resend para um 
 3. Mantenha o provedor de e-mail do Supabase habilitado. Abra o formulário HTTPS Send Email Hook no Dashboard, informe a URL da função e gere ou copie o segredo do hook sem salvar nem habilitar o hook.
 4. Em outro terminal, grave o valor copiado em `SEND_EMAIL_HOOK_SECRET` nos Supabase Edge Function Secrets. Não o salve em arquivo local ou no histórico compartilhado do shell.
 5. Faça uma chamada canário assinada, com destinatário controlado, para a função publicada. Verifique a resposta de sucesso, a mensagem recebida e os logs sem dados pessoais.
-6. Salve e habilite o Send Email Hook somente depois do canário. Teste cadastro, reenvio, recuperação de senha e uma notificação de segurança.
+6. Confirme novamente que a notificação opcional de identidade desvinculada permanece desabilitada. Salve e habilite o Send Email Hook somente depois do canário. Teste cadastro, reenvio, recuperação de senha e uma notificação de segurança suportada.
 
 Um hook habilitado substitui o caminho SMTP interno do Supabase. Caso o Dashboard não separe a geração do segredo do salvamento, abra uma janela de manutenção controlada. Confirme antes o SMTP de fallback e deixe o rollback pronto para execução imediata.
 

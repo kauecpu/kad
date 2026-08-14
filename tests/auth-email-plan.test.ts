@@ -18,8 +18,15 @@ import {
 const ACTION_SAFETY_NOTICE = 'Se você não solicitou esta ação, ignore este e-mail e não compartilhe o código ou o link.';
 const SECURITY_SAFETY_NOTICE = 'Se você não reconhece esta alteração, redefina sua senha e revise os acessos à sua conta.';
 
-test('planeja todos os eventos publicados sem destinatário livre', () => {
+test('planeja somente eventos com destinatário vinculável sem destinatário livre', () => {
   for (const actionType of AUTH_EMAIL_ACTION_TYPES) {
+    if (actionType === 'identity_unlinked_notification') {
+      assert.throws(
+        () => planAuthEmail(authEmailPayload(actionType), TEST_AUTH_EMAIL_CONFIG),
+        /unsupported_action/
+      );
+      continue;
+    }
     const plans = planAuthEmail(authEmailPayload(actionType), TEST_AUTH_EMAIL_CONFIG);
     assert.ok(plans.length === 1 || (actionType === 'email_change' && plans.length === 2));
     for (const plan of plans) {
@@ -134,7 +141,6 @@ test('não adiciona token nem URL às notificações de segurança', () => {
     ['email_changed_notification', 'Marca de Teste: seu e-mail foi alterado', 'E-mail alterado'],
     ['phone_changed_notification', 'Marca de Teste: seu telefone foi alterado', 'Telefone alterado'],
     ['identity_linked_notification', 'Marca de Teste: novo acesso vinculado', 'Identidade vinculada'],
-    ['identity_unlinked_notification', 'Marca de Teste: acesso removido', 'Identidade removida'],
     ['mfa_factor_enrolled_notification', 'Marca de Teste: verificação em duas etapas ativada', 'Fator de segurança adicionado'],
     ['mfa_factor_unenrolled_notification', 'Marca de Teste: verificação em duas etapas alterada', 'Fator de segurança removido'],
   ] as const;
@@ -163,6 +169,28 @@ test('não adiciona token nem URL às notificações de segurança', () => {
       }
     );
   }
+});
+
+test('envia o alerta de e-mail alterado somente ao endereço anterior validado', () => {
+  const [plan] = planAuthEmail(authEmailPayload('email_changed_notification', {
+    user: { email: 'novo-controlado@atacante.example' },
+    email_data: { old_email: 'titular-anterior@vitima.example' },
+  }), TEST_AUTH_EMAIL_CONFIG);
+
+  assert.equal(plan.to, 'titular-anterior@vitima.example');
+  assert.equal(plan.actionType, 'email_changed_notification');
+  assert.equal(plan.recipientRole, 'primary');
+  assert.equal(plan.token, undefined);
+  assert.equal(plan.actionUrl, undefined);
+});
+
+test('recusa alerta de e-mail alterado sem endereço anterior', () => {
+  assert.throws(
+    () => planAuthEmail(authEmailPayload('email_changed_notification', {
+      email_data: { old_email: '' },
+    }), TEST_AUTH_EMAIL_CONFIG),
+    /invalid_payload/
+  );
 });
 
 test('recusa eventos quando faltam dados ativos obrigatórios', () => {

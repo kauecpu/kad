@@ -184,7 +184,7 @@ export function authEmailPayload(
       site_url: 'https://projeto.supabase.co',
       token_new: '905409',
       token_hash_new: 'hash-do-endereco-atual',
-      old_email: '',
+      old_email: 'anterior@exemplo.com',
       old_phone: '',
       provider: '',
       factor_type: '',
@@ -520,8 +520,15 @@ git commit -m "feat: validate Supabase auth email hooks"
 Create `tests/auth-email-plan.test.ts`. Import `authEmailPayload` and `TEST_AUTH_EMAIL_CONFIG` from `tests/auth-email-fixtures.ts`, then loop over the accepted action types:
 
 ```ts
-test('planeja todos os eventos publicados sem destinatário livre', () => {
+test('planeja somente eventos com destinatário vinculável sem destinatário livre', () => {
   for (const actionType of AUTH_EMAIL_ACTION_TYPES) {
+    if (actionType === 'identity_unlinked_notification') {
+      assert.throws(
+        () => planAuthEmail(authEmailPayload(actionType), TEST_AUTH_EMAIL_CONFIG),
+        /unsupported_action/
+      );
+      continue;
+    }
     const plans = planAuthEmail(authEmailPayload(actionType), TEST_AUTH_EMAIL_CONFIG);
     assert.ok(plans.length === 1 || (actionType === 'email_change' && plans.length === 2));
     for (const plan of plans) {
@@ -641,10 +648,10 @@ Use this exact Portuguese copy matrix. Prefix subjects with `${brandName}: ` onl
 | `reauthentication` | `confirme esta ação` | `Confirme sua identidade` | code |
 | `email_change` | `confirme a alteração de e-mail` | role-specific confirmation | `Confirmar alteração` plus code |
 | `password_changed_notification` | `sua senha foi alterada` | `Senha alterada` | none |
-| `email_changed_notification` | `seu e-mail foi alterado` | `E-mail alterado` | none |
+| `email_changed_notification` | `seu e-mail foi alterado` | `E-mail alterado`; enviar somente a `email_data.old_email` validado | none |
 | `phone_changed_notification` | `seu telefone foi alterado` | `Telefone alterado` | none |
 | `identity_linked_notification` | `novo acesso vinculado` | `Identidade vinculada` | none |
-| `identity_unlinked_notification` | `acesso removido` | `Identidade removida` | none |
+| `identity_unlinked_notification` | unsupported | rejeitar com `unsupported_action` antes de criar o transporte; o hook atual não expõe o destinatário capturado | none |
 | `mfa_factor_enrolled_notification` | `verificação em duas etapas ativada` | `Fator de segurança adicionado` | none |
 | `mfa_factor_unenrolled_notification` | `verificação em duas etapas alterada` | `Fator de segurança removido` | none |
 
