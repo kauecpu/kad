@@ -5,8 +5,8 @@ import {
 import type { AuthEmailRecipientRole } from './auth-email-plan.ts';
 
 const RESEND_EMAILS_URL = 'https://api.resend.com/emails';
-const DEFAULT_TIMEOUT_MS = 10_000;
-const WEBHOOK_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+export const DEFAULT_RESEND_TIMEOUT_MS = 1_250;
+const BODY_DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const RESPONSE_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const PROVIDER_CODE_PATTERN = /^[a-z0-9_-]{1,80}$/;
 const MAX_IDEMPOTENCY_KEY_LENGTH = 256;
@@ -42,15 +42,21 @@ export class ResendTransportError extends Error {
   }
 }
 
+export async function authEmailBodyDigest(rawBody: string): Promise<string> {
+  const bytes = new TextEncoder().encode(rawBody);
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 export function authEmailIdempotencyKey(input: {
-  webhookId: string;
+  bodyDigest: string;
   actionType: AuthEmailActionType;
   recipientRole: AuthEmailRecipientRole;
 }): string {
-  if (!WEBHOOK_ID_PATTERN.test(input.webhookId)) {
+  if (!BODY_DIGEST_PATTERN.test(input.bodyDigest)) {
     throw new Error('invalid_idempotency_key');
   }
-  const key = `auth/${input.actionType}/${input.recipientRole}/${input.webhookId}`;
+  const key = `auth/${input.actionType}/${input.recipientRole}/${input.bodyDigest}`;
   if (key.length > MAX_IDEMPOTENCY_KEY_LENGTH) {
     throw new Error('invalid_idempotency_key');
   }
@@ -87,7 +93,10 @@ function errorKind(status: number, code: string | undefined): 'transient' | 'per
   if (status === 409) {
     return code === 'concurrent_idempotent_requests' ? 'transient' : 'permanent';
   }
-  if (status === 429 || (status >= 500 && status <= 599)) return 'transient';
+  if (status === 429) {
+    return code === 'rate_limit_exceeded' ? 'transient' : 'permanent';
+  }
+  if (status >= 500 && status <= 599) return 'transient';
   return 'permanent';
 }
 
@@ -96,7 +105,7 @@ function validateIdempotencyKey(
   message: Pick<OutboundAuthEmail, 'actionType' | 'recipientRole'>
 ): void {
   const parts = key.split('/');
-  const [, actionType, recipientRole, webhookId] = parts;
+  const [, actionType, recipientRole, bodyDigest] = parts;
   if (
     key.length === 0 ||
     key.length > MAX_IDEMPOTENCY_KEY_LENGTH ||
@@ -105,7 +114,7 @@ function validateIdempotencyKey(
     !AUTH_EMAIL_ACTION_TYPES.includes(actionType as AuthEmailActionType) ||
     actionType !== message.actionType ||
     recipientRole !== message.recipientRole ||
-    !WEBHOOK_ID_PATTERN.test(webhookId)
+    !BODY_DIGEST_PATTERN.test(bodyDigest)
   ) {
     throw new ResendTransportError('permanent');
   }
@@ -119,7 +128,7 @@ export function createResendEmailTransport(options: {
   timeoutMs?: number;
 }): EmailTransport {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_RESEND_TIMEOUT_MS;
 
   return {
     async send(message, idempotencyKey) {

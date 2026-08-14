@@ -47,6 +47,23 @@ npm run test
 
 Depois de verificar o domínio, envie uma mensagem de teste pelo Resend para um destinatário controlado. Revise a versão HTML e texto em caixas do Gmail e Outlook. Confirme a marca, remetente, assunto, códigos e links de confirmação, acesso, recuperação e avisos de segurança. Abra cada link em um ambiente controlado e confirme que o redirecionamento usa um prefixo permitido.
 
+## Retries e idempotência
+
+A função calcula SHA-256 do corpo bruto somente depois de validar a assinatura e
+usa o digest, o tipo de ação e o papel do destinatário na chave de idempotência.
+Assim, uma repetição do mesmo corpo mantém a chave mesmo quando o Supabase gera
+outro `webhook-id`; qualquer mudança no corpo assinado gera outra chave. O
+digest não expõe e-mail, token nem conteúdo da mensagem, e as duas entregas de
+`email_change` continuam separadas pelo papel do destinatário.
+
+Cada chamada ao Resend tem timeout de 1.250 ms para permanecer estritamente
+dentro do orçamento total de 5 segundos. Rede, timeout,
+`409 concurrent_idempotent_requests`, `429 rate_limit_exceeded` e `5xx`
+retornam `503` com `Retry-After: 1`. Quotas diária ou mensal, `429` sem um
+código recuperável e demais erros permanentes retornam `502` sem
+`Retry-After`. Um aceite parcial também retorna `503` com o cabeçalho para
+que o replay reutilize a chave da mensagem já aceita.
+
 ## Ativação sem janela de falha
 
 1. Defina no Supabase Edge Function Secrets todos os segredos que não dependem do hook.

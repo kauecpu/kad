@@ -12,12 +12,19 @@ import {
   AuthEmailSignatureError,
   verifyAuthEmailHook,
 } from './auth-email-signature.ts';
-import { authEmailIdempotencyKey, type EmailTransport, type OutboundAuthEmail, ResendTransportError } from './resend-email.ts';
+import {
+  authEmailBodyDigest,
+  authEmailIdempotencyKey,
+  type EmailTransport,
+  type OutboundAuthEmail,
+  ResendTransportError,
+} from './resend-email.ts';
 import { renderAuthEmail } from './auth-email-template.ts';
 
 const BODY_LIMIT_BYTES = 65_536;
 const WEBHOOK_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const RESEND_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+const RETRY_AFTER_HEADERS = { 'Retry-After': '1' } as const;
 const CONFIG_NAME_ALLOWLIST = new Set([
   'RESEND_API_KEY',
   'SEND_EMAIL_HOOK_SECRET',
@@ -215,6 +222,13 @@ export function createAuthEmailHandler(
       return fail(500, 'internal_error');
     }
 
+    let bodyDigest: string;
+    try {
+      bodyDigest = await authEmailBodyDigest(rawBody);
+    } catch {
+      return fail(500, 'internal_error');
+    }
+
     let payload;
     try {
       payload = parseAuthEmailHookPayload(verified);
@@ -242,30 +256,33 @@ export function createAuthEmailHandler(
       transport = dependencies.createTransport(config);
       for (const message of messages) {
         const result = await transport.send(message, authEmailIdempotencyKey({
-          webhookId,
+          bodyDigest,
           actionType: message.actionType,
           recipientRole: message.recipientRole,
         }));
         if (!RESEND_ID_PATTERN.test(result.id)) {
+          const isPartialAcceptance = acceptedEmailIds.length > 0;
           return fail(
-            acceptedEmailIds.length > 0 ? 503 : 500,
-            acceptedEmailIds.length > 0 ? 'provider_transient_error' : 'internal_error'
+            isPartialAcceptance ? 503 : 500,
+            isPartialAcceptance ? 'provider_transient_error' : 'internal_error',
+            isPartialAcceptance ? { headers: RETRY_AFTER_HEADERS } : {}
           );
         }
         acceptedEmailIds.push(result.id);
       }
     } catch (error) {
       if (acceptedEmailIds.length > 0) {
-        return fail(503, 'provider_transient_error');
+        return fail(503, 'provider_transient_error', { headers: RETRY_AFTER_HEADERS });
       }
       if (error instanceof ResendTransportError) {
-        const retryablePartialAcceptance = acceptedEmailIds.length > 0;
+        const isTransient = error.kind === 'transient';
         return fail(
-          retryablePartialAcceptance || error.kind === 'transient' ? 503 : 502,
-          retryablePartialAcceptance || error.kind === 'transient'
-            ? 'provider_transient_error'
-            : 'provider_permanent_error',
-          { providerStatus: safeProviderStatus(error.status) }
+          isTransient ? 503 : 502,
+          isTransient ? 'provider_transient_error' : 'provider_permanent_error',
+          {
+            providerStatus: safeProviderStatus(error.status),
+            ...(isTransient ? { headers: RETRY_AFTER_HEADERS } : {}),
+          }
         );
       }
       return fail(500, 'internal_error');

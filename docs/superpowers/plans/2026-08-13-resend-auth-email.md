@@ -711,7 +711,9 @@ git commit -m "feat: render Supabase auth emails"
 **Interfaces:**
 
 - Consumes: planned and rendered message fields from Task 2.
-- Produces: `OutboundAuthEmail`, `EmailTransport`, `ResendTransportError`, `createResendEmailTransport(options)`, `authEmailIdempotencyKey(...)`.
+- Produces: `OutboundAuthEmail`, `EmailTransport`, `ResendTransportError`,
+  `DEFAULT_RESEND_TIMEOUT_MS`, `authEmailBodyDigest(rawBody)`,
+  `createResendEmailTransport(options)` e `authEmailIdempotencyKey(...)`.
 - Consumed by: Task 4 handler and entrypoint.
 
 - [ ] **Step 1: Escrever testes falhos do contrato HTTP**
@@ -742,7 +744,7 @@ async function sendWithStatus(
       { status }
     ),
   });
-  return transport.send(outboundEmail, 'auth/signup/primary/msg_auth_001');
+  return transport.send(outboundEmail, `auth/signup/primary/${'a'.repeat(64)}`);
 }
 ```
 
@@ -760,18 +762,19 @@ test('envia corpo, remetente e idempotência sem expor a chave', async () => {
       return Response.json({ id: 'email_123' }, { status: 200 });
     },
   });
-  const result = await transport.send(outboundEmail, 'auth/signup/primary/msg_auth_001');
+  const key = `auth/signup/primary/${'a'.repeat(64)}`;
+  const result = await transport.send(outboundEmail, key);
   assert.equal(result.id, 'email_123');
   assert.equal(calls[0].url, 'https://api.resend.com/emails');
   const headers = new Headers(calls[0].init?.headers);
   assert.equal(headers.get('Authorization'), 'Bearer re_private_test');
-  assert.equal(headers.get('Idempotency-Key'), 'auth/signup/primary/msg_auth_001');
+  assert.equal(headers.get('Idempotency-Key'), key);
   assert.equal(headers.get('User-Agent'), 'auth-email-hook/1.0');
   assert.doesNotMatch(JSON.stringify(await result), /re_private_test/);
 });
 
 test('classifica somente falhas seguramente repetíveis como transitórias', async () => {
-  for (const status of [429, 500, 503]) {
+  for (const status of [500, 503]) {
     await assert.rejects(sendWithStatus(status), (error: unknown) =>
       error instanceof ResendTransportError && error.kind === 'transient'
     );
@@ -792,7 +795,12 @@ test('classifica somente falhas seguramente repetíveis como transitórias', asy
 });
 ```
 
-Add cases for network exception, 10-second abort, malformed success response, missing response ID, optional reply-to omission, `text` and `html` together, safe tags, maximum 256-character key, webhook IDs with dots/control characters and absence of raw Resend error message in thrown errors.
+Add cases for network exception, exported 1.250 ms default and injected 1 ms abort,
+malformed success response, missing response ID, optional reply-to omission,
+`text` and `html` together, safe tags, maximum 256-character key, invalid
+SHA-256 digest and absence of raw Resend error message in thrown errors. Cover
+`429 rate_limit_exceeded` as transient and daily/monthly quota, unknown and
+missing `429` codes as permanent.
 
 - [ ] **Step 2: Executar o teste para confirmar a falha inicial**
 
@@ -834,10 +842,14 @@ export class ResendTransportError extends Error {
 }
 
 export function authEmailIdempotencyKey(input: {
-  webhookId: string;
+  bodyDigest: string;
   actionType: AuthEmailActionType;
   recipientRole: AuthEmailRecipientRole;
 }): string;
+
+export function authEmailBodyDigest(rawBody: string): Promise<string>;
+
+export const DEFAULT_RESEND_TIMEOUT_MS = 1_250;
 
 export function createResendEmailTransport(options: {
   apiKey: string;
@@ -848,7 +860,11 @@ export function createResendEmailTransport(options: {
 }): EmailTransport;
 ```
 
-Implement `authEmailIdempotencyKey` as `auth/<actionType>/<recipientRole>/<webhookId>`. Accept webhook IDs only when they match `^[A-Za-z0-9_-]{1,128}$`; enforce the Resend maximum of 256 characters.
+Implement `authEmailBodyDigest` with Web Crypto SHA-256 over the exact UTF-8
+bytes of the raw body. Implement `authEmailIdempotencyKey` as
+`auth/<actionType>/<recipientRole>/<64 lowercase hex digest>`. Reject any
+digest outside `^[a-f0-9]{64}$` and enforce the Resend maximum of 256
+characters.
 
 The transport must:
 
@@ -856,9 +872,15 @@ The transport must:
 - Set `Authorization`, `Content-Type: application/json`, `User-Agent: auth-email-hook/1.0` and `Idempotency-Key`.
 - Send `{ from, to: [message.to], subject, html, text, reply_to?, tags }`.
 - Use tags `{ name: 'auth_event', value: actionType }` and `{ name: 'recipient_role', value: recipientRole }`; both values satisfy Resend's ASCII tag rules.
-- Abort after 10,000 ms with an internal `AbortController`; clear the timer in `finally`.
+- Abort after the exported 1.250 ms default with an internal
+  `AbortController`; preserve `timeoutMs` injection in tests and clear the
+  timer in `finally`.
 - Parse only a success `id` matching `^[A-Za-z0-9_-]{1,128}$` and a sanitized error `name` matching `^[a-z0-9_-]{1,80}$`; discard provider messages and raw bodies.
-- Treat network/abort, 429, 5xx and only a 409 named `concurrent_idempotent_requests` as transient. Treat `invalid_idempotent_request`, unknown/missing 409 names, remaining non-2xx and malformed 2xx responses as permanent; retrying the same mismatched idempotency key cannot recover.
+- Treat network/abort, 5xx, only a 409 named
+  `concurrent_idempotent_requests` and only a 429 named
+  `rate_limit_exceeded` as transient. Treat daily/monthly quota, unknown or
+  missing 429 names, `invalid_idempotent_request`, unknown/missing 409 names,
+  remaining non-2xx and malformed 2xx responses as permanent.
 - Never include API key, recipient, subject, HTML, text or raw provider response in an exception.
 
 - [ ] **Step 4: Executar os testes do transporte**
@@ -969,9 +991,14 @@ Add assertions for:
 - No payload parse or transport call after invalid signature.
 - Configuration error returns 500 and logs only variable names.
 - Success returns status 200 and `{}` after Resend acceptance.
-- Permanent transport error returns 502; transient error returns 503.
+- Permanent transport error returns 502 without `Retry-After`; every transient
+  503 returns `Retry-After: 1`.
 - Secure email change sends in deterministic current/new order with distinct idempotency keys.
-- Partial acceptance returns 503 and logs only accepted Resend IDs.
+- Partial acceptance, including an invalid second response ID, returns 503 with
+  `Retry-After: 1` and logs only accepted Resend IDs.
+- The same raw body signed with two webhook IDs produces the same key; bodies
+  with distinct top-level `metadata.uuid` values produce distinct keys; a
+  partial replay reuses the first message key.
 - Collected logs do not match the fixture email, OTP, token hash, `kad://`, HTML, API key or hook secret.
 - Public response bodies contain only `{ error: '<stable_code>' }` or `{}`.
 
@@ -1032,13 +1059,20 @@ Handler order must be:
 3. Read the body with the byte limit; return 413 on overflow and 422 on invalid UTF-8.
 4. Load server configuration; return 500 on `AuthEmailConfigurationError`.
 5. Collect lowercase headers and verify the unmodified body before parsing.
-6. Map signature failures to 401 and signed JSON syntax/contract failures to 422.
-7. Validate `webhook-id` for idempotency.
+6. Map signature failures to 401 and only after successful verification compute
+   SHA-256 of the exact raw body bytes.
+7. Parse the signed JSON, validate `webhook-id` only for safe technical
+   logging, and derive idempotency from body digest, action and recipient role.
 8. Plan and render messages.
 9. Build the transport and send messages sequentially.
 10. Log safe structured fields and return `{}` with 200 only after every message is accepted.
 
-Map `ResendTransportError('permanent')` to 502 and transient to 503. Map unexpected internal failures to 500 with `internal_error`. `invalidConfigNames` may contain only canonical names from the fixed environment-variable allowlist. Logging code must construct an allowlisted object; never spread an error, payload, config or provider response.
+Map `ResendTransportError('permanent')` to 502 and transient to 503 with
+`Retry-After: 1`. Apply the same header to every partial-acceptance 503. Map
+unexpected internal failures to 500 with `internal_error`. `invalidConfigNames`
+may contain only canonical names from the fixed environment-variable allowlist.
+Logging code must construct an allowlisted object; never spread an error,
+payload, config or provider response.
 
 - [ ] **Step 4: Criar o entrypoint mínimo e import map Deno**
 

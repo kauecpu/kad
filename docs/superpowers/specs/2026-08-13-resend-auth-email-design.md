@@ -205,14 +205,20 @@ janela aceita pela biblioteca.
 
 ### Idempotência
 
-Cada chamada ao Resend usa uma chave derivada de `webhook-id`, tipo do evento e
-papel do destinatário. A chave não inclui e-mail, nome, token ou hash. Novas
-tentativas com o mesmo evento e conteúdo reutilizam a mesma chave durante a
-janela de 24 horas do Resend.
+Depois de validar a assinatura, a função calcula SHA-256 dos bytes UTF-8 exatos
+do corpo bruto. Cada chamada ao Resend usa
+`auth/<actionType>/<recipientRole>/<digest>`. A chave não inclui
+`webhook-id`, e-mail, nome, token, hash ou o corpo em texto. O Supabase pode
+gerar um novo `webhook-id` ao repetir a mesma serialização; o digest preserva
+a chave durante a janela de 24 horas do Resend, enquanto qualquer mudança no
+corpo assinado gera outra chave. A ação e o papel mantêm distintas as duas
+mensagens de `email_change`.
 
-O handler não executa loops próprios de retry. Uma falha transitória retorna
-`503`; uma nova tentativa da plataforma ou da pessoa reutiliza a proteção de
-idempotência quando representa o mesmo webhook.
+O handler não executa loops próprios de retry. O transporte limita cada chamada
+ao Resend a 1.250 ms, estritamente dentro do orçamento total de 5 segundos do
+hook para acomodar até três tentativas e overhead. Uma falha transitória retorna
+`503` com `Retry-After: 1`; uma nova tentativa reutiliza a proteção de
+idempotência quando o corpo assinado é o mesmo.
 
 ## Respostas e erros
 
@@ -224,8 +230,8 @@ idempotência quando representa o mesmo webhook.
 | corpo excessivo | `413` | não chama o verificador nem o Resend |
 | payload ou evento inválido | `422` | retorna código interno sem dados pessoais |
 | segredo ou configuração ausente | `500` | registra apenas os nomes ausentes |
-| `4xx` determinístico do Resend, incluindo `409 invalid_idempotent_request` | `502` | não repete a chamada |
-| rede, `409 concurrent_idempotent_requests`, `429` ou `5xx` do Resend | `503` | permite nova tentativa segura |
+| `4xx` determinístico do Resend, incluindo `409 invalid_idempotent_request`, quotas diária/mensal e `429` desconhecido | `502` | não repete a chamada |
+| rede, timeout, `409 concurrent_idempotent_requests`, `429 rate_limit_exceeded` ou `5xx` do Resend | `503` + `Retry-After: 1` | permite nova tentativa segura |
 
 A função só responde `200` depois que o Resend aceita todas as mensagens do
 evento. No caso de mudança segura de e-mail, uma aceitação parcial retorna erro
@@ -257,8 +263,10 @@ os registros para impedir a presença de e-mail, token, hash, link ou segredo.
 - Verificar links, redirects aceitos e redirects recusados.
 - Confirmar HTML escapado e equivalência de conteúdo entre HTML e texto.
 - Confirmar chaves de idempotência estáveis e sem dados pessoais.
-- Classificar respostas `2xx`, `4xx`, `409`, `429`, `5xx`, timeout e rede do
-  Resend.
+- Classificar respostas `2xx`, `4xx`, `409`, cada código `429`, `5xx`,
+  timeout e rede do Resend.
+- Confirmar o timeout padrão de 1.250 ms e `Retry-After: 1` em toda resposta
+  transitória `503`, inclusive após aceitação parcial.
 
 ### Testes do handler
 

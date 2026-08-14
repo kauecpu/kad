@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import * as resendEmailModule from '../supabase/functions/_shared/resend-email.ts';
 import {
   authEmailIdempotencyKey,
   createResendEmailTransport,
   type OutboundAuthEmail,
   ResendTransportError,
 } from '../supabase/functions/_shared/resend-email.ts';
+
+const TEST_BODY_DIGEST = 'a'.repeat(64);
+const TEST_IDEMPOTENCY_KEY = `auth/signup/primary/${TEST_BODY_DIGEST}`;
 
 const outboundEmail: OutboundAuthEmail = {
   actionType: 'signup',
@@ -19,7 +23,7 @@ const outboundEmail: OutboundAuthEmail = {
 
 async function sendWithStatus(
   status: number,
-  providerName = 'provider_error'
+  providerName: string | null = 'provider_error'
 ): Promise<{ id: string }> {
   const transport = createResendEmailTransport({
     apiKey: 're_private_test',
@@ -27,11 +31,14 @@ async function sendWithStatus(
     fetchImpl: async () => Response.json(
       status >= 200 && status < 300
         ? { id: 'email_123' }
-        : { name: providerName, message: 'must not escape the adapter' },
+        : {
+          ...(providerName === null ? {} : { name: providerName }),
+          message: 'must not escape the adapter',
+        },
       { status }
     ),
   });
-  return transport.send(outboundEmail, 'auth/signup/primary/msg_auth_001');
+  return transport.send(outboundEmail, TEST_IDEMPOTENCY_KEY);
 }
 
 function errorMatches(kind: 'transient' | 'permanent'): (error: unknown) => boolean {
@@ -50,7 +57,7 @@ test('envia corpo, remetente e idempotência sem expor a chave', async () => {
     },
   });
 
-  const result = await transport.send(outboundEmail, 'auth/signup/primary/msg_auth_001');
+  const result = await transport.send(outboundEmail, TEST_IDEMPOTENCY_KEY);
 
   assert.equal(result.id, 'email_123');
   assert.equal(calls[0].url, 'https://api.resend.com/emails');
@@ -58,7 +65,7 @@ test('envia corpo, remetente e idempotência sem expor a chave', async () => {
   const headers = new Headers(calls[0].init?.headers);
   assert.equal(headers.get('Authorization'), 'Bearer re_private_test');
   assert.equal(headers.get('Content-Type'), 'application/json');
-  assert.equal(headers.get('Idempotency-Key'), 'auth/signup/primary/msg_auth_001');
+  assert.equal(headers.get('Idempotency-Key'), TEST_IDEMPOTENCY_KEY);
   assert.equal(headers.get('User-Agent'), 'auth-email-hook/1.0');
   assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
     from: 'Marca de Teste <conta@email.exemplo.com>',
@@ -86,7 +93,7 @@ test('omita reply-to e mantém html e texto juntos', async () => {
     },
   });
 
-  await transport.send(outboundEmail, 'auth/signup/primary/msg_auth_001');
+  await transport.send(outboundEmail, TEST_IDEMPOTENCY_KEY);
 
   assert.equal(Object.hasOwn(body!, 'reply_to'), false);
   assert.equal(body!.html, '<!doctype html><html><body>305805</body></html>');
@@ -104,7 +111,10 @@ test('usa tags ASCII seguras derivadas somente do evento e papel', async () => {
     },
   });
 
-  await transport.send({ ...outboundEmail, actionType: 'email_changed_notification', recipientRole: 'new_email' }, 'auth/email_changed_notification/new_email/msg_auth_001');
+  await transport.send(
+    { ...outboundEmail, actionType: 'email_changed_notification', recipientRole: 'new_email' },
+    `auth/email_changed_notification/new_email/${TEST_BODY_DIGEST}`
+  );
 
   assert.deepEqual(tags, [
     { name: 'auth_event', value: 'email_changed_notification' },
@@ -117,7 +127,7 @@ test('usa tags ASCII seguras derivadas somente do evento e papel', async () => {
 });
 
 test('classifica somente falhas seguramente repetíveis como transitórias', async () => {
-  for (const status of [429, 500, 503]) {
+  for (const status of [500, 503]) {
     await assert.rejects(sendWithStatus(status), errorMatches('transient'));
   }
   for (const status of [400, 401, 403, 404, 422]) {
@@ -128,6 +138,19 @@ test('classifica somente falhas seguramente repetíveis como transitórias', asy
   await assert.rejects(sendWithStatus(409, 'unknown_conflict'), errorMatches('permanent'));
 });
 
+test('repete 429 somente para rate limit recuperavel', async () => {
+  await assert.rejects(sendWithStatus(429, 'rate_limit_exceeded'), errorMatches('transient'));
+
+  for (const providerCode of [
+    'daily_quota_exceeded',
+    'monthly_quota_exceeded',
+    'unknown_rate_limit',
+    null,
+  ]) {
+    await assert.rejects(sendWithStatus(429, providerCode), errorMatches('permanent'));
+  }
+});
+
 test('classifica exceções de rede e abort como transitórias e limpa o timer', async () => {
   const networkTransport = createResendEmailTransport({
     apiKey: 're_private_test',
@@ -135,7 +158,7 @@ test('classifica exceções de rede e abort como transitórias e limpa o timer',
     fetchImpl: async () => { throw new Error('network detail must not escape'); },
   });
   await assert.rejects(
-    networkTransport.send(outboundEmail, 'auth/signup/primary/msg_auth_001'),
+    networkTransport.send(outboundEmail, TEST_IDEMPOTENCY_KEY),
     (error: unknown) => errorMatches('transient')(error) && !String(error).includes('network detail must not escape')
   );
 
@@ -149,7 +172,7 @@ test('classifica exceções de rede e abort como transitórias e limpa o timer',
       signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
     }),
   });
-  await assert.rejects(abortTransport.send(outboundEmail, 'auth/signup/primary/msg_auth_001'), errorMatches('transient'));
+  await assert.rejects(abortTransport.send(outboundEmail, TEST_IDEMPOTENCY_KEY), errorMatches('transient'));
   assert.equal(signal?.aborted, true);
 
   let completedSignal: AbortSignal | undefined;
@@ -162,7 +185,7 @@ test('classifica exceções de rede e abort como transitórias e limpa o timer',
       return Response.json({ id: 'email_123' }, { status: 200 });
     },
   });
-  await completeTransport.send(outboundEmail, 'auth/signup/primary/msg_auth_001');
+  await completeTransport.send(outboundEmail, TEST_IDEMPOTENCY_KEY);
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(completedSignal?.aborted, false);
 });
@@ -179,20 +202,41 @@ test('trata respostas de sucesso inválidas como permanentes', async () => {
       from: 'Marca de Teste <conta@email.exemplo.com>',
       fetchImpl: async () => response.clone(),
     });
-    await assert.rejects(transport.send(outboundEmail, 'auth/signup/primary/msg_auth_001'), errorMatches('permanent'));
+    await assert.rejects(transport.send(outboundEmail, TEST_IDEMPOTENCY_KEY), errorMatches('permanent'));
   }
 });
 
-test('cria chave idempotente limitada, sem PII e recusa entradas perigosas', () => {
+test('deriva chave limitada do SHA-256 exato sem expor o corpo', async () => {
+  const exports = resendEmailModule as unknown as {
+    authEmailBodyDigest?: (rawBody: string) => Promise<string>;
+  };
+  assert.equal(typeof exports.authEmailBodyDigest, 'function');
   assert.equal(
-    authEmailIdempotencyKey({ webhookId: 'msg_auth-001_2', actionType: 'signup', recipientRole: 'primary' }),
-    'auth/signup/primary/msg_auth-001_2'
+    await exports.authEmailBodyDigest!('abc'),
+    'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
   );
-  const maximumWebhookId = 'a'.repeat(128);
-  assert.ok(authEmailIdempotencyKey({ webhookId: maximumWebhookId, actionType: 'email_changed_notification', recipientRole: 'current_email' }).length <= 256);
-  for (const webhookId of ['', 'id.with.dot', 'id\ncontrol', 'x'.repeat(129)]) {
-    assert.throws(() => authEmailIdempotencyKey({ webhookId, actionType: 'signup', recipientRole: 'primary' }), /invalid_idempotency_key/);
+
+  const rawBody = JSON.stringify({ email: 'pessoa@exemplo.com', token: '305805' });
+  const bodyDigest = await exports.authEmailBodyDigest!(rawBody);
+  const key = authEmailIdempotencyKey({ bodyDigest, actionType: 'signup', recipientRole: 'primary' });
+  assert.match(key, /^auth\/signup\/primary\/[a-f0-9]{64}$/);
+  assert.ok(key.length <= 256);
+  assert.doesNotMatch(key, /pessoa@exemplo\.com|305805|email|token/);
+
+  for (const invalidDigest of ['', 'A'.repeat(64), 'a'.repeat(63), 'g'.repeat(64), `a${'0'.repeat(63)}\n`]) {
+    assert.throws(
+      () => authEmailIdempotencyKey({ bodyDigest: invalidDigest, actionType: 'signup', recipientRole: 'primary' }),
+      /invalid_idempotency_key/
+    );
   }
+});
+
+test('mantem o timeout padrao estritamente dentro do orcamento do hook', () => {
+  const timeout = (resendEmailModule as unknown as { DEFAULT_RESEND_TIMEOUT_MS?: number })
+    .DEFAULT_RESEND_TIMEOUT_MS;
+  assert.equal(timeout, 1_250);
+  assert.ok(timeout > 0 && timeout < 5_000);
+  assert.ok(timeout * 3 < 5_000);
 });
 
 test('recusa chave com mais de 256 caracteres sem chamar a API', async () => {
@@ -224,6 +268,7 @@ test('recusa chave de transporte que não segue o formato seguro sem chamar a AP
   for (const key of [
     'auth/signup/primary/id.with.dot',
     'auth/signup/primary/id\ncontrol',
+    `auth/signup/primary/${'A'.repeat(64)}`,
     'auth/recovery/primary/msg_auth_001',
   ]) {
     await assert.rejects(transport.send(outboundEmail, key), errorMatches('permanent'));
@@ -243,7 +288,7 @@ test('remove conteúdo do provedor dos erros expostos', async () => {
   });
 
   await assert.rejects(
-    transport.send(outboundEmail, 'auth/signup/primary/msg_auth_001'),
+    transport.send(outboundEmail, TEST_IDEMPOTENCY_KEY),
     (error: unknown) => error instanceof ResendTransportError &&
       error.kind === 'permanent' &&
       error.providerCode === 'invalid_idempotent_request' &&
