@@ -6,114 +6,80 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { ListRow } from '@/components/ui/list-row';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Section } from '@/components/ui/section';
-import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import {
+  CONTENT_MAX_WIDTH,
+  FontSize,
+  FontWeight,
+  Fonts,
+  Radius,
+  Spacing,
+} from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { deadlineInfo, recommendConcursosForGoal, sortConcursos } from '@/lib/concursos';
 import { formatPercent, formatSalaryShort } from '@/lib/format';
+import { getHomePrimaryAction } from '@/lib/home-presentation';
 import { useApp } from '@/providers/app-provider';
-import { useSimulation } from '@/providers/simulation-provider';
 import { useConcursos } from '@/providers/concursos-provider';
+import { useSimulation } from '@/providers/simulation-provider';
 
-type QuickLink = {
+type HomeAction = {
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  marker: string;
   route: Href;
-  palette: Record<'light' | 'dark', QuickLinkPalette>;
 };
 
-type QuickLinkPalette = {
-  background: string;
-  accent: string;
-  iconBackground: string;
-  subtitle: string;
-};
-
-const HOME_GRADIENTS = {
-  continue: {
-    light: ['#F3EEFF', '#EFF6FF'],
-    dark: ['#1B1730', '#13243A'],
-  },
-  radar: {
-    light: ['#EFF6FF', '#F0FDFA'],
-    dark: ['#122338', '#102A2A'],
-  },
-  challenge: {
-    light: ['#F5F3FF', '#EDE9FE'],
-    dark: ['#1D1734', '#2A1F47'],
-  },
+const HERO_GRADIENTS = {
+  light: ['#6D28D9', '#4C1D95', '#27104F'],
+  dark: ['#5B21B6', '#3B176F', '#17102B'],
 } as const;
 
-const QUICK_LINK_SHADOW = ['rgba(0, 0, 0, 0.06)', 'rgba(0, 0, 0, 0)'] as const;
-
-const QUICK_LINKS: QuickLink[] = [
+const PRACTICE_ACTIONS: HomeAction[] = [
   {
-    title: 'Trilhas de estudo',
-    description: 'Avance por níveis conforme sua meta',
-    icon: 'map-outline',
+    title: 'Questões',
+    description: 'Praticar por assunto',
+    marker: '01',
+    route: '/questoes',
+  },
+  {
+    title: 'Simulados',
+    description: 'Treinar ritmo de prova',
+    marker: '02',
+    route: '/simulados',
+  },
+  {
+    title: 'Trilhas',
+    description: 'Seguir uma sequência',
+    marker: '03',
     route: '/trilhas',
-    palette: {
-      light: {
-        background: '#3B82C4',
-        accent: '#E8F3FF',
-        iconBackground: 'rgba(255, 255, 255, 0.16)',
-        subtitle: '#D8ECFF',
-      },
-      dark: {
-        background: '#2F6FA8',
-        accent: '#E8F3FF',
-        iconBackground: 'rgba(255, 255, 255, 0.14)',
-        subtitle: '#D8ECFF',
-      },
-    },
-  },
-  {
-    title: 'Redação',
-    description: 'Escolha um tema e pratique sua escrita',
-    icon: 'create-outline',
-    route: '/redacao',
-    palette: {
-      light: {
-        background: '#3A9D6F',
-        accent: '#E5FFF0',
-        iconBackground: 'rgba(255, 255, 255, 0.16)',
-        subtitle: '#D7F6E4',
-      },
-      dark: {
-        background: '#2E7D59',
-        accent: '#E5FFF0',
-        iconBackground: 'rgba(255, 255, 255, 0.14)',
-        subtitle: '#D7F6E4',
-      },
-    },
-  },
-  {
-    title: 'Biblioteca',
-    description: 'Em breve: audiobooks, anotações e flashcards',
-    icon: 'library-outline',
-    route: '/biblioteca',
-    palette: {
-      light: {
-        background: '#B9794A',
-        accent: '#FFF1E4',
-        iconBackground: 'rgba(255, 255, 255, 0.16)',
-        subtitle: '#F5DDC9',
-      },
-      dark: {
-        background: '#925D3A',
-        accent: '#FFF1E4',
-        iconBackground: 'rgba(255, 255, 255, 0.14)',
-        subtitle: '#F5DDC9',
-      },
-    },
   },
 ];
 
-export default function HomeScreen() {
+const EXPLORE_ACTIONS: HomeAction[] = [
+  {
+    title: 'Redação',
+    description: 'Escolha um tema e pratique sua escrita',
+    marker: 'R',
+    route: '/redacao',
+  },
+  {
+    title: 'Biblioteca',
+    description: 'Audiobooks, anotações e flashcards em breve',
+    marker: 'B',
+    route: '/biblioteca',
+  },
+  {
+    title: 'Desafio rápido',
+    description: 'Resolva 3 questões em cerca de 5 minutos',
+    marker: '05',
+    route: '/questoes/desafio',
+  },
+];
+
+export function HomeContent() {
   const { colors, scheme } = useTheme();
   const router = useRouter();
   const {
@@ -123,59 +89,16 @@ export default function HomeScreen() {
     dailyQuestionLimit,
     dailyQuestionsAnswered,
     dailyQuestionsRemaining,
-    favoriteQuestionIds,
     savedConcursos,
   } = useApp();
   const { session } = useSimulation();
   const { concursos } = useConcursos();
 
   const firstName = profile.name.trim().split(/\s+/)[0] || 'Estudante';
-  const answeredInSimulation = session ? Object.keys(session.answers).length : 0;
-  const simulationProgress = session?.questions.length
-    ? (answeredInSimulation / session.questions.length) * 100
-    : 0;
-  const continueCard = session
-    ? {
-        label: session.status === 'completed' ? 'Seu último simulado' : 'Você parou aqui',
-        title: session.status === 'completed' ? 'Revisar resultado' : 'Voltar ao simulado',
-        description:
-          session.status === 'completed'
-            ? 'Confira seu desempenho e reveja as questões.'
-            : `${answeredInSimulation} de ${session.questions.length} questões respondidas`,
-        icon: session.status === 'completed' ? ('stats-chart-outline' as const) : ('play' as const),
-        route:
-          session.status === 'completed'
-            ? ('/questoes/simulado/resultado' as Href)
-            : ('/questoes/simulado' as Href),
-        progress: session.status === 'completed' ? 100 : simulationProgress,
-      }
-    : {
-        label: performance.total > 0 ? 'Continuar estudando' : 'Seu primeiro passo',
-        title: performance.total > 0 ? 'Resolver questões' : 'Comece sua preparação',
-        description:
-          performance.total > 0
-            ? `${performance.total} ${performance.total === 1 ? 'questão no histórico' : 'questões no histórico'}`
-            : 'Escolha uma disciplina para começar.',
-        icon: 'reader-outline' as const,
-        route: '/questoes' as Href,
-        progress: undefined,
-      };
-
-  const progressTitle = isPremium ? 'Desempenho geral' : 'Questões de hoje';
-  const progressValue = isPremium
-    ? formatPercent(performance.accuracy)
-    : `${dailyQuestionsAnswered}/${dailyQuestionLimit}`;
-  const progressDescription = isPremium
-    ? `${performance.total} respondidas`
-    : `${dailyQuestionsRemaining} disponíveis no Plano Básico`;
-  const progressPercent = isPremium
-    ? performance.accuracy
-    : (dailyQuestionsAnswered / dailyQuestionLimit) * 100;
   const targetRole = profile.targetRole?.trim() ?? '';
   const savedActiveConcursos = sortConcursos(
     concursos.filter(
-      (concurso) =>
-        savedConcursos.includes(concurso.id) && concurso.status !== 'encerrado'
+      (concurso) => savedConcursos.includes(concurso.id) && concurso.status !== 'encerrado'
     ),
     'deadline'
   );
@@ -186,19 +109,32 @@ export default function HomeScreen() {
         targetRole
       )
     : [];
-  const radarConcurso =
+  const focusConcurso =
     savedFocus ??
     recommendedConcursos.find((concurso) => concurso.status === 'aberto') ??
     recommendedConcursos[0];
-  const radarDeadline = radarConcurso ? deadlineInfo(radarConcurso) : null;
-  const radarUsesSavedConcurso = Boolean(savedFocus);
-  const challengeContext = savedFocus?.shortName ?? targetRole;
+  const focusDeadline = focusConcurso ? deadlineInfo(focusConcurso) : null;
+  const hasGoal = Boolean(targetRole || savedFocus);
+  const answeredInSimulation = session ? Object.keys(session.answers).length : 0;
+  const primaryAction = getHomePrimaryAction({
+    hasGoal,
+    simulation: session
+      ? {
+          status: session.status,
+          answered: answeredInSimulation,
+          total: session.questions.length,
+        }
+      : undefined,
+  });
+  const dailyProgress = dailyQuestionLimit
+    ? (dailyQuestionsAnswered / dailyQuestionLimit) * 100
+    : 0;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
         title={`Olá, ${firstName}`}
-        subtitle={profile.targetRole ? profile.targetRole : 'Seu espaço de estudo'}
+        subtitle={targetRole ? `Central KAD · ${targetRole}` : 'Sua central de preparação'}
         right={
           <Pressable
             onPress={() => router.push('/perfil')}
@@ -213,276 +149,204 @@ export default function HomeScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Card
-          onPress={() => router.push(continueCard.route)}
-          accessibilityLabel={continueCard.title}
+          onPress={() => router.push(primaryAction.route)}
+          accessibilityLabel={`${primaryAction.title}. ${primaryAction.description}`}
           padded={false}
-          style={[styles.gradientShell, { borderColor: colors.borderStrong }]}>
+          style={styles.heroShell}>
           <LinearGradient
-            colors={HOME_GRADIENTS.continue[scheme]}
+            colors={HERO_GRADIENTS[scheme]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.continueCard}>
-            <View style={styles.continueTop}>
-              <View style={[styles.continueIcon, { backgroundColor: colors.primarySoft }]}>
-                <Ionicons name={continueCard.icon} size={20} color={colors.primary} />
+            style={styles.hero}>
+            <View pointerEvents="none" style={styles.heroRailOne} />
+            <View pointerEvents="none" style={styles.heroRailTwo} />
+
+            <View style={styles.heroHeading}>
+              <View style={styles.heroIcon}>
+                <Text style={styles.heroMark}>K/</Text>
               </View>
-              <View style={styles.continueText}>
-                <View style={styles.continueLabelRow}>
-                  <Text style={[styles.continueLabel, { color: colors.primary }]}>{continueCard.label}</Text>
-                  <View style={[styles.continueMarker, { backgroundColor: colors.primary }]} />
-                </View>
-                <Text style={[styles.continueTitle, { color: colors.text }]}>{continueCard.title}</Text>
-                <Text style={[styles.continueDescription, { color: colors.textMuted }]}>{continueCard.description}</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={19} color={colors.textSubtle} />
+              <Text style={styles.heroEyebrow}>{primaryAction.eyebrow}</Text>
             </View>
-            {continueCard.progress !== undefined ? (
-              <ProgressBar value={continueCard.progress} height={5} label={`Progresso: ${Math.round(continueCard.progress)}%`} />
+
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroTitle} accessibilityRole="header">
+                {primaryAction.title}
+              </Text>
+              <Text style={styles.heroDescription}>{primaryAction.description}</Text>
+            </View>
+
+            {primaryAction.progress !== undefined ? (
+              <ProgressBar
+                value={primaryAction.progress}
+                color="#DDD2FF"
+                height={5}
+                label={`Progresso do simulado: ${Math.round(primaryAction.progress)}%`}
+              />
             ) : null}
+
+            <View style={styles.heroAction}>
+              <Text style={styles.heroActionText}>Abrir próximo passo</Text>
+              <View style={styles.heroArrow}>
+                <Text style={styles.heroArrowGlyph}>→</Text>
+              </View>
+            </View>
           </LinearGradient>
         </Card>
 
-        <View style={[styles.progressCard, { backgroundColor: colors.surfaceAlt }]}>
-          <View style={styles.progressHeader}>
-            <View style={styles.progressCopy}>
-              <Text style={[styles.progressTitle, { color: colors.text }]}>{progressTitle}</Text>
-              <Text style={[styles.progressDescription, { color: colors.textMuted }]}>{progressDescription}</Text>
-            </View>
-            <Text style={[styles.progressValue, { color: colors.primary }]}>{progressValue}</Text>
+        <View
+          style={[
+            styles.today,
+            { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+          ]}>
+          <View style={styles.todayMetric}>
+            <Text style={[styles.todayNumber, { color: colors.text }]}>
+              {dailyQuestionsAnswered}
+            </Text>
+            <Text style={[styles.todayUnit, { color: colors.textMuted }]}>hoje</Text>
           </View>
-          <ProgressBar value={progressPercent} height={5} label={progressTitle} />
+          <View style={[styles.todayDivider, { backgroundColor: colors.borderStrong }]} />
+          <View style={styles.todayCopy}>
+            <View style={styles.todayTitleRow}>
+              <Text style={[styles.todayTitle, { color: colors.text }]}>Questões respondidas</Text>
+              {isPremium ? (
+                <Text style={[styles.accuracy, { color: colors.primary }]}>
+                  {formatPercent(performance.accuracy)} de acerto
+                </Text>
+              ) : (
+                <Text style={[styles.todayRemaining, { color: colors.textMuted }]}>
+                  {dailyQuestionsRemaining} restantes
+                </Text>
+              )}
+            </View>
+            {!isPremium ? (
+              <ProgressBar value={dailyProgress} height={4} label="Questões de hoje" />
+            ) : (
+              <Text style={[styles.premiumNote, { color: colors.textMuted }]}>Plano sem limite diário</Text>
+            )}
+          </View>
         </View>
 
-        <Section title={isPremium ? 'Revisar agora' : 'Praticar agora'}>
-          <Card padded={false} style={styles.reviewCard}>
-            {isPremium ? (
-              <>
-                <ListRow
-                  icon={performance.wrong > 0 ? 'refresh-outline' : 'reader-outline'}
-                  label={performance.wrong > 0 ? 'Revisar erros' : 'Começar uma revisão'}
-                  description={
-                    performance.wrong > 0
-                      ? `${performance.wrong} ${performance.wrong === 1 ? 'questão para rever' : 'questões para rever'}`
-                      : 'Resolva questões para montar sua revisão'
-                  }
-                  tone={performance.wrong > 0 ? 'danger' : 'primary'}
-                  onPress={() =>
-                    router.push(
-                      performance.wrong > 0
-                        ? '/perfil/desempenho/questoes?tipo=wrong'
-                        : '/questoes'
-                    )
-                  }
-                />
-                <ListRow
-                  icon="bookmark-outline"
-                  label="Questões favoritas"
-                  description={
-                    favoriteQuestionIds.length > 0
-                      ? `${favoriteQuestionIds.length} ${
-                          favoriteQuestionIds.length === 1 ? 'questão salva' : 'questões salvas'
-                        }`
-                      : 'Nenhuma questão salva ainda'
-                  }
-                  tone="primary"
-                  onPress={() => router.push('/perfil/desempenho/questoes?tipo=favorites')}
-                  isLast
-                />
-              </>
-            ) : (
-              <ListRow
-                icon="reader-outline"
-                label="Continuar resolvendo"
-                description="Pratique questões e acompanhe sua evolução"
-                tone="primary"
-                onPress={() => router.push('/questoes')}
-                isLast
-              />
-            )}
+        <Section title="Praticar">
+          <Card padded={false} style={[styles.practicePanel, { borderColor: colors.border }]}>
+            {PRACTICE_ACTIONS.map((item, index) => (
+              <Pressable
+                key={item.title}
+                onPress={() => router.push(item.route)}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.title}. ${item.description}`}
+                style={({ pressed }) => [
+                  styles.practiceAction,
+                  index > 0 && {
+                    borderLeftColor: colors.border,
+                    borderLeftWidth: StyleSheet.hairlineWidth,
+                  },
+                  pressed && styles.explorePressed,
+                ]}>
+                <View style={[styles.practiceIcon, { backgroundColor: colors.primarySoft }]}>
+                  <Text style={[styles.practiceMarker, { color: colors.primary }]}>{item.marker}</Text>
+                </View>
+                <Text style={[styles.practiceTitle, { color: colors.text }]}>{item.title}</Text>
+                <Text style={[styles.practiceDescription, { color: colors.textMuted }]}>
+                  {item.description}
+                </Text>
+              </Pressable>
+            ))}
           </Card>
         </Section>
 
-        <Section title="Atalhos">
-          <View style={styles.quickLinksGrid}>
-            {QUICK_LINKS.map((item) => {
-              const palette = item.palette[scheme];
-
-              return (
-                <Card
-                  key={item.title}
-                  onPress={() => router.push(item.route)}
-                  accessibilityLabel={item.title}
-                  padded={false}
-                  style={[
-                    styles.quickLinkCard,
-                    { backgroundColor: palette.background, borderColor: 'transparent' },
-                  ]}>
-                  <View
-                    style={[
-                      styles.quickLinkContent,
-                      { backgroundColor: palette.background },
-                    ]}>
-                    <LinearGradient
-                      pointerEvents="none"
-                      colors={QUICK_LINK_SHADOW}
-                      start={{ x: 0, y: 0.5 }}
-                      end={{ x: 1, y: 0.5 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <View
-                      style={[
-                        styles.quickLinkIcon,
-                        { backgroundColor: palette.iconBackground },
-                      ]}>
-                      <Ionicons name={item.icon} size={22} color={palette.accent} />
-                    </View>
-                    <View style={styles.quickLinkText}>
-                      <Text style={[styles.quickLinkTitle, { color: '#FFFFFF' }]}>
-                        {item.title}
-                      </Text>
-                      <Text
-                        style={[styles.quickLinkDescription, { color: palette.subtitle }]}
-                        numberOfLines={2}>
-                        {item.description}
-                      </Text>
-                    </View>
-                    <Ionicons name="arrow-forward" size={18} color={palette.accent} />
-                  </View>
-                </Card>
-              );
-            })}
-          </View>
-        </Section>
-
-        {radarConcurso && radarDeadline ? (
+        {focusConcurso && focusDeadline ? (
           <Section
-            title={radarUsesSavedConcurso ? 'Seu concurso em foco' : 'Radar da sua meta'}
-            actionLabel={radarUsesSavedConcurso ? 'Ver salvos' : 'Ver todos'}
-            onAction={() =>
-              router.push(radarUsesSavedConcurso ? '/concursos/salvos' : '/concursos')
-            }>
+            title="Minha meta"
+            actionLabel={savedFocus ? 'Ver salvos' : 'Explorar'}
+            onAction={() => router.push(savedFocus ? '/concursos/salvos' : '/concursos')}>
             <Card
-              onPress={() => router.push(`/concurso/${radarConcurso.id}`)}
-              accessibilityLabel={`Ver ${radarConcurso.shortName}`}
-              padded={false}
-              style={[styles.gradientShell, { borderColor: colors.borderStrong }]}>
-              <LinearGradient
-                colors={HOME_GRADIENTS.radar[scheme]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.radarCard}>
-                <View
-                  style={[
-                    styles.radarIcon,
-                    { backgroundColor: colors.primarySoft },
-                  ]}>
+              onPress={() => router.push(`/concurso/${focusConcurso.id}`)}
+              accessibilityLabel={`Abrir meta ${focusConcurso.shortName}`}
+              style={[styles.goalCard, { borderColor: colors.borderStrong }]}>
+              <View style={[styles.goalAccent, { backgroundColor: colors.primary }]} />
+              <View style={styles.goalTopline}>
+                <Text style={[styles.goalEyebrow, { color: colors.primary }]}>EM FOCO</Text>
+                <Badge
+                  label={focusDeadline.label}
+                  tone={focusDeadline.tone}
+                  icon={focusDeadline.icon}
+                />
+              </View>
+              <View style={styles.goalMain}>
+                <View style={[styles.goalIcon, { backgroundColor: colors.primarySoft }]}>
                   <Ionicons
-                    name={(radarConcurso.icon as keyof typeof Ionicons.glyphMap) ?? 'briefcase-outline'}
+                    name={(focusConcurso.icon as keyof typeof Ionicons.glyphMap) ?? 'briefcase-outline'}
                     size={22}
-                    color={radarConcurso.iconColor ?? colors.primary}
+                    color={focusConcurso.iconColor ?? colors.primary}
                   />
                 </View>
-                <View style={styles.radarContent}>
-                  <Text style={[styles.radarMatch, { color: colors.primary }]}>
-                    {radarUsesSavedConcurso
-                      ? `${savedActiveConcursos.length} ${
-                          savedActiveConcursos.length === 1
-                            ? 'concurso salvo em acompanhamento'
-                            : 'concursos salvos em acompanhamento'
-                        }`
-                      : `${recommendedConcursos.length} ${
-                          recommendedConcursos.length === 1
-                            ? 'oportunidade compatível'
-                            : 'oportunidades compatíveis'
-                        }`}
+                <View style={styles.goalCopy}>
+                  <Text style={[styles.goalTitle, { color: colors.text }]} numberOfLines={2}>
+                    {focusConcurso.shortName} · {focusConcurso.title}
                   </Text>
-                  <Text style={[styles.radarTitle, { color: colors.text }]} numberOfLines={2}>
-                    {radarConcurso.shortName} · {radarConcurso.title}
-                  </Text>
-                  <View style={styles.radarMeta}>
-                    <Badge
-                      label={radarDeadline.label}
-                      tone={radarDeadline.tone}
-                      icon={radarDeadline.icon}
-                    />
-                    <Text style={[styles.radarSalary, { color: colors.textMuted }]}>
-                      Até {formatSalaryShort(radarConcurso.salaryMax)}
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
-              </LinearGradient>
-            </Card>
-          </Section>
-        ) : (
-          <Section
-            title="Radar da sua meta"
-            actionLabel="Explorar"
-            onAction={() => router.push('/concursos')}>
-            <Card
-              onPress={() => router.push('/meta')}
-              accessibilityLabel="Escolher uma meta"
-              padded={false}
-              style={[styles.gradientShell, { borderColor: colors.borderStrong }]}>
-              <LinearGradient
-                colors={HOME_GRADIENTS.radar[scheme]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.emptyRadarCard}>
-                <View style={[styles.radarIcon, { backgroundColor: colors.primarySoft }]}>
-                  <Ionicons name="flag-outline" size={22} color={colors.primary} />
-                </View>
-                <View style={styles.radarContent}>
-                  <Text style={[styles.radarTitle, { color: colors.text }]}>Escolha uma meta</Text>
-                  <Text style={[styles.emptyRadarDescription, { color: colors.textMuted }]}>
-                    Receba editais e questões alinhados ao que você busca.
-                  </Text>
-                  <Text style={[styles.emptyRadarAction, { color: colors.primary }]}>
-                    Configurar agora
+                  <Text style={[styles.goalMeta, { color: colors.textMuted }]}>
+                    Até {formatSalaryShort(focusConcurso.salaryMax)}
                   </Text>
                 </View>
                 <Ionicons name="arrow-forward" size={19} color={colors.primary} />
-              </LinearGradient>
+              </View>
             </Card>
           </Section>
-        )}
-
-        <Section title="Desafio rápido">
-          <Card
-            onPress={() => router.push('/questoes/desafio')}
-            accessibilityLabel="Começar desafio rápido"
-            padded={false}
-            style={[styles.gradientShell, { borderColor: colors.borderStrong }]}>
-            <LinearGradient
-              colors={HOME_GRADIENTS.challenge[scheme]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.challengeCard}>
-              <View style={[styles.challengeIcon, { backgroundColor: colors.primary }]}>
-                <Ionicons name="flash" size={21} color={colors.onPrimary} />
+        ) : targetRole ? (
+          <Section title="Minha meta" actionLabel="Explorar" onAction={() => router.push('/concursos')}>
+            <Card
+              onPress={() => router.push('/concursos')}
+              accessibilityLabel={`Explorar concursos para ${targetRole}`}
+              style={[styles.roleCard, { borderColor: colors.borderStrong }]}>
+              <View style={[styles.goalIcon, { backgroundColor: colors.primarySoft }]}>
+                <Ionicons name="flag-outline" size={22} color={colors.primary} />
               </View>
-              <View style={styles.challengeContent}>
-                <Text style={[styles.challengeEyebrow, { color: colors.primary }]}>5 MINUTOS</Text>
-                <Text style={[styles.challengeTitle, { color: colors.text }]} numberOfLines={2}>
-                  {challengeContext
-                    ? `3 questões para ${challengeContext}`
-                    : '3 questões de conteúdos variados'}
-                </Text>
-                <Text style={[styles.challengeDescription, { color: colors.textMuted }]}>
-                  {savedFocus
-                    ? 'Conteúdo do seu concurso em foco'
-                    : targetRole
-                      ? 'Conteúdo alinhado ao seu cargo'
-                      : 'Uma seleção rápida para começar'}
-                </Text>
+              <View style={styles.goalCopy}>
+                <Text style={[styles.goalEyebrow, { color: colors.primary }]}>CARGO-ALVO</Text>
+                <Text style={[styles.goalTitle, { color: colors.text }]}>{targetRole}</Text>
               </View>
               <Ionicons name="arrow-forward" size={19} color={colors.primary} />
-            </LinearGradient>
+            </Card>
+          </Section>
+        ) : null}
+
+        <Section title="Explorar">
+          <Card padded={false} style={[styles.exploreCard, { borderColor: colors.border }]}>
+            {EXPLORE_ACTIONS.map((item, index) => (
+              <Pressable
+                key={item.title}
+                onPress={() => router.push(item.route)}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.title}. ${item.description}`}
+                style={({ pressed }) => [
+                  styles.exploreRow,
+                  index < EXPLORE_ACTIONS.length - 1 && {
+                    borderBottomColor: colors.border,
+                    borderBottomWidth: StyleSheet.hairlineWidth,
+                  },
+                  pressed && styles.explorePressed,
+                ]}>
+                <View style={[styles.exploreIcon, { backgroundColor: colors.surfaceAlt }]}>
+                  <Text style={[styles.exploreMarker, { color: colors.primary }]}>{item.marker}</Text>
+                </View>
+                <View style={styles.exploreCopy}>
+                  <Text style={[styles.exploreTitle, { color: colors.text }]}>{item.title}</Text>
+                  <Text style={[styles.exploreDescription, { color: colors.textMuted }]}>
+                    {item.description}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </Pressable>
+            ))}
           </Card>
         </Section>
       </ScrollView>
     </View>
   );
+}
+
+export default function HomeScreen() {
+  return <HomeContent />;
 }
 
 const styles = StyleSheet.create({
@@ -491,148 +355,209 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xxxl,
+    gap: Spacing.xl,
+  },
+  heroShell: {
+    overflow: 'hidden',
+    borderRadius: Radius.xl,
+  },
+  hero: {
+    minHeight: 238,
+    padding: Spacing.xl,
+    justifyContent: 'space-between',
+    gap: Spacing.lg,
+    overflow: 'hidden',
+  },
+  heroRailOne: {
+    position: 'absolute',
+    width: 76,
+    height: 340,
+    top: -78,
+    right: 42,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    transform: [{ rotate: '24deg' }],
+  },
+  heroRailTwo: {
+    position: 'absolute',
+    width: 18,
+    height: 320,
+    top: -64,
+    right: 8,
+    backgroundColor: 'rgba(167, 139, 250, 0.26)',
+    transform: [{ rotate: '24deg' }],
+  },
+  heroHeading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  heroIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  heroMark: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.small,
+    fontWeight: FontWeight.bold,
+  },
+  heroEyebrow: {
+    color: '#DDD2FF',
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 1.1,
+  },
+  heroCopy: { maxWidth: 520, gap: Spacing.sm },
+  heroTitle: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    lineHeight: 35,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.8,
+  },
+  heroDescription: {
+    maxWidth: 460,
+    color: '#E9E3FF',
+    fontSize: FontSize.body,
+    lineHeight: 21,
+  },
+  heroAction: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  heroActionText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.small,
+    fontWeight: FontWeight.semibold,
+  },
+  heroArrow: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  heroArrowGlyph: {
+    color: '#3B176F',
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: FontWeight.bold,
+  },
+  today: {
+    minHeight: 92,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
     padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.lg,
   },
-  gradientShell: { overflow: 'hidden' },
-  continueCard: { gap: Spacing.md, padding: Spacing.md },
-  continueTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  continueIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  continueText: { flex: 1, gap: 2 },
-  continueLabelRow: { alignSelf: 'flex-start', gap: 3 },
-  continueLabel: {
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.semibold,
-  },
-  continueMarker: { width: 22, height: 2 },
-  continueTitle: {
-    fontSize: FontSize.heading + 1,
+  todayMetric: { minWidth: 58, alignItems: 'center' },
+  todayNumber: {
+    fontFamily: Fonts.mono,
+    fontSize: 28,
+    lineHeight: 31,
     fontWeight: FontWeight.bold,
+    letterSpacing: -1,
   },
-  continueDescription: { fontSize: FontSize.small, lineHeight: 18 },
-  progressCard: {
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    borderRadius: 18,
-  },
-  progressHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  progressCopy: { flex: 1, gap: 2 },
-  progressTitle: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  progressDescription: { fontSize: FontSize.small, lineHeight: 18 },
-  progressValue: {
-    fontSize: FontSize.display,
-    fontWeight: FontWeight.bold,
-  },
-  reviewCard: { overflow: 'hidden' },
-  quickLinksGrid: {
+  todayUnit: { fontSize: FontSize.tiny, fontWeight: FontWeight.medium },
+  todayDivider: { width: 1, alignSelf: 'stretch' },
+  todayCopy: { flex: 1, gap: Spacing.sm },
+  todayTitleRow: { gap: 2 },
+  todayTitle: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
+  todayRemaining: { fontSize: FontSize.small },
+  accuracy: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
+  premiumNote: { fontSize: FontSize.small },
+  practicePanel: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  quickLinkCard: {
-    flexBasis: 220,
-    flexGrow: 1,
-    padding: 2,
-    borderWidth: 0,
-    borderRadius: 18,
     overflow: 'hidden',
+    borderWidth: 1,
   },
-  quickLinkContent: {
-    minHeight: 116,
-    padding: Spacing.lg,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    overflow: 'hidden',
-  },
-  quickLinkIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickLinkText: { flex: 1, gap: 3 },
-  quickLinkTitle: {
-    fontSize: FontSize.body,
-    fontWeight: FontWeight.bold,
-    textShadowColor: 'rgba(0, 0, 0, 0.18)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  quickLinkDescription: {
-    fontSize: FontSize.small,
-    lineHeight: 18,
-    textShadowColor: 'rgba(0, 0, 0, 0.14)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  radarCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
+  practiceAction: {
+    minWidth: 0,
+    flex: 1,
+    minHeight: 126,
     padding: Spacing.md,
-  },
-  radarIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radarContent: { flex: 1, gap: 4 },
-  radarMatch: {
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.semibold,
-  },
-  radarTitle: {
-    fontSize: FontSize.body,
-    fontWeight: FontWeight.bold,
-    lineHeight: 19,
-  },
-  radarMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
     gap: Spacing.sm,
   },
-  radarSalary: { fontSize: FontSize.tiny, fontWeight: FontWeight.medium },
-  emptyRadarCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-  },
-  emptyRadarDescription: { fontSize: FontSize.small, lineHeight: 18 },
-  emptyRadarAction: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
-  challengeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-  },
-  challengeIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  practiceIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  challengeContent: { flex: 1, gap: 2 },
-  challengeEyebrow: {
+  practiceMarker: {
+    fontFamily: Fonts.mono,
     fontSize: FontSize.tiny,
     fontWeight: FontWeight.bold,
-    letterSpacing: 0.7,
+    letterSpacing: 0.5,
   },
-  challengeTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
-  challengeDescription: { fontSize: FontSize.small, lineHeight: 18 },
+  practiceTitle: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
+  practiceDescription: { fontSize: FontSize.tiny, lineHeight: 16 },
+  goalCard: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    gap: Spacing.md,
+  },
+  goalAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
+  goalTopline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  goalEyebrow: {
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.8,
+  },
+  goalMain: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  goalIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalCopy: { flex: 1, gap: 3 },
+  goalTitle: { fontSize: FontSize.body, lineHeight: 20, fontWeight: FontWeight.bold },
+  goalMeta: { fontSize: FontSize.small },
+  roleCard: {
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  exploreCard: { overflow: 'hidden', borderWidth: 1 },
+  exploreRow: {
+    minHeight: 76,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  explorePressed: { opacity: 0.68 },
+  exploreIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exploreMarker: {
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+  },
+  exploreCopy: { flex: 1, gap: 2 },
+  exploreTitle: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
+  exploreDescription: { fontSize: FontSize.small, lineHeight: 18 },
   pressed: { opacity: 0.65 },
 });
