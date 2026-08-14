@@ -34,6 +34,22 @@ export function formatSalaryShort(value: number): string {
   return formatCurrency(value);
 }
 
+function formatThousands(value: number): string {
+  const thousands = value / 1000;
+  return thousands.toFixed(1).replace(/\.0$/, '').replace('.', ',');
+}
+
+/** Faixa compacta para cartões: R$ 2,1–3,5 mil. */
+export function formatSalaryRangeShort(minimum: number, maximum: number): string {
+  if (minimum === maximum) return `Até ${formatSalaryShort(maximum)}`;
+
+  if (minimum >= 1000 && maximum >= 1000) {
+    return `R$ ${formatThousands(minimum)}–${formatThousands(maximum)} mil`;
+  }
+
+  return `${formatSalaryShort(minimum)}–${formatSalaryShort(maximum)}`;
+}
+
 /** Converte 'YYYY-MM-DD' em 'DD/MM/AAAA' sem depender do fuso horário. */
 export function formatDate(isoDate?: string): string {
   if (!isoDate) return '--';

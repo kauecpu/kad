@@ -3,110 +3,113 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
-import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { deadlineInfo } from '@/lib/concursos';
-import { formatSalaryShort } from '@/lib/format';
+import { formatSalaryRangeShort } from '@/lib/format';
 import type { Concurso } from '@/types';
 
 type ConcursoCardProps = {
   concurso: Concurso;
+  index?: number;
   saved?: boolean;
   onPress: () => void;
   onToggleSave?: () => void;
 };
 
-function ConcursoCardComponent({ concurso, saved = false, onPress, onToggleSave }: ConcursoCardProps) {
-  const { colors, scheme } = useTheme();
+function ConcursoCardComponent({
+  concurso,
+  index,
+  saved = false,
+  onPress,
+  onToggleSave,
+}: ConcursoCardProps) {
+  const { colors } = useTheme();
   const deadline = deadlineInfo(concurso);
-  const deadlineColor =
-    deadline.tone === 'danger'
-      ? scheme === 'dark'
-        ? '#FF6B72'
-        : '#E5484D'
-      : deadline.tone === 'warning'
-        ? scheme === 'dark'
-          ? '#FFB454'
-          : '#E98613'
-        : deadline.tone === 'neutral'
-          ? colors.textSubtle
-          : scheme === 'dark'
-            ? '#72AFFF'
-            : '#3478F6';
-  const iconName = (concurso.icon ?? 'business') as keyof typeof Ionicons.glyphMap;
-  const salary =
-    concurso.salaryMin === concurso.salaryMax
-      ? `Até ${formatSalaryShort(concurso.salaryMax)}`
-      : `${formatSalaryShort(concurso.salaryMin)} – ${formatSalaryShort(concurso.salaryMax)}`;
+  const urgent = deadline.tone === 'warning' || deadline.tone === 'danger';
+  const deadlineColor = urgent ? colors.warning : colors.textMuted;
+  const salary = formatSalaryRangeShort(concurso.salaryMin, concurso.salaryMax);
   const location =
     concurso.state === 'Nacional'
       ? 'Âmbito nacional'
       : `${concurso.city ? `${concurso.city} · ` : ''}${concurso.state}`;
+  const marker = index ? String(index).padStart(2, '0') : concurso.shortName.toUpperCase();
 
   return (
-    <Card padded={false} style={styles.card}>
+    <Card
+      padded={false}
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: saved ? colors.borderStrong : colors.border,
+        },
+      ]}>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.accentRail,
+          { backgroundColor: saved ? colors.primary : colors.borderStrong },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[styles.accentSlash, { backgroundColor: colors.primarySoft }]}
+      />
+
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={`${concurso.organ}: ${concurso.title}`}
-        style={({ pressed }) => [styles.cardMain, pressed && styles.cardPressed]}>
-        <View style={styles.headerRow}>
-          <View style={[styles.logo, { backgroundColor: colors.primarySoft }]}>
-            <Ionicons name={iconName} size={20} color={colors.primary} />
-          </View>
-          <View style={[styles.headerText, onToggleSave && styles.headerTextWithSave]}>
-            <Text style={[styles.organ, { color: colors.textMuted }]} numberOfLines={1}>
-              {concurso.organ}
-            </Text>
-            <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
-              {concurso.title}
-            </Text>
-          </View>
+        accessibilityLabel={`${concurso.title}, ${concurso.organ}. ${salary}. ${concurso.vacancies.toLocaleString('pt-BR')} vagas. ${deadline.label}. ${location}.`}
+        style={({ pressed }) => [
+          styles.cardMain,
+          pressed && styles.cardPressed,
+        ]}>
+        <View style={styles.identityRow}>
+          <Text style={[styles.marker, { color: colors.primary }]}>{`K/${marker}`}</Text>
+          {index ? (
+            <>
+              <View style={[styles.identityDivider, { backgroundColor: colors.borderStrong }]} />
+              <Text style={[styles.shortName, { color: colors.textSubtle }]}>
+                {concurso.shortName.toUpperCase()}
+              </Text>
+            </>
+          ) : null}
         </View>
 
-        <View style={[styles.quickFacts, { backgroundColor: colors.surfaceAlt }]}>
-          <View style={styles.quickFact}>
-            <View
-              style={[
-                styles.salaryIcon,
-                { backgroundColor: scheme === 'dark' ? '#143B31' : '#E7F8F1' },
-              ]}>
-              <Text
-                style={[
-                  styles.salaryIconText,
-                  { color: scheme === 'dark' ? '#5BE0AE' : '#109A6B' },
-                ]}>
-                $
-              </Text>
-            </View>
-            <Text style={[styles.quickFactValue, { color: colors.text }]} numberOfLines={1}>
-              {salary}
-            </Text>
+        <View style={styles.heading}>
+          <Text style={[styles.title, { color: colors.text }]}>{concurso.title}</Text>
+          <Text style={[styles.organ, { color: colors.textMuted }]}>{concurso.organ}</Text>
+        </View>
+
+        <View
+          style={[
+            styles.facts,
+            { borderTopColor: colors.border, borderBottomColor: colors.border },
+          ]}>
+          <View style={styles.fact}>
+            <Text style={[styles.factLabel, { color: colors.textSubtle }]}>REMUNERAÇÃO</Text>
+            <Text style={[styles.factValue, { color: colors.text }]}>{salary}</Text>
           </View>
           <View style={[styles.factDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.quickFact}>
-            <View style={[styles.factIcon, { backgroundColor: colors.primarySoft }]}>
-              <Ionicons name="people-outline" size={15} color={colors.primary} />
-            </View>
-            <Text style={[styles.quickFactValue, { color: colors.text }]} numberOfLines={1}>
-              {`${concurso.vacancies.toLocaleString('pt-BR')} vagas`}
+          <View style={styles.fact}>
+            <Text style={[styles.factLabel, { color: colors.textSubtle }]}>VAGAS</Text>
+            <Text style={[styles.factValue, { color: colors.text }]}>
+              {concurso.vacancies.toLocaleString('pt-BR')}
             </Text>
           </View>
         </View>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, onToggleSave && styles.footerWithSave]}>
           <View style={styles.deadline}>
             <Ionicons name={deadline.icon} size={14} color={deadlineColor} />
-            <Text style={[styles.deadlineText, { color: deadlineColor }]}>{deadline.label}</Text>
+            <Text style={[styles.deadlineText, { color: deadlineColor }]}>
+              {deadline.label}
+            </Text>
           </View>
-          <View style={styles.footerRight}>
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={13} color={colors.textSubtle} />
-              <Text style={[styles.location, { color: colors.textSubtle }]} numberOfLines={1}>
-                {location}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={13} color={colors.textSubtle} />
+            <Text style={[styles.location, { color: colors.textSubtle }]}>{location}</Text>
           </View>
         </View>
       </Pressable>
@@ -116,16 +119,17 @@ function ConcursoCardComponent({ concurso, saved = false, onPress, onToggleSave 
           onPress={onToggleSave}
           accessibilityRole="button"
           accessibilityLabel={saved ? 'Remover dos salvos' : 'Salvar concurso'}
+          accessibilityState={{ selected: saved }}
           hitSlop={8}
           style={({ pressed }) => [
             styles.saveButton,
-            { backgroundColor: colors.surfaceAlt },
+            { backgroundColor: saved ? colors.primarySoft : colors.surfaceAlt },
             pressed && styles.pressed,
           ]}>
           <Ionicons
             name={saved ? 'bookmark' : 'bookmark-outline'}
             size={20}
-            color={saved ? colors.primary : colors.textSubtle}
+            color={saved ? colors.primary : colors.textMuted}
           />
         </Pressable>
       ) : null}
@@ -136,71 +140,99 @@ function ConcursoCardComponent({ concurso, saved = false, onPress, onToggleSave 
 export const ConcursoCard = memo(ConcursoCardComponent);
 
 const styles = StyleSheet.create({
-  card: { position: 'relative' },
-  cardMain: { gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.lg },
-  cardPressed: { opacity: 0.85 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  card: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderRadius: Radius.lg,
   },
-  headerText: { flex: 1, gap: 2, justifyContent: 'center' },
-  headerTextWithSave: { paddingRight: 32 },
-  organ: {
-    fontSize: FontSize.small,
-    fontWeight: FontWeight.medium,
-    lineHeight: 17,
-  },
-  title: { fontSize: FontSize.body + 1, fontWeight: FontWeight.bold, lineHeight: 20 },
-  saveButton: {
+  accentRail: {
     position: 'absolute',
-    top: Spacing.md,
-    right: Spacing.md,
-    width: 32,
-    height: 32,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 4,
     zIndex: 1,
   },
-  locationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, flex: 1 },
-  location: { flexShrink: 1, fontSize: FontSize.tiny, textAlign: 'right' },
-  quickFacts: {
+  accentSlash: {
+    position: 'absolute',
+    top: -18,
+    right: 18,
+    width: 18,
+    height: 76,
+    opacity: 0.7,
+    transform: [{ rotate: '24deg' }],
+  },
+  cardMain: {
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingLeft: Spacing.lg + 3,
+  },
+  cardPressed: { opacity: 0.82, transform: [{ scale: 0.992 }] },
+  identityRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  marker: {
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.8,
+  },
+  identityDivider: { width: 18, height: 1 },
+  shortName: {
+    flexShrink: 1,
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.55,
+  },
+  heading: { gap: 3 },
+  title: {
+    fontSize: FontSize.heading,
+    fontWeight: FontWeight.bold,
+    lineHeight: 22,
+    letterSpacing: -0.25,
+  },
+  organ: { fontSize: FontSize.small, lineHeight: 18 },
+  facts: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  fact: { flex: 1, minWidth: 0, gap: 3 },
+  factLabel: {
+    fontFamily: Fonts.mono,
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.65,
+  },
+  factValue: { fontSize: FontSize.small, fontWeight: FontWeight.bold, lineHeight: 18 },
+  factDivider: { width: StyleSheet.hairlineWidth, marginHorizontal: Spacing.md },
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 10,
-    borderRadius: 12,
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    columnGap: Spacing.md,
+    rowGap: Spacing.sm,
+    minHeight: 32,
   },
-  quickFact: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  salaryIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  salaryIconText: {
-    fontSize: 14,
-    fontWeight: FontWeight.bold,
-    lineHeight: 17,
-  },
-  factIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickFactValue: { flexShrink: 1, fontSize: FontSize.small, fontWeight: FontWeight.bold },
-  factDivider: { width: StyleSheet.hairlineWidth, height: 22 },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
-  footerRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 },
-  deadline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  footerWithSave: { paddingRight: 44 },
+  deadline: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   deadlineText: { fontSize: FontSize.tiny, fontWeight: FontWeight.semibold },
-  pressed: { opacity: 0.6 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
+  location: { flexShrink: 1, fontSize: FontSize.tiny, lineHeight: 16 },
+  saveButton: {
+    position: 'absolute',
+    right: Spacing.md,
+    bottom: Spacing.sm + 2,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  pressed: { opacity: 0.65, transform: [{ scale: 0.94 }] },
 });
