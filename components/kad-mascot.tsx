@@ -8,7 +8,9 @@ import {
   type StyleProp,
 } from 'react-native';
 
-export type KadMascotVariant = 'welcome' | 'nerd' | 'book' | 'goal';
+import { type KadMascotVariant } from '@/constants/mascots';
+
+export type { KadMascotVariant } from '@/constants/mascots';
 
 type KadMascotProps = {
   size?: number;
@@ -19,18 +21,11 @@ type KadMascotProps = {
 };
 
 const MASCOT_SOURCES = {
-  welcome: require('../assets/images/kad-mascot-wolf.png'),
-  nerd: require('../assets/images/kad-mascot-wolf-nerd.png'),
-  book: require('../assets/images/kad-mascot-wolf-book.png'),
-  goal: require('../assets/images/kad-mascot-wolf-goal.png'),
+  welcome: require('../assets/images/kad-mascot-wolf-writing.png'),
+  practice: require('../assets/images/kad-mascot-wolf-practice.png'),
+  simulation: require('../assets/images/kad-mascot-wolf-simulation.png'),
+  goal: require('../assets/images/kad-mascot-wolf-goal-study.png'),
 } as const;
-
-const MASCOT_LABELS: Record<KadMascotVariant, string> = {
-  welcome: 'Mascote lobo roxo dando boas-vindas e segurando um lápis',
-  nerd: 'Mascote lobo roxo com óculos estudando com um lápis',
-  book: 'Mascote lobo roxo lendo um livro',
-  goal: 'Mascote lobo roxo segurando uma bandeira de objetivo',
-};
 
 export function KadMascot({
   size = 220,
@@ -88,7 +83,10 @@ export function KadMascot({
     <Animated.Image
       source={MASCOT_SOURCES[variant]}
       resizeMode="contain"
-      accessibilityLabel={MASCOT_LABELS[variant]}
+      accessible={false}
+      aria-hidden
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       accessibilityIgnoresInvertColors
       style={[
         styles.image,

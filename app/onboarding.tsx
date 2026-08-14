@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KadMascot, type KadMascotVariant } from '@/components/kad-mascot';
 import { Button } from '@/components/ui/button';
+import { getOnboardingSlideAccessibilityLabel } from '@/constants/mascots';
 import { FontSize, FontWeight, Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { hasCompletedOnboarding, markOnboardingComplete } from '@/lib/onboarding';
@@ -51,7 +52,7 @@ const SLIDES: OnboardingSlide[] = [
       'Escolha uma disciplina, pratique por assunto e acompanhe sua evolução a cada sessão.',
     detail: 'Seu histórico ajuda a mostrar onde vale insistir.',
     icon: 'reader-outline',
-    mascot: 'nerd',
+    mascot: 'practice',
   },
   {
     id: 'simulations',
@@ -61,7 +62,7 @@ const SLIDES: OnboardingSlide[] = [
       'Monte simulados, controle o tempo e revise cada resposta quando terminar.',
     detail: 'Treine ritmo, foco e tomada de decisão.',
     icon: 'stopwatch-outline',
-    mascot: 'book',
+    mascot: 'simulation',
   },
   {
     id: 'goal',
@@ -223,7 +224,13 @@ export function OnboardingContent({ previewMode = false }: OnboardingContentProp
               aria-hidden={currentIndex !== index}
               accessibilityElementsHidden={currentIndex !== index}
               importantForAccessibility={currentIndex === index ? 'yes' : 'no-hide-descendants'}
-              accessibilityLabel={`Etapa ${index + 1} de ${SLIDES.length}. ${item.title}. ${item.description}`}
+              accessibilityLabel={getOnboardingSlideAccessibilityLabel({
+                index,
+                total: SLIDES.length,
+                title: item.title,
+                description: item.description,
+                mascot: item.mascot,
+              })}
               style={[styles.slide, { width: pageWidth }]}>
               <View style={styles.visualArea}>
                 <View
