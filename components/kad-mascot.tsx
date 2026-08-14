@@ -8,7 +8,12 @@ import {
   type StyleProp,
 } from 'react-native';
 
-export type KadMascotVariant = 'welcome' | 'nerd' | 'book' | 'goal';
+import {
+  getMascotAccessibilityLabel,
+  type KadMascotVariant,
+} from '@/constants/mascots';
+
+export type { KadMascotVariant } from '@/constants/mascots';
 
 type KadMascotProps = {
   size?: number;
@@ -19,18 +24,11 @@ type KadMascotProps = {
 };
 
 const MASCOT_SOURCES = {
-  welcome: require('../assets/images/kad-mascot-wolf.png'),
+  welcome: require('../assets/images/kad-mascot-wolf-writing.png'),
   nerd: require('../assets/images/kad-mascot-wolf-nerd.png'),
   book: require('../assets/images/kad-mascot-wolf-book.png'),
   goal: require('../assets/images/kad-mascot-wolf-goal.png'),
 } as const;
-
-const MASCOT_LABELS: Record<KadMascotVariant, string> = {
-  welcome: 'Mascote lobo roxo dando boas-vindas e segurando um lápis',
-  nerd: 'Mascote lobo roxo com óculos estudando com um lápis',
-  book: 'Mascote lobo roxo lendo um livro',
-  goal: 'Mascote lobo roxo segurando uma bandeira de objetivo',
-};
 
 export function KadMascot({
   size = 220,
@@ -88,7 +86,7 @@ export function KadMascot({
     <Animated.Image
       source={MASCOT_SOURCES[variant]}
       resizeMode="contain"
-      accessibilityLabel={MASCOT_LABELS[variant]}
+      accessibilityLabel={getMascotAccessibilityLabel(variant)}
       accessibilityIgnoresInvertColors
       style={[
         styles.image,
