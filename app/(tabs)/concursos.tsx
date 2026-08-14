@@ -1,7 +1,15 @@
 import Ionicons from '@/components/ui/app-icon';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -13,10 +21,16 @@ import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FeedbackToast } from '@/components/ui/feedback-toast';
 import { MultiSelectSheet } from '@/components/ui/multi-select-sheet';
-import { ScreenHeader } from '@/components/ui/screen-header';
 import { SearchField } from '@/components/ui/search-field';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
-import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
+import {
+  CONTENT_MAX_WIDTH,
+  FontSize,
+  FontWeight,
+  Fonts,
+  Radius,
+  Spacing,
+} from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
   EMPTY_CONCURSO_FILTERS,
@@ -71,7 +85,7 @@ export default function ConcursosScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { profile, savedConcursos, toggleSavedConcurso } = useApp();
-  const { concursos } = useConcursos();
+  const { concursos, loading } = useConcursos();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<StatusFilter>('aberto');
   const [filters, setFilters] = useState<ConcursoFilters>(EMPTY_CONCURSO_FILTERS);
@@ -100,13 +114,41 @@ export default function ConcursosScreen() {
   const activeFilterCount = activeFilterEntries.length;
   const selectedSort = SORT_OPTIONS.find((option) => option.value === sort) ?? SORT_OPTIONS[0];
 
-  const filterSections = useMemo<ConcursoFilterSection[]>(() => [
-    { key: 'states', title: 'Estado', options: unique(concursos.map((concurso) => concurso.state)) },
-    { key: 'levels', title: 'Escolaridade', options: unique(concursos.flatMap((concurso) => concurso.levels)) },
-    { key: 'salaryRanges', title: 'Faixa salarial', options: ['Até R$ 3 mil', 'R$ 3 mil a R$ 6 mil', 'R$ 6 mil a R$ 10 mil', 'Acima de R$ 10 mil'] },
-    { key: 'roles', title: 'Cargo', options: unique(concursos.flatMap((concurso) => concurso.roles.map((role) => role.name))) },
-    { key: 'boards', title: 'Banca', options: unique(concursos.map((concurso) => concurso.board)) },
-  ], [concursos]);
+  const filterSections = useMemo<ConcursoFilterSection[]>(
+    () => [
+      {
+        key: 'states',
+        title: 'Estado',
+        options: unique(concursos.map((concurso) => concurso.state)),
+      },
+      {
+        key: 'levels',
+        title: 'Escolaridade',
+        options: unique(concursos.flatMap((concurso) => concurso.levels)),
+      },
+      {
+        key: 'salaryRanges',
+        title: 'Faixa salarial',
+        options: [
+          'Até R$ 3 mil',
+          'R$ 3 mil a R$ 6 mil',
+          'R$ 6 mil a R$ 10 mil',
+          'Acima de R$ 10 mil',
+        ],
+      },
+      {
+        key: 'roles',
+        title: 'Cargo',
+        options: unique(concursos.flatMap((concurso) => concurso.roles.map((role) => role.name))),
+      },
+      {
+        key: 'boards',
+        title: 'Banca',
+        options: unique(concursos.map((concurso) => concurso.board)),
+      },
+    ],
+    [concursos]
+  );
 
   const goalMatches = useMemo(
     () => recommendConcursosForGoal(filterByStatus(concursos, status), targetRole),
@@ -143,9 +185,7 @@ export default function ConcursosScreen() {
       }
       return true;
     });
-    const targeted = goalMode
-      ? recommendConcursosForGoal(filtered, targetRole)
-      : filtered;
+    const targeted = goalMode ? recommendConcursosForGoal(filtered, targetRole) : filtered;
     return sortConcursos(targeted, sort);
   }, [concursos, status, query, filters, sort, goalMode, targetRole]);
 
@@ -173,130 +213,197 @@ export default function ConcursosScreen() {
     setGoalMode(false);
   };
 
-  const listHeader = results.length > 0 ? (
+  const showGoalSuggestion =
+    results.length > 0 &&
+    !query &&
+    targetRole &&
+    activeFilterCount === 0 &&
+    !goalMode &&
+    goalMatches.length > 0;
+
+  const listHeader = showGoalSuggestion ? (
     <View style={styles.listHeader}>
-      {!query && targetRole && activeFilterCount === 0 && !goalMode && goalMatches.length > 0 ? (
-        <Pressable
-          onPress={() => setGoalMode(true)}
-          accessibilityRole="button"
-          accessibilityLabel={`Ver concursos para sua meta: ${targetRole}`}
-          style={({ pressed }) => [
-            styles.goalCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            pressed && styles.pressed,
-          ]}>
-          <View style={styles.goalIcon}>
-            <Ionicons name="locate-outline" size={19} color={colors.primary} />
-          </View>
-          <View style={styles.goalText}>
-            <Text style={[styles.goalTitle, { color: colors.text }]} numberOfLines={1}>
-              {targetRole}
-            </Text>
-            <Text style={[styles.goalDescription, { color: colors.textMuted }]}>
-              {`${goalMatches.length} ${goalMatches.length === 1 ? 'oportunidade compatível' : 'oportunidades compatíveis'}`}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-        </Pressable>
-      ) : null}
-      <Text style={[styles.resultCount, { color: colors.textSubtle }]}>
-        {`${results.length} ${results.length === 1 ? 'concurso encontrado' : 'concursos encontrados'}`}
-      </Text>
+      <Pressable
+        onPress={() => setGoalMode(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`Ver concursos para sua meta: ${targetRole}`}
+        style={({ pressed }) => [
+          styles.goalCard,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+          pressed && styles.pressed,
+        ]}>
+        <View style={[styles.goalRail, { backgroundColor: colors.primary }]} />
+        <View style={styles.goalMarker}>
+          <Text style={[styles.goalMarkerText, { color: colors.primary }]}>K/</Text>
+        </View>
+        <View style={styles.goalText}>
+          <Text style={[styles.goalEyebrow, { color: colors.textSubtle }]}>FOCO DA META</Text>
+          <Text style={[styles.goalTitle, { color: colors.text }]}>{targetRole}</Text>
+          <Text style={[styles.goalDescription, { color: colors.textMuted }]}>
+            {`${goalMatches.length} ${goalMatches.length === 1 ? 'oportunidade compatível' : 'oportunidades compatíveis'} · aplicar filtro`}
+          </Text>
+        </View>
+      </Pressable>
     </View>
   ) : null;
 
+  const resultLabel = `${results.length} ${results.length === 1 ? 'resultado' : 'resultados'}`;
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ScreenHeader
-        title="Concursos"
-        subtitle="Editais abertos e previstos pelo Brasil"
-        right={
-          <Pressable
-            onPress={() => router.push('/concursos/salvos')}
-            accessibilityRole="button"
-            accessibilityLabel={`Abrir concursos salvos. ${savedConcursos.length} salvos`}
-            style={({ pressed }) => [
-              styles.savedButton,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              pressed && styles.pressed,
-            ]}>
-            <Ionicons name="bookmark-outline" size={17} color={colors.primary} />
-            <Text style={[styles.savedLabel, { color: colors.text }]}>Salvos</Text>
-            {savedConcursos.length > 0 ? (
-              <View style={[styles.savedCount, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.savedCountText, { color: colors.onPrimary }]}>
-                  {savedConcursos.length}
-                </Text>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top + Spacing.sm,
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+          },
+        ]}>
+        <View style={styles.headerInner}>
+          <View style={styles.titleRow}>
+            <View style={styles.titleGroup}>
+              <View style={styles.eyebrowRow}>
+                <View style={[styles.eyebrowRail, { backgroundColor: colors.primary }]} />
+                <Text style={[styles.eyebrow, { color: colors.primary }]}>KAD / CONCURSOS</Text>
               </View>
-            ) : null}
-          </Pressable>
-        }>
-        <SearchField
-          value={query}
-          onChangeText={(value) => {
-            setQuery(value);
-            setGoalMode(false);
-          }}
-          placeholder="Buscar concursos"
-          accessibilityLabel="Buscar por órgão, cargo, banca ou estado"
-        />
-        <Segmented options={STATUS_OPTIONS} value={status} onChange={setStatus} />
-        <View style={styles.refineRow}>
-          <Chip
-            label={activeFilterCount > 0 ? `Filtros (${activeFilterCount})` : 'Filtros'}
-            selected={activeFilterCount > 0}
-            icon="options-outline"
-            onPress={() => setFiltersVisible(true)}
-          />
-          <Chip
-            label={`Ordenar · ${selectedSort.shortLabel}`}
-            selected={sort !== 'deadline'}
-            icon="swap-vertical"
-            onPress={() => setSortVisible(true)}
-          />
-          {activeFilterCount > 0 || goalMode ? (
+              <Text
+                style={[styles.title, { color: colors.text }]}
+                accessibilityRole="header">
+                Radar de editais
+              </Text>
+            </View>
             <Pressable
-              onPress={clearRefinements}
+              onPress={() => router.push('/concursos/salvos')}
               accessibilityRole="button"
-              accessibilityLabel="Limpar filtros ativos"
-              hitSlop={8}>
-              <Text style={[styles.clearFilters, { color: colors.primary }]}>Limpar</Text>
+              accessibilityLabel={`Abrir concursos salvos. ${savedConcursos.length} salvos`}
+              style={({ pressed }) => [
+                styles.savedButton,
+                { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+                pressed && styles.pressed,
+              ]}>
+              <Ionicons name="bookmark-outline" size={18} color={colors.primary} />
+              <Text style={[styles.savedLabel, { color: colors.text }]}>Salvos</Text>
+              {savedConcursos.length > 0 ? (
+                <View style={[styles.savedCount, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.savedCountText, { color: colors.onPrimary }]}>
+                    {savedConcursos.length}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
+          </View>
+
+          <SearchField
+            value={query}
+            onChangeText={(value) => {
+              setQuery(value);
+              setGoalMode(false);
+            }}
+            placeholder="Buscar órgão, cargo ou banca"
+            accessibilityLabel="Buscar por órgão, cargo, banca ou estado"
+          />
+
+          <Segmented options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+
+          <View style={styles.refineRow}>
+            <View style={styles.resultSummary} accessibilityLiveRegion="polite">
+              {loading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+              <Text style={[styles.resultCount, { color: colors.textSubtle }]}>{resultLabel}</Text>
+            </View>
+            <View style={styles.refineActions}>
+              <Pressable
+                onPress={() => setFiltersVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  activeFilterCount > 0
+                    ? `Abrir filtros. ${activeFilterCount} ativos`
+                    : 'Abrir filtros'
+                }
+                style={({ pressed }) => [
+                  styles.refineButton,
+                  {
+                    backgroundColor:
+                      activeFilterCount > 0 ? colors.primarySoft : colors.surfaceAlt,
+                    borderColor:
+                      activeFilterCount > 0 ? colors.borderStrong : colors.border,
+                  },
+                  pressed && styles.pressed,
+                ]}>
+                <Ionicons name="options-outline" size={16} color={colors.primary} />
+                <Text style={[styles.refineLabel, { color: colors.text }]}>
+                  {activeFilterCount > 0 ? `Filtros ${activeFilterCount}` : 'Filtros'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setSortVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Ordenar por ${selectedSort.label}`}
+                style={({ pressed }) => [
+                  styles.refineButton,
+                  {
+                    backgroundColor: sort !== 'deadline' ? colors.primarySoft : colors.surfaceAlt,
+                    borderColor: sort !== 'deadline' ? colors.borderStrong : colors.border,
+                  },
+                  pressed && styles.pressed,
+                ]}>
+                <Ionicons name="swap-vertical" size={16} color={colors.primary} />
+                <Text style={[styles.refineLabel, { color: colors.text }]}>
+                  {selectedSort.shortLabel}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {activeFilterCount > 0 || goalMode ? (
+            <View style={styles.activeFilterRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.activeFilters}>
+                {goalMode ? (
+                  <Chip
+                    label={`Meta: ${targetRole}`}
+                    selected
+                    icon="close"
+                    onPress={() => setGoalMode(false)}
+                  />
+                ) : null}
+                {activeFilterEntries.map(({ key, value }) => (
+                  <Chip
+                    key={`${key}-${value}`}
+                    label={`${FILTER_LABEL[key]}: ${value}`}
+                    selected
+                    icon="close"
+                    onPress={() => removeFilter(key, value)}
+                  />
+                ))}
+              </ScrollView>
+              <Pressable
+                onPress={clearRefinements}
+                accessibilityRole="button"
+                accessibilityLabel="Limpar filtros ativos"
+                hitSlop={8}>
+                <Text style={[styles.clearFilters, { color: colors.primary }]}>Limpar</Text>
+              </Pressable>
+            </View>
           ) : null}
         </View>
-        {activeFilterCount > 0 || goalMode ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.activeFilters}>
-            {goalMode ? (
-              <Chip label={`Meta: ${targetRole}`} selected icon="close" onPress={() => setGoalMode(false)} />
-            ) : null}
-            {activeFilterEntries.map(({ key, value }) => (
-              <Chip
-                key={`${key}-${value}`}
-                label={`${FILTER_LABEL[key]}: ${value}`}
-                selected
-                icon="close"
-                onPress={() => removeFilter(key, value)}
-              />
-            ))}
-          </ScrollView>
-        ) : null}
-      </ScreenHeader>
+      </View>
 
       <FlatList
         data={results}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <ConcursoCard
             concurso={item}
+            index={index + 1}
             saved={savedConcursos.includes(item.id)}
             onPress={() => router.push(`/concurso/${item.id}`)}
             onToggleSave={() => handleToggleSave(item.id, item.shortName)}
           />
         )}
-        ItemSeparatorComponent={() => <View style={{ height: Spacing.sm + 2 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
         contentContainerStyle={[
           styles.list,
           { paddingBottom: insets.bottom + Spacing.xxxl },
@@ -342,41 +449,107 @@ export default function ConcursosScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  refineRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  header: { borderBottomWidth: StyleSheet.hairlineWidth },
+  headerInner: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    gap: 10,
+  },
+  titleRow: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  titleGroup: { flex: 1, minWidth: 0, gap: 3 },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  eyebrowRail: { width: 22, height: 3, transform: [{ skewX: '-24deg' }] },
+  eyebrow: {
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.9,
+  },
+  title: {
+    fontSize: FontSize.display,
+    lineHeight: 34,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.75,
+  },
+  refineRow: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  resultSummary: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  resultCount: {
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.semibold,
+  },
+  refineActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  refineButton: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+  },
+  refineLabel: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
   clearFilters: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
-  activeFilters: { gap: Spacing.sm, paddingRight: Spacing.md },
+  activeFilterRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  activeFilters: { gap: Spacing.sm, paddingRight: Spacing.sm },
   list: {
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
-    padding: Spacing.md,
-    paddingTop: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
   },
   listEmpty: { flexGrow: 1, justifyContent: 'center' },
-  listHeader: { gap: Spacing.md, marginBottom: Spacing.md },
-  resultCount: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
+  listHeader: { marginBottom: Spacing.md },
   goalCard: {
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
     padding: Spacing.md,
+    paddingLeft: Spacing.lg,
     borderWidth: 1,
     borderRadius: Radius.lg,
   },
-  goalIcon: {
-    width: 22,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+  goalRail: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 4 },
+  goalMarker: { width: 32, alignItems: 'center' },
+  goalMarkerText: {
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.small,
+    fontWeight: FontWeight.bold,
   },
   goalText: { flex: 1, minWidth: 0, gap: 2 },
+  goalEyebrow: {
+    fontFamily: Fonts.mono,
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.7,
+  },
   goalTitle: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  goalDescription: { fontSize: FontSize.small },
+  goalDescription: { fontSize: FontSize.tiny, lineHeight: 16 },
   savedButton: {
-    minHeight: 40,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1,
@@ -391,5 +564,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   savedCountText: { fontSize: 10, fontWeight: FontWeight.bold },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: 0.68, transform: [{ scale: 0.98 }] },
 });

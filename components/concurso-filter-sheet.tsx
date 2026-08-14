@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
 import { SearchField } from '@/components/ui/search-field';
-import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { ConcursoFilterKey, ConcursoFilters } from '@/lib/concursos';
 import { normalizeSearchText } from '@/lib/text';
@@ -84,8 +84,14 @@ export function ConcursoFilterSheet({
           <View style={[styles.grabber, { backgroundColor: colors.borderStrong }]} />
           <View style={styles.header}>
             <View style={styles.headerText}>
+              <View style={styles.identityRow}>
+                <View style={[styles.identityRail, { backgroundColor: colors.primary }]} />
+                <Text style={[styles.identityLabel, { color: colors.primary }]}>AJUSTAR RADAR</Text>
+              </View>
               <Text style={[styles.title, { color: colors.text }]}>Filtros</Text>
-              <Text style={[styles.subtitle, { color: colors.textMuted }]}>Refine os concursos exibidos</Text>
+              <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                Escolha o que entra na sua busca
+              </Text>
             </View>
             {activeCount > 0 ? (
               <Pressable onPress={onClear} hitSlop={8} accessibilityLabel="Limpar filtros">
@@ -108,10 +114,10 @@ export function ConcursoFilterSheet({
           />
 
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            {visibleSections.map((section) => (
+            {visibleSections.map((section, sectionIndex) => (
               <View key={section.key} style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: colors.textSubtle }]}>
-                  {section.title.toUpperCase()}
+                  {`K/${String(sectionIndex + 1).padStart(2, '0')} · ${section.title.toUpperCase()}`}
                 </Text>
                 <View style={styles.options}>
                   {section.options.map((option) => {
@@ -179,6 +185,14 @@ const styles = StyleSheet.create({
   grabber: { width: 40, height: 4, borderRadius: Radius.pill, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   headerText: { flex: 1, gap: 2 },
+  identityRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  identityRail: { width: 18, height: 3, transform: [{ skewX: '-24deg' }] },
+  identityLabel: {
+    fontFamily: Fonts.mono,
+    fontSize: 9,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.8,
+  },
   title: { fontSize: FontSize.title, fontWeight: FontWeight.bold },
   subtitle: { fontSize: FontSize.small },
   clear: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
@@ -191,16 +205,22 @@ const styles = StyleSheet.create({
   },
   content: { gap: Spacing.lg, paddingBottom: Spacing.sm },
   section: { gap: Spacing.sm },
-  sectionTitle: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 0.7 },
+  sectionTitle: {
+    fontFamily: Fonts.mono,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.55,
+  },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 1,
+    minHeight: 44,
     borderWidth: 1,
-    borderRadius: Radius.pill,
+    borderRadius: Radius.md,
   },
   optionText: { fontSize: FontSize.small, fontWeight: FontWeight.medium },
   empty: { textAlign: 'center', paddingVertical: Spacing.xl, fontSize: FontSize.body },
