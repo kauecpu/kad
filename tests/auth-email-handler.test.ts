@@ -156,6 +156,13 @@ test('rejeita UTF-8 inválido antes de verificar ou enviar', async () => {
   assert.equal(sent.length, 0);
 });
 
+test('preserva BOM assinado e depois classifica o JSON inválido sem enviar', async () => {
+  const response = await handler(signedRequest('\uFEFF{'));
+  assert.equal(response.status, 422);
+  assert.deepEqual(await responseBody(response), { error: 'invalid_payload' });
+  assert.equal(sent.length, 0);
+});
+
 test('não interpreta nem envia um corpo cuja assinatura é inválida', async () => {
   let transportCreated = 0;
   handler = makeHandler({
@@ -261,6 +268,39 @@ test('retorna 503 após aceite parcial mesmo quando a segunda falha é permanent
         calls += 1;
         if (calls === 1) return { id: 'email_safe_1' };
         throw new ResendTransportError('permanent', 422, 'provider_error');
+      },
+    }),
+  });
+  const response = await handler(signedRequest(authEmailPayload('email_change')));
+  assert.equal(response.status, 503);
+  assert.deepEqual(await responseBody(response), { error: 'provider_transient_error' });
+  assert.deepEqual(logs[0]?.acceptedEmailIds, ['email_safe_1']);
+});
+
+test('retorna 503 após aceite parcial quando a segunda entrega lança erro genérico', async () => {
+  let calls = 0;
+  handler = makeHandler({
+    createTransport: () => ({
+      async send() {
+        calls += 1;
+        if (calls === 1) return { id: 'email_safe_1' };
+        throw new Error('provider detail must not escape');
+      },
+    }),
+  });
+  const response = await handler(signedRequest(authEmailPayload('email_change')));
+  assert.equal(response.status, 503);
+  assert.deepEqual(await responseBody(response), { error: 'provider_transient_error' });
+  assert.deepEqual(logs[0]?.acceptedEmailIds, ['email_safe_1']);
+});
+
+test('retorna 503 após aceite parcial quando a segunda entrega retorna ID inválido', async () => {
+  let calls = 0;
+  handler = makeHandler({
+    createTransport: () => ({
+      async send() {
+        calls += 1;
+        return { id: calls === 1 ? 'email_safe_1' : 'unsafe.id' };
       },
     }),
   });

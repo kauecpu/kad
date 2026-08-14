@@ -112,7 +112,7 @@ async function readBodyWithLimit(request: Request, limit: number): Promise<strin
     offset += chunk.byteLength;
   }
   try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
   } catch {
     throw new BodyReadError('invalid_payload');
   }
@@ -246,10 +246,18 @@ export function createAuthEmailHandler(
           actionType: message.actionType,
           recipientRole: message.recipientRole,
         }));
-        if (!RESEND_ID_PATTERN.test(result.id)) return fail(500, 'internal_error');
+        if (!RESEND_ID_PATTERN.test(result.id)) {
+          return fail(
+            acceptedEmailIds.length > 0 ? 503 : 500,
+            acceptedEmailIds.length > 0 ? 'provider_transient_error' : 'internal_error'
+          );
+        }
         acceptedEmailIds.push(result.id);
       }
     } catch (error) {
+      if (acceptedEmailIds.length > 0) {
+        return fail(503, 'provider_transient_error');
+      }
       if (error instanceof ResendTransportError) {
         const retryablePartialAcceptance = acceptedEmailIds.length > 0;
         return fail(
