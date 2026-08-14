@@ -2,7 +2,7 @@
 
 ## Escopo e estado atual
 
-O código da Edge Function `send-auth-email` está pronto para uso. O Send Email Hook remoto permanece desabilitado. Nenhuma entrega real foi criada ou comprovada nesta etapa, pois a marca e o domínio de envio ainda não existem.
+O código da Edge Function `send-auth-email` está pronto para uso. O responsável não fez deploy da função, não criou ou configurou segredos, não criou, salvou ou habilitou o Send Email Hook, não registrou ou verificou domínio, não criou chave do Resend e não enviou e-mail real. A marca e o domínio de envio continuam pendentes.
 
 ## Arquitetura
 
