@@ -68,8 +68,15 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 async function responseJson(response: Response): Promise<unknown> {
+  let rawBody: string;
   try {
-    return await response.json();
+    rawBody = await response.text();
+  } catch {
+    throw new ResendTransportError('transient', response.status);
+  }
+
+  try {
+    return JSON.parse(rawBody);
   } catch {
     return undefined;
   }

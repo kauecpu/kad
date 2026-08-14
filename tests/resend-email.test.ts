@@ -190,6 +190,62 @@ test('classifica exceções de rede e abort como transitórias e limpa o timer',
   assert.equal(completedSignal?.aborted, false);
 });
 
+test('classifica timeout ao ler corpo 2xx como transitório', async () => {
+  let responseBodyAborted = false;
+  const transport = createResendEmailTransport({
+    apiKey: 're_private_test',
+    from: 'Marca de Teste <conta@email.exemplo.com>',
+    timeoutMs: 1,
+    fetchImpl: async (_url, init) => {
+      const signal = init?.signal;
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const abortBody = () => {
+            responseBodyAborted = true;
+            controller.error(new DOMException('private response detail', 'AbortError'));
+          };
+          if (signal?.aborted) abortBody();
+          else signal?.addEventListener('abort', abortBody, { once: true });
+        },
+      });
+      return new Response(body, {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+  });
+
+  await assert.rejects(
+    transport.send(outboundEmail, TEST_IDEMPOTENCY_KEY),
+    (error: unknown) =>
+      errorMatches('transient')(error) &&
+      !String(error).includes('private response detail')
+  );
+  assert.equal(responseBodyAborted, true);
+});
+
+test('não confunde SyntaxError do stream com JSON 2xx inválido', async () => {
+  const transport = createResendEmailTransport({
+    apiKey: 're_private_test',
+    from: 'Marca de Teste <conta@email.exemplo.com>',
+    fetchImpl: async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(new SyntaxError('private stream detail'));
+      },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  });
+
+  await assert.rejects(
+    transport.send(outboundEmail, TEST_IDEMPOTENCY_KEY),
+    (error: unknown) =>
+      errorMatches('transient')(error) &&
+      !String(error).includes('private stream detail')
+  );
+});
+
 test('trata respostas de sucesso inválidas como permanentes', async () => {
   for (const response of [
     Response.json({}, { status: 200 }),
