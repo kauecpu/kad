@@ -3,8 +3,15 @@ import test from 'node:test';
 
 import { getMascotAccessibilityLabel } from '../constants/mascots.ts';
 
-test('todos os slides descrevem o novo mascote escrevendo para leitores de tela', () => {
-  for (const variant of ['welcome', 'nerd', 'book', 'goal'] as const) {
-    assert.equal(getMascotAccessibilityLabel(variant), 'Mascote KAD escrevendo com um lápis');
+test('cada slide descreve sua pose de estudo para leitores de tela', () => {
+  const expectations = [
+    ['welcome', 'Mascote KAD escrevendo com um lápis'],
+    ['practice', 'Mascote KAD em pé segurando um lápis'],
+    ['simulation', 'Mascote KAD resolvendo uma prova com cronômetro'],
+    ['goal', 'Mascote KAD segurando uma bandeira de objetivo e um livro'],
+  ] as const;
+
+  for (const [variant, label] of expectations) {
+    assert.equal(getMascotAccessibilityLabel(variant), label);
   }
 });

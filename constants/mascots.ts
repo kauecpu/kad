@@ -1,10 +1,10 @@
-export type KadMascotVariant = 'welcome' | 'nerd' | 'book' | 'goal';
+export type KadMascotVariant = 'welcome' | 'practice' | 'simulation' | 'goal';
 
 const MASCOT_LABELS: Record<KadMascotVariant, string> = {
   welcome: 'Mascote KAD escrevendo com um lápis',
-  nerd: 'Mascote KAD escrevendo com um lápis',
-  book: 'Mascote KAD escrevendo com um lápis',
-  goal: 'Mascote KAD escrevendo com um lápis',
+  practice: 'Mascote KAD em pé segurando um lápis',
+  simulation: 'Mascote KAD resolvendo uma prova com cronômetro',
+  goal: 'Mascote KAD segurando uma bandeira de objetivo e um livro',
 };
 
 export function getMascotAccessibilityLabel(variant: KadMascotVariant) {

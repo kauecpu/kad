@@ -25,9 +25,9 @@ type KadMascotProps = {
 
 const MASCOT_SOURCES = {
   welcome: require('../assets/images/kad-mascot-wolf-writing.png'),
-  nerd: require('../assets/images/kad-mascot-wolf-writing.png'),
-  book: require('../assets/images/kad-mascot-wolf-writing.png'),
-  goal: require('../assets/images/kad-mascot-wolf-writing.png'),
+  practice: require('../assets/images/kad-mascot-wolf-practice.png'),
+  simulation: require('../assets/images/kad-mascot-wolf-simulation.png'),
+  goal: require('../assets/images/kad-mascot-wolf-goal-study.png'),
 } as const;
 
 export function KadMascot({

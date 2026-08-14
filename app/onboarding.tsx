@@ -51,7 +51,7 @@ const SLIDES: OnboardingSlide[] = [
       'Escolha uma disciplina, pratique por assunto e acompanhe sua evolução a cada sessão.',
     detail: 'Seu histórico ajuda a mostrar onde vale insistir.',
     icon: 'reader-outline',
-    mascot: 'nerd',
+    mascot: 'practice',
   },
   {
     id: 'simulations',
@@ -61,7 +61,7 @@ const SLIDES: OnboardingSlide[] = [
       'Monte simulados, controle o tempo e revise cada resposta quando terminar.',
     detail: 'Treine ritmo, foco e tomada de decisão.',
     icon: 'stopwatch-outline',
-    mascot: 'book',
+    mascot: 'simulation',
   },
   {
     id: 'goal',
