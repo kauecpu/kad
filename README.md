@@ -63,11 +63,18 @@ npm start
 ## Autenticação e banco
 
 Copie `.env.example` para `.env` e preencha somente as variáveis públicas indicadas.
-Nunca use a chave `service_role` no aplicativo nem envie credenciais ao GitHub.
+Nunca use uma chave administrativa no aplicativo nem envie credenciais ao GitHub.
 
 Migrações, funções, SMTP, redirecionamentos e demais configurações de produção devem
 ser executados apenas pelo responsável técnico. Sem as variáveis públicas, o app
 continua disponível no modo visitante.
+
+## E-mails de autenticação
+
+O projeto possui uma Edge Function preparada para encaminhar e-mails do Supabase Auth
+à API do Resend. A função permanece desativada até a marca e o domínio de envio serem
+definidos e verificados. Consulte [`docs/EMAILS.md`](docs/EMAILS.md) antes de configurar
+segredos, publicar a função ou habilitar o Send Email Hook.
 
 Para abrir pelo Expo Go usando túnel:
 
