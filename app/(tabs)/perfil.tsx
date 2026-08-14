@@ -1,7 +1,8 @@
 import Ionicons from '@/components/ui/app-icon';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/ui/avatar';
@@ -11,11 +12,11 @@ import { Card } from '@/components/ui/card';
 import { ListRow } from '@/components/ui/list-row';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ScreenHeader } from '@/components/ui/screen-header';
-import { Section } from '@/components/ui/section';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
-import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDate, formatPercent } from '@/lib/format';
+import { profileHeroAction } from '@/lib/profile-presentation';
 import { useApp, useAppTheme } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { useSimulation } from '@/providers/simulation-provider';
@@ -32,6 +33,29 @@ const THEME_OPTIONS: SegmentedOption<ThemePreference>[] = [
   { value: 'light', label: 'Claro' },
   { value: 'dark', label: 'Escuro' },
 ];
+
+type DossierSectionProps = {
+  index: string;
+  title: string;
+  children: ReactNode;
+};
+
+function DossierSection({ index, title, children }: DossierSectionProps) {
+  const { colors } = useTheme();
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionIndex, { color: colors.primary }]}>{index}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]} accessibilityRole="header">
+          {title}
+        </Text>
+        <View style={[styles.sectionRule, { backgroundColor: colors.borderStrong }]} />
+      </View>
+      {children}
+    </View>
+  );
+}
 
 export default function PerfilScreen() {
   const { colors } = useTheme();
@@ -54,6 +78,17 @@ export default function PerfilScreen() {
   } = useApp();
   const { session, isConfigured, signOut } = useAuth();
   const { clearSimulationData } = useSimulation();
+
+  const primaryAction = profileHeroAction({
+    isAuthenticated: Boolean(session),
+    isAuthConfigured: isConfigured,
+  });
+  const targetRole = profile.targetRole?.trim();
+  const performanceValue =
+    canViewStatistics && performance.total > 0 ? formatPercent(performance.accuracy) : '--';
+  const performanceDescription = canViewStatistics
+    ? `${performance.total} ${performance.total === 1 ? 'questão respondida' : 'questões respondidas'}`
+    : 'Disponível nos planos KAD';
 
   const handlePickAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -145,7 +180,7 @@ export default function PerfilScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ScreenHeader title="Perfil" />
+      <ScreenHeader title="Meu KAD" subtitle="Dossiê do candidato" />
 
       <ScrollView
         contentContainerStyle={[
@@ -153,32 +188,164 @@ export default function PerfilScreen() {
           { paddingBottom: insets.bottom + Spacing.xxxl },
         ]}
         showsVerticalScrollIndicator={false}>
-        <Card style={styles.userCard}>
-          <Avatar name={profile.name} uri={profile.avatarUri} size={58} onEdit={handlePickAvatar} />
-          <View style={styles.userText}>
-            <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>
-              {profile.name}
-            </Text>
-            {session && profile.username ? (
-              <Text style={[styles.userHandle, { color: colors.primary }]} numberOfLines={1}>
-                @{profile.username}
-              </Text>
-            ) : null}
-            <Text style={[styles.userEmail, { color: colors.textMuted }]} numberOfLines={1}>
-              {session
-                ? profile.email
-                : 'Modo visitante · dados salvos neste aparelho'}
-            </Text>
-            {profile.targetRole ? (
-              <View style={styles.userBadge}>
-                <Badge label={`Meta: ${profile.targetRole}`} tone="accent" icon="flag" />
+        <Card
+          padded={false}
+          style={[
+            styles.identityCard,
+            { backgroundColor: colors.surface, borderColor: colors.borderStrong },
+          ]}>
+          <View style={styles.identitySignature}>
+            <View style={[styles.signatureLineWide, { backgroundColor: colors.primary }]} />
+            <View style={[styles.signatureLineNarrow, { backgroundColor: colors.primary }]} />
+          </View>
+
+          <View style={styles.identityContent}>
+            <View style={styles.identityOverline}>
+              <Text style={[styles.overlineText, { color: colors.primary }]}>KAD / PERFIL</Text>
+              <Badge
+                label={
+                  subscription.plan === 'circle'
+                    ? 'Círculo'
+                    : subscription.plan === 'diamond'
+                      ? 'Diamante'
+                      : 'Básico'
+                }
+                tone={isPremium ? 'accent' : 'neutral'}
+              />
+            </View>
+
+            <View style={styles.identityUser}>
+              <Avatar name={profile.name} uri={profile.avatarUri} size={72} onEdit={handlePickAvatar} />
+              <View style={styles.identityCopy}>
+                <Text style={[styles.userName, { color: colors.text }]}>{profile.name}</Text>
+                {session && profile.username ? (
+                  <Text style={[styles.userHandle, { color: colors.primary }]}>@{profile.username}</Text>
+                ) : null}
+                <Text style={[styles.userDetail, { color: colors.textMuted }]} numberOfLines={2}>
+                  {session ? profile.email : 'Modo visitante · dados salvos neste aparelho'}
+                </Text>
               </View>
-            ) : null}
+            </View>
+
+            <Pressable
+              onPress={() => primaryAction.href && router.push(primaryAction.href)}
+              disabled={!primaryAction.href}
+              accessibilityRole="button"
+              accessibilityLabel={primaryAction.label}
+              accessibilityHint={primaryAction.description}
+              accessibilityState={{ disabled: !primaryAction.href }}
+              style={({ pressed }) => [
+                styles.primaryAction,
+                {
+                  backgroundColor: colors.primarySoft,
+                  borderColor: colors.borderStrong,
+                },
+                pressed && styles.pressed,
+                !primaryAction.href && styles.disabled,
+              ]}>
+              <View style={[styles.primaryActionIcon, { backgroundColor: colors.primary }]}>
+                <Ionicons
+                  name={session ? 'create-outline' : 'cloud-upload-outline'}
+                  size={18}
+                  color={colors.onPrimary}
+                />
+              </View>
+              <View style={styles.primaryActionCopy}>
+                <Text style={[styles.primaryActionLabel, { color: colors.text }]}>
+                  {primaryAction.label}
+                </Text>
+                <Text style={[styles.primaryActionDescription, { color: colors.textMuted }]}>
+                  {primaryAction.description}
+                </Text>
+              </View>
+              {primaryAction.href ? (
+                <Ionicons name="arrow-forward" size={19} color={colors.primary} />
+              ) : null}
+            </Pressable>
           </View>
         </Card>
 
-        <Section title="Assinatura">
-          <Card style={styles.planCard}>
+        <DossierSection index="01" title="Minha preparação">
+          <View
+            style={[
+              styles.preparationPanel,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}>
+            <Pressable
+              onPress={() => router.push('/meta')}
+              accessibilityRole="button"
+              accessibilityLabel={targetRole ? `Meta atual: ${targetRole}` : 'Escolher minha meta'}
+              style={({ pressed }) => [
+                styles.targetRow,
+                { borderBottomColor: colors.border },
+                pressed && { backgroundColor: colors.surfaceAlt },
+              ]}>
+              <View style={[styles.targetIcon, { backgroundColor: colors.primarySoft }]}>
+                <Ionicons name="flag-outline" size={19} color={colors.primary} />
+              </View>
+              <View style={styles.targetCopy}>
+                <Text style={[styles.metricEyebrow, { color: colors.textMuted }]}>CONCURSO-ALVO</Text>
+                <Text style={[styles.targetValue, { color: colors.text }]}>
+                  {targetRole || 'Escolher minha meta'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+            </Pressable>
+
+            <View style={styles.metricsRow}>
+              <Pressable
+                onPress={() => router.push('/perfil/desempenho')}
+                accessibilityRole="button"
+                accessibilityLabel={`Desempenho geral. ${performanceDescription}`}
+                style={({ pressed }) => [
+                  styles.metric,
+                  styles.metricDivider,
+                  { borderRightColor: colors.border },
+                  pressed && { backgroundColor: colors.surfaceAlt },
+                ]}>
+                <View style={styles.metricTopline}>
+                  <Text style={[styles.metricEyebrow, { color: colors.textMuted }]}>DESEMPENHO</Text>
+                  <Ionicons
+                    name={canViewStatistics ? 'bar-chart-outline' : 'lock-closed-outline'}
+                    size={16}
+                    color={colors.primary}
+                  />
+                </View>
+                <Text style={[styles.metricValue, { color: colors.primary }]}>{performanceValue}</Text>
+                <Text style={[styles.metricDescription, { color: colors.textMuted }]}>
+                  {performanceDescription}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => router.push('/concursos/salvos')}
+                accessibilityRole="button"
+                accessibilityLabel={`${savedConcursos.length} ${savedConcursos.length === 1 ? 'concurso salvo' : 'concursos salvos'}`}
+                style={({ pressed }) => [
+                  styles.metric,
+                  pressed && { backgroundColor: colors.surfaceAlt },
+                ]}>
+                <View style={styles.metricTopline}>
+                  <Text style={[styles.metricEyebrow, { color: colors.textMuted }]}>NO RADAR</Text>
+                  <Ionicons name="bookmark-outline" size={16} color={colors.primary} />
+                </View>
+                <Text style={[styles.metricValue, { color: colors.primary }]}>
+                  {savedConcursos.length}
+                </Text>
+                <Text style={[styles.metricDescription, { color: colors.textMuted }]}>
+                  {savedConcursos.length === 1 ? 'concurso salvo' : 'concursos salvos'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </DossierSection>
+
+        <DossierSection index="02" title="Plano e acesso">
+          <Card
+            style={[
+              styles.planCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}>
             <View style={styles.planHeader}>
               <View style={styles.planHeaderText}>
                 <Text style={[styles.planName, { color: colors.text }]}>
@@ -192,24 +359,13 @@ export default function PerfilScreen() {
                     : `${dailyQuestionsRemaining} de ${dailyQuestionLimit} questões disponíveis hoje`}
                 </Text>
               </View>
-              <Badge
-                label={
-                  subscription.plan === 'circle'
-                    ? 'Círculo'
-                    : subscription.plan === 'diamond'
-                      ? 'Diamante'
-                      : 'Básico'
-                }
-                tone={isPremium ? 'accent' : 'neutral'}
-              />
+              <Ionicons name="diamond-outline" size={22} color={colors.primary} />
             </View>
 
             {!isPremium ? (
               <View style={styles.quota}>
                 <View style={styles.quotaHeader}>
-                  <Text style={[styles.quotaLabel, { color: colors.textMuted }]}>
-                    Uso de questões hoje
-                  </Text>
+                  <Text style={[styles.quotaLabel, { color: colors.textMuted }]}>Uso diário</Text>
                   <Text style={[styles.quotaValue, { color: colors.primary }]}>
                     {`${dailyQuestionsAnswered}/${dailyQuestionLimit}`}
                   </Text>
@@ -229,49 +385,22 @@ export default function PerfilScreen() {
               fullWidth
             />
           </Card>
-        </Section>
+        </DossierSection>
 
-        <Section title="Desempenho">
+        <DossierSection index="03" title="Preferências">
           <Card
-            onPress={() => router.push('/perfil/desempenho')}
-            accessibilityLabel="Abrir desempenho geral"
-            style={styles.performanceCard}>
-            <View style={styles.performanceIcon}>
-              <Ionicons
-                name={canViewStatistics ? 'bar-chart-outline' : 'lock-closed-outline'}
-                size={21}
-                color={colors.primary}
-              />
-            </View>
-            <View style={styles.performanceBody}>
-              <Text style={[styles.performanceTitle, { color: colors.text }]}>Desempenho geral</Text>
-              <Text style={[styles.performanceDescription, { color: colors.textMuted }]}>
-                {canViewStatistics
-                  ? `${performance.total} ${
-                      performance.total === 1 ? 'questão respondida' : 'questões respondidas'
-                    }`
-                  : 'Disponível nos planos KAD'}
-              </Text>
-            </View>
-            {canViewStatistics ? (
-              <Text style={[styles.performanceValue, { color: colors.primary }]}>
-                {performance.total > 0 ? formatPercent(performance.accuracy) : '--'}
-              </Text>
-            ) : null}
-            <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
-          </Card>
-        </Section>
-
-        <Section title="Aparência">
-          <Card style={styles.appearanceCard}>
+            style={[
+              styles.appearanceCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}>
             <View style={styles.appearanceHeader}>
-              <View style={styles.appearanceIcon}>
+              <View style={[styles.preferenceIcon, { backgroundColor: colors.primarySoft }]}>
                 <Ionicons name="contrast-outline" size={18} color={colors.primary} />
               </View>
               <View style={styles.appearanceText}>
                 <Text style={[styles.appearanceTitle, { color: colors.text }]}>Tema do app</Text>
                 <Text style={[styles.appearanceHint, { color: colors.textMuted }]}>
-                  Escolha entre claro, escuro ou seguir o sistema.
+                  Claro, escuro ou igual ao sistema
                 </Text>
               </View>
             </View>
@@ -283,61 +412,28 @@ export default function PerfilScreen() {
               haptic
             />
           </Card>
-        </Section>
+        </DossierSection>
 
-        <Section title="Atalhos">
+        <DossierSection index="04" title="Conta e privacidade">
           <Card padded={false} style={styles.settingsCard}>
-            <ListRow
-              icon="bookmark-outline"
-              label="Meus concursos"
-              description={`${savedConcursos.length} ${savedConcursos.length === 1 ? 'concurso salvo' : 'concursos salvos'}`}
-              tone="primary"
-              onPress={() => router.push('/concursos/salvos')}
-            />
-            <ListRow
-              icon="person-outline"
-              label="Editar dados"
-              description={session ? 'Nome, telefone, cidade e meta' : 'Nome, telefone, cidade e meta local'}
-              tone="primary"
-              onPress={() => router.push('/perfil/editar')}
-              isLast={!session}
-            />
             {session ? (
-              <ListRow
-                icon="lock-closed-outline"
-                label="Alterar senha"
-                description="Atualize sua senha de acesso"
-                tone="accent"
-                onPress={() => router.push('/perfil/senha')}
-                isLast
-              />
+              <>
+                <ListRow
+                  icon="lock-closed-outline"
+                  label="Alterar senha"
+                  description="Atualize sua senha de acesso"
+                  tone="accent"
+                  onPress={() => router.push('/perfil/senha')}
+                />
+                <ListRow
+                  icon="log-out-outline"
+                  label="Sair da conta"
+                  description={session.user.email ?? 'Encerrar esta sessão'}
+                  onPress={handleSignOut}
+                  showChevron={false}
+                />
+              </>
             ) : null}
-          </Card>
-        </Section>
-
-        <Section title="Informações e conta">
-          <Card padded={false} style={styles.settingsCard}>
-            {session ? (
-              <ListRow
-                icon="log-out-outline"
-                label="Sair da conta"
-                description={session.user.email ?? 'Encerrar esta sessão'}
-                onPress={handleSignOut}
-                showChevron={false}
-              />
-            ) : (
-              <ListRow
-                icon="log-in-outline"
-                label={isConfigured ? 'Entrar ou criar conta' : 'Login indisponível'}
-                description={
-                  isConfigured
-                    ? 'Acesse seus dados em outro aparelho'
-                    : 'Tente novamente mais tarde'
-                }
-                onPress={isConfigured ? () => router.push('/auth/login') : undefined}
-                showChevron={isConfigured}
-              />
-            )}
             <ListRow
               icon="document-text-outline"
               label="Termos de Uso"
@@ -374,7 +470,7 @@ export default function PerfilScreen() {
               isLast
             />
           </Card>
-        </Section>
+        </DossierSection>
       </ScrollView>
     </View>
   );
@@ -386,19 +482,149 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
-    padding: Spacing.md,
-    gap: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xxxl,
+    gap: Spacing.xl,
   },
-  userCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  userText: { flex: 1, gap: 3 },
-  userName: {
-    fontSize: FontSize.title,
+  section: { gap: Spacing.md },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  sectionIndex: {
+    fontSize: FontSize.tiny,
     fontWeight: FontWeight.bold,
+    letterSpacing: 0.9,
   },
-  userEmail: { fontSize: FontSize.body },
+  sectionTitle: {
+    fontSize: FontSize.heading,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.25,
+  },
+  sectionRule: { flex: 1, height: StyleSheet.hairlineWidth, marginLeft: Spacing.xs },
+  identityCard: {
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  identitySignature: {
+    position: 'absolute',
+    pointerEvents: 'none',
+    top: -18,
+    right: -18,
+    width: 124,
+    height: 96,
+    opacity: 0.16,
+    transform: [{ rotate: '-18deg' }],
+  },
+  signatureLineWide: {
+    position: 'absolute',
+    top: 14,
+    right: 0,
+    width: 118,
+    height: 18,
+    borderRadius: Radius.sm,
+  },
+  signatureLineNarrow: {
+    position: 'absolute',
+    top: 43,
+    right: 8,
+    width: 80,
+    height: 8,
+    borderRadius: Radius.sm,
+  },
+  identityContent: { padding: Spacing.lg, gap: Spacing.lg },
+  identityOverline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  overlineText: {
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 1.1,
+  },
+  identityUser: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
+  identityCopy: { flex: 1, gap: 3 },
+  userName: {
+    fontSize: FontSize.title + 2,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.55,
+  },
   userHandle: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
-  userBadge: { marginTop: Spacing.xs },
-  planCard: { gap: Spacing.sm + 2 },
+  userDetail: { fontSize: FontSize.small, lineHeight: 18 },
+  primaryAction: {
+    minHeight: 62,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  primaryActionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionCopy: { flex: 1, gap: 2 },
+  primaryActionLabel: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  primaryActionDescription: { fontSize: FontSize.small, lineHeight: 18 },
+  preparationPanel: {
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  targetRow: {
+    minHeight: 74,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  targetIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetCopy: { flex: 1, gap: 3 },
+  targetValue: { fontSize: FontSize.body, fontWeight: FontWeight.bold, lineHeight: 20 },
+  metricsRow: { flexDirection: 'row' },
+  metric: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 122,
+    padding: Spacing.lg,
+    gap: Spacing.xs,
+  },
+  metricDivider: { borderRightWidth: StyleSheet.hairlineWidth },
+  metricTopline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.xs,
+  },
+  metricEyebrow: {
+    flexShrink: 1,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.65,
+  },
+  metricValue: {
+    fontSize: FontSize.display,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.7,
+  },
+  metricDescription: { fontSize: FontSize.small, lineHeight: 18 },
+  planCard: { borderWidth: 1, gap: Spacing.md },
   planHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -411,35 +637,20 @@ const styles = StyleSheet.create({
   quota: { gap: Spacing.sm },
   quotaHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   quotaLabel: { fontSize: FontSize.small },
-  quotaValue: {
-    fontSize: FontSize.title,
-    fontWeight: FontWeight.bold,
-  },
-  performanceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  performanceIcon: {
-    width: 22,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  performanceBody: { flex: 1, gap: 2 },
-  performanceTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
-  performanceDescription: { fontSize: FontSize.small, lineHeight: 18 },
-  performanceValue: { fontSize: FontSize.title, fontWeight: FontWeight.bold },
-  appearanceCard: { gap: Spacing.sm + 2 },
+  quotaValue: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
+  appearanceCard: { borderWidth: 1, gap: Spacing.md },
   appearanceHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  appearanceIcon: {
-    width: 22,
-    height: 34,
+  preferenceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  appearanceText: { flex: 1, gap: 1 },
+  appearanceText: { flex: 1, gap: 2 },
   appearanceTitle: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
   appearanceHint: { fontSize: FontSize.small, lineHeight: 18 },
   settingsCard: { overflow: 'hidden' },
+  pressed: { opacity: 0.84, transform: [{ scale: 0.99 }] },
+  disabled: { opacity: 0.58 },
 });
