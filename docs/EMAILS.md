@@ -64,6 +64,12 @@ código recuperável e demais erros permanentes retornam `502` sem
 `Retry-After`. Um aceite parcial também retorna `503` com o cabeçalho para
 que o replay reutilize a chave da mensagem já aceita.
 
+A leitura do corpo do hook também possui um deadline total de 1.000 ms antes da
+verificação da assinatura. Se o cliente não concluir o stream nesse intervalo,
+a função cancela a leitura e retorna `503` com `Retry-After: 1`, sem carregar a
+configuração, verificar o payload ou chamar o Resend. O cancelamento nunca é
+aguardado, para que um stream defeituoso não consiga bloquear a resposta.
+
 ## Ativação sem janela de falha
 
 1. Defina no Supabase Edge Function Secrets todos os segredos que não dependem do hook.

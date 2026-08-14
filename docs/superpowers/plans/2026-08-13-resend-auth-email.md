@@ -1042,21 +1042,27 @@ export function createAuthEmailHandler(
 ): (request: Request) => Promise<Response>;
 ```
 
-Implement a private `readBodyWithLimit(request, 65_536)` that:
+Implement a private `readBodyWithLimit(request, 65_536, 1_000)` that:
 
 - Rejects an integer `Content-Length` above the limit before reading.
 - Reads `request.body` through `getReader()` and counts bytes, not JavaScript characters.
-- Cancels the reader when the accumulated size exceeds the limit.
+- Races the complete read operation against one total 1,000 ms deadline so
+  chunking cannot accumulate deadline handlers or extend the budget.
+- Cancels the reader without awaiting its cancellation hook when the size or
+  deadline is exceeded.
 - Concatenates accepted chunks and decodes them once with fatal UTF-8 decoding.
 - Returns an empty string for a missing body; the verifier then rejects it.
 
-Use a private typed body-read error that distinguishes `payload_too_large` from `invalid_payload`. Convert `TextDecoder` failures to `invalid_payload`; never let invalid UTF-8 fall into the generic 500 path.
+Use a private typed body-read error that distinguishes `payload_too_large`,
+`request_timeout` and `invalid_payload`. Convert `TextDecoder` failures to
+`invalid_payload`; never let invalid UTF-8 fall into the generic 500 path.
 
 Handler order must be:
 
 1. Capture start time.
 2. Reject non-POST with 405 and `Allow: POST`.
-3. Read the body with the byte limit; return 413 on overflow and 422 on invalid UTF-8.
+3. Read the body with the byte and time limits; return 413 on overflow, 422 on
+   invalid UTF-8, or 503 with `Retry-After: 1` on the transient deadline.
 4. Load server configuration; return 500 on `AuthEmailConfigurationError`.
 5. Collect lowercase headers and verify the unmodified body before parsing.
 6. Map signature failures to 401 and only after successful verification compute

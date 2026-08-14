@@ -140,6 +140,51 @@ test('rejeita stream que cruza 64 KiB e cancela antes de verificar o hook', asyn
   assert.equal(cancelled, true);
 });
 
+test('não aguarda cancelamento pendente depois de exceder 64 KiB', { timeout: 1_000 }, async () => {
+  let verified = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(65_536));
+      controller.enqueue(new Uint8Array([1]));
+    },
+    cancel() { return new Promise<void>(() => {}); },
+  });
+  handler = makeHandler({
+    bodyReadTimeoutMs: 5,
+    verifyHook: () => { verified += 1; return {}; },
+  });
+
+  const response = await handler(requestWithStream(stream));
+
+  assert.equal(response.status, 413);
+  assert.equal(verified, 0);
+});
+
+test('encerra corpo lento antes de verificar ou criar o transporte', { timeout: 1_000 }, async () => {
+  let verified = 0;
+  let transportCreated = 0;
+  let cancelled = false;
+  const stream = new ReadableStream<Uint8Array>({
+    start() {},
+    cancel() { cancelled = true; },
+  });
+  handler = makeHandler({
+    bodyReadTimeoutMs: 5,
+    verifyHook: () => { verified += 1; return {}; },
+    createTransport: () => { transportCreated += 1; return transport; },
+  });
+
+  const response = await handler(requestWithStream(stream));
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get('Retry-After'), '1');
+  assert.deepEqual(await responseBody(response), { error: 'request_timeout' });
+  assert.equal(cancelled, true);
+  assert.equal(verified, 0);
+  assert.equal(transportCreated, 0);
+  assert.equal(sent.length, 0);
+});
+
 test('rejeita UTF-8 inválido antes de verificar ou enviar', async () => {
   let verified = 0;
   handler = makeHandler({ verifyHook: () => { verified += 1; return {}; } });

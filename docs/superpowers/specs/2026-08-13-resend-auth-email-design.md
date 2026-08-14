@@ -80,8 +80,9 @@ O Send Email Hook usa os templates da Edge Function quando estiver habilitado.
 
 ### Componentes
 
-1. **Entrada HTTP:** aplica limite de 64 KiB, aceita `POST` e preserva o corpo
-   bruto para a validação da assinatura.
+1. **Entrada HTTP:** aceita `POST`, aplica limite de 64 KiB e deadline total de
+   1.000 ms, cancela streams lentos sem aguardar o cancelamento e preserva o
+   corpo bruto para a validação da assinatura.
 2. **Verificador do hook:** remove o prefixo de transporte `v1,whsec_` do
    segredo e valida `webhook-id`, `webhook-timestamp` e `webhook-signature`.
 3. **Contrato de evento:** valida os campos usados da pessoa e de `email_data`.
@@ -228,6 +229,7 @@ idempotência quando o corpo assinado é o mesmo.
 | método diferente de `POST` | `405` | inclui cabeçalho `Allow: POST` |
 | assinatura ausente ou inválida | `401` | não interpreta o payload |
 | corpo excessivo | `413` | não chama o verificador nem o Resend |
+| corpo não concluído em 1.000 ms | `503` + `Retry-After: 1` | cancela o stream e permite nova tentativa segura sem efeitos parciais |
 | payload ou evento inválido | `422` | retorna código interno sem dados pessoais |
 | segredo ou configuração ausente | `500` | registra apenas os nomes ausentes |
 | `4xx` determinístico do Resend, incluindo `409 invalid_idempotent_request`, quotas diária/mensal e `429` desconhecido | `502` | não repete a chamada |
@@ -271,7 +273,7 @@ os registros para impedir a presença de e-mail, token, hash, link ou segredo.
 ### Testes do handler
 
 - Assinatura válida, ausente, inválida e expirada.
-- Métodos HTTP, limite do corpo e JSON malformado.
+- Métodos HTTP, limite do corpo, deadline total, cancelamento pendente e JSON malformado.
 - Configuração ausente.
 - Falha antes do transporte e sucesso com transporte falso.
 - Alteração de e-mail com duas mensagens e aceitação parcial.

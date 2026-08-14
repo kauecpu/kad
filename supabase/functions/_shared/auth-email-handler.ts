@@ -22,6 +22,7 @@ import {
 import { renderAuthEmail } from './auth-email-template.ts';
 
 const BODY_LIMIT_BYTES = 65_536;
+const BODY_READ_TIMEOUT_MS = 1_000;
 const WEBHOOK_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const RESEND_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const RETRY_AFTER_HEADERS = { 'Retry-After': '1' } as const;
@@ -53,12 +54,13 @@ export type AuthEmailHandlerDependencies = {
   createTransport: (config: AuthEmailRuntimeConfig) => EmailTransport;
   logger: (entry: AuthEmailLogEntry) => void;
   now?: () => number;
+  bodyReadTimeoutMs?: number;
 };
 
 class BodyReadError extends Error {
-  readonly code: 'payload_too_large' | 'invalid_payload';
+  readonly code: 'payload_too_large' | 'invalid_payload' | 'request_timeout';
 
-  constructor(code: 'payload_too_large' | 'invalid_payload') {
+  constructor(code: 'payload_too_large' | 'invalid_payload' | 'request_timeout') {
     super(code);
     this.name = 'BodyReadError';
     this.code = code;
@@ -83,7 +85,11 @@ function safeProviderStatus(status: number | undefined): number | undefined {
   return Number.isInteger(status) && status! >= 100 && status! <= 599 ? status : undefined;
 }
 
-async function readBodyWithLimit(request: Request, limit: number): Promise<string> {
+async function readBodyWithLimit(
+  request: Request,
+  limit: number,
+  timeoutMs: number
+): Promise<string> {
   const contentLength = request.headers.get('content-length');
   const declaredLength = contentLength === null ? undefined : Number(contentLength);
   if (Number.isInteger(declaredLength) && declaredLength! > limit) {
@@ -94,22 +100,47 @@ async function readBodyWithLimit(request: Request, limit: number): Promise<strin
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
-  try {
+  let timedOut = false;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const cancelReader = (reason?: unknown) => {
+    try {
+      void reader.cancel(reason).catch(() => undefined);
+    } catch {
+      // The response must not depend on an untrusted stream cancellation hook.
+    }
+  };
+  const consumeBody = async () => {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
       if (size > limit) {
-        await reader.cancel();
+        cancelReader();
         throw new BodyReadError('payload_too_large');
       }
       chunks.push(value);
     }
+  };
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      timedOut = true;
+      const error = new BodyReadError('request_timeout');
+      reject(error);
+      cancelReader(error);
+    }, timeoutMs);
+  });
+  try {
+    await Promise.race([consumeBody(), deadline]);
   } catch (error) {
     if (error instanceof BodyReadError) throw error;
     throw new BodyReadError('invalid_payload');
   } finally {
-    reader.releaseLock();
+    if (timeout !== undefined) clearTimeout(timeout);
+    try {
+      reader.releaseLock();
+    } catch {
+      if (!timedOut) throw new BodyReadError('invalid_payload');
+    }
   }
 
   const bytes = new Uint8Array(size);
@@ -144,6 +175,7 @@ export function createAuthEmailHandler(
   dependencies: AuthEmailHandlerDependencies
 ): (request: Request) => Promise<Response> {
   const now = dependencies.now ?? Date.now;
+  const bodyReadTimeoutMs = dependencies.bodyReadTimeoutMs ?? BODY_READ_TIMEOUT_MS;
 
   return async (request) => {
     const startedAt = now();
@@ -190,9 +222,12 @@ export function createAuthEmailHandler(
 
     let rawBody: string;
     try {
-      rawBody = await readBodyWithLimit(request, BODY_LIMIT_BYTES);
+      rawBody = await readBodyWithLimit(request, BODY_LIMIT_BYTES, bodyReadTimeoutMs);
     } catch (error) {
       if (error instanceof BodyReadError) {
+        if (error.code === 'request_timeout') {
+          return fail(503, error.code, { headers: RETRY_AFTER_HEADERS });
+        }
         return fail(error.code === 'payload_too_large' ? 413 : 422, error.code);
       }
       return fail(500, 'internal_error');
