@@ -53,6 +53,7 @@ import {
 import {
   subscriptionAfterCancellation,
   subscriptionFromRemote,
+  subscriptionIsLoading,
 } from '../lib/subscription-state.ts';
 import type { DailyQuestionUsage, Subscription } from '../types/index.ts';
 
@@ -233,6 +234,55 @@ test('cancelamento confirmado remove a renovacao mesmo se a recarga falhar', () 
     ...current,
     autoRenew: false,
   });
+});
+
+test('assinatura permanece carregando ate consultar o usuario autenticado atual', () => {
+  const base = {
+    userId: 'user-1',
+    checkedUserId: null,
+    refreshing: false,
+  };
+
+  assert.equal(subscriptionIsLoading({ ...base, hydrated: false }), true);
+  assert.equal(subscriptionIsLoading({ ...base, hydrated: true }), true);
+  assert.equal(
+    subscriptionIsLoading({
+      ...base,
+      hydrated: true,
+      checkedUserId: 'user-1',
+    }),
+    false
+  );
+});
+
+test('troca de usuario e atualizacao manual voltam a bloquear o acesso pendente', () => {
+  assert.equal(
+    subscriptionIsLoading({
+      userId: 'user-2',
+      hydrated: true,
+      checkedUserId: 'user-1',
+      refreshing: false,
+    }),
+    true
+  );
+  assert.equal(
+    subscriptionIsLoading({
+      userId: 'user-1',
+      hydrated: true,
+      checkedUserId: 'user-1',
+      refreshing: true,
+    }),
+    true
+  );
+  assert.equal(
+    subscriptionIsLoading({
+      userId: null,
+      hydrated: false,
+      checkedUserId: null,
+      refreshing: false,
+    }),
+    false
+  );
 });
 
 test('o app só aceita checkout HTTPS em domínio oficial do Mercado Pago', () => {

@@ -13,6 +13,23 @@ export type RemoteSubscriptionRow = {
   cancel_at_period_end: unknown;
 };
 
+type SubscriptionLoadingState = {
+  userId: string | null;
+  hydrated: boolean;
+  checkedUserId: string | null;
+  refreshing: boolean;
+};
+
+/** Mantém o acesso pendente até a primeira consulta do usuário atual terminar. */
+export function subscriptionIsLoading({
+  userId,
+  hydrated,
+  checkedUserId,
+  refreshing,
+}: SubscriptionLoadingState): boolean {
+  return Boolean(userId && (!hydrated || checkedUserId !== userId || refreshing));
+}
+
 function isBillingCycle(value: unknown): value is BillingCycle {
   return value === 'monthly' || value === 'quarterly' || value === 'annual';
 }

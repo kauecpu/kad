@@ -24,7 +24,10 @@ import {
   subscriptionWithCurrentStatus,
 } from '@/lib/access-rules';
 import { sanitizeLegacyGuestProfile } from '@/lib/profile';
-import { subscriptionAfterCancellation } from '@/lib/subscription-state';
+import {
+  subscriptionAfterCancellation,
+  subscriptionIsLoading,
+} from '@/lib/subscription-state';
 import {
   cancelRemoteSubscription,
   createSubscriptionCheckout,
@@ -174,7 +177,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { session, isLoading: authLoading } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
-  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [subscriptionRefreshing, setSubscriptionRefreshing] = useState(false);
+  const [subscriptionCheckedUserId, setSubscriptionCheckedUserId] = useState<string | null>(null);
   const subscriptionRequestRef = useRef(0);
 
   const userId = session?.user.id ?? null;
@@ -194,15 +198,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const ownerId = userId ?? 'guest';
   const storageKey = authLoading ? null : `${STORAGE_KEY_PREFIX}:${ownerId}`;
   const hydrated = storageKey !== null && hydratedStorageKey === storageKey;
+  const subscriptionLoading = subscriptionIsLoading({
+    userId,
+    hydrated,
+    checkedUserId: subscriptionCheckedUserId,
+    refreshing: subscriptionRefreshing,
+  });
 
   const refreshSubscription = useCallback(async () => {
     const requestId = ++subscriptionRequestRef.current;
     if (!userId) {
       setState((current) => ({ ...current, subscription: DEFAULT_SUBSCRIPTION }));
-      setSubscriptionLoading(false);
+      setSubscriptionCheckedUserId(null);
+      setSubscriptionRefreshing(false);
       return;
     }
-    setSubscriptionLoading(true);
+    setSubscriptionRefreshing(true);
     try {
       const subscription = await loadRemoteSubscription(userId);
       if (
@@ -216,14 +227,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         subscriptionRequestRef.current === requestId &&
         subscriptionOwnerRef.current === userId
       ) {
-        setSubscriptionLoading(false);
+        setSubscriptionCheckedUserId(userId);
+        setSubscriptionRefreshing(false);
       }
     }
   }, [userId]);
 
   useEffect(() => {
     subscriptionRequestRef.current += 1;
-    setSubscriptionLoading(false);
+    setSubscriptionCheckedUserId(null);
+    setSubscriptionRefreshing(false);
   }, [userId]);
 
   useEffect(() => {

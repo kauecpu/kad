@@ -9,6 +9,7 @@ function source(path: string) {
 
 const player = source('../app/questoes/simulado/index.tsx');
 const result = source('../app/questoes/simulado/resultado.tsx');
+const configure = source('../app/questoes/simulado/configurar.tsx');
 const simulationsTab = source('../app/(tabs)/simulados.tsx');
 const home = source('../app/(tabs)/inicio.tsx');
 
@@ -18,6 +19,10 @@ test('rotas diretas do simulado verificam o acesso premium', () => {
     assert.match(screen, /subscriptionLoading/);
     assert.match(screen, /router\.replace\('\/perfil\/planos'\)/);
   }
+
+  assert.match(configure, /subscriptionLoading/);
+  assert.match(configure, /if \(subscriptionLoading\) return/);
+  assert.match(configure, /disabled=\{subscriptionLoading \|\| candidates\.length === 0\}/);
 });
 
 test('atalhos de simulado salvo nao contornam o acesso premium', () => {
