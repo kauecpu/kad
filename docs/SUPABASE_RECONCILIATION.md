@@ -34,6 +34,7 @@ contagens servem apenas para estimar impacto e verificar preservação.
 | migration do PR #9 | `20260812221545_grant_payment_edge_function_access` | migration intermediária existe apenas no remoto | adicionar espelho histórico com o SQL remoto exato |
 | migration do PR #9 | `20260812225749_enforce_payment_edge_function_least_privilege` | SQL remoto é exatamente igual ao arquivo do commit `ede946d` | versionar o SQL canônico usando o timestamp remoto |
 | nova reconciliação | ausente | privilégios padrão e cinco índices ainda precisam correção | criar uma migration nova e aplicá-la depois do pipeline editorial |
+| complemento editorial | ausente | advisors após o pipeline revelaram três FKs adicionais sem índice | criar uma segunda migration mínima com os três índices |
 
 Não há evidência de uma migration local parcialmente aplicada: o pipeline
 editorial está totalmente ausente, e os demais grupos auditados estão
@@ -105,10 +106,6 @@ alter default privileges for role postgres in schema public
 revoke truncate, references, trigger on tables
 from anon, authenticated, service_role;
 
-alter default privileges for role supabase_admin in schema public
-revoke truncate, references, trigger on tables
-from anon, authenticated, service_role;
-
 create index if not exists admin_audit_logs_actor_id_idx
   on private.admin_audit_logs (actor_id);
 
@@ -125,10 +122,25 @@ create index if not exists payment_transactions_checkout_session_id_idx
   on public.payment_transactions (checkout_session_id);
 ```
 
-Antes do `kad-dev`, esse SQL será executado no projeto descartável para provar
-que o owner da migration pode alterar os default privileges de `postgres` e
-`supabase_admin`. Se essa prova falhar, nenhuma escrita ocorrerá no `kad-dev` e
-o plano voltará para revisão.
+Depois que o pipeline passou a existir, os advisors revelaram três FKs que não
+podiam aparecer na auditoria inicial. Uma segunda migration contém exatamente:
+
+```sql
+create index if not exists editorial_import_batches_created_by_idx
+  on private.editorial_import_batches (created_by);
+
+create index if not exists questions_created_by_idx
+  on public.questions (created_by);
+
+create index if not exists questions_updated_by_idx
+  on public.questions (updated_by);
+```
+
+O projeto descartável confirmou que as tabelas do KAD são criadas por
+`postgres`, e que o executor não é membro de `supabase_admin`. Por isso a
+migration altera somente os default privileges de `postgres`. Os defaults de
+`supabase_admin`, usados por objetos gerenciados pela plataforma, permanecem
+fora do escopo; tentar alterá-los faz a migration falhar com `42501`.
 
 ## Repair oficial proposto
 
@@ -143,9 +155,9 @@ npx supabase migration repair --linked --status applied `
 ```
 
 `202608090001` não entra nesse comando. Depois do repair, `migration list` e
-`db push --dry-run` devem mostrar somente o pipeline editorial e a nova
-migration de reconciliação como pendentes. O push real só poderá repetir
-exatamente essa lista.
+`db push --dry-run` devem mostrar somente o pipeline editorial,
+`reconcile_remote_schema` e `complete_editorial_fk_indexes` como pendentes. O
+push real só poderá repetir exatamente essa lista de três migrations.
 
 ## Impacto, riscos e rollback
 
@@ -154,7 +166,7 @@ exatamente essa lista.
   de importação só alteram dados quando chamadas depois da migration.
 - `ALTER TABLE public.concursos` adquire lock de schema por curto período; a
   tabela está vazia no momento da auditoria.
-- Os cinco índices adquirem locks breves. As tabelas afetadas têm entre zero e
+- Os oito índices adquirem locks breves. As tabelas afetadas têm entre zero e
   um registro, exceto as tabelas de pagamento não indexadas, que também estão
   vazias na coluna afetada.
 - A revogação de privilégios é imediata. Ela remove apenas operações de DDL ou
@@ -175,9 +187,67 @@ exatamente essa lista.
 2. Testes provam leitura pública apenas de questões publicadas.
 3. Usuários comuns não acessam importações, administração ou finanças alheias.
 4. `anon` e `authenticated` não possuem `TRUNCATE`, `REFERENCES` ou `TRIGGER`.
-5. Advisors são executados novamente e diferenças restantes são justificadas.
+5. Advisors são executados novamente, sem foreign keys não indexadas, e as
+   diferenças restantes são justificadas.
 6. Contagens do `kad-dev` antes e depois permanecem iguais nas tabelas existentes.
-7. O dry-run lista somente as duas migrations aprovadas.
+7. O dry-run lista somente as três migrations aprovadas.
 
-Até a aprovação explícita deste plano, nenhuma escrita será feita em qualquer
-projeto Supabase.
+## Evidência no projeto descartável
+
+O proprietário aprovou a Fase 2 para o projeto `kad-reconciliation`
+(`txqnvkovdstikgziczyk`). Antes da execução, o projeto estava saudável, sem
+tabelas públicas/privadas e sem migrations.
+
+Foram aplicados, em ordem, os dez arquivos originais, os três espelhos do
+histórico remoto e as duas migrations novas. O histórico descartável terminou
+com 15 registros.
+
+Duas falhas de validação impediram que SQL incompatível avançasse:
+
+1. O primeiro espelho de `20260812211105` repetia integralmente
+   `20260812024756` e falhou com `42723`, pois a migration original não é
+   idempotente para a assinatura de oito argumentos de
+   `apply_mercado_pago_payment`. O espelho foi convertido em arquivo histórico
+   sem SQL executável, referenciando o arquivo canônico e o MD5 remoto.
+2. A primeira versão de `reconcile_remote_schema` tentou alterar os defaults de
+   `supabase_admin` e falhou com `42501`. A auditoria comprovou que o executor e
+   todas as tabelas do KAD usam o owner `postgres`; o executor não pertence a
+   `supabase_admin`. A migration passou a alterar somente os defaults do owner
+   correto.
+
+Ambas as falhas ocorreram em migrations transacionais e foram revertidas pelo
+PostgreSQL antes da versão corrigida ser aplicada.
+
+Verificações executadas no descartável:
+
+- teste estático de schema e webhook: 31/31;
+- pgTAP de reconciliação: 29/29;
+- pgTAP de pagamentos: 41/41;
+- `anon` e `authenticated` visualizaram somente a questão sintética publicada,
+  nunca o rascunho;
+- acesso direto de `anon` e `authenticated` às importações privadas retornou
+  `42501`;
+- RPC administrativa chamada por usuário comum retornou
+  `42501 Admin permission required`;
+- zero grants perigosos atuais para roles de cliente;
+- zero grants perigosos nos default privileges de `postgres`;
+- os oito índices de foreign keys existem;
+- `service_role` conserva SELECT/INSERT/UPDATE do checkout e EXECUTE da RPC de
+  pagamento, mas não possui SELECT direto em `payment_transactions`;
+- todos os arquivos das quatro Edge Functions publicadas são idênticos aos
+  arquivos desta branch, normalizando apenas espaço final;
+- advisor de desempenho: zero `unindexed_foreign_keys`; os 20 avisos restantes
+  são `unused_index`, esperados em um banco recém-criado;
+- advisor de segurança: oito INFO de RLS sem policy, usados como deny-all, e 14
+  WARN de RPCs administrativas `SECURITY DEFINER`; todas as RPCs `admin_*`
+  verificadas incluem `private.has_admin_permission`, e a chamada comum foi
+  negada em execução.
+
+As duas questões sintéticas usadas no teste de RLS foram removidas ao final.
+Nenhum dado real foi inserido no projeto descartável.
+
+## Próximo checkpoint
+
+Nenhuma escrita foi feita no `kad-dev`. Antes do repair e do dry-run remoto, o
+responsável deve aprovar novamente as três migrations pendentes e os nove
+registros de histórico a reparar.

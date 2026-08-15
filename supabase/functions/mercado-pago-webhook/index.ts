@@ -6,14 +6,12 @@ import {
   mercadoPagoRequest,
   validateWebhookSignature,
 } from '../_shared/mercado-pago.ts';
-
-type WebhookBody = {
-  id?: string | number;
-  action?: string;
-  type?: string;
-  live_mode?: boolean;
-  data?: { id?: string | number };
-};
+import {
+  checkoutMatchesProviderSubscription,
+  type MercadoPagoWebhookBody,
+  parseMercadoPagoWebhookBody,
+  webhookEnvironmentMatches,
+} from '../_shared/mercado-pago-webhook.ts';
 
 type CheckoutRow = {
   id: string;
@@ -53,7 +51,12 @@ type MercadoPagoPayment = {
   date_last_updated?: unknown;
 };
 
-function resourceIdFrom(request: Request, body: WebhookBody) {
+type MercadoPagoChargeback = {
+  id?: unknown;
+  payments?: unknown;
+};
+
+function resourceIdFrom(request: Request, body: MercadoPagoWebhookBody) {
   const url = new URL(request.url);
   return (
     url.searchParams.get('data.id') ??
@@ -86,7 +89,13 @@ async function findCheckout(
       .eq('provider', 'mercado_pago')
       .maybeSingle<CheckoutRow>();
     if (error) throw error;
-    if (data) return data;
+    if (
+      data &&
+      (!providerSubscriptionId ||
+        checkoutMatchesProviderSubscription(data.provider_subscription_id, providerSubscriptionId))
+    ) {
+      return data;
+    }
   }
   if (!providerSubscriptionId) return null;
   const { data, error } = await admin
@@ -258,14 +267,48 @@ async function processPayment(
   return true;
 }
 
-Deno.serve(async (request) => {
-  if (request.method !== 'POST') {
-    return Response.json({ error: 'Method not allowed' }, { status: 405 });
+async function processChargeback(
+  admin: SupabaseClient,
+  resourceId: string
+): Promise<boolean> {
+  const chargeback = await mercadoPagoRequest<MercadoPagoChargeback>(
+    `/v1/chargebacks/${encodeURIComponent(resourceId)}`
+  );
+  const providerChargebackId =
+    typeof chargeback.id === 'number' || typeof chargeback.id === 'string'
+      ? String(chargeback.id)
+      : null;
+  if (providerChargebackId !== resourceId || !Array.isArray(chargeback.payments)) {
+    throw new Error('Invalid provider chargeback resource');
   }
 
-  const body = await request.json().catch(() => null) as WebhookBody | null;
+  const paymentIds = chargeback.payments
+    .filter((paymentId): paymentId is string | number =>
+      typeof paymentId === 'string' || typeof paymentId === 'number'
+    )
+    .map(String);
+  if (paymentIds.length === 0 || paymentIds.length !== chargeback.payments.length) {
+    throw new Error('Invalid provider chargeback payments');
+  }
+
+  let correlated = false;
+  for (const paymentId of paymentIds) {
+    correlated = (await processPayment(admin, paymentId)) || correlated;
+  }
+  return correlated;
+}
+
+Deno.serve(async (request) => {
+  if (request.method !== 'POST') {
+    return Response.json(
+      { error: 'Method not allowed' },
+      { status: 405, headers: { Allow: 'POST' } }
+    );
+  }
+
+  const body = parseMercadoPagoWebhookBody(await request.json().catch(() => null));
   const resourceId = body ? resourceIdFrom(request, body) : null;
-  const eventType = body?.type ?? new URL(request.url).searchParams.get('type');
+  const eventType = body?.type;
   const webhookSecret = Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET')?.trim();
   if (!body || !resourceId || !eventType || !webhookSecret) {
     return Response.json({ error: 'Invalid webhook' }, { status: 400 });
@@ -281,12 +324,7 @@ Deno.serve(async (request) => {
     return Response.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
-  const configuredLiveMode = Deno.env.get('MERCADO_PAGO_LIVE_MODE');
-  if (
-    configuredLiveMode &&
-    typeof body.live_mode === 'boolean' &&
-    body.live_mode !== (configuredLiveMode === 'true')
-  ) {
+  if (!webhookEnvironmentMatches(Deno.env.get('MERCADO_PAGO_LIVE_MODE'), body.live_mode)) {
     return Response.json({ error: 'Unexpected environment' }, { status: 401 });
   }
 
@@ -332,6 +370,8 @@ Deno.serve(async (request) => {
       correlated = await processAuthorizedPayment(admin, resourceId);
     } else if (eventType === 'payment') {
       correlated = await processPayment(admin, resourceId);
+    } else if (eventType === 'topic_chargebacks_wh') {
+      correlated = await processChargeback(admin, resourceId);
     }
 
     const { error: processedError } = await admin

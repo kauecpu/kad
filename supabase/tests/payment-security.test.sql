@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(30);
+select plan(41);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values
@@ -90,6 +90,67 @@ select ok(
     'EXECUTE'
   ),
   'service_role can execute the payment reconciliation RPC'
+);
+
+select ok(
+  has_table_privilege('service_role', 'public.payment_checkout_sessions', 'SELECT'),
+  'service_role can read checkout sessions for payment Edge Functions'
+);
+select ok(
+  has_table_privilege('service_role', 'public.payment_checkout_sessions', 'INSERT'),
+  'service_role can create checkout sessions for payment Edge Functions'
+);
+select ok(
+  has_table_privilege('service_role', 'public.payment_checkout_sessions', 'UPDATE'),
+  'service_role can update checkout sessions for payment Edge Functions'
+);
+select ok(
+  not has_table_privilege(
+    'service_role',
+    'public.payment_checkout_sessions',
+    'DELETE,TRUNCATE,REFERENCES,TRIGGER'
+  ),
+  'service_role has no excess checkout-session privileges'
+);
+select ok(
+  has_table_privilege('service_role', 'public.subscriptions', 'SELECT'),
+  'service_role can read subscriptions for checkout and cancellation'
+);
+select ok(
+  not has_table_privilege(
+    'service_role',
+    'public.subscriptions',
+    'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+  ),
+  'service_role must change subscriptions through hardened RPCs'
+);
+select ok(
+  has_table_privilege('service_role', 'public.payment_webhook_events', 'SELECT'),
+  'service_role can read signed webhook events'
+);
+select ok(
+  has_table_privilege('service_role', 'public.payment_webhook_events', 'INSERT'),
+  'service_role can record signed webhook events'
+);
+select ok(
+  has_table_privilege('service_role', 'public.payment_webhook_events', 'UPDATE'),
+  'service_role can mark signed webhook events as processed'
+);
+select ok(
+  not has_table_privilege(
+    'service_role',
+    'public.payment_webhook_events',
+    'DELETE,TRUNCATE,REFERENCES,TRIGGER'
+  ),
+  'service_role has no excess webhook-event privileges'
+);
+select ok(
+  not has_table_privilege(
+    'service_role',
+    'public.payment_transactions',
+    'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+  ),
+  'service_role has no direct payment-transaction privileges'
 );
 
 create temporary table checkout_limit_results (

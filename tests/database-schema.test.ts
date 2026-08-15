@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 import { URL as NodeURL } from 'node:url';
 
@@ -90,6 +90,13 @@ const recoveryEmailTemplate = readFileSync(
   new NodeURL('../supabase/templates/recovery.html', import.meta.url),
   'utf8'
 );
+
+const migrationNames = readdirSync(
+  new NodeURL('../supabase/migrations/', import.meta.url)
+);
+
+const readMigration = (name: string) =>
+  readFileSync(new NodeURL(`../supabase/migrations/${name}`, import.meta.url), 'utf8');
 
 test('dados pessoais e de estudo possuem RLS', () => {
   for (const table of [
@@ -351,4 +358,76 @@ test('templates de autenticação usam OTP e recuperação em português', () =>
   assert.match(recoveryEmailTemplate, /lang="pt-BR"/);
   assert.match(recoveryEmailTemplate, /Redefina sua senha/);
   assert.match(recoveryEmailTemplate, /\{\{ \.ConfirmationURL \}\}/);
+});
+
+test('histórico remoto de pagamentos possui espelhos locais auditáveis', () => {
+  for (const versionedName of [
+    '20260812211105_harden_payment_subscriptions.sql',
+    '20260812221545_grant_payment_edge_function_access.sql',
+    '20260812225749_enforce_payment_edge_function_least_privilege.sql',
+  ]) {
+    assert.ok(migrationNames.includes(versionedName), `${versionedName} must exist locally`);
+  }
+
+  const duplicateHardeningMirror = readMigration(
+    '20260812211105_harden_payment_subscriptions.sql'
+  );
+  const executableMirrorSql = duplicateHardeningMirror
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('--'))
+    .join('\n')
+    .trim();
+  assert.equal(
+    executableMirrorSql,
+    '',
+    'the duplicate remote timestamp must be a non-executable historical mirror'
+  );
+  assert.match(duplicateHardeningMirror, /20260812024756_harden_payment_subscriptions\.sql/);
+  assert.match(duplicateHardeningMirror, /116abfe9ccfd113c23a3bd400ca02c7b/);
+});
+
+test('reconciliação remove privilégios destrutivos e corrige índices de FKs', () => {
+  const reconciliationName = migrationNames.find((name) =>
+    name.endsWith('_reconcile_remote_schema.sql')
+  );
+  assert.ok(reconciliationName, 'reconcile_remote_schema migration must exist');
+
+  const reconciliationSql = readMigration(reconciliationName);
+  assert.match(
+    reconciliationSql,
+    /revoke truncate, references, trigger\s+on all tables in schema public\s+from anon, authenticated, service_role/
+  );
+  assert.match(
+    reconciliationSql,
+    /alter default privileges for role postgres in schema public\s+revoke truncate, references, trigger on tables\s+from anon, authenticated, service_role/
+  );
+  assert.doesNotMatch(
+    reconciliationSql,
+    /alter default privileges for role supabase_admin/,
+    'migration runner is not a member of supabase_admin'
+  );
+
+  for (const indexName of [
+    'admin_audit_logs_actor_id_idx',
+    'admin_users_created_by_idx',
+    'concursos_created_by_idx',
+    'concursos_updated_by_idx',
+    'payment_transactions_checkout_session_id_idx',
+  ]) {
+    assert.match(reconciliationSql, new RegExp(`create index if not exists ${indexName}`));
+  }
+
+  const editorialIndexMigrationName = migrationNames.find((name) =>
+    name.endsWith('_complete_editorial_fk_indexes.sql')
+  );
+  assert.ok(editorialIndexMigrationName, 'complete_editorial_fk_indexes migration must exist');
+
+  const editorialIndexSql = readMigration(editorialIndexMigrationName);
+  for (const indexName of [
+    'editorial_import_batches_created_by_idx',
+    'questions_created_by_idx',
+    'questions_updated_by_idx',
+  ]) {
+    assert.match(editorialIndexSql, new RegExp(`create index if not exists ${indexName}`));
+  }
 });

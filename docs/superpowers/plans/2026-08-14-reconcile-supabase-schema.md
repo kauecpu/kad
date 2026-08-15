@@ -76,8 +76,8 @@ expect(reconciliationSql).toContain(
 expect(reconciliationSql).toContain(
   'alter default privileges for role postgres in schema public',
 );
-expect(reconciliationSql).toContain(
-  'alter default privileges for role supabase_admin in schema public',
+expect(reconciliationSql).not.toContain(
+  'alter default privileges for role supabase_admin',
 );
 expect(reconciliationSql).toContain(
   'payment_transactions_checkout_session_id_idx',
@@ -178,12 +178,13 @@ git commit -m "fix: version deployed payment artifacts"
 
 **Files:**
 - Create: `supabase/migrations/<generated>_reconcile_remote_schema.sql`
+- Create: `supabase/migrations/<generated>_complete_editorial_fk_indexes.sql`
 - Modify: `tests/database-schema.test.ts`
 - Modify: `supabase/tests/reconciliation-security.test.sql`
 
 **Interfaces:**
-- Consumes: exact DDL approved in Task 1.
-- Produces: one forward-only migration that removes unsafe privileges and adds missing FK indexes.
+- Consumes: exact DDL approved in Task 1 and post-pipeline advisor findings.
+- Produces: two forward-only migrations that remove unsafe privileges and add all missing FK indexes.
 
 - [ ] **Step 1: Create the migration through the CLI**
 
@@ -273,13 +274,14 @@ Expected: no schema or row changes.
 
 Run: `npx supabase migration list --linked`  
 Run: `npx supabase db push --linked --dry-run`  
-Expected: only `202608090001_editorial_import_pipeline.sql` and the generated
-`reconcile_remote_schema.sql` are pending. Abort on any other output.
+Expected: only `202608090001_editorial_import_pipeline.sql`, the generated
+`reconcile_remote_schema.sql`, and `complete_editorial_fk_indexes.sql` are
+pending. Abort on any other output.
 
-- [ ] **Step 4: Apply the two approved migrations**
+- [ ] **Step 4: Apply the three approved migrations**
 
 Run: `npx supabase db push --linked`  
-Expected: exactly the two dry-run migrations are applied.
+Expected: exactly the three dry-run migrations are applied.
 
 - [ ] **Step 5: Verify preservation and access boundaries**
 

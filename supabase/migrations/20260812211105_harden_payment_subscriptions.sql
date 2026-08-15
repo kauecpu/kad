@@ -1,0 +1,12 @@
+-- Historical mirror for the remote migration record 20260812211105.
+--
+-- The SQL recorded remotely is byte-equivalent to:
+--   20260812024756_harden_payment_subscriptions.sql
+-- Remote statements MD5:
+--   116abfe9ccfd113c23a3bd400ca02c7b
+--
+-- This file is intentionally non-executable. Running the same SQL twice is
+-- unsafe because the original migration creates the eight-argument
+-- apply_mercado_pago_payment functions without dropping that same signature.
+-- The canonical SQL remains in the earlier local migration above.
+
