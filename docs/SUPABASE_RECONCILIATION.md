@@ -1,8 +1,11 @@
 # Reconciliação do Supabase do KAD
 
-Data da auditoria: 14 de agosto de 2026  
-Projeto auditado: `kad-dev` (`tknxtwwwoqwbzddplzzg`)  
-Branch de trabalho: `codex/reconcile-supabase-schema`  
+Data da auditoria: 14 e 15 de agosto de 2026
+
+Projeto auditado: `kad-dev` (`tknxtwwwoqwbzddplzzg`)
+
+Branch de trabalho: `codex/reconcile-supabase-schema`
+
 Base: `origin/main` em `e11ec9c49ec6adb0a91a2435e9e30a1e0fffd77d`
 
 ## Estado e limites da auditoria
@@ -10,7 +13,10 @@ Base: `origin/main` em `e11ec9c49ec6adb0a91a2435e9e30a1e0fffd77d`
 A Fase 1 foi somente leitura. Foram consultados metadados, contagens agregadas,
 histórico de migrations, catálogo PostgreSQL, advisors e bundles de Edge
 Functions. Nenhum registro pessoal ou financeiro foi lido. Nenhuma migration,
-função ou permissão foi alterada no `kad-dev`.
+função ou permissão foi alterada no `kad-dev` nessa fase. Depois da validação no
+projeto descartável e da aprovação explícita do responsável, a Fase 2 aplicou
+ao `kad-dev` somente as três migrations registradas na seção de evidência
+remota. Nenhuma Edge Function ou configuração de segredo foi publicada.
 
 O projeto remoto contém dados reais. As contagens sanitizadas relevantes são:
 5 perfis, 11 sessões de checkout, 4 eventos de webhook, 2 registros de limite de
@@ -246,8 +252,84 @@ Verificações executadas no descartável:
 As duas questões sintéticas usadas no teste de RLS foram removidas ao final.
 Nenhum dado real foi inserido no projeto descartável.
 
+## Evidência da aplicação no `kad-dev`
+
+O responsável aprovou explicitamente a aplicação no projeto `kad-dev`. A CLI
+foi autenticada sem registrar token, código de verificação, senha ou chave no
+repositório. O projeto foi vinculado pelo project ref e o histórico foi
+reparado somente pelo comando oficial `supabase migration repair`.
+
+Foram marcadas como aplicadas as nove versões materialmente presentes:
+
+```text
+202608010001  202608010002  202608020001
+202608020002  202608020003  202608020004
+202608020005  202608110001  20260812024756
+```
+
+O primeiro dry-run, sem `--include-all`, recusou prosseguir porque a migration
+editorial é anterior à última versão remota; nenhuma migration foi aplicada.
+O dry-run corrigido usou `--include-all --skip-vault` e listou exatamente:
+
+```text
+202608090001_editorial_import_pipeline.sql
+20260815024009_reconcile_remote_schema.sql
+20260815024633_complete_editorial_fk_indexes.sql
+```
+
+O push real repetiu a mesma lista com `--include-all --skip-vault --yes`. A CLI
+terminou com sucesso, e `migration list` confirmou as 15 versões alinhadas
+entre repositório e remoto. `--skip-vault` impediu qualquer leitura ou alteração
+de segredos.
+
+As contagens agregadas existentes permaneceram idênticas antes e depois:
+5 perfis, 11 sessões de checkout, 4 eventos de webhook, 2 registros privados de
+rate limit e 1 administrador. Todas as outras tabelas preexistentes continuaram
+vazias. As novas tabelas `questions`, `editorial_import_batches` e
+`editorial_import_items` terminaram vazias.
+
+O catálogo remoto confirmou:
+
+- RLS habilitada nas três tabelas novas;
+- RPC de pagamento disponível ao `service_role`;
+- zero grants perigosos de cliente;
+- zero default privileges perigosos de `postgres`;
+- zero foreign keys obrigatórias sem índice;
+- `service_role` sem SELECT direto em `payment_transactions`;
+- todas as funções administrativas com verificação de permissão.
+
+O teste controlado de roles comprovou que `anon` e `authenticated` enxergam
+somente questão publicada. Ambos receberam `42501` ao tentar acesso direto às
+importações privadas, e usuário autenticado comum recebeu
+`42501 Admin permission required` ao chamar RPC administrativa. As duas linhas
+sintéticas reservadas foram excluídas e uma consulta final confirmou zero linhas
+de teste restantes.
+
+O executor `supabase test db --linked` não rodou os arquivos pgTAP porque essa
+versão da CLI tentou usar o Docker local, cujo daemon estava desligado. Isso não
+alterou o banco. Os mesmos testes já haviam passado no projeto descartável
+(29/29 de reconciliação e 41/41 de pagamentos); no remoto, as propriedades
+críticas foram repetidas por consultas transacionais e controladas por role.
+
+Os advisors finais do `kad-dev` retornaram zero `unindexed_foreign_keys`. Os 17
+avisos de desempenho restantes são apenas `unused_index`, esperados no banco de
+desenvolvimento com pouco uso. Em segurança permaneceram:
+
+- 8 INFO de RLS sem policy, intencionalmente deny-all;
+- 14 WARN de RPCs `SECURITY DEFINER`, protegidas internamente e verificadas em
+  execução;
+- 1 WARN porque a proteção contra senhas vazadas do Auth está desativada.
+
+As quatro Edge Functions continuaram ativas nas mesmas versões e configurações
+de JWT observadas antes do push. Seus bundles já haviam sido comparados arquivo
+a arquivo com esta branch e permanecem sem nova publicação: `delete-account`
+v15, `create-payment-checkout` v15, `cancel-subscription` v13 e
+`mercado-pago-webhook` v15. `send-auth-email` continua não publicada.
+
 ## Próximo checkpoint
 
-Nenhuma escrita foi feita no `kad-dev`. Antes do repair e do dry-run remoto, o
-responsável deve aprovar novamente as três migrations pendentes e os nove
-registros de histórico a reparar.
+O schema do `kad-dev` e o repositório estão reconciliados nesta branch. Para que
+a rastreabilidade fique completa, este PR ainda precisa ser revisado e integrado
+à `main`; nenhuma Edge Function deve ser republicada antes disso. Antes do
+lançamento também é necessário ativar a proteção contra senhas vazadas e
+provisionar homologação e produção.

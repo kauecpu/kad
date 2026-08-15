@@ -8,7 +8,7 @@ segredos, chaves, senhas ou dados pessoais.
 | Papel | Projeto | Project ref | Finalidade atual | Branch autorizada |
 | --- | --- | --- | --- | --- |
 | Validação descartável | `kad-reconciliation` | `txqnvkovdstikgziczyk` | Testar migrations e permissões sem dados reais; pode ser recriado | `codex/reconcile-supabase-schema` |
-| Legado protegido / pré-produção | `kad-dev` | `tknxtwwwoqwbzddplzzg` | Ambiente existente com dados reais; não deve receber mudanças sem plano e aprovação | `main`, após PR aprovado |
+| Desenvolvimento protegido / pré-produção | `kad-dev` | `tknxtwwwoqwbzddplzzg` | Schema reconciliado em 15/08/2026; contém dados reais e exige plano e aprovação para novas mudanças | `main`, após PR aprovado |
 | Homologação | Não provisionado | Não existe | Validar uma release candidata com dados sintéticos | futura branch de release baseada em `main` |
 | Produção | Não provisionado | Não existe | Atender usuários reais após os critérios de lançamento | somente tag/release originada de `main` |
 
@@ -18,6 +18,11 @@ banco funcional do aplicativo e não deve receber dados reais.
 `kad-dev` acumula hoje funções de desenvolvimento e pré-produção. Enquanto
 homologação e produção não forem provisionadas, ele deve ser tratado como
 ambiente protegido porque já contém dados reais.
+
+A reconciliação de 15 de agosto de 2026 foi uma exceção aprovada antes do merge
+para corrigir o drift já existente. As migrations e os bundles correspondentes
+estão na branch `codex/reconcile-supabase-schema` e precisam entrar em `main`
+antes de qualquer nova publicação.
 
 ## Promoção
 
