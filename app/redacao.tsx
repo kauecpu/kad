@@ -25,8 +25,8 @@ import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/cons
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { ESSAY_TOPICS, type EssayTopic } from '@/data/essay-topics';
 import { useTheme } from '@/hooks/use-theme';
+import { essayTopicDisclosure, filterEssayTopics } from '@/lib/essay-discovery';
 import { recommendPackForGoal } from '@/lib/simulations';
-import { normalizeSearchText } from '@/lib/text';
 import { useApp } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -69,14 +69,11 @@ export default function EssayScreen() {
   const recommendedTopic = ESSAY_TOPICS.find((topic) => topic.packId === recommendedPack?.id);
 
   const visibleTopics = useMemo(() => {
-    const normalizedQuery = normalizeSearchText(query);
-    return ESSAY_TOPICS.filter((topic) => {
-      if (selectedPackId !== 'all' && topic.packId !== selectedPackId) return false;
-      if (!normalizedQuery) return true;
-      const pack = CONCURSO_PACKS.find((item) => item.id === topic.packId);
-      return normalizeSearchText(
-        `${topic.title} ${topic.category} ${pack?.name ?? ''}`
-      ).includes(normalizedQuery);
+    return filterEssayTopics({
+      topics: ESSAY_TOPICS,
+      packs: CONCURSO_PACKS,
+      query,
+      packId: selectedPackId,
     });
   }, [query, selectedPackId]);
 
@@ -228,6 +225,29 @@ function TopicSelection({
   bottomInset: number;
 }) {
   const { colors } = useTheme();
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [showAllTopics, setShowAllTopics] = useState(false);
+  const [previewTopicId, setPreviewTopicId] = useState<string>();
+  const hasActiveDiscovery = selectedPackId !== 'all' || query.trim().length > 0;
+  const disclosure = essayTopicDisclosure({
+    topics,
+    recommendedTopicId: recommendedTopic?.id,
+    hasActiveDiscovery,
+    expanded: showAllTopics,
+  });
+  const selectedPack = CONCURSO_PACKS.find((pack) => pack.id === selectedPackId);
+
+  const changeQuery = (value: string) => {
+    onChangeQuery(value);
+    setShowAllTopics(false);
+    setPreviewTopicId(undefined);
+  };
+
+  const changePack = (packId: string) => {
+    onChangePack(packId);
+    setShowAllTopics(false);
+    setPreviewTopicId(undefined);
+  };
 
   return (
     <ScrollView
@@ -235,95 +255,224 @@ function TopicSelection({
       showsVerticalScrollIndicator={false}>
       <EssaySteps active={1} />
 
-      {recommendedTopic && selectedPackId === 'all' && !query ? (
+      {recommendedTopic && !hasActiveDiscovery ? (
         <Section title="Para sua meta">
-          <TopicCard topic={recommendedTopic} featured onPress={() => onSelectTopic(recommendedTopic)} />
+          <FeaturedTopicCard topic={recommendedTopic} onStart={() => onSelectTopic(recommendedTopic)} />
         </Section>
       ) : null}
 
-      <Section title="Escolha uma proposta">
-        <SearchField
-          value={query}
-          onChangeText={onChangeQuery}
-          placeholder="Buscar tema ou concurso"
-          accessibilityLabel="Buscar tema de redação ou concurso"
-        />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterChips}>
-          <Chip label="Todos" selected={selectedPackId === 'all'} onPress={() => onChangePack('all')} />
-          {CONCURSO_PACKS.map((pack) => (
-            <Chip
-              key={pack.id}
-              label={pack.name}
-              selected={selectedPackId === pack.id}
-              onPress={() => onChangePack(pack.id)}
+      <Section title="Explorar outros temas">
+        <View style={styles.discoveryControls}>
+          <View style={styles.searchControl}>
+            <SearchField
+              value={query}
+              onChangeText={changeQuery}
+              placeholder="Buscar tema ou concurso"
+              accessibilityLabel="Buscar tema de redação ou concurso"
             />
-          ))}
-        </ScrollView>
+          </View>
+          <Pressable
+            onPress={() => setFiltersExpanded((current) => !current)}
+            accessibilityRole="button"
+            accessibilityLabel={filtersExpanded ? 'Ocultar filtros de concurso' : 'Mostrar filtros de concurso'}
+            accessibilityState={{ expanded: filtersExpanded }}
+            style={({ pressed }) => [
+              styles.filterButton,
+              {
+                backgroundColor: selectedPack ? colors.primarySoft : colors.surfaceAlt,
+                opacity: pressed ? 0.72 : 1,
+              },
+            ]}>
+            <Ionicons name="options-outline" size={17} color={selectedPack ? colors.primary : colors.textMuted} />
+            <Text style={[styles.filterButtonText, { color: selectedPack ? colors.primary : colors.textMuted }]}>Filtro</Text>
+            {selectedPack ? (
+              <View style={[styles.filterCount, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.filterCountText, { color: colors.onPrimary }]}>1</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </View>
+
+        {filtersExpanded ? (
+          <View style={[styles.filtersPanel, { backgroundColor: colors.surfaceAlt }]}>
+            <View style={styles.filterHeading}>
+              <View>
+                <Text style={[styles.filterTitle, { color: colors.text }]}>Concurso ou área</Text>
+                <Text style={[styles.filterDescription, { color: colors.textMuted }]}>Escolha um foco para reduzir a lista.</Text>
+              </View>
+              {selectedPack ? (
+                <Pressable onPress={() => changePack('all')} accessibilityRole="button" hitSlop={8}>
+                  <Text style={[styles.clearFilterText, { color: colors.primary }]}>Limpar</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            <View style={styles.filterOptions}>
+              <Chip label="Todos" selected={selectedPackId === 'all'} onPress={() => changePack('all')} />
+              {CONCURSO_PACKS.map((pack) => (
+                <Chip
+                  key={pack.id}
+                  label={pack.name}
+                  selected={selectedPackId === pack.id}
+                  onPress={() => changePack(pack.id)}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        <Text style={[styles.resultSummary, { color: colors.textSubtle }]}>
+          {disclosure.total} {disclosure.total === 1 ? 'proposta disponível' : 'propostas disponíveis'}
+          {selectedPack ? ` para ${selectedPack.name}` : ''}
+        </Text>
       </Section>
 
       <View style={styles.topicList}>
-        {topics
-          .filter((topic) => topic.id !== recommendedTopic?.id || selectedPackId !== 'all' || query)
-          .map((topic) => (
-            <TopicCard key={topic.id} topic={topic} onPress={() => onSelectTopic(topic)} />
-          ))}
+        {disclosure.visibleTopics.map((topic) => (
+          <CompactTopicCard
+            key={topic.id}
+            topic={topic}
+            selected={previewTopicId === topic.id}
+            onToggle={() => setPreviewTopicId((current) => current === topic.id ? undefined : topic.id)}
+            onStart={() => onSelectTopic(topic)}
+          />
+        ))}
       </View>
 
-      {topics.length === 0 ? (
+      {disclosure.total === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="document-text-outline" size={28} color={colors.textSubtle} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>Nenhuma proposta encontrada</Text>
           <Text style={[styles.emptyDescription, { color: colors.textMuted }]}>Tente outro concurso ou termo de busca.</Text>
         </View>
       ) : null}
+
+      {disclosure.hiddenCount > 0 ? (
+        <Button
+          label={`Ver todos (${disclosure.hiddenCount} a mais)`}
+          variant="secondary"
+          icon="chevron-down"
+          onPress={() => setShowAllTopics(true)}
+          fullWidth
+        />
+      ) : null}
+
+      {showAllTopics && !hasActiveDiscovery && disclosure.total > 3 ? (
+        <Button
+          label="Mostrar menos"
+          variant="ghost"
+          icon="chevron-up"
+          onPress={() => {
+            setShowAllTopics(false);
+            setPreviewTopicId(undefined);
+          }}
+          fullWidth
+        />
+      ) : null}
     </ScrollView>
   );
 }
 
-function TopicCard({
+function FeaturedTopicCard({
   topic,
-  featured,
-  onPress,
+  onStart,
 }: {
   topic: EssayTopic;
-  featured?: boolean;
-  onPress: () => void;
+  onStart: () => void;
 }) {
   const { colors } = useTheme();
   const pack = CONCURSO_PACKS.find((item) => item.id === topic.packId);
   return (
     <Card
-      onPress={onPress}
-      accessibilityLabel={`Selecionar tema: ${topic.title}`}
-      style={[styles.topicCard, featured && { borderColor: colors.borderStrong }]}>
+      style={[
+        styles.featuredTopicCard,
+        { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong },
+      ]}>
       <View style={styles.topicHeader}>
-        <View style={styles.topicIcon}>
+        <View style={[styles.featuredTopicIcon, { backgroundColor: colors.primary }]}>
           <Ionicons
             name={(pack?.icon as keyof typeof Ionicons.glyphMap) ?? 'document-text-outline'}
-            size={20}
-            color={colors.primary}
+            size={21}
+            color={colors.onPrimary}
           />
         </View>
         <View style={styles.topicHeaderText}>
-          <Text style={[styles.topicPack, { color: colors.textMuted }]}>{pack?.name ?? 'Concurso'}</Text>
+          <Text style={[styles.topicPack, { color: colors.text }]}>{pack?.name ?? 'Concurso'}</Text>
           <Text style={[styles.topicCategory, { color: colors.textMuted }]}>{topic.category}</Text>
         </View>
-        {featured ? <Badge label="Recomendado" tone="accent" /> : null}
+        <Badge label="Recomendado" tone="accent" />
       </View>
-      <Text style={[styles.topicTitle, { color: colors.text }]}>{topic.title}</Text>
+      <Text style={[styles.featuredTopicTitle, { color: colors.text }]}>{topic.title}</Text>
       <View style={styles.topicMeta}>
         <Meta icon="speedometer-outline" label={topic.difficulty} />
         <Meta icon="timer-outline" label={`${topic.suggestedMinutes} min`} />
         <Meta icon="reorder-three-outline" label={topic.lineRange} />
       </View>
-      <View style={styles.topicAction}>
-        <Text style={[styles.topicActionText, { color: colors.primary }]}>Abrir proposta</Text>
-        <Ionicons name="arrow-forward" size={17} color={colors.primary} />
-      </View>
+      <Button label="Começar redação" icon="create-outline" onPress={onStart} fullWidth />
     </Card>
+  );
+}
+
+function CompactTopicCard({
+  topic,
+  selected,
+  onToggle,
+  onStart,
+}: {
+  topic: EssayTopic;
+  selected: boolean;
+  onToggle: () => void;
+  onStart: () => void;
+}) {
+  const { colors } = useTheme();
+  const pack = CONCURSO_PACKS.find((item) => item.id === topic.packId);
+
+  return (
+    <View
+      style={[
+        styles.compactTopicCard,
+        {
+          backgroundColor: colors.surface,
+          borderColor: selected ? colors.borderStrong : colors.border,
+        },
+      ]}>
+      <Pressable
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityLabel={`${topic.title}, ${pack?.name ?? 'Concurso'}`}
+        accessibilityState={{ selected, expanded: selected }}
+        style={({ pressed }) => [styles.compactTopicHeader, pressed && styles.pressed]}>
+        <View style={[styles.compactTopicIcon, { backgroundColor: colors.surfaceAlt }]}>
+          <Ionicons
+            name={(pack?.icon as keyof typeof Ionicons.glyphMap) ?? 'document-text-outline'}
+            size={18}
+            color={colors.primary}
+          />
+        </View>
+        <View style={styles.compactTopicText}>
+          <Text style={[styles.compactTopicPack, { color: colors.textMuted }]}>{pack?.name ?? 'Concurso'}</Text>
+          <Text style={[styles.compactTopicTitle, { color: colors.text }]} numberOfLines={selected ? undefined : 2}>
+            {topic.title}
+          </Text>
+        </View>
+        <Ionicons
+          name={selected ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={colors.textSubtle}
+        />
+      </Pressable>
+
+      {selected ? (
+        <View style={[styles.compactTopicDetail, { borderTopColor: colors.border }]}>
+          <Text style={[styles.compactTopicCategory, { color: colors.textMuted }]}>{topic.category}</Text>
+          <View style={styles.topicMeta}>
+            <Meta icon="speedometer-outline" label={topic.difficulty} />
+            <Meta icon="timer-outline" label={`${topic.suggestedMinutes} min`} />
+            <Meta icon="reorder-three-outline" label={topic.lineRange} />
+          </View>
+          <Button label="Começar redação" icon="create-outline" onPress={onStart} fullWidth />
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -578,41 +727,97 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     gap: Spacing.lg,
   },
-  steps: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  steps: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.72,
+  },
   stepItem: { flexDirection: 'row', alignItems: 'center' },
   stepCircle: {
-    width: 26,
-    height: 26,
+    width: 21,
+    height: 21,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepNumber: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold },
-  stepLabel: { marginLeft: 5, fontSize: FontSize.tiny, fontWeight: FontWeight.semibold },
-  stepLine: { width: 28, height: 1, marginHorizontal: Spacing.sm },
-  filterChips: { gap: Spacing.sm, paddingRight: Spacing.md },
-  topicList: { gap: Spacing.md },
-  topicCard: { gap: Spacing.sm },
+  stepNumber: { fontSize: 9, fontWeight: FontWeight.bold },
+  stepLabel: { marginLeft: 4, fontSize: 10, fontWeight: FontWeight.medium },
+  stepLine: { width: 20, height: 1, marginHorizontal: Spacing.sm },
+  discoveryControls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  searchControl: { flex: 1, minWidth: 0 },
+  filterButton: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+  },
+  filterButtonText: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
+  filterCount: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterCountText: { fontSize: 9, fontWeight: FontWeight.bold },
+  filtersPanel: { gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.md },
+  filterHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
+  filterTitle: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
+  filterDescription: { marginTop: 2, fontSize: FontSize.tiny },
+  clearFilterText: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
+  filterOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  resultSummary: { fontSize: FontSize.tiny },
+  topicList: { gap: Spacing.sm },
+  featuredTopicCard: { gap: Spacing.md, borderWidth: 1 },
   topicHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  topicIcon: {
-    width: 22,
-    height: 36,
+  featuredTopicIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   topicHeaderText: { flex: 1, gap: 1 },
   topicPack: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
   topicCategory: { fontSize: FontSize.tiny },
-  topicTitle: {
-    fontSize: FontSize.heading + 1,
+  featuredTopicTitle: {
+    fontSize: FontSize.title,
     fontWeight: FontWeight.bold,
-    lineHeight: 22,
+    lineHeight: 26,
   },
   topicMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: FontSize.tiny },
-  topicAction: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  topicActionText: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
+  compactTopicCard: { overflow: 'hidden', borderWidth: 1, borderRadius: Radius.lg },
+  compactTopicHeader: {
+    minHeight: 74,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  compactTopicIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactTopicText: { flex: 1, minWidth: 0, gap: 3 },
+  compactTopicPack: { fontSize: FontSize.tiny, fontWeight: FontWeight.semibold },
+  compactTopicTitle: { fontSize: FontSize.body, lineHeight: 20, fontWeight: FontWeight.bold },
+  compactTopicDetail: {
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  compactTopicCategory: { fontSize: FontSize.small },
   emptyState: { alignItems: 'center', gap: Spacing.xs, paddingVertical: Spacing.xxl },
   emptyTitle: { marginTop: Spacing.xs, fontSize: FontSize.heading, fontWeight: FontWeight.bold },
   emptyDescription: { fontSize: FontSize.small, textAlign: 'center' },
@@ -691,4 +896,5 @@ const styles = StyleSheet.create({
   },
   criterionName: { flex: 1, fontSize: FontSize.body, fontWeight: FontWeight.semibold },
   criterionStatus: { fontSize: FontSize.tiny },
+  pressed: { opacity: 0.7 },
 });

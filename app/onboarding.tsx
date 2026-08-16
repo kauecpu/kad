@@ -188,7 +188,7 @@ export function OnboardingContent({ previewMode = false }: OnboardingContentProp
         }}>
         <View style={styles.topBar}>
           <Image
-            source={require('../assets/images/kad-logo-v3.png')}
+            source={require('../assets/images/kad-logo-v4.png')}
             resizeMode="contain"
             accessibilityLabel="KAD Concursos"
             style={styles.logo}

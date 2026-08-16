@@ -86,7 +86,7 @@ export default function WelcomeScreen() {
         bounces={false}>
         <View style={styles.main}>
           <Image
-            source={require('../assets/images/kad-logo-v3.png')}
+            source={require('../assets/images/kad-logo-v4.png')}
             style={styles.logo}
             resizeMode="contain"
             accessibilityLabel="KAD Concursos"
