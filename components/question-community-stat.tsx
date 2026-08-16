@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { communityAccuracySummary } from '@/lib/accuracy';
 import {
   communityAccuracyForQuestion,
   type CommunityAccuracy,
@@ -66,18 +67,28 @@ export function QuestionCommunityStat({ question }: QuestionCommunityStatProps) 
   }
 
   const { accuracy, totalAnswers } = stat;
+  const summary = communityAccuracySummary(accuracy, totalAnswers);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.label, { color: colors.textMuted }]}>Acerto entre estudantes</Text>
-        <Text style={[styles.value, { color: colors.primary }]}>{`${accuracy}%`}</Text>
+        <Text
+          style={[
+            summary.hasSample ? styles.value : styles.emptyValue,
+            { color: summary.hasSample ? colors.primary : colors.textSubtle },
+          ]}>
+          {summary.valueLabel}
+        </Text>
       </View>
-      <ProgressBar
-        value={accuracy}
-        color={colors.primary}
-        label={`${accuracy}% de acerto em ${totalAnswers} ${totalAnswers === 1 ? 'resposta' : 'respostas'}`}
-      />
+      {summary.hasSample ? (
+        <ProgressBar
+          value={accuracy}
+          color={colors.primary}
+          label={`${summary.valueLabel} de acerto. ${summary.detailLabel}`}
+        />
+      ) : null}
+      <Text style={[styles.detail, { color: colors.textSubtle }]}>{summary.detailLabel}</Text>
     </View>
   );
 }
@@ -92,5 +103,7 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: FontSize.small, fontWeight: FontWeight.medium },
   value: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
+  emptyValue: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
+  detail: { fontSize: FontSize.tiny, lineHeight: 16 },
   status: { paddingVertical: Spacing.xs, fontSize: FontSize.small },
 });

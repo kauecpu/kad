@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { QuestionCard } from '@/components/question-card';
@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { FilterButton } from '@/components/ui/filter-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { StackHeader } from '@/components/ui/stack-header';
-import { CONTENT_MAX_WIDTH, Spacing } from '@/constants/theme';
+import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { countActiveFilters, EMPTY_FILTERS, filterQuestions } from '@/lib/questions';
 import { useApp } from '@/providers/app-provider';
@@ -96,11 +96,25 @@ export default function TopicPlayerScreen() {
         title={generalMode ? discipline : topic ?? 'Questões'}
         subtitle={generalMode ? 'Todos os assuntos' : discipline}
         onBack={() => router.back()}
-        right={<FilterButton activeCount={activeCount} onPress={() => setSheetVisible(true)} />}
+        right={
+          <FilterButton
+            activeCount={activeCount}
+            onPress={() => setSheetVisible(true)}
+            showLabel
+          />
+        }
       />
 
       {questions.length > 0 ? (
         <View style={styles.progressArea}>
+          <View style={styles.progressHeader}>
+            <Text style={[styles.progressLabel, { color: colors.text }]}>
+              {`Questão ${index + 1} de ${questions.length}`}
+            </Text>
+            <Text style={[styles.progressContext, { color: colors.textMuted }]}>
+              {generalMode ? current.topic : discipline}
+            </Text>
+          </View>
           <ProgressBar value={progress} label={`Questão ${index + 1} de ${questions.length}`} />
         </View>
       ) : null}
@@ -128,6 +142,7 @@ export default function TopicPlayerScreen() {
               question={current}
               position={index + 1}
               total={questions.length}
+              showPosition={false}
               answer={answers[current.id]}
               onAnswer={answerQuestion}
               onReset={resetQuestion}
@@ -153,7 +168,7 @@ export default function TopicPlayerScreen() {
             />
             {isLast ? (
               <Button
-                label="Concluir"
+                label="Concluir sessão"
                 icon="checkmark-done"
                 onPress={() => router.back()}
                 disabled={!answers[current.id]}
@@ -161,7 +176,7 @@ export default function TopicPlayerScreen() {
               />
             ) : (
               <Button
-                label="Próxima"
+                label="Próxima questão"
                 icon="chevron-forward"
                 onPress={() => goTo(index + 1)}
                 disabled={!answers[current.id]}
@@ -195,7 +210,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.md,
-    gap: Spacing.xs,
+    gap: Spacing.sm,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  progressLabel: {
+    fontSize: FontSize.small,
+    fontWeight: FontWeight.semibold,
+  },
+  progressContext: {
+    flex: 1,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.medium,
+    textAlign: 'right',
   },
   content: {
     width: '100%',

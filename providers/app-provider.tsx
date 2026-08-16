@@ -20,6 +20,13 @@ import {
 } from '@/lib/access-rules';
 import { sanitizeLegacyGuestProfile } from '@/lib/profile';
 import {
+  DEFAULT_WEEKLY_QUESTION_GOAL,
+  mergeQuestionActivityCounts,
+  normalizeWeeklyQuestionGoal,
+  questionActivityCountsFromAnswers,
+  recordQuestionStudyActivity,
+} from '@/lib/study-momentum';
+import {
   subscriptionAfterCancellation,
   subscriptionHasVerifiedAccess,
   subscriptionIsLoading,
@@ -61,6 +68,8 @@ type PersistedState = {
   answers: Record<string, AnswerRecord>;
   favoriteQuestionIds: string[];
   dailyQuestionUsage: DailyQuestionUsage;
+  questionActivityByDate: Record<string, number>;
+  weeklyQuestionGoal: number;
   savedConcursos: string[];
   themePreference: ThemePreference;
 };
@@ -78,6 +87,8 @@ const INITIAL_STATE: AppState = {
   answers: {},
   favoriteQuestionIds: [],
   dailyQuestionUsage: currentDailyUsage(),
+  questionActivityByDate: {},
+  weeklyQuestionGoal: DEFAULT_WEEKLY_QUESTION_GOAL,
   savedConcursos: [],
   themePreference: 'system',
 };
@@ -91,6 +102,7 @@ type AppContextValue = AppDataState & {
   canViewStatistics: boolean;
   canUseSimulations: boolean;
   subscriptionLoading: boolean;
+  setWeeklyQuestionGoal: (goal: number) => void;
   answerQuestion: (question: Question, selected: AlternativeId) => void;
   resetQuestion: (questionId: string) => void;
   toggleFavoriteQuestion: (questionId: string) => void;
@@ -160,10 +172,6 @@ function computePerformance(answers: Record<string, AnswerRecord>): Performance 
     accuracy: total > 0 ? (correct / total) * 100 : 0,
     bySubject,
   };
-}
-
-function isoToday(): string {
-  return new Date().toISOString();
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -287,6 +295,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           answers: parsed.answers ?? {},
           favoriteQuestionIds: parsed.favoriteQuestionIds ?? [],
           dailyQuestionUsage: currentDailyUsage(parsed.dailyQuestionUsage),
+          questionActivityByDate:
+            parsed.questionActivityByDate ??
+            questionActivityCountsFromAnswers(parsed.answers ?? {}),
+          weeklyQuestionGoal: normalizeWeeklyQuestionGoal(parsed.weeklyQuestionGoal),
           savedConcursos: parsed.savedConcursos ?? [],
           themePreference: isThemePreference(storedTheme)
             ? storedTheme
@@ -314,6 +326,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         answers: state.answers,
         favoriteQuestionIds: state.favoriteQuestionIds,
         dailyQuestionUsage: state.dailyQuestionUsage,
+        questionActivityByDate: state.questionActivityByDate,
+        weeklyQuestionGoal: state.weeklyQuestionGoal,
         savedConcursos: state.savedConcursos,
       },
       Boolean(userId)
@@ -326,6 +340,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     state.answers,
     state.favoriteQuestionIds,
     state.dailyQuestionUsage,
+    state.questionActivityByDate,
+    state.weeklyQuestionGoal,
     state.savedConcursos,
     hydrated,
     storageKey,
@@ -369,6 +385,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
               }
             : current.profile,
           answers: studyData.answers,
+          questionActivityByDate: mergeQuestionActivityCounts(
+            current.questionActivityByDate,
+            studyData.answers
+          ),
           favoriteQuestionIds: studyData.favoriteQuestionIds,
           savedConcursos: studyData.savedConcursos,
         }));
@@ -430,7 +450,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const answerQuestion = useCallback((question: Question, selected: AlternativeId) => {
     setState((current) => {
-      const usage = recordDailyQuestionUsage(current.dailyQuestionUsage, question.id);
+      const answeredAt = new Date();
+      const usage = recordDailyQuestionUsage(
+        current.dailyQuestionUsage,
+        question.id,
+        answeredAt
+      );
 
       return {
         ...current,
@@ -441,14 +466,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
             subject: question.subject,
             selected,
             isCorrect: selected === question.correct,
-            answeredAt: isoToday(),
+            answeredAt: answeredAt.toISOString(),
           },
         },
         dailyQuestionUsage: usage,
+        questionActivityByDate: recordQuestionStudyActivity(
+          current.questionActivityByDate,
+          answeredAt
+        ),
       };
     });
     if (userId) saveRemoteAnswer(userId, question, selected).catch(() => {});
   }, [userId]);
+
+  const setWeeklyQuestionGoal = useCallback((goal: number) => {
+    setState((current) => ({
+      ...current,
+      weeklyQuestionGoal: normalizeWeeklyQuestionGoal(goal),
+    }));
+  }, []);
 
   const resetQuestion = useCallback((questionId: string) => {
     setState((current) => {
@@ -484,7 +520,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state.favoriteQuestionIds, userId]);
 
   const resetProgress = useCallback(() => {
-    setState((current) => ({ ...current, answers: {} }));
+    setState((current) => ({ ...current, answers: {}, questionActivityByDate: {} }));
     if (userId) removeRemoteAnswer(userId).catch(() => {});
   }, [userId]);
 
@@ -592,12 +628,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       answers: state.answers,
       favoriteQuestionIds: state.favoriteQuestionIds,
       dailyQuestionUsage: state.dailyQuestionUsage,
+      questionActivityByDate: state.questionActivityByDate,
+      weeklyQuestionGoal: state.weeklyQuestionGoal,
       savedConcursos: state.savedConcursos,
       hydrated,
       performance,
       isPremium,
       subscriptionLoading,
       dailyQuestionsAnswered,
+      setWeeklyQuestionGoal,
       canViewStatistics: isPremium,
       canUseSimulations: isPremium,
       answerQuestion,
@@ -617,12 +656,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       state.answers,
       state.favoriteQuestionIds,
       state.dailyQuestionUsage,
+      state.questionActivityByDate,
+      state.weeklyQuestionGoal,
       state.savedConcursos,
       hydrated,
       performance,
       isPremium,
       subscriptionLoading,
       dailyQuestionsAnswered,
+      setWeeklyQuestionGoal,
       answerQuestion,
       resetQuestion,
       toggleFavoriteQuestion,
