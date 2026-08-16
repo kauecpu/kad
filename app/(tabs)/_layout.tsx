@@ -80,9 +80,10 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
-        name="concursos"
-        options={{ title: 'Concursos', tabBarIcon: tabIcon('briefcase-outline', 'briefcase') }}
+        name="rank"
+        options={{ title: 'Rank', tabBarIcon: tabIcon('trophy-outline', 'trophy') }}
       />
+      <Tabs.Screen name="concursos" options={{ href: null }} />
       <Tabs.Screen
         name="simulados"
         options={{ title: 'Simulados', tabBarIcon: tabIcon('clock-outline', 'clock') }}

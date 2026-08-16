@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { URL as NodeURL } from 'node:url';
 
 import { CONCURSO_PACKS } from '../data/exam-concursos.ts';
 import { QUESTIONS } from '../data/questions.ts';
@@ -12,6 +14,13 @@ import {
 } from '../lib/ranking.ts';
 import { questionsForPack } from '../lib/simulations.ts';
 import type { AnswerRecord, Question } from '../types/index.ts';
+
+function source(path: string) {
+  return readFileSync(new NodeURL(path, import.meta.url), 'utf8');
+}
+
+const tabsLayout = source('../app/(tabs)/_layout.tsx');
+const rankTab = source('../app/(tabs)/rank.tsx');
 
 function correctAnswer(question: Question, answeredAt: string): AnswerRecord {
   return {
@@ -99,4 +108,19 @@ test('classificação ordena por pontos e mantém a posição do usuário atual'
   assert.equal(ranking[0].isCurrentUser, true);
   assert.equal(ranking[0].rank, 1);
   assert.ok(ranking.every((entry, index) => entry.rank === index + 1));
+});
+
+test('o Rank ocupa o centro da barra inferior e abre a tela de ranking', () => {
+  const visibleTabs = Array.from(
+    tabsLayout.matchAll(/name="(inicio|questoes|rank|simulados|perfil)"/g),
+    (match) => match[1]
+  );
+
+  assert.deepEqual(visibleTabs, ['inicio', 'questoes', 'rank', 'simulados', 'perfil']);
+  assert.match(
+    tabsLayout,
+    /name="rank"[\s\S]*?title: 'Rank'[\s\S]*?tabIcon\('trophy-outline', 'trophy'\)/
+  );
+  assert.match(tabsLayout, /name="concursos" options=\{\{ href: null \}\}/);
+  assert.match(rankTab, /export \{ default \} from '\.\.\/ranking';/);
 });
