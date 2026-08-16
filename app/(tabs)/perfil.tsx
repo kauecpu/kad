@@ -1,5 +1,6 @@
 import Ionicons from '@/components/ui/app-icon';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -190,6 +191,18 @@ export default function PerfilScreen() {
             styles.identityCard,
             { backgroundColor: colors.surface, borderColor: colors.borderStrong },
           ]}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[colors.primarySoft, colors.surface, colors.surface]}
+            locations={[0, 0.52, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View
+            pointerEvents="none"
+            style={[styles.identityRail, { backgroundColor: colors.primary }]}
+          />
           <View style={styles.identitySignature}>
             <View style={[styles.signatureLineWide, { backgroundColor: colors.primary }]} />
             <View style={[styles.signatureLineNarrow, { backgroundColor: colors.primary }]} />
@@ -197,7 +210,12 @@ export default function PerfilScreen() {
 
           <View style={styles.identityContent}>
             <View style={styles.identityOverline}>
-              <Text style={[styles.overlineText, { color: colors.primary }]}>KAD / PERFIL</Text>
+              <View style={styles.identityBrand}>
+                <View style={[styles.identityBrandMark, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.identityBrandText}>K/</Text>
+                </View>
+                <Text style={[styles.overlineText, { color: colors.primary }]}>IDENTIDADE KAD</Text>
+              </View>
               <Badge
                 label={
                   subscription.plan === 'circle'
@@ -211,7 +229,18 @@ export default function PerfilScreen() {
             </View>
 
             <View style={styles.identityUser}>
-              <Avatar name={profile.name} uri={profile.avatarUri} size={72} onEdit={handlePickAvatar} />
+              <View
+                style={[
+                  styles.identityAvatarFrame,
+                  { backgroundColor: colors.surface, borderColor: colors.borderStrong },
+                ]}>
+                <Avatar
+                  name={profile.name}
+                  uri={profile.avatarUri}
+                  size={72}
+                  onEdit={handlePickAvatar}
+                />
+              </View>
               <View style={styles.identityCopy}>
                 <Text style={[styles.userName, { color: colors.text }]}>{profile.name}</Text>
                 {session && profile.username ? (
@@ -232,31 +261,31 @@ export default function PerfilScreen() {
               accessibilityState={{ disabled: !primaryAction.href }}
               style={({ pressed }) => [
                 styles.primaryAction,
-                {
-                  backgroundColor: colors.primarySoft,
-                  borderColor: colors.borderStrong,
-                },
                 pressed && styles.pressed,
                 !primaryAction.href && styles.disabled,
               ]}>
-              <View style={[styles.primaryActionIcon, { backgroundColor: colors.primary }]}>
-                <Ionicons
-                  name={session ? 'create-outline' : 'cloud-upload-outline'}
-                  size={18}
-                  color={colors.onPrimary}
-                />
-              </View>
-              <View style={styles.primaryActionCopy}>
-                <Text style={[styles.primaryActionLabel, { color: colors.text }]}>
-                  {primaryAction.label}
-                </Text>
-                <Text style={[styles.primaryActionDescription, { color: colors.textMuted }]}>
-                  {primaryAction.description}
-                </Text>
-              </View>
-              {primaryAction.href ? (
-                <Ionicons name="arrow-forward" size={19} color={colors.primary} />
-              ) : null}
+              <LinearGradient
+                colors={[colors.primaryStrong, colors.primary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.primaryActionGradient}>
+                <View style={styles.primaryActionIcon}>
+                  <Ionicons
+                    name={session ? 'create-outline' : 'cloud-upload-outline'}
+                    size={19}
+                    color="#FFFFFF"
+                  />
+                </View>
+                <View style={styles.primaryActionCopy}>
+                  <Text style={styles.primaryActionLabel}>{primaryAction.label}</Text>
+                  <Text style={styles.primaryActionDescription}>{primaryAction.description}</Text>
+                </View>
+                {primaryAction.href ? (
+                  <View style={styles.primaryActionArrow}>
+                    <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+                  </View>
+                ) : null}
+              </LinearGradient>
             </Pressable>
           </View>
         </Card>
@@ -488,6 +517,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
+  identityRail: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 4,
+  },
   identitySignature: {
     position: 'absolute',
     pointerEvents: 'none',
@@ -521,12 +557,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.md,
   },
+  identityBrand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  identityBrandMark: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.sm,
+  },
+  identityBrandText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.4,
+  },
   overlineText: {
     fontSize: FontSize.tiny,
     fontWeight: FontWeight.bold,
     letterSpacing: 1.1,
   },
   identityUser: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
+  identityAvatarFrame: {
+    padding: 4,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+  },
   identityCopy: { flex: 1, gap: 3 },
   userName: {
     fontSize: FontSize.title + 2,
@@ -537,24 +592,36 @@ const styles = StyleSheet.create({
   userDetail: { fontSize: FontSize.small, lineHeight: 18 },
   primaryAction: {
     minHeight: 62,
-    borderWidth: 1,
     borderRadius: Radius.md,
+    overflow: 'hidden',
+  },
+  primaryActionGradient: {
+    minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
   primaryActionIcon: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   primaryActionCopy: { flex: 1, gap: 2 },
-  primaryActionLabel: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  primaryActionDescription: { fontSize: FontSize.small, lineHeight: 18 },
+  primaryActionLabel: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  primaryActionDescription: { color: 'rgba(255,255,255,0.78)', fontSize: FontSize.small, lineHeight: 18 },
+  primaryActionArrow: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
   preparationPanel: {
     borderWidth: 1,
     borderRadius: Radius.lg,

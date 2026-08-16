@@ -1,4 +1,5 @@
 import Ionicons from '@/components/ui/app-icon';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -9,7 +10,14 @@ import { Card } from '@/components/ui/card';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SearchField } from '@/components/ui/search-field';
 import { Section } from '@/components/ui/section';
-import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
+import {
+  cardShadow,
+  CONTENT_MAX_WIDTH,
+  FontSize,
+  FontWeight,
+  Radius,
+  Spacing,
+} from '@/constants/theme';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { findStudyPackForConcurso } from '@/lib/concursos';
@@ -237,45 +245,60 @@ export default function SimulationsScreen() {
           }
           style={({ pressed }) => [
             styles.builderCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
+            { borderColor: colors.borderStrong },
+            cardShadow(colors.shadow, 2),
             pressed && styles.pressed,
           ]}>
-          <View style={styles.builderIcon}>
-            <Ionicons name="options-outline" size={23} color={colors.primary} />
-          </View>
-          <View style={styles.builderBody}>
-            <View style={styles.builderTitleRow}>
-              <Text style={[styles.builderTitle, { color: colors.text }]}>Monte seu simulado</Text>
-              <Badge
-                label={
-                  subscriptionLoading
-                    ? 'Verificando plano'
-                    : canUseSimulations
-                      ? 'Incluído no plano'
-                      : 'Planos KAD'
-                }
-                icon={
-                  subscriptionLoading
-                    ? 'time-outline'
-                    : canUseSimulations
-                      ? 'checkmark-circle'
-                      : 'lock-closed'
-                }
-                tone={canUseSimulations ? 'success' : 'warning'}
-              />
+          <LinearGradient
+            colors={[colors.primarySoft, colors.surface]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.builderGradient}>
+            <View
+              pointerEvents="none"
+              style={[styles.builderFacet, { backgroundColor: colors.primary }]}
+            />
+            <View style={[styles.builderIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="options" size={23} color="#FFFFFF" />
             </View>
-            <Text style={[styles.builderDescription, { color: colors.textMuted }]}>
-              Escolha conteúdo, quantidade de questões e tempo de prova.
-            </Text>
-            <Text style={[styles.builderAction, { color: colors.primary }]}>
-              {subscriptionLoading
-                ? 'Aguarde um instante'
-                : canUseSimulations
-                  ? 'Configurar prova'
-                  : 'Conhecer planos'}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={19} color={colors.primary} />
+            <View style={styles.builderBody}>
+              <View style={styles.builderTitleRow}>
+                <Text style={[styles.builderTitle, { color: colors.text }]}>Monte seu simulado</Text>
+                <Badge
+                  label={
+                    subscriptionLoading
+                      ? 'Verificando plano'
+                      : canUseSimulations
+                        ? 'Incluído no plano'
+                        : 'Planos KAD'
+                  }
+                  icon={
+                    subscriptionLoading
+                      ? 'time-outline'
+                      : canUseSimulations
+                        ? 'checkmark-circle'
+                        : 'lock-closed'
+                  }
+                  tone={canUseSimulations ? 'success' : 'warning'}
+                />
+              </View>
+              <Text style={[styles.builderDescription, { color: colors.textMuted }]}>
+                Escolha conteúdo, quantidade de questões e tempo de prova.
+              </Text>
+              <View style={styles.builderActionRow}>
+                <Text style={[styles.builderAction, { color: colors.primary }]}>
+                  {subscriptionLoading
+                    ? 'Aguarde um instante'
+                    : canUseSimulations
+                      ? 'Configurar prova'
+                      : 'Conhecer planos'}
+                </Text>
+                <View style={[styles.builderArrow, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+                </View>
+              </View>
+            </View>
+          </LinearGradient>
         </Pressable>
 
         {!query && recommendedPack ? (
@@ -384,20 +407,36 @@ const styles = StyleSheet.create({
   resumeTitle: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
   resumeDescription: { fontSize: FontSize.small, lineHeight: 18 },
   builderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
     borderWidth: 1,
     borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  builderGradient: {
+    minHeight: 116,
+    position: 'relative',
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.lg,
+    padding: Spacing.lg,
+  },
+  builderFacet: {
+    position: 'absolute',
+    width: 54,
+    height: 180,
+    right: 28,
+    top: -32,
+    opacity: 0.055,
+    transform: [{ rotate: '24deg' }],
   },
   builderIcon: {
-    width: 24,
-    height: 44,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: Radius.md,
   },
-  builderBody: { flex: 1, gap: 3 },
+  builderBody: { flex: 1, minWidth: 0, gap: Spacing.xs + 1 },
   builderTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -406,7 +445,15 @@ const styles = StyleSheet.create({
   },
   builderTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
   builderDescription: { fontSize: FontSize.small, lineHeight: 18 },
+  builderActionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   builderAction: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
+  builderArrow: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.pill,
+  },
   packList: { gap: Spacing.sm + 2 },
   packCard: {
     minHeight: 82,
