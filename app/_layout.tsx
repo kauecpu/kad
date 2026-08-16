@@ -13,6 +13,7 @@ import { authRouteAccess } from '@/lib/auth-routing';
 import { SearchProvider } from '@/providers/search-provider';
 import { SimulationProvider } from '@/providers/simulation-provider';
 import { ConcursosProvider } from '@/providers/concursos-provider';
+import { QuestionsProvider } from '@/providers/questions-provider';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -117,13 +118,15 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <ConcursosProvider>
-            <AppProvider>
-              <SimulationProvider>
-                <SearchProvider>
-                  <RootNavigator />
-                </SearchProvider>
-              </SimulationProvider>
-            </AppProvider>
+            <QuestionsProvider>
+              <AppProvider>
+                <SimulationProvider>
+                  <SearchProvider>
+                    <RootNavigator />
+                  </SearchProvider>
+                </SimulationProvider>
+              </AppProvider>
+            </QuestionsProvider>
           </ConcursosProvider>
         </AuthProvider>
       </SafeAreaProvider>

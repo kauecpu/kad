@@ -30,6 +30,7 @@ import {
 import { useApp } from '@/providers/app-provider';
 import { useSimulation } from '@/providers/simulation-provider';
 import { useConcursos } from '@/providers/concursos-provider';
+import { useQuestions } from '@/providers/questions-provider';
 import type { ConcursoPack, SimulationSession } from '@/types';
 
 function normalize(value: string): string {
@@ -56,6 +57,7 @@ export default function SimulationsScreen() {
   const { canUseSimulations, profile, savedConcursos, subscriptionLoading } = useApp();
   const { concursos } = useConcursos();
   const { session, history } = useSimulation();
+  const { questions } = useQuestions();
   const [query, setQuery] = useState('');
 
   const recommendedPack = useMemo(() => {
@@ -92,12 +94,12 @@ export default function SimulationsScreen() {
   const openPlans = () => router.push('/perfil/planos');
 
   const renderPack = (pack: ConcursoPack, featured = false) => {
-    const questions = questionsForPack(pack);
-    const disciplineCount = new Set(questions.map((question) => question.discipline)).size;
+    const packQuestions = questionsForPack(pack, questions);
+    const disciplineCount = new Set(packQuestions.map((question) => question.discipline)).size;
     const attempts = history.filter((item) => item.config.packId === pack.id);
     const latest = attempts[0];
-    const score = latest ? simulationScore(latest) : undefined;
-    const disabled = questions.length === 0;
+    const score = latest ? simulationScore(latest, questions) : undefined;
+    const disabled = packQuestions.length === 0;
     const locked = !canUseSimulations;
 
     return (
@@ -139,7 +141,7 @@ export default function SimulationsScreen() {
           <Text style={[styles.packMeta, { color: colors.textMuted }]} numberOfLines={2}>
             {disabled
               ? 'Questões em breve'
-              : `${pack.subtitle ? `${pack.subtitle} · ` : ''}${questions.length} ${questions.length === 1 ? 'questão' : 'questões'} · ${disciplineCount} ${disciplineCount === 1 ? 'disciplina' : 'disciplinas'}`}
+              : `${pack.subtitle ? `${pack.subtitle} · ` : ''}${packQuestions.length} ${packQuestions.length === 1 ? 'questão' : 'questões'} · ${disciplineCount} ${disciplineCount === 1 ? 'disciplina' : 'disciplinas'}`}
           </Text>
           {!disabled ? (
             <View style={styles.progressRow}>
@@ -222,7 +224,7 @@ export default function SimulationsScreen() {
               </Text>
               <Text style={[styles.resumeDescription, { color: colors.textMuted }]}>
                 {session.status === 'completed'
-                  ? `${formatPercent(simulationScore(session).accuracy)} de aproveitamento · toque para revisar`
+                  ? `${formatPercent(simulationScore(session, questions).accuracy)} de aproveitamento · toque para revisar`
                   : `${Object.keys(session.answers).length} de ${session.questions.length} questões respondidas`}
               </Text>
             </View>
@@ -354,8 +356,9 @@ export default function SimulationsScreen() {
 
 function HistoryRow({ session, isLast }: { session: SimulationSession; isLast: boolean }) {
   const { colors } = useTheme();
+  const { questions } = useQuestions();
   const pack = CONCURSO_PACKS.find((item) => item.id === session.config.packId);
-  const score = simulationScore(session);
+  const score = simulationScore(session, questions);
   return (
     <View
       style={[

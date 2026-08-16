@@ -13,6 +13,7 @@ import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { questionsForPack } from '@/lib/simulations';
 import { useApp } from '@/providers/app-provider';
+import { useQuestions } from '@/providers/questions-provider';
 
 export default function ConcursoQuestionPlayerScreen() {
   const { colors } = useTheme();
@@ -24,18 +25,19 @@ export default function ConcursoQuestionPlayerScreen() {
     topic?: string;
   }>();
   const { answers, answerQuestion, resetQuestion } = useApp();
+  const { questions: availableQuestions } = useQuestions();
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
   const pack = CONCURSO_PACKS.find((item) => item.id === id);
   const questions = useMemo(() => {
-    const packQuestions = pack ? questionsForPack(pack) : [];
+    const packQuestions = pack ? questionsForPack(pack, availableQuestions) : [];
     return packQuestions.filter(
       (question) =>
         (!discipline || question.discipline === discipline) &&
         (!topic || question.topic === topic)
     );
-  }, [discipline, pack, topic]);
+  }, [availableQuestions, discipline, pack, topic]);
 
   useEffect(() => {
     setIndex(0);

@@ -12,7 +12,6 @@ import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
-import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import {
   DEFAULT_SIMULATION_CONFIG,
@@ -22,6 +21,7 @@ import {
 import { topicsForDisciplines } from '@/lib/search';
 import { useApp } from '@/providers/app-provider';
 import { useSimulation } from '@/providers/simulation-provider';
+import { useQuestions } from '@/providers/questions-provider';
 import type { Difficulty, SimulationConfig } from '@/types';
 
 type SheetKey = 'pack' | 'disciplines' | 'topics' | 'boards' | 'years' | 'difficulties';
@@ -39,10 +39,13 @@ export default function ConfigureSimulationScreen() {
   const { packId } = useLocalSearchParams<{ packId?: string }>();
   const { canUseSimulations, subscriptionLoading } = useApp();
   const { session, startSimulation } = useSimulation();
+  const { questions } = useQuestions();
 
   const initialPack = CONCURSO_PACKS.some((item) => item.id === packId) ? packId : undefined;
   const initialPackData = CONCURSO_PACKS.find((item) => item.id === initialPack);
-  const initialQuestionTotal = initialPackData ? questionsForPack(initialPackData).length : 0;
+  const initialQuestionTotal = initialPackData
+    ? questionsForPack(initialPackData, questions).length
+    : 0;
   const [config, setConfig] = useState<SimulationConfig>({
     ...DEFAULT_SIMULATION_CONFIG,
     packId: initialPack,
@@ -53,10 +56,13 @@ export default function ConfigureSimulationScreen() {
   });
   const [sheet, setSheet] = useState<SheetKey | null>(null);
 
-  const candidates = useMemo(() => simulationCandidates(config), [config]);
+  const candidates = useMemo(
+    () => simulationCandidates(config, questions),
+    [config, questions],
+  );
   const availableTopics = useMemo(
-    () => topicsForDisciplines(config.disciplines),
-    [config.disciplines]
+    () => topicsForDisciplines(config.disciplines, questions),
+    [config.disciplines, questions]
   );
   const pack = CONCURSO_PACKS.find((item) => item.id === config.packId);
   const questionCountOptions = useMemo(() => {
@@ -121,7 +127,7 @@ export default function ConfigureSimulationScreen() {
           options: DISCIPLINES.map((item) => item.name),
           selected: config.disciplines,
           onChange: (selected: string[]) => {
-            const allowedTopics = topicsForDisciplines(selected);
+            const allowedTopics = topicsForDisciplines(selected, questions);
             update({
               disciplines: selected,
               topics: config.topics.filter((topic) => allowedTopics.includes(topic)),
@@ -138,14 +144,14 @@ export default function ConfigureSimulationScreen() {
         },
         boards: {
           title: 'Banca',
-          options: unique(QUESTIONS.map((item) => item.board)),
+          options: unique(questions.map((item) => item.board)),
           selected: config.boards,
           onChange: (selected: string[]) => update({ boards: selected }),
           single: false,
         },
         years: {
           title: 'Ano',
-          options: Array.from(new Set(QUESTIONS.map((item) => item.year)))
+          options: Array.from(new Set(questions.map((item) => item.year)))
             .sort((a, b) => b - a)
             .map(String),
           selected: config.years.map(String),

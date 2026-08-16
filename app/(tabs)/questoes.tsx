@@ -11,10 +11,10 @@ import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
-import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { formatPercent } from '@/lib/format';
 import { useApp } from '@/providers/app-provider';
+import { useQuestions } from '@/providers/questions-provider';
 import type { ConcursoPack } from '@/types';
 
 type StudyMode = 'discipline' | 'concurso';
@@ -47,11 +47,12 @@ export default function QuestionsScreen() {
     canViewStatistics,
     performance,
   } = useApp();
+  const { questions: availableQuestions } = useQuestions();
   const [studyMode, setStudyMode] = useState<StudyMode>('discipline');
 
   const disciplines = useMemo<DisciplineStat[]>(() => {
     return DISCIPLINES.map((discipline) => {
-      const questions = QUESTIONS.filter((q) => q.discipline === discipline.name);
+      const questions = availableQuestions.filter((q) => q.discipline === discipline.name);
       const answered = questions.filter((q) => answers[q.id]);
       const correct = answered.filter((q) => answers[q.id]?.isCorrect).length;
       const topicsWithQuestions = discipline.topics.filter((topic) =>
@@ -68,7 +69,7 @@ export default function QuestionsScreen() {
         correct,
       };
     });
-  }, [answers]);
+  }, [answers, availableQuestions]);
 
   const studyItems = useMemo<StudyItem[]>(
     () =>
@@ -123,7 +124,7 @@ export default function QuestionsScreen() {
   };
 
   const renderConcurso = (pack: ConcursoPack) => {
-    const questions = QUESTIONS.filter((question) =>
+    const questions = availableQuestions.filter((question) =>
       pack.disciplines.includes(question.discipline)
     );
     const answered = questions.filter((question) => answers[question.id]);

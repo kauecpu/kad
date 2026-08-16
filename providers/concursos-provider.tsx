@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createContext,
   type ReactNode,
@@ -9,127 +10,93 @@ import {
 } from 'react';
 
 import { CONCURSOS } from '@/data/concursos';
+import { mapPublishedConcursos } from '@/lib/published-content';
 import { supabase } from '@/lib/supabase';
-import type { Concurso, ConcursoRole, EducationLevel, Region } from '@/types';
+import type { Concurso } from '@/types';
 
-type RemoteRole = {
-  name: string;
-  vacancies: number;
-  salary: number | string;
-  level: EducationLevel;
-  sort_order: number;
-};
+const CACHE_KEY = '@kad/published-concursos/v1';
 
-type RemoteConcurso = {
-  id: string;
-  short_name: string;
-  icon: string;
-  icon_color: string;
-  organ: string;
-  title: string;
-  board: string;
-  state: string;
-  city: string | null;
-  region: Region;
-  levels: EducationLevel[];
-  vacancies: number;
-  salary_min: number | string;
-  salary_max: number | string;
-  registration_start: string | null;
-  registration_end: string | null;
-  exam_date: string | null;
-  fee: number | string | null;
-  status: Concurso['status'];
-  highlights: string[];
-  edital_url: string;
-  updated_at: string;
-  concurso_roles: RemoteRole[];
-};
+type ContentSource = 'demo' | 'cache' | 'published';
 
 type ConcursoContextValue = {
   concursos: Concurso[];
   loading: boolean;
-  source: 'demo' | 'published';
+  error: string | null;
+  source: ContentSource;
   refresh: () => Promise<void>;
 };
 
 const ConcursoContext = createContext<ConcursoContextValue | null>(null);
 
-function mapRemoteConcurso(row: RemoteConcurso): Concurso {
-  const roles: ConcursoRole[] = [...(row.concurso_roles ?? [])]
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((role) => ({
-      name: role.name,
-      vacancies: role.vacancies,
-      salary: Number(role.salary),
-      level: role.level,
-    }));
-
-  return {
-    id: row.id,
-    shortName: row.short_name,
-    icon: row.icon,
-    iconColor: row.icon_color,
-    organ: row.organ,
-    title: row.title,
-    board: row.board,
-    state: row.state,
-    city: row.city ?? undefined,
-    region: row.region,
-    levels: row.levels,
-    vacancies: row.vacancies,
-    salaryMin: Number(row.salary_min),
-    salaryMax: Number(row.salary_max),
-    registrationStart: row.registration_start ?? undefined,
-    registrationEnd: row.registration_end ?? undefined,
-    examDate: row.exam_date ?? undefined,
-    fee: row.fee === null ? undefined : Number(row.fee),
-    status: row.status,
-    roles,
-    highlights: row.highlights ?? [],
-    editalUrl: row.edital_url,
-    updatedAt: row.updated_at,
-    contentSource: 'published',
-  };
-}
-
 export function ConcursosProvider({ children }: { children: ReactNode }) {
-  const [concursos, setConcursos] = useState<Concurso[]>(CONCURSOS);
-  const [source, setSource] = useState<'demo' | 'published'>('demo');
+  const [concursos, setConcursos] = useState<Concurso[]>(supabase ? [] : CONCURSOS);
+  const [source, setSource] = useState<ContentSource>('demo');
   const [loading, setLoading] = useState(Boolean(supabase));
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!supabase) {
       setLoading(false);
+      setError('O conteúdo online não está configurado neste ambiente.');
       return;
     }
 
     setLoading(true);
-    const { data, error } = await supabase
+    setError(null);
+    const { data, error: requestError } = await supabase
       .from('concursos')
       .select(`
         id, short_name, icon, icon_color, organ, title, board, state, city, region,
         levels, vacancies, salary_min, salary_max, registration_start, registration_end,
-        exam_date, fee, status, highlights, edital_url, updated_at,
+        exam_date, fee, status, highlights, edital_url, updated_at, source_provider,
         concurso_roles (name, vacancies, salary, level, sort_order)
       `)
       .eq('publication_status', 'published')
       .order('updated_at', { ascending: false });
 
-    if (!error && data && data.length > 0) {
-      setConcursos((data as unknown as RemoteConcurso[]).map(mapRemoteConcurso));
-      setSource('published');
+    if (requestError) {
+      setError('Não foi possível atualizar os concursos agora.');
+      setLoading(false);
+      return;
+    }
+
+    const published = mapPublishedConcursos(data);
+    if (data && published.length !== data.length) {
+      setError('Alguns concursos publicados foram ignorados por estarem incompletos.');
+    }
+    setConcursos(published);
+    setSource('published');
+    if (published.length > 0) {
+      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(published)).catch(() => {});
+    } else {
+      await AsyncStorage.removeItem(CACHE_KEY).catch(() => {});
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    void refresh();
+    let active = true;
+    AsyncStorage.getItem(CACHE_KEY)
+      .then((cached) => {
+        if (!active || !cached) return;
+        const parsed = JSON.parse(cached) as Concurso[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setConcursos(parsed);
+          setSource('cache');
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) void refresh();
+      });
+    return () => {
+      active = false;
+    };
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ concursos, loading, source, refresh }),
-    [concursos, loading, refresh, source],
+    () => ({ concursos, loading, error, source, refresh }),
+    [concursos, error, loading, refresh, source],
   );
 
   return <ConcursoContext.Provider value={value}>{children}</ConcursoContext.Provider>;

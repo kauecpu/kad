@@ -37,8 +37,11 @@ export function questionMatchesPack(question: Question, pack: ConcursoPack): boo
 }
 
 /** Questões realmente relacionadas ao concurso ou à área, sem misturar apenas por disciplina. */
-export function questionsForPack(pack: ConcursoPack): Question[] {
-  return QUESTIONS.filter((question) => questionMatchesPack(question, pack));
+export function questionsForPack(
+  pack: ConcursoPack,
+  questions: Question[] = QUESTIONS,
+): Question[] {
+  return questions.filter((question) => questionMatchesPack(question, pack));
 }
 
 export function recommendPackForGoal(
@@ -75,12 +78,15 @@ export const DEFAULT_SIMULATION_CONFIG: SimulationConfig = {
   shuffleAlternatives: true,
 };
 
-export function simulationCandidates(config: SimulationConfig): Question[] {
+export function simulationCandidates(
+  config: SimulationConfig,
+  questions: Question[] = QUESTIONS,
+): Question[] {
   const pack = config.packId
     ? CONCURSO_PACKS.find((item) => item.id === config.packId)
     : undefined;
 
-  return QUESTIONS.filter((question) => {
+  return questions.filter((question) => {
     if (pack && !questionMatchesPack(question, pack)) return false;
     if (
       config.disciplines.length > 0 &&
@@ -110,8 +116,11 @@ function shuffled<T>(values: T[]): T[] {
   return next;
 }
 
-export function createSimulationSession(config: SimulationConfig): SimulationSession | null {
-  const candidates = simulationCandidates(config);
+export function createSimulationSession(
+  config: SimulationConfig,
+  availableQuestions: Question[] = QUESTIONS,
+): SimulationSession | null {
+  const candidates = simulationCandidates(config, availableQuestions);
   if (candidates.length === 0) return null;
 
   const orderedQuestions = config.shuffleQuestions ? shuffled(candidates) : candidates;
@@ -145,14 +154,17 @@ export function createSimulationSession(config: SimulationConfig): SimulationSes
   };
 }
 
-export function simulationQuestionById(questionId: string): Question | undefined {
-  return QUESTIONS.find((question) => question.id === questionId);
+export function simulationQuestionById(
+  questionId: string,
+  questions: Question[] = QUESTIONS,
+): Question | undefined {
+  return questions.find((question) => question.id === questionId);
 }
 
-export function simulationScore(session: SimulationSession) {
+export function simulationScore(session: SimulationSession, questions: Question[] = QUESTIONS) {
   const items = session.questions
     .map((item) => {
-      const question = simulationQuestionById(item.questionId);
+      const question = simulationQuestionById(item.questionId, questions);
       const selected = session.answers[item.questionId];
       return question
         ? {
