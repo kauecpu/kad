@@ -9,7 +9,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { FilterButton } from '@/components/ui/filter-button';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, Spacing } from '@/constants/theme';
-import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { countActiveFilters, EMPTY_FILTERS, filterQuestions } from '@/lib/questions';
 import {
@@ -17,6 +16,7 @@ import {
   type QuestionReviewType,
 } from '@/lib/question-review';
 import { useApp } from '@/providers/app-provider';
+import { useQuestions } from '@/providers/questions-provider';
 import type { Question, QuestionFilters } from '@/types';
 
 const COPY: Record<
@@ -64,6 +64,7 @@ export default function PerformanceQuestionsScreen() {
     answerQuestion,
     resetQuestion,
   } = useApp();
+  const { questions: availableQuestions } = useQuestions();
   const type = normalizeType(tipo);
   const copy = COPY[type];
   const isFilterable = type === 'wrong' || type === 'favorites';
@@ -71,8 +72,8 @@ export default function PerformanceQuestionsScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
 
   const reviewQuestions = useMemo(
-    () => questionsForReview(QUESTIONS, answers, favoriteQuestionIds, type),
-    [answers, favoriteQuestionIds, type]
+    () => questionsForReview(availableQuestions, answers, favoriteQuestionIds, type),
+    [answers, availableQuestions, favoriteQuestionIds, type]
   );
   const filterOptions = useMemo<FilterOptions>(
     () => ({

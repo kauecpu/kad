@@ -11,6 +11,7 @@ import {
 
 import { createSimulationSession } from '@/lib/simulations';
 import { useAuth } from '@/providers/auth-provider';
+import { useQuestions } from '@/providers/questions-provider';
 import type { AlternativeId, SimulationConfig, SimulationSession } from '@/types';
 
 const LEGACY_STORAGE_KEY = '@kad/simulation-session/v1';
@@ -38,6 +39,7 @@ const SimulationContext = createContext<SimulationContextValue | null>(null);
 
 export function SimulationProvider({ children }: { children: ReactNode }) {
   const { session: authSession, isLoading: authLoading } = useAuth();
+  const { questions } = useQuestions();
   const [session, setSession] = useState<SimulationSession | null>(null);
   const [history, setHistory] = useState<SimulationSession[]>([]);
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
@@ -110,10 +112,10 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   }, [hydrated, session]);
 
   const startSimulation = useCallback((config: SimulationConfig) => {
-    const next = createSimulationSession(config);
+    const next = createSimulationSession(config, questions);
     if (next) setSession(next);
     return next;
-  }, []);
+  }, [questions]);
 
   const answerQuestion = useCallback((questionId: string, alternative: AlternativeId) => {
     setSession((current) =>

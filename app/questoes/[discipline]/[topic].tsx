@@ -11,10 +11,10 @@ import { FilterButton } from '@/components/ui/filter-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
-import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { countActiveFilters, EMPTY_FILTERS, filterQuestions } from '@/lib/questions';
 import { useApp } from '@/providers/app-provider';
+import { useQuestions } from '@/providers/questions-provider';
 import type { QuestionFilters } from '@/types';
 
 function unique<T>(values: T[]): T[] {
@@ -27,15 +27,16 @@ export default function TopicPlayerScreen() {
   const router = useRouter();
   const { discipline, topic } = useLocalSearchParams<{ discipline: string; topic: string }>();
   const { answers, answerQuestion, resetQuestion } = useApp();
+  const { questions: availableQuestions } = useQuestions();
   const generalMode = topic === 'geral';
 
   const topicQuestions = useMemo(
     () =>
-      QUESTIONS.filter(
+      availableQuestions.filter(
         (question) =>
           question.discipline === discipline && (generalMode || question.topic === topic)
       ),
-    [discipline, generalMode, topic]
+    [availableQuestions, discipline, generalMode, topic]
   );
 
   const options = useMemo<FilterOptions>(

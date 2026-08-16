@@ -22,12 +22,13 @@ import { useTheme } from '@/hooks/use-theme';
 import { toggleValue } from '@/lib/questions';
 import {
   countSearchFilters,
-  SEARCH_OPTIONS,
+  searchOptionsForQuestions,
   searchQuestions,
   topicsForDisciplines,
 } from '@/lib/search';
 import { useApp } from '@/providers/app-provider';
 import { useSearch } from '@/providers/search-provider';
+import { useQuestions } from '@/providers/questions-provider';
 import type { AnsweredFilter, ResultFilter } from '@/types';
 
 type Mode = 'basic' | 'advanced';
@@ -56,14 +57,19 @@ export default function SearchScreen() {
   const router = useRouter();
   const { answers, canViewStatistics } = useApp();
   const { search, update, reset } = useSearch();
+  const { questions } = useQuestions();
+  const searchOptions = useMemo(() => searchOptionsForQuestions(questions), [questions]);
 
   const [mode, setMode] = useState<Mode>('basic');
   const [sheet, setSheet] = useState<SheetKey | null>(null);
 
-  const matchCount = useMemo(() => searchQuestions(search, answers).length, [search, answers]);
+  const matchCount = useMemo(
+    () => searchQuestions(search, answers, questions).length,
+    [answers, questions, search],
+  );
   const availableTopics = useMemo(
-    () => topicsForDisciplines(search.disciplines),
-    [search.disciplines]
+    () => topicsForDisciplines(search.disciplines, questions),
+    [questions, search.disciplines]
   );
   const activeCount = countSearchFilters(search);
 
@@ -73,10 +79,10 @@ export default function SearchScreen() {
   > = {
     disciplines: {
       title: 'Disciplina',
-      options: SEARCH_OPTIONS.disciplines,
+      options: searchOptions.disciplines,
       selected: search.disciplines,
       onChange: (v) => {
-        const allowedTopics = topicsForDisciplines(v);
+        const allowedTopics = topicsForDisciplines(v, questions);
         update({
           disciplines: v,
           topics: search.topics.filter((topic) => allowedTopics.includes(topic)),
@@ -91,19 +97,19 @@ export default function SearchScreen() {
     },
     boards: {
       title: 'Banca',
-      options: SEARCH_OPTIONS.boards,
+      options: searchOptions.boards,
       selected: search.boards,
       onChange: (v) => update({ boards: v }),
     },
     roles: {
       title: 'Cargo',
-      options: SEARCH_OPTIONS.roles,
+      options: searchOptions.roles,
       selected: search.roles,
       onChange: (v) => update({ roles: v }),
     },
     institutions: {
       title: 'Concurso / órgão',
-      options: SEARCH_OPTIONS.institutions,
+      options: searchOptions.institutions,
       selected: search.institutions,
       onChange: (v) => update({ institutions: v }),
     },
@@ -167,7 +173,7 @@ export default function SearchScreen() {
 
             <FilterGroup label="Ano" count={search.years.length}>
               <View style={styles.chips}>
-                {SEARCH_OPTIONS.years.map((year) => (
+                {searchOptions.years.map((year) => (
                   <Chip
                     key={year}
                     label={String(year)}
@@ -210,7 +216,7 @@ export default function SearchScreen() {
 
             <FilterGroup label="Dificuldade" count={search.difficulties.length}>
               <View style={styles.chips}>
-                {SEARCH_OPTIONS.difficulties.map((level) => (
+                {searchOptions.difficulties.map((level) => (
                   <Chip
                     key={level}
                     label={level}

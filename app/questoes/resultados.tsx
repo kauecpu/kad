@@ -11,6 +11,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { searchQuestions } from '@/lib/search';
 import { useApp } from '@/providers/app-provider';
 import { useSearch } from '@/providers/search-provider';
+import { useQuestions } from '@/providers/questions-provider';
 import type { Question } from '@/types';
 
 export default function SearchResultsScreen() {
@@ -19,8 +20,12 @@ export default function SearchResultsScreen() {
   const router = useRouter();
   const { answers, answerQuestion, resetQuestion } = useApp();
   const { search } = useSearch();
+  const { questions } = useQuestions();
 
-  const results = useMemo(() => searchQuestions(search, answers), [search, answers]);
+  const results = useMemo(
+    () => searchQuestions(search, answers, questions),
+    [answers, questions, search],
+  );
 
   const renderItem = ({ item, index }: { item: Question; index: number }) => (
     <QuestionCard

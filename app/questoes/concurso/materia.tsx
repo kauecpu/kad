@@ -16,6 +16,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { formatPercent } from '@/lib/format';
 import { questionsForPack } from '@/lib/simulations';
 import { useApp } from '@/providers/app-provider';
+import { useQuestions } from '@/providers/questions-provider';
 
 export default function ConcursoDisciplineScreen() {
   const { colors } = useTheme();
@@ -23,15 +24,18 @@ export default function ConcursoDisciplineScreen() {
   const router = useRouter();
   const { id, discipline } = useLocalSearchParams<{ id: string; discipline: string }>();
   const { answers, canViewStatistics } = useApp();
+  const { questions: availableQuestions } = useQuestions();
 
   const pack = CONCURSO_PACKS.find((item) => item.id === id);
   const definition = DISCIPLINES.find((item) => item.name === discipline);
   const questions = useMemo(
     () =>
       pack
-        ? questionsForPack(pack).filter((question) => question.discipline === discipline)
+        ? questionsForPack(pack, availableQuestions).filter(
+            (question) => question.discipline === discipline,
+          )
         : [],
-    [discipline, pack]
+    [availableQuestions, discipline, pack]
   );
   const topics = useMemo(() => {
     const names = Array.from(new Set(questions.map((question) => question.topic)));

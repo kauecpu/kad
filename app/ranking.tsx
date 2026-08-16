@@ -17,11 +17,11 @@ import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { StackHeader } from '@/components/ui/stack-header';
 import { cardShadow, CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
-import { QUESTIONS } from '@/data/questions';
 import { RANKING_PARTICIPANTS, type RankingPeriod } from '@/data/ranking';
 import { useTheme } from '@/hooks/use-theme';
 import { buildRanking, localRankingScore, type RankingEntry } from '@/lib/ranking';
 import { useApp } from '@/providers/app-provider';
+import { useQuestions } from '@/providers/questions-provider';
 
 const PERIOD_OPTIONS: SegmentedOption<RankingPeriod>[] = [
   { value: 'today', label: 'Hoje' },
@@ -47,6 +47,7 @@ export default function RankingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { answers, profile } = useApp();
+  const { questions } = useQuestions();
   const [period, setPeriod] = useState<RankingPeriod>('today');
   const [packId, setPackId] = useState('all');
   const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -57,12 +58,12 @@ export default function RankingScreen() {
   const localScore = useMemo(
     () => localRankingScore({
       answers,
-      questions: QUESTIONS,
+      questions,
       packs: CONCURSO_PACKS,
       period,
       packId,
     }),
-    [answers, packId, period],
+    [answers, packId, period, questions],
   );
 
   const ranking = useMemo(() => buildRanking({

@@ -6,6 +6,7 @@ import {
   FileJson2,
   History,
   LoaderCircle,
+  PackageCheck,
   RotateCcw,
   Upload,
   X,
@@ -23,6 +24,7 @@ import {
   setImportDecision,
   updateImportItem,
 } from '../lib/imports-api';
+import { publishInitialCatalog } from '../lib/local-catalog-api';
 import type {
   AdminImportBatch,
   AdminImportBatchDetail,
@@ -50,7 +52,9 @@ export function ImportsPage() {
   const [editingItem, setEditingItem] = useState<AdminImportItem | null>(null);
   const [editorText, setEditorText] = useState('');
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [publishProgress, setPublishProgress] = useState<string | null>(null);
   const canWrite = !isPreview && Boolean(access?.permissions.includes('content.write'));
+  const canPublish = !isPreview && Boolean(access?.permissions.includes('content.publish'));
 
   const refresh = async (selectedId?: string) => {
     if (isPreview) return;
@@ -151,6 +155,36 @@ export function ImportsPage() {
     finally { setBusy(false); }
   };
 
+  const publishCatalog = async () => {
+    if (
+      !canPublish ||
+      !window.confirm(
+        'Publicar os 15 concursos e as 51 questões do acervo inicial no aplicativo?',
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await publishInitialCatalog(({ completed, total, label }) => {
+        setPublishProgress(`${completed} de ${total} · ${label}`);
+      });
+      setNotice(
+        `${result.concursos} concursos e ${result.questions} questões publicados no catálogo.`,
+      );
+      await refresh();
+    } catch {
+      setError(
+        'A publicação foi interrompida. Corrija o item indicado e tente novamente; a operação é idempotente.',
+      );
+    } finally {
+      setPublishProgress(null);
+      setBusy(false);
+    }
+  };
+
   const readyToImport = useMemo(() => detail?.items.filter((item) =>
     (item.status === 'ready' || item.status === 'duplicate') && item.decision !== 'skip').length ?? 0, [detail]);
 
@@ -160,6 +194,28 @@ export function ImportsPage() {
       {isPreview ? <div className="page-alert page-alert--preview"><CircleAlert size={19}/><span>Importações exigem uma sessão administrativa conectada ao Supabase.</span></div> : null}
       {error ? <div className="page-alert" role="alert"><CircleAlert size={19}/><span>{error}</span></div> : null}
       {notice ? <div className="page-alert page-alert--success"><CheckCircle2 size={19}/><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="Fechar"><X size={16}/></button></div> : null}
+
+      <section className="content-workspace">
+        <div className="batch-detail-heading">
+          <div>
+            <span className="page-eyebrow">ACERVO INICIAL DO KAD</span>
+            <h2>Publicar conteúdo que já está no aplicativo</h2>
+            <p>15 concursos e 51 questões autorais, usando a sessão administrativa e o log de auditoria.</p>
+            {publishProgress ? <small aria-live="polite">Publicando {publishProgress}</small> : null}
+          </div>
+          <div className="batch-actions">
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => void publishCatalog()}
+              disabled={!canPublish || busy}>
+              {busy && publishProgress ? <LoaderCircle className="spin" size={17}/> : <PackageCheck size={17}/>}
+              Publicar acervo inicial
+            </button>
+          </div>
+        </div>
+        {!canPublish ? <p className="form-hint">Esta ação exige a permissão content.publish.</p> : null}
+      </section>
 
       <section className="import-grid">
         <article className="import-upload-card">

@@ -14,6 +14,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { simulationQuestionById } from '@/lib/simulations';
 import { useApp } from '@/providers/app-provider';
 import { useSimulation } from '@/providers/simulation-provider';
+import { useQuestions } from '@/providers/questions-provider';
 
 function formatTimer(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -26,6 +27,7 @@ export default function SimulationPlayerScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { canUseSimulations, subscriptionLoading } = useApp();
+  const { questions } = useQuestions();
   const scrollRef = useRef<ScrollView>(null);
   const resumeHandled = useRef(false);
   const {
@@ -66,7 +68,7 @@ export default function SimulationPlayerScreen() {
 
   const currentItem = session?.questions[session.currentIndex];
   const currentQuestion = currentItem
-    ? simulationQuestionById(currentItem.questionId)
+    ? simulationQuestionById(currentItem.questionId, questions)
     : undefined;
   const answeredCount = session ? Object.keys(session.answers).length : 0;
   const progress = session ? (answeredCount / session.questions.length) * 100 : 0;
