@@ -86,9 +86,7 @@ export function HomeContent() {
     profile,
     performance,
     isPremium,
-    dailyQuestionLimit,
     dailyQuestionsAnswered,
-    dailyQuestionsRemaining,
     savedConcursos,
   } = useApp();
   const { session } = useSimulation();
@@ -126,10 +124,6 @@ export function HomeContent() {
         }
       : undefined,
   });
-  const dailyProgress = dailyQuestionLimit
-    ? (dailyQuestionsAnswered / dailyQuestionLimit) * 100
-    : 0;
-
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
@@ -214,15 +208,15 @@ export function HomeContent() {
                 </Text>
               ) : (
                 <Text style={[styles.todayRemaining, { color: colors.textMuted }]}>
-                  {dailyQuestionsRemaining} restantes
+                  Sem limite diário
                 </Text>
               )}
             </View>
-            {!isPremium ? (
-              <ProgressBar value={dailyProgress} height={4} label="Questões de hoje" />
-            ) : (
-              <Text style={[styles.premiumNote, { color: colors.textMuted }]}>Plano sem limite diário</Text>
-            )}
+            <Text style={[styles.premiumNote, { color: colors.textMuted }]}>
+              {isPremium
+                ? 'Acompanhe seus acertos e sua evolução no Diamante'
+                : 'Questões ilimitadas no Plano Básico'}
+            </Text>
           </View>
         </View>
 

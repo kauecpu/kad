@@ -26,7 +26,7 @@ export default function TopicPlayerScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { discipline, topic } = useLocalSearchParams<{ discipline: string; topic: string }>();
-  const { answers, answerQuestion, canAnswerQuestion, resetQuestion } = useApp();
+  const { answers, answerQuestion, resetQuestion } = useApp();
   const generalMode = topic === 'geral';
 
   const topicQuestions = useMemo(
@@ -128,8 +128,6 @@ export default function TopicPlayerScreen() {
               position={index + 1}
               total={questions.length}
               answer={answers[current.id]}
-              canAnswer={canAnswerQuestion(current.id)}
-              onLimitReached={() => router.push('/perfil/planos')}
               onAnswer={answerQuestion}
               onReset={resetQuestion}
             />

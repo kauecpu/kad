@@ -22,7 +22,7 @@ export default function TrailQuestionPlayerScreen() {
     trackName?: string;
     level?: string;
   }>();
-  const { answers, answerQuestion, canAnswerQuestion, resetQuestion } = useApp();
+  const { answers, answerQuestion, resetQuestion } = useApp();
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -79,8 +79,6 @@ export default function TrailQuestionPlayerScreen() {
           position={index + 1}
           total={questions.length}
           answer={answers[current.id]}
-          canAnswer={canAnswerQuestion(current.id)}
-          onLimitReached={() => router.push('/perfil/planos')}
           onAnswer={answerQuestion}
           onReset={resetQuestion}
         />

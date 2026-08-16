@@ -1,6 +1,6 @@
 import type { DailyQuestionUsage, Subscription } from '../types/index.ts';
 
-/** Chave de data local usada pela cota diária, sem conversão para UTC. */
+/** Chave de data local usada pelas métricas diárias, sem conversão para UTC. */
 export function localDateKey(date = new Date()): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -8,13 +8,25 @@ export function localDateKey(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Retorna a cota do dia atual, descartando apenas o contador de dias anteriores. */
+/** Retorna a atividade do dia atual, descartando apenas o contador de dias anteriores. */
 export function currentDailyUsage(
   usage?: DailyQuestionUsage,
   now = new Date()
 ): DailyQuestionUsage {
   const today = localDateKey(now);
   return usage?.date === today ? usage : { date: today, questionIds: [] };
+}
+
+/** Registra a atividade diária sem limitar a quantidade de questões respondidas. */
+export function recordDailyQuestionUsage(
+  usage: DailyQuestionUsage,
+  questionId: string,
+  now = new Date()
+): DailyQuestionUsage {
+  const current = currentDailyUsage(usage, now);
+  return current.questionIds.includes(questionId)
+    ? current
+    : { ...current, questionIds: [...current.questionIds, questionId] };
 }
 
 function expirationTime(renewsAt: string): number | null {
@@ -59,25 +71,4 @@ export function subscriptionHasAccess(
   if (subscription.plan === 'basic' || !subscription.renewsAt) return false;
   const current = subscriptionWithCurrentStatus(subscription, now);
   return ['active', 'past_due', 'canceled'].includes(current.status);
-}
-
-export function canAnswerWithDailyLimit({
-  isPremium,
-  usage,
-  questionId,
-  limit,
-  now = new Date(),
-}: {
-  isPremium: boolean;
-  usage: DailyQuestionUsage;
-  questionId: string;
-  limit: number;
-  now?: Date;
-}): boolean {
-  if (isPremium) return true;
-  const todayUsage = currentDailyUsage(usage, now);
-  return (
-    todayUsage.questionIds.includes(questionId) ||
-    todayUsage.questionIds.length < limit
-  );
 }

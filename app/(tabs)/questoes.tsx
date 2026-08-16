@@ -45,8 +45,6 @@ export default function QuestionsScreen() {
   const {
     answers,
     canViewStatistics,
-    dailyQuestionLimit,
-    dailyQuestionsRemaining,
     performance,
   } = useApp();
   const [studyMode, setStudyMode] = useState<StudyMode>('discipline');
@@ -219,7 +217,7 @@ export default function QuestionsScreen() {
               ? `${performance.total} respondidas · ${formatPercent(performance.accuracy)} de acerto`
               : canViewStatistics
               ? 'Estude por disciplina e acompanhe seu progresso'
-              : `Plano Básico · ${dailyQuestionsRemaining} de ${dailyQuestionLimit} questões disponíveis hoje`
+              : 'Plano Básico · questões ilimitadas'
         }
       />
 

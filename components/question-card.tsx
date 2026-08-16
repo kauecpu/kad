@@ -1,6 +1,6 @@
 import Ionicons from '@/components/ui/app-icon';
 import { memo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { QuestionComments } from '@/components/question-comments';
 import { QuestionCommunityStat } from '@/components/question-community-stat';
@@ -17,8 +17,6 @@ type QuestionCardProps = {
   position: number;
   total: number;
   answer?: AnswerRecord;
-  canAnswer?: boolean;
-  onLimitReached?: () => void;
   onAnswer: (question: Question, selected: AlternativeId) => void;
   onReset: (questionId: string) => void;
 };
@@ -34,8 +32,6 @@ function QuestionCardComponent({
   position,
   total,
   answer,
-  canAnswer = true,
-  onLimitReached,
   onAnswer,
   onReset,
 }: QuestionCardProps) {
@@ -49,19 +45,6 @@ function QuestionCardComponent({
 
   const handleAnswer = () => {
     if (answered) return;
-    if (!canAnswer) {
-      Alert.alert(
-        'Limite diário atingido',
-        'O plano Básico permite responder até 10 questões por dia. Sua cota será renovada amanhã.',
-        [
-          { text: 'Agora não', style: 'cancel' },
-          ...(onLimitReached
-            ? [{ text: 'Ver planos', onPress: onLimitReached }]
-            : []),
-        ]
-      );
-      return;
-    }
     if (!pendingSelection) return;
     setShowExplanation(true);
     onAnswer(question, pendingSelection);
@@ -164,16 +147,10 @@ function QuestionCardComponent({
 
       {!answered ? (
         <Button
-          label={
-            !canAnswer
-              ? 'Limite atingido · ver planos'
-              : pendingSelection
-                ? `Responder alternativa ${pendingSelection}`
-                : 'Selecione uma alternativa'
-          }
-          icon={canAnswer ? 'paper-plane-outline' : 'lock-closed-outline'}
+          label={pendingSelection ? `Responder alternativa ${pendingSelection}` : 'Selecione uma alternativa'}
+          icon="paper-plane-outline"
           onPress={handleAnswer}
-          disabled={!pendingSelection && canAnswer}
+          disabled={!pendingSelection}
           fullWidth
         />
       ) : (

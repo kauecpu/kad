@@ -12,14 +12,9 @@ export const DEFAULT_SUBSCRIPTION: Subscription = {
   autoRenew: false,
 };
 
-export const BASIC_DAILY_QUESTION_LIMIT = 10;
-
 export const BASIC_PLAN_ACCESS = [
-  { label: 'Até 10 questões por dia', included: true },
+  { label: 'Questões ilimitadas', included: true },
   { label: 'Correção e gabarito comentado', included: true },
-  { label: 'Concursos salvos para acompanhar', included: true },
-  { label: 'Estatísticas de desempenho', included: false },
-  { label: 'Simulados por concurso', included: false },
 ];
 
 export const DIAMOND_BILLING_OPTIONS = [
@@ -52,7 +47,10 @@ export const DIAMOND_BILLING_OPTIONS = [
 ];
 
 export const DIAMOND_BENEFITS = [
-  'Questões sem limite e gabaritos comentados',
-  'Simulados cronometrados por concurso',
-  'Desempenho geral e revisão dos erros',
+  'Tudo o que está no Plano Básico',
+  'Simulados personalizados e cronometrados',
+  'Simulados por concurso e área de estudo',
+  'Desempenho geral e por disciplina',
+  'Revisão de questões erradas, corretas e favoritas',
+  'Indicadores de acerto durante a prática',
 ];

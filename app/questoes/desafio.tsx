@@ -70,7 +70,6 @@ export default function QuickChallengeScreen() {
     savedConcursos,
     answers,
     answerQuestion,
-    canAnswerQuestion,
     resetQuestion,
   } = useApp();
   const { concursos } = useConcursos();
@@ -129,8 +128,6 @@ export default function QuickChallengeScreen() {
           position={index + 1}
           total={questions.length}
           answer={answers[current.id]}
-          canAnswer={canAnswerQuestion(current.id)}
-          onLimitReached={() => router.push('/perfil/planos')}
           onAnswer={answerQuestion}
           onReset={resetQuestion}
         />
