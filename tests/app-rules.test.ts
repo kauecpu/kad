@@ -5,7 +5,7 @@ import { CONCURSOS } from '../data/concursos.ts';
 import { DISCIPLINES } from '../data/disciplines.ts';
 import { CONCURSO_PACKS } from '../data/exam-concursos.ts';
 import { QUESTIONS } from '../data/questions.ts';
-import { CIRCLE_BILLING_OPTIONS, DIAMOND_BILLING_OPTIONS } from '../data/user.ts';
+import { DIAMOND_BILLING_OPTIONS } from '../data/user.ts';
 import {
   canAnswerWithDailyLimit,
   currentDailyUsage,
@@ -521,26 +521,6 @@ test('o KAD Diamante oferece os três ciclos com desconto progressivo', () => {
     { price: annual?.price, durationDays: annual?.durationDays },
     { price: 149.99, durationDays: 365 }
   );
-});
-
-test('o KAD Círculo dá quatro acessos pelo preço de três', () => {
-  assert.equal(CIRCLE_BILLING_OPTIONS.length, DIAMOND_BILLING_OPTIONS.length);
-
-  for (const diamondOption of DIAMOND_BILLING_OPTIONS) {
-    const circleOption = CIRCLE_BILLING_OPTIONS.find(
-      (option) => option.id === diamondOption.id
-    );
-    assert.ok(circleOption);
-    assert.equal(
-      circleOption.price,
-      Number((diamondOption.price * 3).toFixed(2))
-    );
-    assert.equal(
-      circleOption.originalPrice,
-      Number((diamondOption.price * 4).toFixed(2))
-    );
-    assert.equal(circleOption.durationDays, diamondOption.durationDays);
-  }
 });
 
 test('concursos compatíveis com a meta do perfil são recomendados', () => {

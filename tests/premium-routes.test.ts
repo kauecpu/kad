@@ -53,3 +53,8 @@ test('cancelamento confirmado não é revertido por falha de atualização', () 
     /subscriptionAfterCancellation\(current\.subscription\)[\s\S]*?refreshSubscription\(\)\.catch/
   );
 });
+
+test('o KAD Círculo não é oferecido para novas assinaturas', () => {
+  assert.doesNotMatch(plans, /title="KAD Círculo"/);
+  assert.doesNotMatch(plans, /subscribeTo\('circle'/);
+});

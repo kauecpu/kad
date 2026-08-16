@@ -56,39 +56,3 @@ export const DIAMOND_BENEFITS = [
   'Simulados cronometrados por concurso',
   'Desempenho geral e revisão dos erros',
 ];
-
-export const CIRCLE_BILLING_OPTIONS = [
-  {
-    id: 'monthly' as const,
-    name: 'Mensal',
-    originalPrice: 59.96,
-    price: 44.97,
-    period: 'por mês',
-    description: '4 acessos pelo preço de 3.',
-    durationDays: 30,
-  },
-  {
-    id: 'quarterly' as const,
-    name: 'Trimestral',
-    originalPrice: 159.96,
-    price: 119.97,
-    period: 'a cada 3 meses',
-    description: '4 acessos pelo preço de 3.',
-    durationDays: 90,
-  },
-  {
-    id: 'annual' as const,
-    name: 'Anual',
-    originalPrice: 599.96,
-    price: 449.97,
-    period: 'por ano',
-    description: '4 acessos pelo preço de 3.',
-    durationDays: 365,
-  },
-];
-
-export const CIRCLE_BENEFITS = [
-  '4 acessos com progresso individual',
-  'Todos os recursos do KAD Diamante',
-  'Convites gerenciados pelo titular',
-];

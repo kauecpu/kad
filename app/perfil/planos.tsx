@@ -12,8 +12,6 @@ import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import {
   BASIC_PLAN_ACCESS,
-  CIRCLE_BENEFITS,
-  CIRCLE_BILLING_OPTIONS,
   DIAMOND_BENEFITS,
   DIAMOND_BILLING_OPTIONS,
 } from '@/data/user';
@@ -47,7 +45,6 @@ export default function PlansScreen() {
     subscriptionLoading,
   } = useApp();
   const [diamondCycle, setDiamondCycle] = useState<BillingCycle>('monthly');
-  const [circleCycle, setCircleCycle] = useState<BillingCycle>('monthly');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [checkoutReturned, setCheckoutReturned] = useState(false);
@@ -268,22 +265,6 @@ export default function PlansScreen() {
           active={subscription.plan === 'diamond' && isPremium}
           onSubscribe={() => subscribeTo('diamond', diamondCycle)}
           checkoutLoading={checkoutLoading}
-        />
-
-        <PaidPlanSection
-          title="KAD Círculo"
-          subtitle="Quatro pessoas, cada uma no seu ritmo."
-          mark="group"
-          badge="25% OFF"
-          accent={colors.primary}
-          softAccent={colors.primarySoft}
-          benefits={CIRCLE_BENEFITS}
-          options={CIRCLE_BILLING_OPTIONS}
-          selectedCycle={circleCycle}
-          onSelectCycle={setCircleCycle}
-          active={subscription.plan === 'circle' && isPremium}
-          onSubscribe={() => subscribeTo('circle', circleCycle)}
-          available={false}
         />
 
       </ScrollView>
