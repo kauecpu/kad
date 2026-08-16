@@ -130,11 +130,6 @@ export default function RankingScreen() {
           <View style={styles.trophyHalo}>
             <Ionicons name="trophy" size={43} color="#F8CE62" />
           </View>
-          <View style={styles.scoreLegend}>
-            <ScoreRule difficulty="Fácil" points="+1" />
-            <ScoreRule difficulty="Média" points="+2" />
-            <ScoreRule difficulty="Difícil" points="+3" />
-          </View>
         </LinearGradient>
 
         {rulesExpanded ? (
@@ -247,15 +242,6 @@ export default function RankingScreen() {
           ))}
         </View>
       </ScrollView>
-    </View>
-  );
-}
-
-function ScoreRule({ difficulty, points }: { difficulty: string; points: string }) {
-  return (
-    <View style={styles.scoreRule}>
-      <Text style={styles.scoreRulePoints}>{points}</Text>
-      <Text style={styles.scoreRuleLabel}>{difficulty}</Text>
     </View>
   );
 }
@@ -405,16 +391,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
   },
-  scoreLegend: {
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
-    overflow: 'hidden',
-    borderRadius: Radius.md,
-    backgroundColor: 'rgba(13, 7, 31, 0.28)',
-  },
-  scoreRule: { minWidth: 76, alignItems: 'center', gap: 2, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
-  scoreRulePoints: { color: '#F8CE62', fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  scoreRuleLabel: { color: '#EDE9FE', fontSize: FontSize.tiny },
   rulesPanel: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
   rulesCopy: { flex: 1, gap: 3 },
   rulesTitle: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
