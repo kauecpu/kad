@@ -1,8 +1,13 @@
 import Ionicons from '@/components/ui/app-icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import {
+  RecentStudyCard,
+  StudyMomentumCard,
+} from '@/components/home-study-momentum';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -17,10 +22,12 @@ import {
   Radius,
   Spacing,
 } from '@/constants/theme';
+import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { deadlineInfo, recommendConcursosForGoal, sortConcursos } from '@/lib/concursos';
 import { formatPercent, formatSalaryShort } from '@/lib/format';
 import { getHomePrimaryAction } from '@/lib/home-presentation';
+import { buildStudyMomentum } from '@/lib/study-momentum';
 import { useApp } from '@/providers/app-provider';
 import { useConcursos } from '@/providers/concursos-provider';
 import { useSimulation } from '@/providers/simulation-provider';
@@ -86,10 +93,14 @@ export function HomeContent() {
     profile,
     performance,
     isPremium,
+    answers,
+    questionActivityByDate,
     dailyQuestionsAnswered,
+    weeklyQuestionGoal,
+    setWeeklyQuestionGoal,
     savedConcursos,
   } = useApp();
-  const { session } = useSimulation();
+  const { session, history } = useSimulation();
   const { concursos } = useConcursos();
 
   const firstName = profile.name.trim().split(/\s+/)[0] || 'Estudante';
@@ -124,6 +135,17 @@ export function HomeContent() {
         }
       : undefined,
   });
+  const studyMomentum = useMemo(
+    () =>
+      buildStudyMomentum({
+        answers,
+        questionActivityByDate,
+        simulationHistory: history,
+        questions: QUESTIONS,
+        weeklyGoal: weeklyQuestionGoal,
+      }),
+    [answers, history, questionActivityByDate, weeklyQuestionGoal]
+  );
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
@@ -220,6 +242,13 @@ export function HomeContent() {
           </View>
         </View>
 
+        <Section title="Seu ritmo">
+          <StudyMomentumCard
+            momentum={studyMomentum}
+            onGoalChange={setWeeklyQuestionGoal}
+          />
+        </Section>
+
         <Section title="Praticar">
           <Card padded={false} style={[styles.practicePanel, { borderColor: colors.border }]}>
             {PRACTICE_ACTIONS.map((item, index) => (
@@ -246,6 +275,14 @@ export function HomeContent() {
               </Pressable>
             ))}
           </Card>
+        </Section>
+
+        <Section title="Atividade recente">
+          <RecentStudyCard
+            activities={studyMomentum.recentActivities}
+            onOpen={(route) => router.push(route)}
+            onStart={() => router.push('/questoes')}
+          />
         </Section>
 
         {focusConcurso && focusDeadline ? (
