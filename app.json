@@ -4,7 +4,7 @@
     "slug": "kad",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/kad-icon-v3.png",
+    "icon": "./assets/images/kad-icon-v4.png",
     "scheme": "kad",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -16,15 +16,15 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#4B1E8C",
-        "foregroundImage": "./assets/images/kad-icon-foreground-v3.png"
+        "backgroundColor": "#7027E8",
+        "foregroundImage": "./assets/images/kad-icon-v4.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/kad-icon-v3.png"
+      "favicon": "./assets/images/kad-icon-v4.png"
     },
     "plugins": [
       "expo-router",
@@ -38,12 +38,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/kad-icon-foreground-v3.png",
-          "imageWidth": 180,
+          "image": "./assets/images/kad-logo-v4.png",
+          "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#4B1E8C",
+          "backgroundColor": "#FFFFFF",
           "dark": {
-            "backgroundColor": "#2A1160"
+            "image": "./assets/images/kad-logo-v4.png",
+            "backgroundColor": "#FFFFFF"
           }
         }
       ]
