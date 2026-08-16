@@ -202,6 +202,18 @@ export default function QuestionsScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
         title="Questões"
+        right={(
+          <Pressable
+            onPress={() => router.push('/ranking')}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir ranking de questões"
+            style={({ pressed }) => [
+              styles.rankingAction,
+              { backgroundColor: colors.warningSoft, opacity: pressed ? 0.68 : 1 },
+            ]}>
+            <Ionicons name="trophy-outline" size={21} color={colors.warning} />
+          </Pressable>
+        )}
         subtitle={
           canViewStatistics && performance.total > 0
               ? `${performance.total} respondidas · ${formatPercent(performance.accuracy)} de acerto`
@@ -231,6 +243,13 @@ export default function QuestionsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  rankingAction: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   list: {
     width: '100%',

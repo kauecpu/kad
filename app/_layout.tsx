@@ -68,6 +68,7 @@ function RootNavigator() {
           <Stack.Screen name="perfil/desempenho/questoes" options={{ headerShown: false }} />
           <Stack.Screen name="trilhas" options={{ headerShown: false }} />
           <Stack.Screen name="redacao" options={{ headerShown: false }} />
+          <Stack.Screen name="ranking" options={{ headerShown: false }} />
           <Stack.Screen name="biblioteca" options={{ headerShown: false }} />
         </Stack.Protected>
 
