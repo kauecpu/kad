@@ -56,6 +56,11 @@ const paymentHardeningMigration = readFileSync(
   'utf8'
 );
 
+const feedbackMigration = readFileSync(
+  new NodeURL('../supabase/migrations/20260816010000_user_feedback_inbox.sql', import.meta.url),
+  'utf8'
+);
+
 const paymentCatalog = readFileSync(
   new NodeURL('../supabase/functions/_shared/mercado-pago.ts', import.meta.url),
   'utf8'
@@ -296,6 +301,33 @@ test('métricas administrativas exigem permissão explícita', () => {
   assert.match(adminMigration, /raise exception 'Admin permission required'/);
   assert.match(adminMigration, /grant execute on function public\.admin_dashboard_summary\(\) to authenticated/);
   assert.match(adminMigration, /revoke all on function public\.admin_dashboard_summary\(\) from public, anon/);
+});
+
+test('feedback do aplicativo usa RPC autenticada, limites e tabela sem acesso direto', () => {
+  assert.match(feedbackMigration, /alter table public\.user_feedback enable row level security/);
+  assert.match(
+    feedbackMigration,
+    /revoke all on table public\.user_feedback from public, anon, authenticated/
+  );
+  assert.match(feedbackMigration, /function public\.submit_user_feedback/);
+  assert.match(feedbackMigration, /v_user_id uuid := auth\.uid\(\)/);
+  assert.match(feedbackMigration, /pg_advisory_xact_lock/);
+  assert.match(feedbackMigration, /interval '1 hour'/);
+  assert.match(feedbackMigration, />= 5/);
+  assert.match(
+    feedbackMigration,
+    /grant execute on function public\.submit_user_feedback[\s\S]*?to authenticated/
+  );
+});
+
+test('triagem administrativa de feedback exige permissão e registra auditoria', () => {
+  assert.match(feedbackMigration, /private\.has_admin_permission\('feedback\.read'\)/);
+  assert.match(feedbackMigration, /private\.has_admin_permission\('feedback\.manage'\)/);
+  assert.match(feedbackMigration, /function public\.admin_list_user_feedback/);
+  assert.match(feedbackMigration, /function public\.admin_update_user_feedback_status/);
+  assert.match(feedbackMigration, /'feedback\.status_updated'/);
+  assert.match(feedbackMigration, /insert into private\.admin_audit_logs/);
+  assert.doesNotMatch(feedbackMigration, /auth\.users[\s\S]*?email/);
 });
 
 test('concursos editoriais expõem somente conteúdo publicado ao aplicativo', () => {

@@ -34,6 +34,8 @@ const previewAccess: AdminAccess = {
     'content.publish',
     'community.read',
     'community.moderate',
+    'feedback.read',
+    'feedback.manage',
     'users.read',
     'users.manage',
     'audit.read',

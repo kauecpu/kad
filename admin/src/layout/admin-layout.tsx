@@ -26,6 +26,7 @@ const navigation = [
   { label: 'Concursos', to: '/concursos', icon: BriefcaseBusiness, permission: 'content.read' },
   { label: 'Banco de questões', to: '/questoes', icon: BookOpenCheck, permission: 'content.read' },
   { label: 'Importações', to: '/importacoes', icon: DatabaseZap, permission: 'content.read' },
+  { label: 'Feedback', to: '/feedback', icon: MessageSquareText, permission: 'feedback.read' },
   { label: 'Comunidade', to: '/comunidade', icon: MessageSquareText, permission: 'community.read' },
   { label: 'Usuários', to: '/usuarios', icon: UsersRound, permission: 'users.read' },
   { label: 'Auditoria', to: '/auditoria', icon: ClipboardList, permission: 'audit.read' },

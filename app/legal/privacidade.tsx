@@ -13,6 +13,7 @@ const SECTIONS: LegalSection[] = [
     paragraphs: ['Conforme as funções utilizadas, o KAD pode tratar:'],
     bullets: [
       'Cadastro e perfil: nome, nome de usuário, e-mail, telefone, cidade e cargo desejado.',
+      'Feedback do produto: categoria, comentário, tela de origem, plataforma e versão do aplicativo quando você decide enviar uma mensagem à equipe.',
       'Autenticação: identificadores da conta, registros de sessão e informações necessárias para proteger o acesso. A senha é processada pelo serviço de autenticação e não fica disponível em texto legível para o KAD.',
       'Estudos: respostas, acertos, erros, questões favoritas, concursos salvos, progresso, redações e histórico de simulados.',
       'Comunidade: comentários, curtidas, nome e nome de usuário associados à publicação.',

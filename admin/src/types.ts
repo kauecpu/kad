@@ -16,6 +16,24 @@ export type DashboardSummary = {
   generated_at: string;
 };
 
+export type FeedbackCategory = 'suggestion' | 'problem' | 'question';
+export type FeedbackStatus = 'new' | 'reviewing' | 'resolved';
+
+export type AdminFeedback = {
+  id: string;
+  userId: string;
+  userName: string;
+  username?: string;
+  category: FeedbackCategory;
+  message: string;
+  sourceScreen: string;
+  platform: 'android' | 'ios' | 'web' | 'unknown';
+  appVersion?: string;
+  status: FeedbackStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type EducationLevel = 'Fundamental' | 'Médio' | 'Superior';
 export type ConcursoRegion =
   | 'Norte'
