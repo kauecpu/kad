@@ -85,12 +85,23 @@ export default function WelcomeScreen() {
         showsVerticalScrollIndicator={false}
         bounces={false}>
         <View style={styles.main}>
-          <Image
-            source={require('../assets/images/kad-logo-v3.png')}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel="KAD Concursos"
-          />
+          <View
+            style={styles.brand}
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel="KAD">
+            <Image
+              source={require('../assets/images/kad-symbol-v3.png')}
+              style={[styles.brandSymbol, { tintColor: colors.primary }]}
+              resizeMode="contain"
+              accessible={false}
+            />
+            <Text
+              style={[styles.brandName, { color: colors.primary }]}
+              accessible={false}>
+              KAD
+            </Text>
+          </View>
 
           <View style={styles.copy}>
             <Text style={[styles.title, { color: colors.text }]}>Estude com direção.</Text>
@@ -164,9 +175,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.xxxl,
   },
-  logo: {
-    width: 210,
-    height: 76,
+  brand: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  brandSymbol: {
+    width: 58,
+    height: 58,
+  },
+  brandName: {
+    fontSize: 42,
+    lineHeight: 46,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -1.8,
     alignSelf: 'flex-start',
   },
   copy: { gap: Spacing.md },

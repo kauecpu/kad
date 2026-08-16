@@ -40,6 +40,14 @@ test('a rota raiz permanece como âncora e redireciona sessões para o início',
   assert.match(welcomeScreen, /pathname === '\/'/);
 });
 
+test('a tela inicial apresenta a marca KAD limpa e acessível', () => {
+  assert.match(welcomeScreen, /kad-symbol-v3\.png/);
+  assert.match(welcomeScreen, /accessibilityLabel="KAD"/);
+  assert.match(welcomeScreen, />\s*KAD\s*<\/Text>/);
+  assert.doesNotMatch(welcomeScreen, /kad-logo-v3\.png/);
+  assert.doesNotMatch(welcomeScreen, /accessibilityLabel="KAD Concursos"/);
+});
+
 test('sair da conta revoga apenas a sessão deste aparelho', () => {
   assert.match(authProvider, /auth\.signOut\(\{ scope: 'local' \}\)/);
   assert.doesNotMatch(authProvider, /auth\.signOut\(\);/);
