@@ -47,7 +47,7 @@ const SECTIONS: LegalSection[] = [
     title: 'Dados locais e dados na nuvem',
     paragraphs: [
       'No modo visitante, perfil, respostas, favoritos, concursos salvos, preferências, redações e simulados ficam armazenados no próprio aparelho.',
-      'Quando você entra em uma conta, dados do perfil, respostas, questões favoritas, concursos salvos, comentários, interações compatíveis e o estado da assinatura podem ser sincronizados com a infraestrutura em nuvem do KAD. Na versão atual, rascunhos de redação, foto local, tema e histórico de simulados permanecem no dispositivo.',
+      'Quando você entra em uma conta, dados do perfil, foto, respostas, questões favoritas, concursos salvos, redações, histórico de simulados, comentários, interações compatíveis e o estado da assinatura podem ser sincronizados com a infraestrutura em nuvem do KAD. O tema permanece como preferência deste aparelho.',
       'Dados que permanecem apenas no aparelho não podem ser recuperados pelo KAD depois de apagados, da limpeza do aplicativo ou da perda do dispositivo.',
     ],
   },

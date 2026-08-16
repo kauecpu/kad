@@ -235,4 +235,15 @@ export type SimulationSession = {
   remainingSeconds: number;
   createdAt: string;
   completedAt?: string;
+  /** Instante usado para resolver alterações feitas em aparelhos diferentes. */
+  updatedAt?: string;
+};
+
+export type EssayDocument = {
+  topicId: string;
+  content: string;
+  elapsedSeconds: number;
+  status: 'draft' | 'submitted';
+  submittedAt?: string;
+  updatedAt: string;
 };

@@ -61,6 +61,11 @@ const feedbackMigration = readFileSync(
   'utf8'
 );
 
+const userSyncMigration = readFileSync(
+  new NodeURL('../supabase/migrations/20260816030000_sync_user_study_data.sql', import.meta.url),
+  'utf8'
+);
+
 const paymentCatalog = readFileSync(
   new NodeURL('../supabase/functions/_shared/mercado-pago.ts', import.meta.url),
   'utf8'
@@ -113,6 +118,46 @@ test('dados pessoais e de estudo possuem RLS', () => {
   ]) {
     assert.match(migration, new RegExp(`alter table public\\.${table} enable row level security`));
   }
+});
+
+test('redações e simulados sincronizados permanecem isolados por usuário', () => {
+  for (const table of ['essay_documents', 'simulation_sessions']) {
+    assert.match(
+      userSyncMigration,
+      new RegExp(`alter table public\\.${table} enable row level security`)
+    );
+    assert.match(
+      userSyncMigration,
+      new RegExp(`using \\(\\(select auth\\.uid\\(\\)\\) = user_id\\)`)
+    );
+  }
+  assert.match(userSyncMigration, /pg_column_size\(payload\) <= 262144/);
+  assert.match(userSyncMigration, /char_length\(content\) <= 30000/);
+  assert.match(userSyncMigration, /function public\.sync_essay_document/);
+  assert.match(userSyncMigration, /function public\.sync_simulation_session/);
+  assert.match(userSyncMigration, /simulation_sessions_one_open_per_user_idx/);
+  assert.match(userSyncMigration, /pg_advisory_xact_lock/);
+  assert.match(userSyncMigration, /revoke all on public\.essay_documents from public, anon, authenticated/);
+  assert.match(userSyncMigration, /revoke all on public\.simulation_sessions from public, anon, authenticated/);
+  assert.match(userSyncMigration, /security definer/);
+  assert.match(userSyncMigration, /v_user_id <> p_user_id/);
+  assert.match(
+    userSyncMigration,
+    /where excluded\.updated_at >= public\.essay_documents\.updated_at/
+  );
+  assert.match(
+    userSyncMigration,
+    /where excluded\.updated_at >= public\.simulation_sessions\.updated_at/
+  );
+});
+
+test('avatar limita formato e escrita à pasta do próprio usuário', () => {
+  assert.match(userSyncMigration, /'profile-avatars'/);
+  assert.match(userSyncMigration, /file_size_limit/);
+  assert.match(userSyncMigration, /5242880/);
+  assert.match(userSyncMigration, /storage\.foldername\(name\)\)\[1\]/);
+  assert.match(userSyncMigration, /\(select auth\.uid\(\)\)::text/);
+  assert.match(userSyncMigration, /grant update \(avatar_path\) on public\.profiles/);
 });
 
 test('exclusão de conta privilegiada não permanece como RPC pública', () => {
