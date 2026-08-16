@@ -9,10 +9,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
-import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { formatPercent } from '@/lib/format';
 import { useApp } from '@/providers/app-provider';
+import { useQuestions } from '@/providers/questions-provider';
 
 type TopicStat = {
   topic: string;
@@ -27,20 +27,21 @@ export default function TopicListScreen() {
   const router = useRouter();
   const { discipline } = useLocalSearchParams<{ discipline: string }>();
   const { answers, canViewStatistics } = useApp();
+  const { questions: availableQuestions } = useQuestions();
 
   const definition = DISCIPLINES.find((d) => d.name === discipline);
 
   const topics = useMemo<TopicStat[]>(() => {
     if (!definition) return [];
     return definition.topics.map((topic) => {
-      const questions = QUESTIONS.filter(
+      const questions = availableQuestions.filter(
         (q) => q.discipline === definition.name && q.topic === topic
       );
       const answered = questions.filter((q) => answers[q.id]);
       const correct = answered.filter((q) => answers[q.id]?.isCorrect).length;
       return { topic, total: questions.length, answered: answered.length, correct };
     });
-  }, [definition, answers]);
+  }, [answers, availableQuestions, definition]);
 
   if (!definition) {
     return (

@@ -26,7 +26,6 @@ import type { Tone } from '@/components/ui/tone';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
-import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { questionsForPack, recommendPackForGoal } from '@/lib/simulations';
 import {
@@ -42,7 +41,8 @@ import {
 import { createTrailLevels, questionsForDisciplines, type TrailLevel } from '@/lib/trails';
 import { useApp } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
-import type { AnswerRecord } from '@/types';
+import { useQuestions } from '@/providers/questions-provider';
+import type { AnswerRecord, Question } from '@/types';
 
 type TrailTrack = {
   id: string;
@@ -81,33 +81,20 @@ const DISCIPLINE_TRACKS: TrailTrack[] = DISCIPLINES.map((discipline) => ({
   kind: 'discipline',
 }));
 
-function questionsForTrack(track: TrailTrack) {
+function questionsForTrack(track: TrailTrack, questions: Question[]) {
   const pack = track.packId
     ? CONCURSO_PACKS.find((item) => item.id === track.packId)
     : undefined;
   return pack
-    ? questionsForPack(pack)
-    : questionsForDisciplines(QUESTIONS, track.disciplines);
+    ? questionsForPack(pack, questions)
+    : questionsForDisciplines(questions, track.disciplines);
 }
 
-function availableLevelsForTrack(track: TrailTrack): TrailLevel[] {
-  return createTrailLevels(questionsForTrack(track)).filter((level) => level.questions.length > 0);
+function availableLevelsForTrack(track: TrailTrack, questions: Question[]): TrailLevel[] {
+  return createTrailLevels(questionsForTrack(track, questions)).filter(
+    (level) => level.questions.length > 0,
+  );
 }
-
-const TRAIL_CATALOG: TrailCatalog = {
-  concurso: Object.fromEntries(
-    CONCURSO_TRACKS.map((track) => [
-      track.id,
-      availableLevelsForTrack(track).map((level) => level.number),
-    ])
-  ),
-  discipline: Object.fromEntries(
-    DISCIPLINE_TRACKS.map((track) => [
-      track.id,
-      availableLevelsForTrack(track).map((level) => level.number),
-    ])
-  ),
-};
 
 function levelState(level: TrailLevel, answers: Record<string, AnswerRecord>) {
   const metrics = trailLevelMetrics(level, answers);
@@ -143,6 +130,21 @@ export default function TrailsScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const { session, isGuest } = useAuth();
   const { answers, profile } = useApp();
+  const { questions } = useQuestions();
+  const trailCatalog = useMemo<TrailCatalog>(() => ({
+    concurso: Object.fromEntries(
+      CONCURSO_TRACKS.map((track) => [
+        track.id,
+        availableLevelsForTrack(track, questions).map((level) => level.number),
+      ]),
+    ),
+    discipline: Object.fromEntries(
+      DISCIPLINE_TRACKS.map((track) => [
+        track.id,
+        availableLevelsForTrack(track, questions).map((level) => level.number),
+      ]),
+    ),
+  }), [questions]);
   const recommendedPack = useMemo(
     () => recommendPackForGoal(CONCURSO_PACKS, profile.targetRole),
     [profile.targetRole]
@@ -182,7 +184,7 @@ export default function TrailsScreen() {
       const initial = resolveTrailSelection({
         stored,
         recommendedTrackId: recommendedPack?.id,
-        catalog: TRAIL_CATALOG,
+        catalog: trailCatalog,
       });
       if (!active) return;
       if (initial) {
@@ -196,7 +198,7 @@ export default function TrailsScreen() {
     return () => {
       active = false;
     };
-  }, [recommendedPack?.id, storageKey]);
+  }, [recommendedPack?.id, storageKey, trailCatalog]);
 
   useEffect(() => {
     if (!storageKey || hydratedStorageKey !== storageKey) return;
@@ -216,7 +218,10 @@ export default function TrailsScreen() {
     () => filterTrailTracks(tracks, searchQuery),
     [searchQuery, tracks]
   );
-  const levels = useMemo(() => (track ? availableLevelsForTrack(track) : []), [track]);
+  const levels = useMemo(
+    () => (track ? availableLevelsForTrack(track, questions) : []),
+    [questions, track],
+  );
   const activeLevel = levels.find((level) => level.number === selectedLevel) ?? levels[0];
   const currentMetrics = useMemo(() => trailMetrics(levels, answers), [answers, levels]);
   const recommendedTrack = recommendedPack
@@ -224,8 +229,8 @@ export default function TrailsScreen() {
     : undefined;
   const heroTrack = recommendedTrack ?? track;
   const heroLevels = useMemo(
-    () => (heroTrack ? availableLevelsForTrack(heroTrack) : []),
-    [heroTrack]
+    () => (heroTrack ? availableLevelsForTrack(heroTrack, questions) : []),
+    [heroTrack, questions]
   );
   const heroMetrics = useMemo(() => trailMetrics(heroLevels, answers), [answers, heroLevels]);
   const heroResumeLevel =
@@ -236,7 +241,7 @@ export default function TrailsScreen() {
 
   const changeMode = (nextMode: TrailMode) => {
     const nextTrackId = nextMode === 'concurso' ? recommendedTrack?.id ?? '' : '';
-    const nextLevels = nextTrackId ? TRAIL_CATALOG[nextMode][nextTrackId] : undefined;
+    const nextLevels = nextTrackId ? trailCatalog[nextMode][nextTrackId] : undefined;
     setMode(nextMode);
     setSelectedTrackId(nextTrackId);
     setSelectedLevel(nextLevels?.[0] ?? 1);
@@ -244,7 +249,7 @@ export default function TrailsScreen() {
   };
 
   const selectTrack = (trackId: string) => {
-    const nextLevels = TRAIL_CATALOG[mode][trackId];
+    const nextLevels = trailCatalog[mode][trackId];
     setSelectedTrackId(trackId);
     setSelectedLevel(nextLevels?.[0] ?? 1);
     setSearchQuery('');

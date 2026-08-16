@@ -18,6 +18,7 @@ import { formatPercent } from '@/lib/format';
 import { questionsForPack } from '@/lib/simulations';
 import { normalizeSearchText } from '@/lib/text';
 import { useApp } from '@/providers/app-provider';
+import { useQuestions } from '@/providers/questions-provider';
 
 export default function ConcursoStudyScreen() {
   const { colors } = useTheme();
@@ -25,10 +26,14 @@ export default function ConcursoStudyScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { answers, canViewStatistics } = useApp();
+  const { questions: availableQuestions } = useQuestions();
   const [query, setQuery] = useState('');
 
   const pack = CONCURSO_PACKS.find((item) => item.id === id);
-  const questions = useMemo(() => (pack ? questionsForPack(pack) : []), [pack]);
+  const questions = useMemo(
+    () => (pack ? questionsForPack(pack, availableQuestions) : []),
+    [availableQuestions, pack],
+  );
   const disciplines = useMemo(
     () =>
       (pack?.disciplines ?? []).map((name) => {

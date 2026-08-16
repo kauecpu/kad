@@ -9,9 +9,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, Spacing } from '@/constants/theme';
-import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { useApp } from '@/providers/app-provider';
+import { useQuestions } from '@/providers/questions-provider';
 
 export default function TrailQuestionPlayerScreen() {
   const { colors } = useTheme();
@@ -23,14 +23,15 @@ export default function TrailQuestionPlayerScreen() {
     level?: string;
   }>();
   const { answers, answerQuestion, resetQuestion } = useApp();
+  const { questions: availableQuestions } = useQuestions();
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
   const questions = useMemo(() => {
     const ids = (questionIds ?? '').split(',').filter(Boolean);
-    const byId = new Map(QUESTIONS.map((question) => [question.id, question]));
+    const byId = new Map(availableQuestions.map((question) => [question.id, question]));
     return ids.map((id) => byId.get(id)).filter((question) => question !== undefined);
-  }, [questionIds]);
+  }, [availableQuestions, questionIds]);
 
   if (questions.length === 0) {
     return (

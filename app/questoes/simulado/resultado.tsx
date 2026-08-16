@@ -20,6 +20,7 @@ import {
 } from '@/lib/simulations';
 import { useApp } from '@/providers/app-provider';
 import { useSimulation } from '@/providers/simulation-provider';
+import { useQuestions } from '@/providers/questions-provider';
 
 type ReviewMode = 'all' | 'wrong';
 
@@ -34,6 +35,7 @@ export default function SimulationResultScreen() {
   const router = useRouter();
   const { canUseSimulations, subscriptionLoading } = useApp();
   const { session, discardSimulation } = useSimulation();
+  const { questions } = useQuestions();
   const [reviewMode, setReviewMode] = useState<ReviewMode>('all');
 
   useEffect(() => {
@@ -43,15 +45,15 @@ export default function SimulationResultScreen() {
   }, [canUseSimulations, router, subscriptionLoading]);
 
   const score = useMemo(
-    () => (session ? simulationScore(session) : null),
-    [session]
+    () => (session ? simulationScore(session, questions) : null),
+    [questions, session]
   );
 
   const reviewItems = useMemo(() => {
     if (!session) return [];
     return session.questions
       .map((item, index) => {
-        const question = simulationQuestionById(item.questionId);
+        const question = simulationQuestionById(item.questionId, questions);
         if (!question) return null;
         const selected = session.answers[item.questionId];
         return {
@@ -64,7 +66,7 @@ export default function SimulationResultScreen() {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
       .filter((item) => reviewMode === 'all' || item.wrong);
-  }, [reviewMode, session]);
+  }, [questions, reviewMode, session]);
 
   const startNew = () => {
     discardSimulation();
