@@ -250,6 +250,7 @@ function PodiumPlace({ entry, place }: { entry: RankingEntry; place: number }) {
   const { colors } = useTheme();
   const first = place === 1;
   const placeColor = first ? '#F8CE62' : place === 2 ? '#C6CFDB' : '#D69562';
+  const trophyColor = first ? '#B77900' : place === 2 ? '#7A8797' : '#A95D2C';
 
   return (
     <View
@@ -263,7 +264,7 @@ function PodiumPlace({ entry, place }: { entry: RankingEntry; place: number }) {
       <View style={[styles.placeBadge, { backgroundColor: placeColor }]}>
         <Text style={styles.placeBadgeText}>{place}</Text>
       </View>
-      {first ? <Ionicons name="trophy" size={20} color={colors.warning} /> : null}
+      <Ionicons name="trophy" size={20} color={trophyColor} accessible={false} />
       <View style={[styles.podiumAvatar, { backgroundColor: first ? colors.warningSoft : colors.primarySoft }]}>
         <Text style={[styles.podiumInitials, { color: first ? colors.warning : colors.primary }]}>{entry.initials}</Text>
       </View>
