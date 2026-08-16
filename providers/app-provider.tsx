@@ -20,10 +20,14 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   canAnswerWithDailyLimit,
   currentDailyUsage,
-  subscriptionHasAccess,
   subscriptionWithCurrentStatus,
 } from '@/lib/access-rules';
 import { sanitizeLegacyGuestProfile } from '@/lib/profile';
+import {
+  subscriptionAfterCancellation,
+  subscriptionHasVerifiedAccess,
+  subscriptionIsLoading,
+} from '@/lib/subscription-state';
 import {
   cancelRemoteSubscription,
   createSubscriptionCheckout,
@@ -173,7 +177,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { session, isLoading: authLoading } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
-  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [subscriptionRefreshing, setSubscriptionRefreshing] = useState(false);
+  const [subscriptionCheckedUserId, setSubscriptionCheckedUserId] = useState<string | null>(null);
   const subscriptionRequestRef = useRef(0);
 
   const userId = session?.user.id ?? null;
@@ -193,15 +198,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const ownerId = userId ?? 'guest';
   const storageKey = authLoading ? null : `${STORAGE_KEY_PREFIX}:${ownerId}`;
   const hydrated = storageKey !== null && hydratedStorageKey === storageKey;
+  const subscriptionLoading = subscriptionIsLoading({
+    authLoading,
+    userId,
+    hydrated,
+    checkedUserId: subscriptionCheckedUserId,
+    refreshing: subscriptionRefreshing,
+  });
 
   const refreshSubscription = useCallback(async () => {
     const requestId = ++subscriptionRequestRef.current;
     if (!userId) {
       setState((current) => ({ ...current, subscription: DEFAULT_SUBSCRIPTION }));
-      setSubscriptionLoading(false);
+      setSubscriptionCheckedUserId(null);
+      setSubscriptionRefreshing(false);
       return;
     }
-    setSubscriptionLoading(true);
+    setSubscriptionRefreshing(true);
     try {
       const subscription = await loadRemoteSubscription(userId);
       if (
@@ -215,14 +228,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         subscriptionRequestRef.current === requestId &&
         subscriptionOwnerRef.current === userId
       ) {
-        setSubscriptionLoading(false);
+        setSubscriptionCheckedUserId(userId);
+        setSubscriptionRefreshing(false);
       }
     }
   }, [userId]);
 
   useEffect(() => {
     subscriptionRequestRef.current += 1;
-    setSubscriptionLoading(false);
+    setSubscriptionCheckedUserId(null);
+    setSubscriptionRefreshing(false);
+    setState((current) => ({ ...current, subscription: DEFAULT_SUBSCRIPTION }));
   }, [userId]);
 
   useEffect(() => {
@@ -423,7 +439,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((current) => {
       const usage = currentDailyUsage(current.dailyQuestionUsage);
       const alreadyCounted = usage.questionIds.includes(question.id);
-      const hasUnlimitedQuestions = subscriptionHasAccess(current.subscription);
+      const hasUnlimitedQuestions = subscriptionHasVerifiedAccess({
+        userId,
+        loading: subscriptionLoading,
+        subscription: current.subscription,
+      });
 
       if (
         !hasUnlimitedQuestions &&
@@ -451,7 +471,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
     });
     if (userId) saveRemoteAnswer(userId, question, selected).catch(() => {});
-  }, [userId]);
+  }, [subscriptionLoading, userId]);
 
   const resetQuestion = useCallback((questionId: string) => {
     setState((current) => {
@@ -526,7 +546,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const cancelSubscription = useCallback(async () => {
     const result = await cancelRemoteSubscription();
-    if (result.ok) await refreshSubscription();
+    if (result.ok) {
+      setState((current) => ({
+        ...current,
+        subscription: subscriptionAfterCancellation(current.subscription),
+      }));
+      await refreshSubscription().catch(() => {
+        // O cancelamento já foi confirmado; uma próxima sincronização reconcilia o estado.
+      });
+    }
     return result;
   }, [refreshSubscription]);
 
@@ -564,7 +592,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [storageKey, userId]);
 
   const performance = useMemo(() => computePerformance(state.answers), [state.answers]);
-  const isPremium = subscriptionHasAccess(state.subscription);
+  const isPremium = subscriptionHasVerifiedAccess({
+    userId,
+    loading: subscriptionLoading,
+    subscription: state.subscription,
+  });
   const dailyUsage = currentDailyUsage(state.dailyQuestionUsage);
   const dailyQuestionsAnswered = dailyUsage.questionIds.length;
   const dailyQuestionsRemaining = Math.max(

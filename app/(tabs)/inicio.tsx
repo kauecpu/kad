@@ -118,7 +118,7 @@ export function HomeContent() {
   const answeredInSimulation = session ? Object.keys(session.answers).length : 0;
   const primaryAction = getHomePrimaryAction({
     hasGoal,
-    simulation: session
+    simulation: isPremium && session
       ? {
           status: session.status,
           answered: answeredInSimulation,

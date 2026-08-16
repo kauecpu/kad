@@ -30,7 +30,10 @@ import {
   sortConcursos,
 } from '../lib/concursos.ts';
 import { formatSalaryShort } from '../lib/format.ts';
-import { isTrustedPaymentCheckoutUrl } from '../lib/payment-security.ts';
+import {
+  isTrustedPaymentCheckoutUrl,
+  isValidPaymentCheckoutReturnId,
+} from '../lib/payment-security.ts';
 import {
   formatBrazilianPhone,
   isValidUsername,
@@ -47,7 +50,12 @@ import {
   recommendPackForGoal,
   simulationCandidates,
 } from '../lib/simulations.ts';
-import { subscriptionFromRemote } from '../lib/subscription-state.ts';
+import {
+  subscriptionAfterCancellation,
+  subscriptionFromRemote,
+  subscriptionHasVerifiedAccess,
+  subscriptionIsLoading,
+} from '../lib/subscription-state.ts';
 import type { DailyQuestionUsage, Subscription } from '../types/index.ts';
 
 test('a pesquisa do seletor não passa de Banca para Estado', () => {
@@ -193,6 +201,96 @@ test('o estado remoto inválido nunca libera uma assinatura', () => {
   assert.equal(subscriptionHasAccess(invalid), false);
 });
 
+test('assinatura permanece carregando até consultar o usuário autenticado atual', () => {
+  const base = {
+    authLoading: false,
+    userId: 'user-1',
+    checkedUserId: null,
+    refreshing: false,
+  };
+
+  assert.equal(subscriptionIsLoading({ ...base, hydrated: false }), true);
+  assert.equal(subscriptionIsLoading({ ...base, hydrated: true }), true);
+  assert.equal(
+    subscriptionIsLoading({
+      authLoading: true,
+      userId: null,
+      hydrated: false,
+      checkedUserId: null,
+      refreshing: false,
+    }),
+    true
+  );
+  assert.equal(
+    subscriptionIsLoading({ ...base, hydrated: true, checkedUserId: 'user-1' }),
+    false
+  );
+  assert.equal(
+    subscriptionIsLoading({
+      ...base,
+      hydrated: true,
+      checkedUserId: 'user-1',
+      refreshing: true,
+    }),
+    true
+  );
+});
+
+test('troca de usuário e logout não reaproveitam acesso Premium antigo', () => {
+  const premium: Subscription = {
+    plan: 'diamond',
+    billingCycle: 'monthly',
+    provider: 'mercado_pago',
+    status: 'active',
+    startedAt: '2026-08-01T12:00:00.000Z',
+    renewsAt: '2026-09-01T12:00:00.000Z',
+    autoRenew: true,
+  };
+  const loadingAfterUserChange = subscriptionIsLoading({
+    authLoading: false,
+    userId: 'user-2',
+    hydrated: true,
+    checkedUserId: 'user-1',
+    refreshing: false,
+  });
+
+  assert.equal(
+    subscriptionHasVerifiedAccess({ userId: 'user-1', loading: false, subscription: premium }),
+    true
+  );
+  assert.equal(
+    subscriptionHasVerifiedAccess({
+      userId: 'user-2',
+      loading: loadingAfterUserChange,
+      subscription: premium,
+    }),
+    false
+  );
+  assert.equal(
+    subscriptionHasVerifiedAccess({ userId: null, loading: false, subscription: premium }),
+    false
+  );
+});
+
+test('cancelamento confirmado permanece refletido se a atualização posterior falhar', () => {
+  const current = subscriptionFromRemote(
+    {
+      plan: 'diamond',
+      billing_cycle: 'monthly',
+      provider: 'mercado_pago',
+      provider_status: 'paused',
+      status: 'past_due',
+      started_at: '2026-08-01T12:00:00.000Z',
+      current_period_end: '2026-09-01T12:00:00.000Z',
+      cancel_at_period_end: false,
+    },
+    new Date('2026-08-15T12:00:00.000Z')
+  );
+
+  assert.equal(current.autoRenew, true);
+  assert.deepEqual(subscriptionAfterCancellation(current), { ...current, autoRenew: false });
+});
+
 test('o app só aceita checkout HTTPS em domínio oficial do Mercado Pago', () => {
   assert.equal(
     isTrustedPaymentCheckoutUrl('https://www.mercadopago.com.br/subscriptions/checkout'),
@@ -207,6 +305,13 @@ test('o app só aceita checkout HTTPS em domínio oficial do Mercado Pago', () =
     false
   );
   assert.equal(isTrustedPaymentCheckoutUrl('http://mercadopago.com.br/inseguro'), false);
+});
+
+test('retorno do checkout exige um UUID válido antes de consultar a assinatura', () => {
+  assert.equal(isValidPaymentCheckoutReturnId('94371c2e-c0f3-4580-b7e5-f481614d0763'), true);
+  assert.equal(isValidPaymentCheckoutReturnId('true'), false);
+  assert.equal(isValidPaymentCheckoutReturnId('../assinatura-de-outra-pessoa'), false);
+  assert.equal(isValidPaymentCheckoutReturnId(['94371c2e-c0f3-4580-b7e5-f481614d0763']), false);
 });
 
 test('todos os concursos apontam para uma página oficial HTTPS', () => {

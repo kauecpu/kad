@@ -37,7 +37,7 @@ export default function ConfigureSimulationScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { packId } = useLocalSearchParams<{ packId?: string }>();
-  const { canUseSimulations } = useApp();
+  const { canUseSimulations, subscriptionLoading } = useApp();
   const { session, startSimulation } = useSimulation();
 
   const initialPack = CONCURSO_PACKS.some((item) => item.id === packId) ? packId : undefined;
@@ -74,6 +74,7 @@ export default function ConfigureSimulationScreen() {
   const estimatedMinutes = Math.max(1, Math.round(config.durationMinutes / Math.max(1, selectedCount)));
 
   const start = () => {
+    if (subscriptionLoading) return;
     if (!canUseSimulations) {
       router.push('/perfil/planos');
       return;
@@ -295,17 +296,25 @@ export default function ConfigureSimulationScreen() {
 
         <Button
           label={
-            canUseSimulations
-              ? `Iniciar simulado · ${selectedCount} questões`
-              : 'Disponível nos planos KAD'
+            subscriptionLoading
+              ? 'Verificando seu plano'
+              : canUseSimulations
+                ? `Iniciar simulado · ${selectedCount} questões`
+                : 'Disponível nos planos KAD'
           }
-          icon={canUseSimulations ? 'play' : 'lock-closed-outline'}
+          icon={
+            subscriptionLoading
+              ? 'time-outline'
+              : canUseSimulations
+                ? 'play'
+                : 'lock-closed-outline'
+          }
           size="lg"
           onPress={start}
-          disabled={candidates.length === 0}
+          disabled={subscriptionLoading || candidates.length === 0}
           fullWidth
         />
-        {!canUseSimulations ? (
+        {!subscriptionLoading && !canUseSimulations ? (
           <Text style={[styles.planHint, { color: colors.textSubtle }]}>
             Toque para conhecer os planos e liberar simulados.
           </Text>

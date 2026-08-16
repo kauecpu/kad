@@ -1,6 +1,6 @@
 import { DEFAULT_SUBSCRIPTION } from '../data/user.ts';
 import type { BillingCycle, Subscription, SubscriptionPlan } from '../types/index.ts';
-import { subscriptionWithCurrentStatus } from './access-rules.ts';
+import { subscriptionHasAccess, subscriptionWithCurrentStatus } from './access-rules.ts';
 
 export type RemoteSubscriptionRow = {
   plan: unknown;
@@ -12,6 +12,40 @@ export type RemoteSubscriptionRow = {
   current_period_end: unknown;
   cancel_at_period_end: unknown;
 };
+
+type SubscriptionLoadingState = {
+  authLoading: boolean;
+  userId: string | null;
+  hydrated: boolean;
+  checkedUserId: string | null;
+  refreshing: boolean;
+};
+
+type VerifiedSubscriptionAccessState = {
+  userId: string | null;
+  loading: boolean;
+  subscription: Subscription;
+};
+
+/** Mantém o acesso pendente até a primeira consulta do usuário atual terminar. */
+export function subscriptionIsLoading({
+  authLoading,
+  userId,
+  hydrated,
+  checkedUserId,
+  refreshing,
+}: SubscriptionLoadingState): boolean {
+  return authLoading || Boolean(userId && (!hydrated || checkedUserId !== userId || refreshing));
+}
+
+/** Nunca reaproveita o plano de outro usuário ou de uma sessão ainda não verificada. */
+export function subscriptionHasVerifiedAccess({
+  userId,
+  loading,
+  subscription,
+}: VerifiedSubscriptionAccessState): boolean {
+  return Boolean(userId && !loading && subscriptionHasAccess(subscription));
+}
 
 function isBillingCycle(value: unknown): value is BillingCycle {
   return value === 'monthly' || value === 'quarterly' || value === 'annual';
@@ -63,8 +97,15 @@ export function subscriptionFromRemote(
       status: row.status,
       startedAt: row.started_at,
       renewsAt: row.current_period_end,
-      autoRenew: row.status === 'active' && row.cancel_at_period_end !== true,
+      autoRenew:
+        (row.status === 'active' || row.status === 'past_due') &&
+        row.cancel_at_period_end !== true,
     },
     now
   );
+}
+
+/** Reflete imediatamente um cancelamento confirmado, sem depender de nova leitura da rede. */
+export function subscriptionAfterCancellation(subscription: Subscription): Subscription {
+  return subscription.autoRenew ? { ...subscription, autoRenew: false } : subscription;
 }

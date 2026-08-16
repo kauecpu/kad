@@ -45,7 +45,7 @@ export default function SimulationsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { canUseSimulations, profile, savedConcursos } = useApp();
+  const { canUseSimulations, profile, savedConcursos, subscriptionLoading } = useApp();
   const { concursos } = useConcursos();
   const { session, history } = useSimulation();
   const [query, setQuery] = useState('');
@@ -95,11 +95,15 @@ export default function SimulationsScreen() {
     return (
       <Card
         key={pack.id}
-        onPress={disabled ? undefined : locked ? openPlans : () => openPack(pack.id)}
+        onPress={
+          disabled || subscriptionLoading ? undefined : locked ? openPlans : () => openPack(pack.id)
+        }
         accessibilityLabel={
-          locked
-            ? `${pack.name}. Disponível nos planos KAD`
-            : `Montar simulado para ${pack.name}`
+          subscriptionLoading
+            ? `${pack.name}. Verificando seu plano`
+            : locked
+              ? `${pack.name}. Disponível nos planos KAD`
+              : `Montar simulado para ${pack.name}`
         }
         style={[
           styles.packCard,
@@ -172,16 +176,25 @@ export default function SimulationsScreen() {
         showsVerticalScrollIndicator={false}>
         {session ? (
           <Pressable
+            disabled={subscriptionLoading}
             onPress={() =>
-              router.push(
-                session.status === 'completed'
-                  ? '/questoes/simulado/resultado'
-                  : '/questoes/simulado'
-              )
+              canUseSimulations
+                ? router.push(
+                    session.status === 'completed'
+                      ? '/questoes/simulado/resultado'
+                      : '/questoes/simulado'
+                  )
+                : openPlans()
             }
             accessibilityRole="button"
             accessibilityLabel={
-              session.status === 'completed' ? 'Ver resultado do simulado' : 'Continuar simulado'
+              subscriptionLoading
+                ? 'Verificando seu plano para acessar o simulado salvo'
+                : canUseSimulations
+                  ? session.status === 'completed'
+                    ? 'Ver resultado do simulado'
+                    : 'Continuar simulado'
+                  : 'Conhecer planos para acessar o simulado salvo'
             }
             style={({ pressed }) => [
             styles.resumeCard,
@@ -210,12 +223,17 @@ export default function SimulationsScreen() {
         ) : null}
 
         <Pressable
-          onPress={canUseSimulations ? () => router.push('/questoes/simulado/configurar') : openPlans}
+          disabled={subscriptionLoading}
+          onPress={
+            canUseSimulations ? () => router.push('/questoes/simulado/configurar') : openPlans
+          }
           accessibilityRole="button"
           accessibilityLabel={
-            canUseSimulations
-              ? 'Montar simulado personalizado'
-              : 'Conhecer planos com simulados personalizados'
+            subscriptionLoading
+              ? 'Verificando seu plano para montar simulados'
+              : canUseSimulations
+                ? 'Montar simulado personalizado'
+                : 'Conhecer planos com simulados personalizados'
           }
           style={({ pressed }) => [
             styles.builderCard,
@@ -229,15 +247,33 @@ export default function SimulationsScreen() {
             <View style={styles.builderTitleRow}>
               <Text style={[styles.builderTitle, { color: colors.text }]}>Monte seu simulado</Text>
               <Badge
-                label={canUseSimulations ? 'Incluído no plano' : 'Planos KAD'}
-                icon={canUseSimulations ? 'checkmark-circle' : 'lock-closed'}
+                label={
+                  subscriptionLoading
+                    ? 'Verificando plano'
+                    : canUseSimulations
+                      ? 'Incluído no plano'
+                      : 'Planos KAD'
+                }
+                icon={
+                  subscriptionLoading
+                    ? 'time-outline'
+                    : canUseSimulations
+                      ? 'checkmark-circle'
+                      : 'lock-closed'
+                }
                 tone={canUseSimulations ? 'success' : 'warning'}
               />
             </View>
             <Text style={[styles.builderDescription, { color: colors.textMuted }]}>
               Escolha conteúdo, quantidade de questões e tempo de prova.
             </Text>
-            <Text style={[styles.builderAction, { color: colors.primary }]}>{canUseSimulations ? 'Configurar prova' : 'Conhecer planos'}</Text>
+            <Text style={[styles.builderAction, { color: colors.primary }]}>
+              {subscriptionLoading
+                ? 'Aguarde um instante'
+                : canUseSimulations
+                  ? 'Configurar prova'
+                  : 'Conhecer planos'}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={19} color={colors.primary} />
         </Pressable>
