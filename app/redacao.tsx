@@ -26,9 +26,12 @@ import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { ESSAY_TOPICS, type EssayTopic } from '@/data/essay-topics';
 import { useTheme } from '@/hooks/use-theme';
 import { essayTopicDisclosure, filterEssayTopics } from '@/lib/essay-discovery';
+import { loadRemoteEssay, saveRemoteEssay } from '@/lib/remote-user-sync';
 import { recommendPackForGoal } from '@/lib/simulations';
+import { newestEssay, nextSyncTimestamp, parseStoredEssay } from '@/lib/user-sync';
 import { useApp } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
+import type { EssayDocument } from '@/types';
 
 type EssayStage = 'topics' | 'editor' | 'submitted';
 
@@ -51,7 +54,8 @@ export default function EssayScreen() {
   const router = useRouter();
   const { profile } = useApp();
   const { user } = useAuth();
-  const draftOwnerId = user?.id ?? 'guest';
+  const userId = user?.id;
+  const draftOwnerId = userId ?? 'guest';
   const editorRef = useRef<TextInput>(null);
   const [stage, setStage] = useState<EssayStage>('topics');
   const [selectedTopic, setSelectedTopic] = useState<EssayTopic | null>(null);
@@ -61,6 +65,8 @@ export default function EssayScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [submittedAt, setSubmittedAt] = useState<string>();
+  const [draftUpdatedAt, setDraftUpdatedAt] = useState(() => new Date().toISOString());
 
   const recommendedPack = useMemo(
     () => recommendPackForGoal(CONCURSO_PACKS, profile.targetRole),
@@ -79,7 +85,15 @@ export default function EssayScreen() {
 
   useEffect(() => {
     if (!timerRunning) return;
-    const interval = setInterval(() => setElapsedSeconds((current) => current + 1), 1000);
+    const interval = setInterval(
+      () =>
+        setElapsedSeconds((current) => {
+          const next = current + 1;
+          if (next % 10 === 0) setDraftUpdatedAt((current) => nextSyncTimestamp(current));
+          return next;
+        }),
+      1000
+    );
     return () => clearInterval(interval);
   }, [timerRunning]);
 
@@ -93,10 +107,18 @@ export default function EssayScreen() {
       draftOwnerId === 'guest'
         ? AsyncStorage.getItem(`${DRAFT_PREFIX}${selectedTopic.id}`)
         : Promise.resolve(null),
+      userId ? loadRemoteEssay(userId, selectedTopic.id).catch(() => null) : Promise.resolve(null),
     ])
-      .then(([draft, legacyDraft]) => {
-        if (active) setEssay(draft ?? '');
-        if (active && !draft && legacyDraft) setEssay(legacyDraft);
+      .then(([draft, legacyDraft, remoteDraft]) => {
+        if (!active) return;
+        const localDraft =
+          parseStoredEssay(draft, selectedTopic.id) ??
+          parseStoredEssay(legacyDraft, selectedTopic.id);
+        const latest = newestEssay(localDraft, remoteDraft);
+        setEssay(latest?.content ?? '');
+        setElapsedSeconds(latest?.elapsedSeconds ?? 0);
+        setSubmittedAt(latest?.submittedAt);
+        setDraftUpdatedAt(latest?.updatedAt ?? new Date().toISOString());
       })
       .catch(() => {
         if (active) setEssay('');
@@ -107,29 +129,65 @@ export default function EssayScreen() {
     return () => {
       active = false;
     };
-  }, [draftOwnerId, selectedTopic]);
+  }, [draftOwnerId, selectedTopic, userId]);
 
   useEffect(() => {
     if (!selectedTopic || !draftLoaded) return;
     const timeout = setTimeout(() => {
+      const document: EssayDocument = {
+        topicId: selectedTopic.id,
+        content: essay,
+        elapsedSeconds,
+        status: submittedAt ? 'submitted' : 'draft',
+        submittedAt,
+        updatedAt: draftUpdatedAt,
+      };
       AsyncStorage.setItem(
         `${DRAFT_PREFIX}${draftOwnerId}/${selectedTopic.id}`,
-        essay
+        JSON.stringify(document)
       ).catch(() => {});
     }, 350);
     return () => clearTimeout(timeout);
-  }, [draftLoaded, draftOwnerId, essay, selectedTopic]);
+  }, [draftLoaded, draftOwnerId, draftUpdatedAt, elapsedSeconds, essay, selectedTopic, submittedAt]);
+
+  const remoteSyncClock = Math.floor(elapsedSeconds / 10);
+  const remoteElapsedSeconds = timerRunning ? remoteSyncClock * 10 : elapsedSeconds;
+  useEffect(() => {
+    if (!selectedTopic || !draftLoaded || !userId) return;
+    const timeout = setTimeout(() => {
+      const document: EssayDocument = {
+        topicId: selectedTopic.id,
+        content: essay,
+        elapsedSeconds: remoteElapsedSeconds,
+        status: submittedAt ? 'submitted' : 'draft',
+        submittedAt,
+        updatedAt: draftUpdatedAt,
+      };
+      saveRemoteEssay(userId, document).catch(() => {});
+    }, 750);
+    return () => clearTimeout(timeout);
+  }, [draftLoaded, draftUpdatedAt, essay, remoteElapsedSeconds, selectedTopic, submittedAt, userId]);
+
+  const changeEssay = (value: string) => {
+    setEssay(value);
+    setSubmittedAt(undefined);
+    setDraftUpdatedAt((current) => nextSyncTimestamp(current));
+  };
 
   const selectTopic = (topic: EssayTopic) => {
     setSelectedTopic(topic);
     setEssay('');
     setElapsedSeconds(0);
     setTimerRunning(false);
+    setSubmittedAt(undefined);
+    setDraftUpdatedAt(new Date().toISOString());
     setStage('editor');
   };
 
   const goBack = () => {
     if (stage === 'submitted') {
+      setSubmittedAt(undefined);
+      setDraftUpdatedAt((current) => nextSyncTimestamp(current));
       setStage('editor');
       return;
     }
@@ -144,6 +202,9 @@ export default function EssayScreen() {
   const submit = () => {
     if (countWords(essay) < 20) return;
     setTimerRunning(false);
+    const submitted = nextSyncTimestamp(draftUpdatedAt);
+    setSubmittedAt(submitted);
+    setDraftUpdatedAt(submitted);
     setStage('submitted');
   };
 
@@ -174,13 +235,14 @@ export default function EssayScreen() {
         <EssayEditor
           topic={selectedTopic}
           essay={essay}
-          onChangeEssay={setEssay}
+          onChangeEssay={changeEssay}
           elapsedSeconds={elapsedSeconds}
           timerRunning={timerRunning}
           onToggleTimer={() => setTimerRunning((current) => !current)}
           onResetTimer={() => {
             setElapsedSeconds(0);
             setTimerRunning(false);
+            setDraftUpdatedAt((current) => nextSyncTimestamp(current));
           }}
           editorRef={editorRef}
           onSubmit={submit}
@@ -193,7 +255,11 @@ export default function EssayScreen() {
           topic={selectedTopic}
           wordCount={countWords(essay)}
           elapsedSeconds={elapsedSeconds}
-          onEdit={() => setStage('editor')}
+          onEdit={() => {
+            setSubmittedAt(undefined);
+            setDraftUpdatedAt((current) => nextSyncTimestamp(current));
+            setStage('editor');
+          }}
           onChooseAnother={() => {
             setStage('topics');
             setSelectedTopic(null);

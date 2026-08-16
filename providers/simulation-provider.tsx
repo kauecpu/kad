@@ -5,11 +5,23 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 
 import { createSimulationSession } from '@/lib/simulations';
+import {
+  deleteRemoteSimulationSessions,
+  loadRemoteSimulationSessions,
+  saveRemoteSimulationSession,
+} from '@/lib/remote-user-sync';
+import {
+  mergeSimulationSessions,
+  parseStoredSimulation,
+  parseStoredSimulationHistory,
+  touchSimulationSession,
+} from '@/lib/user-sync';
 import { useAuth } from '@/providers/auth-provider';
 import type { AlternativeId, SimulationConfig, SimulationSession } from '@/types';
 
@@ -41,6 +53,8 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<SimulationSession | null>(null);
   const [history, setHistory] = useState<SimulationSession[]>([]);
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
+  const sessionRef = useRef<SimulationSession | null>(null);
+  sessionRef.current = session;
 
   const ownerId = authSession?.user.id ?? 'guest';
   const storageKey = authLoading ? null : `${STORAGE_KEY_PREFIX}:${ownerId}`;
@@ -64,16 +78,23 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
       AsyncStorage.getItem(historyStorageKey),
       isGuest ? AsyncStorage.getItem(LEGACY_STORAGE_KEY) : Promise.resolve(null),
       isGuest ? AsyncStorage.getItem(LEGACY_HISTORY_STORAGE_KEY) : Promise.resolve(null),
+      !isGuest
+        ? loadRemoteSimulationSessions(ownerId).catch(() => [])
+        : Promise.resolve([]),
     ])
-      .then(([scopedSession, scopedHistory, legacySession, legacyHistory]) => {
+      .then(([scopedSession, scopedHistory, legacySession, legacyHistory, remoteSessions]) => {
         if (!active) return;
         const rawSession = scopedSession ?? legacySession;
         const rawHistory = scopedHistory ?? legacyHistory;
-        if (rawSession) setSession(JSON.parse(rawSession) as SimulationSession);
-        if (rawHistory) {
-          const parsed = JSON.parse(rawHistory) as SimulationSession[];
-          if (Array.isArray(parsed)) setHistory(parsed);
-        }
+        const localSession = parseStoredSimulation(rawSession);
+        const localHistory = parseStoredSimulationHistory(rawHistory);
+        const merged = mergeSimulationSessions(
+          localSession ? [localSession, ...localHistory] : localHistory,
+          remoteSessions,
+          HISTORY_LIMIT
+        );
+        setSession(merged.session);
+        setHistory(merged.history);
       })
       .catch(() => {
         // Uma sessão inválida não deve impedir o restante do aplicativo de abrir.
@@ -102,6 +123,22 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   }, [history, historyStorageKey, hydrated]);
 
   useEffect(() => {
+    if (!hydrated || !authSession?.user.id || !sessionRef.current) return;
+    const timeout = setTimeout(() => {
+      const current = sessionRef.current;
+      if (current) saveRemoteSimulationSession(authSession.user.id, current).catch(() => {});
+    }, 600);
+    return () => clearTimeout(timeout);
+  }, [authSession?.user.id, hydrated, session?.id, session?.status, session?.updatedAt]);
+
+  useEffect(() => {
+    if (!hydrated || !authSession?.user.id || history.length === 0) return;
+    Promise.all(
+      history.map((item) => saveRemoteSimulationSession(authSession.user.id, item))
+    ).catch(() => {});
+  }, [authSession?.user.id, history, hydrated]);
+
+  useEffect(() => {
     if (!hydrated || session?.status !== 'completed') return;
     setHistory((current) => {
       if (current.some((item) => item.id === session.id)) return current;
@@ -111,17 +148,29 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
 
   const startSimulation = useCallback((config: SimulationConfig) => {
     const next = createSimulationSession(config);
-    if (next) setSession(next);
+    if (next) {
+      setSession((current) => {
+        if (
+          authSession?.user.id &&
+          current &&
+          current.status !== 'completed' &&
+          current.id !== next.id
+        ) {
+          deleteRemoteSimulationSessions(authSession.user.id, current.id).catch(() => {});
+        }
+        return next;
+      });
+    }
     return next;
-  }, []);
+  }, [authSession?.user.id]);
 
   const answerQuestion = useCallback((questionId: string, alternative: AlternativeId) => {
     setSession((current) =>
       current && current.status !== 'completed'
-        ? {
+        ? touchSimulationSession({
             ...current,
             answers: { ...current.answers, [questionId]: alternative },
-          }
+          })
         : current
     );
   }, []);
@@ -130,7 +179,7 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     setSession((current) => {
       if (!current) return current;
       const bounded = Math.max(0, Math.min(index, current.questions.length - 1));
-      return { ...current, currentIndex: bounded };
+      return touchSimulationSession({ ...current, currentIndex: bounded });
     });
   }, []);
 
@@ -139,42 +188,54 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
       if (!current || current.status !== 'active') return current;
       const remainingSeconds = Math.max(0, current.remainingSeconds - 1);
       if (remainingSeconds === 0) {
-        return {
+        return touchSimulationSession({
           ...current,
           remainingSeconds,
           status: 'completed',
           completedAt: new Date().toISOString(),
-        };
+        });
       }
-      return { ...current, remainingSeconds };
+      const next = { ...current, remainingSeconds };
+      return remainingSeconds % 10 === 0 ? touchSimulationSession(next) : next;
     });
   }, []);
 
   const pauseSimulation = useCallback(() => {
     setSession((current) =>
-      current?.status === 'active' ? { ...current, status: 'paused' } : current
+      current?.status === 'active'
+        ? touchSimulationSession({ ...current, status: 'paused' })
+        : current
     );
   }, []);
 
   const resumeSimulation = useCallback(() => {
     setSession((current) =>
-      current?.status === 'paused' ? { ...current, status: 'active' } : current
+      current?.status === 'paused'
+        ? touchSimulationSession({ ...current, status: 'active' })
+        : current
     );
   }, []);
 
   const finishSimulation = useCallback(() => {
     setSession((current) =>
       current && current.status !== 'completed'
-        ? {
+        ? touchSimulationSession({
             ...current,
             status: 'completed',
             completedAt: new Date().toISOString(),
-          }
+          })
         : current
     );
   }, []);
 
-  const discardSimulation = useCallback(() => setSession(null), []);
+  const discardSimulation = useCallback(() => {
+    setSession((current) => {
+      if (authSession?.user.id && current && current.status !== 'completed') {
+        deleteRemoteSimulationSessions(authSession.user.id, current.id).catch(() => {});
+      }
+      return null;
+    });
+  }, [authSession?.user.id]);
 
   const clearSimulationData = useCallback(async () => {
     setSession(null);
@@ -184,7 +245,10 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
       keys.push(LEGACY_STORAGE_KEY, LEGACY_HISTORY_STORAGE_KEY);
     }
     if (keys.length > 0) await AsyncStorage.multiRemove(keys);
-  }, [historyStorageKey, ownerId, storageKey]);
+    if (authSession?.user.id) {
+      await deleteRemoteSimulationSessions(authSession.user.id).catch(() => {});
+    }
+  }, [authSession?.user.id, historyStorageKey, ownerId, storageKey]);
 
   const value = useMemo<SimulationContextValue>(
     () => ({

@@ -69,7 +69,7 @@ export default function PerfilScreen() {
     isPremium,
     canViewStatistics,
     savedConcursos,
-    updateProfile,
+    updateProfileAvatar,
     resetProgress,
     deleteAccount,
   } = useApp();
@@ -102,11 +102,12 @@ export default function PerfilScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
+      base64: true,
     });
 
     if (!result.canceled && result.assets[0]) {
       try {
-        await updateProfile({ avatarUri: result.assets[0].uri });
+        await updateProfileAvatar(result.assets[0]);
       } catch {
         Alert.alert('Não foi possível salvar a foto', 'Tente novamente em instantes.');
       }

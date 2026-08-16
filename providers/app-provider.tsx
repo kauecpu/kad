@@ -45,6 +45,11 @@ import {
   setRemoteFavorite,
   setRemoteSavedConcurso,
 } from '@/lib/remote-user-data';
+import {
+  profileAvatarUrl,
+  uploadRemoteAvatar,
+  type ProfileAvatarAsset,
+} from '@/lib/remote-user-sync';
 import { useAuth } from '@/providers/auth-provider';
 import type {
   AlternativeId,
@@ -108,6 +113,7 @@ type AppContextValue = AppDataState & {
   toggleFavoriteQuestion: (questionId: string) => void;
   resetProgress: () => void;
   updateProfile: (patch: Partial<UserProfile>) => Promise<void>;
+  updateProfileAvatar: (asset: ProfileAvatarAsset) => Promise<void>;
   subscribe: (
     plan: Exclude<SubscriptionPlan, 'basic'>,
     billingCycle: BillingCycle
@@ -362,7 +368,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     Promise.all([
       supabase
         .from('profiles')
-        .select('name, username, phone, city, target_role')
+        .select('name, username, phone, city, target_role, avatar_path, updated_at')
         .eq('id', userId)
         .maybeSingle(),
       loadRemoteStudyData(userId),
@@ -379,6 +385,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 name: data.name || current.profile.name,
                 email: authEmail,
                 username: data.username || current.profile.username,
+                avatarUri:
+                  profileAvatarUrl(data.avatar_path, data.updated_at) ?? current.profile.avatarUri,
                 phone: data.phone || undefined,
                 city: data.city || undefined,
                 targetRole: data.target_role || undefined,
@@ -543,6 +551,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [state.profile, userId]
   );
 
+  const updateProfileAvatar = useCallback(
+    async (asset: ProfileAvatarAsset) => {
+      if (!userId) {
+        setState((current) => ({
+          ...current,
+          profile: { ...current.profile, avatarUri: asset.uri },
+        }));
+        return;
+      }
+      if (!asset.base64) throw new Error('A imagem selecionada não pôde ser preparada.');
+      const avatarUri = await uploadRemoteAvatar(
+        userId,
+        asset.base64,
+        asset.mimeType ?? 'image/jpeg'
+      );
+      if (subscriptionOwnerRef.current !== userId) return;
+      setState((current) => ({
+        ...current,
+        profile: { ...current.profile, avatarUri },
+      }));
+    },
+    [userId]
+  );
+
   const setThemePreference = useCallback((preference: ThemePreference) => {
     setState((current) =>
       current.themePreference === preference
@@ -644,6 +676,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleFavoriteQuestion,
       resetProgress,
       updateProfile,
+      updateProfileAvatar,
       subscribe,
       cancelSubscription,
       refreshSubscription,
@@ -670,6 +703,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleFavoriteQuestion,
       resetProgress,
       updateProfile,
+      updateProfileAvatar,
       subscribe,
       cancelSubscription,
       refreshSubscription,

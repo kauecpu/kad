@@ -130,6 +130,7 @@ export function createSimulationSession(config: SimulationConfig): SimulationSes
     };
   });
 
+  const createdAt = new Date().toISOString();
   return {
     id: `simulado-${Date.now()}`,
     status: 'active',
@@ -141,7 +142,8 @@ export function createSimulationSession(config: SimulationConfig): SimulationSes
     answers: {},
     currentIndex: 0,
     remainingSeconds: config.durationMinutes * 60,
-    createdAt: new Date().toISOString(),
+    createdAt,
+    updatedAt: createdAt,
   };
 }
 
