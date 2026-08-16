@@ -61,6 +61,12 @@ test('o KAD Círculo não é oferecido para novas assinaturas', () => {
   assert.doesNotMatch(plans, /subscribeTo\('circle'/);
 });
 
+test('o plano Diamante usa somente a identidade visual atual do KAD', () => {
+  assert.match(plans, /kad-icon-v4\.png/);
+  assert.doesNotMatch(plans, /kad-symbol-v3\.png/);
+  assert.doesNotMatch(plans, /name="diamond"/);
+});
+
 test('o Plano Básico permite responder questões sem limite diário', () => {
   assert.doesNotMatch(provider, /BASIC_DAILY_QUESTION_LIMIT|canAnswerWithDailyLimit/);
   assert.doesNotMatch(questionCard, /Limite diário atingido|onLimitReached|canAnswer/);

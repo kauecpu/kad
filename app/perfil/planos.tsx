@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -404,7 +405,11 @@ function DiamondPlanSection({
 
       <View style={styles.diamondHeader}>
         <View style={styles.diamondIcon}>
-          <Ionicons name="diamond" size={24} color="#F8CE62" />
+          <Image
+            source={require('@/assets/images/kad-icon-v4.png')}
+            resizeMode="contain"
+            style={styles.diamondBrandMark}
+          />
         </View>
         <View style={styles.planHeading}>
           <Text style={styles.diamondTitle}>KAD Diamante</Text>
@@ -645,10 +650,11 @@ const styles = StyleSheet.create({
     height: 46,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.md,
-    backgroundColor: 'rgba(248,206,98,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(248,206,98,0.28)',
+  },
+  diamondBrandMark: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
   },
   diamondTitle: { color: '#FFFFFF', fontSize: FontSize.heading + 1, fontWeight: FontWeight.bold },
   diamondSubtitle: { color: '#D8CCE8', fontSize: FontSize.small, lineHeight: 18 },
