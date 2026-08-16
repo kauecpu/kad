@@ -16,6 +16,7 @@ type QuestionCardProps = {
   question: Question;
   position: number;
   total: number;
+  showPosition?: boolean;
   answer?: AnswerRecord;
   onAnswer: (question: Question, selected: AlternativeId) => void;
   onReset: (questionId: string) => void;
@@ -31,6 +32,7 @@ function QuestionCardComponent({
   question,
   position,
   total,
+  showPosition = true,
   answer,
   onAnswer,
   onReset,
@@ -64,24 +66,26 @@ function QuestionCardComponent({
         <View style={styles.badgeGroup}>
           <Badge label={question.subject} tone="primary" />
           <Badge label={question.difficulty} tone={DIFFICULTY_TONE[question.difficulty]} />
-          {answered ? (
-            <Badge
-              label={isCorrect ? 'Acertou' : 'Errou'}
-              tone={isCorrect ? 'success' : 'danger'}
-              icon={isCorrect ? 'checkmark-circle' : 'close-circle'}
-            />
-          ) : null}
         </View>
         <QuestionFavoriteButton questionId={question.id} />
       </View>
 
-      <Text style={[styles.meta, { color: colors.textSubtle }]}>
-        {`${question.board} · ${question.year} · ${question.concurso} · ${question.role}`}
-      </Text>
+      <View style={styles.metaRail} accessibilityLabel={`Fonte da questão: ${question.board}, ${question.year}, ${question.concurso}, ${question.role}`}>
+        <View style={styles.metaItem}>
+          <Ionicons name="business-outline" size={15} color={colors.textSubtle} />
+          <Text style={[styles.meta, { color: colors.textMuted }]}>{`${question.board} · ${question.year}`}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Ionicons name="briefcase-outline" size={15} color={colors.textSubtle} />
+          <Text style={[styles.meta, { color: colors.textMuted }]}>{`${question.concurso} · ${question.role}`}</Text>
+        </View>
+      </View>
 
-      <Text style={[styles.counter, { color: colors.textMuted }]}>
-        {`Questão ${position} de ${total} · ${question.topic}`}
-      </Text>
+      {showPosition ? (
+        <Text style={[styles.counter, { color: colors.textSubtle }]}>
+          {`Questão ${position} de ${total} · ${question.topic}`}
+        </Text>
+      ) : null}
 
       <Text style={[styles.statement, { color: colors.text }]}>{question.statement}</Text>
 
@@ -170,37 +174,41 @@ function QuestionCardComponent({
 
           <QuestionCommunityStat question={question} />
 
-          <Pressable
-            onPress={() => setShowExplanation((current) => !current)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: showExplanation }}
-            accessibilityLabel="Gabarito comentado"
+          <View
             style={[
-              styles.explanationHeader,
+              styles.explanationCard,
               { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
             ]}>
-            <Ionicons name="bulb-outline" size={17} color={colors.accent} />
-            <Text style={[styles.explanationTitle, { color: colors.text }]}>Gabarito comentado</Text>
-            <Ionicons
-              name={showExplanation ? 'chevron-up' : 'chevron-down'}
-              size={17}
-              color={colors.textSubtle}
-            />
-          </Pressable>
+            <Pressable
+              onPress={() => setShowExplanation((current) => !current)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showExplanation }}
+              accessibilityLabel="Gabarito comentado"
+              style={styles.explanationHeader}>
+              <Ionicons name="bulb-outline" size={18} color={colors.accent} />
+              <Text style={[styles.explanationTitle, { color: colors.text }]}>Gabarito comentado</Text>
+              <Ionicons
+                name={showExplanation ? 'chevron-up' : 'chevron-down'}
+                size={17}
+                color={colors.textSubtle}
+              />
+            </Pressable>
 
-          {showExplanation ? (
-            <View
-              style={[
-                styles.explanationBody,
-                { backgroundColor: colors.surfaceSunken, borderColor: colors.border },
-              ]}>
-              <Text style={[styles.explanationText, { color: colors.textMuted }]}>
-                {question.explanation}
-              </Text>
-            </View>
-          ) : null}
+            {showExplanation ? (
+              <View style={[styles.explanationBody, { borderTopColor: colors.border }]}>
+                <Text style={[styles.explanationText, { color: colors.textMuted }]}>
+                  {question.explanation}
+                </Text>
+              </View>
+            ) : null}
+          </View>
 
-          <Button label="Refazer questão" variant="ghost" icon="refresh" onPress={handleReset} />
+          <Button
+            label="Tentar novamente"
+            variant="secondary"
+            icon="refresh"
+            onPress={handleReset}
+          />
           <QuestionComments questionId={question.id} />
         </View>
       )}
@@ -227,14 +235,27 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.xs + 2,
   },
+  metaRail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    maxWidth: '100%',
+  },
   meta: {
-    fontSize: FontSize.tiny,
+    flexShrink: 1,
+    fontSize: FontSize.small,
     fontWeight: FontWeight.medium,
-    letterSpacing: 0.2,
+    lineHeight: 18,
   },
   counter: {
     fontSize: FontSize.tiny,
-    marginTop: -Spacing.sm,
+    fontWeight: FontWeight.medium,
   },
   statement: {
     fontSize: FontSize.body + 1,
@@ -284,13 +305,16 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     lineHeight: 19,
   },
+  explanationCard: {
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
   explanationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     padding: Spacing.md,
-    borderRadius: Radius.md,
-    borderWidth: 1,
   },
   explanationTitle: {
     flex: 1,
@@ -299,8 +323,7 @@ const styles = StyleSheet.create({
   },
   explanationBody: {
     padding: Spacing.md,
-    borderRadius: Radius.md,
-    borderWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   explanationText: {
     fontSize: FontSize.body,
