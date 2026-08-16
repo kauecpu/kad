@@ -1,6 +1,6 @@
 import Ionicons from '@/components/ui/app-icon';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +18,7 @@ import {
   simulationQuestionById,
   simulationScore,
 } from '@/lib/simulations';
+import { useApp } from '@/providers/app-provider';
 import { useSimulation } from '@/providers/simulation-provider';
 
 type ReviewMode = 'all' | 'wrong';
@@ -31,8 +32,15 @@ export default function SimulationResultScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { canUseSimulations, subscriptionLoading } = useApp();
   const { session, discardSimulation } = useSimulation();
   const [reviewMode, setReviewMode] = useState<ReviewMode>('all');
+
+  useEffect(() => {
+    if (!subscriptionLoading && !canUseSimulations) {
+      router.replace('/perfil/planos');
+    }
+  }, [canUseSimulations, router, subscriptionLoading]);
 
   const score = useMemo(
     () => (session ? simulationScore(session) : null),
@@ -62,6 +70,23 @@ export default function SimulationResultScreen() {
     discardSimulation();
     router.replace('/questoes/simulado/configurar');
   };
+
+  if (subscriptionLoading || !canUseSimulations) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <StackHeader title="Resultado" onBack={() => router.replace('/questoes')} />
+        <EmptyState
+          icon={subscriptionLoading ? 'time-outline' : 'lock-closed-outline'}
+          title={subscriptionLoading ? 'Verificando seu plano' : 'Resultados são um recurso premium'}
+          description={
+            subscriptionLoading
+              ? 'Aguarde enquanto confirmamos sua assinatura.'
+              : 'Escolha um plano KAD para revisar este resultado.'
+          }
+        />
+      </View>
+    );
+  }
 
   if (!session || !score) {
     return (

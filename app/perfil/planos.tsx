@@ -19,6 +19,7 @@ import {
 } from '@/data/user';
 import { useTheme } from '@/hooks/use-theme';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { isValidPaymentCheckoutReturnId } from '@/lib/payment-security';
 import { useApp } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
 import type { BillingCycle, SubscriptionPlan } from '@/types';
@@ -52,7 +53,7 @@ export default function PlansScreen() {
   const [checkoutReturned, setCheckoutReturned] = useState(false);
 
   useEffect(() => {
-    if (!checkout || !session) return;
+    if (!isValidPaymentCheckoutReturnId(checkout) || !session) return;
     setCheckoutReturned(true);
     let stopped = false;
     let attempts = 0;
