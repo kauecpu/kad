@@ -424,7 +424,29 @@ export default function PerfilScreen() {
           </Card>
         </DossierSection>
 
-        <DossierSection index="04" title="Conta e privacidade">
+        <DossierSection index="04" title="Ajude a construir">
+          <Card
+            onPress={() => router.push('/perfil/feedback')}
+            accessibilityLabel="Enviar feedback para o KAD"
+            style={[
+              styles.feedbackCard,
+              { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong },
+            ]}>
+            <View style={[styles.feedbackIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="chatbubble-ellipses-outline" size={21} color="#FFFFFF" />
+            </View>
+            <View style={styles.feedbackCopy}>
+              <Text style={[styles.feedbackEyebrow, { color: colors.primary }]}>TESTE FECHADO</Text>
+              <Text style={[styles.feedbackTitle, { color: colors.text }]}>Fale com o KAD</Text>
+              <Text style={[styles.feedbackDescription, { color: colors.textMuted }]}>
+                Envie uma sugestão, dúvida ou problema direto para a equipe.
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward" size={19} color={colors.primary} />
+          </Card>
+        </DossierSection>
+
+        <DossierSection index="05" title="Conta e privacidade">
           <Card padded={false} style={styles.settingsCard}>
             {session ? (
               <>
@@ -513,6 +535,28 @@ const styles = StyleSheet.create({
     letterSpacing: -0.25,
   },
   sectionRule: { flex: 1, height: StyleSheet.hairlineWidth, marginLeft: Spacing.xs },
+  feedbackCard: {
+    minHeight: 112,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    borderWidth: 1,
+  },
+  feedbackIcon: {
+    width: 46,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.md,
+  },
+  feedbackCopy: { flex: 1, gap: 3 },
+  feedbackEyebrow: {
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.8,
+  },
+  feedbackTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
+  feedbackDescription: { fontSize: FontSize.small, lineHeight: 18 },
   identityCard: {
     borderWidth: 1,
     overflow: 'hidden',

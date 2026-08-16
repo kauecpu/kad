@@ -10,6 +10,7 @@ import { ImportsPage } from './pages/imports-page';
 import { ModulePage } from './pages/module-page';
 import { QuestionsPage } from './pages/questions-page';
 import { SettingsPage } from './pages/settings-page';
+import { FeedbackPage } from './pages/feedback-page';
 
 export function App() {
   const { access, loading } = useAuth();
@@ -31,6 +32,10 @@ export function App() {
         <Route path="concursos" element={<ConcursosPage />} />
         <Route path="questoes" element={<QuestionsPage />} />
         <Route path="importacoes" element={<ImportsPage />} />
+        <Route
+          path="feedback"
+          element={access?.permissions.includes('feedback.read') ? <FeedbackPage /> : <Navigate to="/" replace />}
+        />
         <Route path="comunidade" element={<ModulePage kind="comunidade" />} />
         <Route path="usuarios" element={<ModulePage kind="usuarios" />} />
         <Route path="auditoria" element={<ModulePage kind="auditoria" />} />

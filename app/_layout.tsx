@@ -64,6 +64,7 @@ function RootNavigator() {
           <Stack.Screen name="perfil/senha" options={{ headerShown: false }} />
           <Stack.Screen name="perfil/excluir-conta" options={{ headerShown: false }} />
           <Stack.Screen name="perfil/planos" options={{ headerShown: false }} />
+          <Stack.Screen name="perfil/feedback" options={{ headerShown: false }} />
           <Stack.Screen name="perfil/desempenho" options={{ headerShown: false }} />
           <Stack.Screen name="perfil/desempenho/questoes" options={{ headerShown: false }} />
           <Stack.Screen name="trilhas" options={{ headerShown: false }} />
