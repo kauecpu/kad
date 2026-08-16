@@ -1,19 +1,34 @@
 import Ionicons from '@/components/ui/app-icon';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ProgressBar } from '@/components/ui/progress-bar';
 import { StackHeader } from '@/components/ui/stack-header';
-import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
+import {
+  cardShadow,
+  CONTENT_MAX_WIDTH,
+  FontSize,
+  FontWeight,
+  Radius,
+  Spacing,
+} from '@/constants/theme';
 import {
   BASIC_PLAN_ACCESS,
-  CIRCLE_BENEFITS,
-  CIRCLE_BILLING_OPTIONS,
   DIAMOND_BENEFITS,
   DIAMOND_BILLING_OPTIONS,
 } from '@/data/user';
@@ -30,8 +45,14 @@ const PLAN_LABEL: Record<SubscriptionPlan, string> = {
   circle: 'KAD Círculo',
 };
 
+const PLAN_GRADIENTS = {
+  light: ['#27104F', '#5520A7', '#7C3AED'],
+  dark: ['#160B2C', '#34146B', '#5B21B6'],
+} as const;
+
 export default function PlansScreen() {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
+  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { checkout } = useLocalSearchParams<{ checkout?: string }>();
@@ -39,18 +60,16 @@ export default function PlansScreen() {
   const {
     subscription,
     isPremium,
-    dailyQuestionLimit,
-    dailyQuestionsAnswered,
     subscribe,
     cancelSubscription,
     refreshSubscription,
     subscriptionLoading,
   } = useApp();
   const [diamondCycle, setDiamondCycle] = useState<BillingCycle>('monthly');
-  const [circleCycle, setCircleCycle] = useState<BillingCycle>('monthly');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [checkoutReturned, setCheckoutReturned] = useState(false);
+  const isDesktop = width >= 760;
 
   useEffect(() => {
     if (!isValidPaymentCheckoutReturnId(checkout) || !session) return;
@@ -155,7 +174,7 @@ export default function PlansScreen() {
       : subscription.autoRenew
         ? `Acesso ativo até ${formatDate(subscription.renewsAt)}, com renovação automática.`
         : `Acesso ativo até ${formatDate(subscription.renewsAt)}, sem renovação automática.`
-    : 'Gratuito, sem cobrança e com até 10 questões por dia.';
+    : 'Questões ilimitadas, sem cobrança e sem prazo para terminar.';
   const currentBadge = subscriptionLoading
     ? 'Atualizando'
     : subscription.status === 'past_due'
@@ -176,6 +195,30 @@ export default function PlansScreen() {
           { paddingBottom: insets.bottom + Spacing.xxxl },
         ]}
         showsVerticalScrollIndicator={false}>
+        <LinearGradient
+          colors={PLAN_GRADIENTS[scheme]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}>
+          <View pointerEvents="none" style={styles.heroGlow} />
+          <View pointerEvents="none" style={styles.heroFacetOne} />
+          <View pointerEvents="none" style={styles.heroFacetTwo} />
+          <View style={styles.heroEyebrowRow}>
+            <View style={styles.heroDot} />
+            <Text style={styles.heroEyebrow}>PLANOS KAD</Text>
+          </View>
+          <Text style={styles.heroTitle} accessibilityRole="header">
+            Pratique sem travas. Evolua com direção.
+          </Text>
+          <Text style={styles.heroDescription}>
+            Questões ilimitadas para todos. No Diamante, cada resposta vira visão clara da sua evolução.
+          </Text>
+          <View style={styles.heroPromises}>
+            <HeroPromise icon="infinite-outline" label="Questões ilimitadas" />
+            <HeroPromise icon="diamond-outline" label="Desempenho e simulados" />
+          </View>
+        </LinearGradient>
+
         {checkoutReturned ? (
           <View style={[styles.checkoutNotice, { backgroundColor: colors.primarySoft }]}>
             <Ionicons name="time-outline" size={20} color={colors.primary} />
@@ -191,8 +234,15 @@ export default function PlansScreen() {
           </View>
         ) : null}
 
-        <Card style={styles.currentCard}>
+        <Card style={[styles.currentCard, { borderColor: colors.borderStrong }]}>
           <View style={styles.currentHeader}>
+            <View style={[styles.currentIcon, { backgroundColor: isPremium ? colors.primarySoft : colors.successSoft }]}>
+              <Ionicons
+                name={isPremium ? 'diamond-outline' : 'infinite-outline'}
+                size={22}
+                color={isPremium ? colors.primary : colors.success}
+              />
+            </View>
             <View style={styles.currentText}>
               <Text style={[styles.eyebrow, { color: colors.textSubtle }]}>Seu plano atual</Text>
               <Text style={[styles.currentTitle, { color: colors.text }]}>
@@ -216,11 +266,6 @@ export default function PlansScreen() {
               disabled={cancelLoading}
               fullWidth
             />
-          ) : !isPremium ? (
-            <ProgressBar
-              value={(dailyQuestionsAnswered / dailyQuestionLimit) * 100}
-              label={`${dailyQuestionsAnswered} de ${dailyQuestionLimit} questões usadas hoje`}
-            />
           ) : null}
           {session ? (
             <Button
@@ -234,114 +279,81 @@ export default function PlansScreen() {
           ) : null}
         </Card>
 
-        <PlanSection
-          title="Plano Básico"
-          subtitle="O essencial para começar"
-          badge="Grátis"
-          icon="book-outline">
-          {BASIC_PLAN_ACCESS.map((feature) => (
-            <Benefit
-              key={feature.label}
-              label={feature.label}
-              included={feature.included}
-              color={feature.included ? colors.success : colors.textSubtle}
-            />
-          ))}
-          <View style={[styles.freeNotice, { backgroundColor: colors.surfaceAlt }]}>
-            <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-            <Text style={[styles.freeNoticeText, { color: colors.textMuted }]}>
-              Sempre disponível sem cartão ou cobrança.
-            </Text>
-          </View>
-        </PlanSection>
+        <View style={styles.planIntro}>
+          <Text style={[styles.planIntroEyebrow, { color: colors.primary }]}>ESCOLHA SEU NÍVEL</Text>
+          <Text style={[styles.planIntroTitle, { color: colors.text }]}>O Básico libera a prática. O Diamante revela o caminho.</Text>
+          <Text style={[styles.planIntroDescription, { color: colors.textMuted }]}>Comece gratuitamente ou desbloqueie simulados e uma leitura completa do seu desempenho.</Text>
+        </View>
 
-        <PaidPlanSection
-          title="KAD Diamante"
-          subtitle="Tudo para estudar com ritmo e direção."
-          mark="letter"
-          accent={colors.primary}
-          softAccent={colors.primarySoft}
-          benefits={DIAMOND_BENEFITS}
-          options={DIAMOND_BILLING_OPTIONS}
-          selectedCycle={diamondCycle}
-          onSelectCycle={setDiamondCycle}
-          active={subscription.plan === 'diamond' && isPremium}
-          onSubscribe={() => subscribeTo('diamond', diamondCycle)}
-          checkoutLoading={checkoutLoading}
-        />
-
-        <PaidPlanSection
-          title="KAD Círculo"
-          subtitle="Quatro pessoas, cada uma no seu ritmo."
-          mark="group"
-          badge="25% OFF"
-          accent={colors.primary}
-          softAccent={colors.primarySoft}
-          benefits={CIRCLE_BENEFITS}
-          options={CIRCLE_BILLING_OPTIONS}
-          selectedCycle={circleCycle}
-          onSelectCycle={setCircleCycle}
-          active={subscription.plan === 'circle' && isPremium}
-          onSubscribe={() => subscribeTo('circle', circleCycle)}
-          available={false}
-        />
+        <View style={[styles.planGrid, isDesktop && styles.planGridDesktop]}>
+          <BasicPlanSection active={!isPremium} />
+          <DiamondPlanSection
+            options={DIAMOND_BILLING_OPTIONS}
+            selectedCycle={diamondCycle}
+            onSelectCycle={setDiamondCycle}
+            active={subscription.plan === 'diamond' && isPremium}
+            onSubscribe={() => subscribeTo('diamond', diamondCycle)}
+            checkoutLoading={checkoutLoading}
+          />
+        </View>
 
       </ScrollView>
     </View>
   );
 }
 
-function PlanSection({
-  title,
-  subtitle,
-  badge,
-  icon,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  badge: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  children: React.ReactNode;
-}) {
+function HeroPromise({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  return (
+    <View style={styles.heroPromise}>
+      <Ionicons name={icon} size={16} color="#F8CE62" />
+      <Text style={styles.heroPromiseText}>{label}</Text>
+    </View>
+  );
+}
+
+function BasicPlanSection({ active }: { active: boolean }) {
   const { colors } = useTheme();
   return (
-    <Card style={styles.planCard}>
+    <Card style={[styles.basicCard, { borderColor: active ? colors.success : colors.borderStrong }]}>
       <View style={styles.planHeader}>
-        <View style={styles.planIcon}>
-          <Ionicons name={icon} size={20} color={colors.textMuted} />
+        <View style={[styles.basicIcon, { backgroundColor: colors.successSoft }]}>
+          <Ionicons name="infinite-outline" size={24} color={colors.success} />
         </View>
         <View style={styles.planHeading}>
-          <Text style={[styles.planTitle, { color: colors.text }]}>{title}</Text>
-          <Text style={[styles.planSubtitle, { color: colors.textMuted }]}>{subtitle}</Text>
+          <Text style={[styles.planTitle, { color: colors.text }]}>Plano Básico</Text>
+          <Text style={[styles.planSubtitle, { color: colors.textMuted }]}>Prática livre, simples e gratuita.</Text>
         </View>
-        <Badge label={badge} tone="neutral" />
+        <Badge label={active ? 'Seu plano' : 'Grátis'} tone={active ? 'success' : 'neutral'} />
       </View>
-      <View style={styles.benefits}>{children}</View>
+
+      <View style={[styles.basicSpotlight, { backgroundColor: colors.successSoft }]}>
+        <Text style={[styles.basicSpotlightEyebrow, { color: colors.success }]}>SEM LIMITE DIÁRIO</Text>
+        <Text style={[styles.basicSpotlightTitle, { color: colors.text }]}>Questões ilimitadas</Text>
+        <Text style={[styles.basicSpotlightDescription, { color: colors.textMuted }]}>Responda quantas quiser e confira a correção logo após cada questão.</Text>
+      </View>
+
+      <View style={styles.benefits}>
+        {BASIC_PLAN_ACCESS.slice(1).map((feature) => (
+          <Benefit key={feature.label} label={feature.label} color={colors.success} textColor={colors.text} />
+        ))}
+      </View>
     </Card>
   );
 }
 
 function Benefit({
   label,
-  included = true,
   color,
+  textColor,
 }: {
   label: string;
-  included?: boolean;
   color: string;
+  textColor: string;
 }) {
-  const { colors } = useTheme();
   return (
     <View style={styles.benefit}>
-      <Ionicons
-        name={included ? 'checkmark-circle' : 'close-circle-outline'}
-        size={18}
-        color={color}
-      />
-      <Text style={[styles.benefitText, { color: included ? colors.textMuted : colors.textSubtle }]}>
-        {label}
-      </Text>
+      <Ionicons name="checkmark-circle" size={18} color={color} />
+      <Text style={[styles.benefitText, { color: textColor }]}>{label}</Text>
     </View>
   );
 }
@@ -349,20 +361,13 @@ function Benefit({
 type BillingOption = {
   id: BillingCycle;
   name: string;
-  originalPrice?: number;
   price: number;
   period: string;
   description: string;
   badge?: string;
 };
 
-function PaidPlanSection({
-  title,
-  subtitle,
-  mark,
-  badge,
-  accent,
-  softAccent,
+function DiamondPlanSection({
   benefits,
   options,
   selectedCycle,
@@ -370,150 +375,138 @@ function PaidPlanSection({
   active,
   onSubscribe,
   checkoutLoading = false,
-  available = true,
 }: {
-  title: string;
-  subtitle: string;
-  mark: 'letter' | 'group';
-  badge?: string;
-  accent: string;
-  softAccent: string;
-  benefits: string[];
+  benefits?: string[];
   options: readonly BillingOption[];
   selectedCycle: BillingCycle;
   onSelectCycle: (cycle: BillingCycle) => void;
   active: boolean;
   onSubscribe: () => void | Promise<void>;
   checkoutLoading?: boolean;
-  available?: boolean;
 }) {
-  const { colors } = useTheme();
   const selected = options.find((option) => option.id === selectedCycle) ?? options[0];
+  const features = benefits ?? DIAMOND_BENEFITS;
+  const ctaLabel = active
+    ? 'Seu KAD Diamante está ativo'
+    : checkoutLoading
+      ? 'Preparando pagamento...'
+      : Platform.OS === 'web'
+        ? `Assinar Diamante · ${formatCurrency(selected.price)}`
+        : 'Pagamento móvel em breve';
 
   return (
-    <Card style={styles.planCard}>
-      <View style={styles.planHeader}>
-        <View style={styles.planIcon}>
-          {mark === 'letter' ? (
-            <Text style={[styles.kadMark, { color: accent }]} accessible={false}>
-              K
-            </Text>
-          ) : (
-            <Ionicons name="people-outline" size={22} color={accent} />
-          )}
+    <LinearGradient
+      colors={['#1C0C36', '#3D176F', '#6326B8']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.diamondCard}>
+      <View pointerEvents="none" style={styles.diamondGlow} />
+      <View pointerEvents="none" style={styles.diamondFacet} />
+
+      <View style={styles.diamondHeader}>
+        <View style={styles.diamondIcon}>
+          <Image
+            source={require('@/assets/images/kad-icon-v4.png')}
+            resizeMode="contain"
+            style={styles.diamondBrandMark}
+          />
         </View>
         <View style={styles.planHeading}>
-          <Text style={[styles.planTitle, { color: colors.text }]}>{title}</Text>
-          <Text style={[styles.planSubtitle, { color: colors.textMuted }]}>{subtitle}</Text>
+          <Text style={styles.diamondTitle}>KAD Diamante</Text>
+          <Text style={styles.diamondSubtitle}>Para transformar prática em estratégia.</Text>
         </View>
-        {!available ? (
-          <Badge label="Em breve" tone="warning" icon="time-outline" />
-        ) : active ? (
-          <Badge label="Ativo" tone="success" />
-        ) : badge ? (
-          <Badge label={badge} tone="accent" />
-        ) : null}
+        <View style={styles.diamondBadge}>
+          <Text style={styles.diamondBadgeText}>{active ? 'ATIVO' : 'MAIS COMPLETO'}</Text>
+        </View>
       </View>
 
-      <View style={styles.benefits}>
-        {benefits.map((benefit) => (
-          <Benefit key={benefit} label={benefit} color={accent} />
+      <View style={styles.diamondPromise}>
+        <Text style={styles.diamondPromiseEyebrow}>ENXERGUE ALÉM DO GABARITO</Text>
+        <Text style={styles.diamondPromiseTitle}>Saiba onde você evolui e onde precisa insistir.</Text>
+      </View>
+
+      <View style={styles.diamondBenefits}>
+        {features.map((benefit) => (
+          <View key={benefit} style={styles.diamondBenefit}>
+            <View style={styles.diamondCheck}>
+              <Ionicons name="checkmark" size={13} color="#25103F" />
+            </View>
+            <Text style={styles.diamondBenefitText}>{benefit}</Text>
+          </View>
         ))}
       </View>
 
-      {available ? (
-        <>
-          <Text style={[styles.eyebrow, { color: colors.textSubtle }]}>Período do plano</Text>
-          <View style={styles.billingOptions}>
-            {options.map((option) => {
-              const checked = option.id === selectedCycle;
-              return (
-                <Pressable
-                  key={option.id}
-                  onPress={() => onSelectCycle(option.id)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked }}
-                  accessibilityLabel={
-                    option.originalPrice
-                      ? `${option.name}: de ${formatCurrency(option.originalPrice)} por ${formatCurrency(option.price)} ${option.period}`
-                      : `${option.name}: ${formatCurrency(option.price)} ${option.period}`
-                  }
-                  style={({ pressed }) => [
-                    styles.billingOption,
-                    {
-                      backgroundColor: checked ? softAccent : colors.surfaceAlt,
-                      borderColor: checked ? accent : colors.border,
-                    },
-                    pressed && styles.pressed,
-                  ]}>
-                  <View style={styles.billingTop}>
-                    <Text style={[styles.billingName, { color: colors.text }]}>{option.name}</Text>
-                    {option.badge ? <Badge label={option.badge} tone="accent" /> : null}
+      <Text style={styles.diamondCycleLabel}>ESCOLHA O CICLO</Text>
+      <View style={styles.billingOptions}>
+        {options.map((option) => {
+          const checked = option.id === selectedCycle;
+          return (
+            <Pressable
+              key={option.id}
+              onPress={() => onSelectCycle(option.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked }}
+              accessibilityLabel={`${option.name}: ${formatCurrency(option.price)} ${option.period}`}
+              style={({ pressed }) => [
+                styles.billingOption,
+                checked && styles.billingOptionSelected,
+                pressed && styles.pressed,
+              ]}>
+              <View style={styles.billingTop}>
+                <Text style={styles.billingName}>{option.name}</Text>
+                {option.badge ? (
+                  <View style={styles.savingsBadge}>
+                    <Text style={styles.savingsBadgeText}>{option.badge}</Text>
                   </View>
-                  {option.originalPrice ? (
-                    <Text style={[styles.originalPrice, { color: colors.textSubtle }]}> 
-                      {`De ${formatCurrency(option.originalPrice)}`}
-                    </Text>
-                  ) : null}
-                  <Text style={[styles.billingPrice, { color: colors.text }]}> 
-                    {option.originalPrice ? 'Por ' : ''}
-                    {formatCurrency(option.price)}
-                    <Text style={[styles.billingPeriod, { color: colors.textMuted }]}> 
-                      {` ${option.period}`}
-                    </Text>
-                  </Text>
-                  <Text style={[styles.billingDescription, { color: colors.textMuted }]}>
-                    {option.description}
-                  </Text>
-                  <Ionicons
-                    name={checked ? 'radio-button-on' : 'radio-button-off'}
-                    size={21}
-                    color={checked ? accent : colors.textSubtle}
-                    style={styles.radio}
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
+                ) : null}
+              </View>
+              <Text style={styles.billingPrice}>
+                {formatCurrency(option.price)}
+                <Text style={styles.billingPeriod}>{` ${option.period}`}</Text>
+              </Text>
+              <Text style={styles.billingDescription}>{option.description}</Text>
+              <Ionicons
+                name={checked ? 'radio-button-on' : 'radio-button-off'}
+                size={21}
+                color={checked ? '#F8CE62' : '#C4B5D8'}
+                style={styles.radio}
+              />
+            </Pressable>
+          );
+        })}
+      </View>
 
-          <Button
-            label={
-              active
-                ? `${title} já está ativo`
-                : checkoutLoading
-                  ? 'Preparando pagamento...'
-                  : Platform.OS === 'web'
-                    ? `Assinar ${title.replace('Plano ', '')} · ${formatCurrency(selected.price)}`
-                    : 'Pagamento móvel em breve'
-            }
-            icon={active ? 'checkmark-circle' : checkoutLoading ? 'time-outline' : 'arrow-forward'}
-            size="lg"
-            onPress={onSubscribe}
-            disabled={active || checkoutLoading || Platform.OS !== 'web'}
-            fullWidth
-          />
-          <View style={[styles.paymentNotice, { backgroundColor: colors.surfaceAlt }]}>
-            <Ionicons
-              name={Platform.OS === 'web' ? 'shield-checkmark-outline' : 'phone-portrait-outline'}
-              size={18}
-              color={colors.textMuted}
-            />
-            <Text style={[styles.paymentNoticeText, { color: colors.textMuted }]}>
-              {Platform.OS === 'web'
-                ? 'Pix e cartão são processados no ambiente seguro do Mercado Pago. A disponibilidade da renovação via Pix depende do banco e da conta.'
-                : 'A compra pelo aplicativo será liberada após a configuração da Apple App Store e do Google Play.'}
-            </Text>
-          </View>
-        </>
-      ) : (
-        <View style={[styles.freeNotice, { backgroundColor: colors.surfaceAlt }]}> 
-          <Ionicons name="time-outline" size={18} color={colors.textMuted} />
-          <Text style={[styles.freeNoticeText, { color: colors.textMuted }]}> 
-            O gerenciamento de quatro acessos ainda está em preparação.
-          </Text>
-        </View>
-      )}
-    </Card>
+      <Pressable
+        onPress={onSubscribe}
+        disabled={active || checkoutLoading || Platform.OS !== 'web'}
+        accessibilityRole="button"
+        accessibilityLabel={ctaLabel}
+        accessibilityState={{ disabled: active || checkoutLoading || Platform.OS !== 'web' }}
+        style={({ pressed }) => [
+          styles.diamondCta,
+          (pressed || active || checkoutLoading || Platform.OS !== 'web') && styles.diamondCtaMuted,
+        ]}>
+        <Ionicons
+          name={active ? 'checkmark-circle' : checkoutLoading ? 'time-outline' : 'arrow-forward'}
+          size={20}
+          color="#3D176F"
+        />
+        <Text style={styles.diamondCtaText}>{ctaLabel}</Text>
+      </Pressable>
+
+      <View style={styles.paymentNotice}>
+        <Ionicons
+          name={Platform.OS === 'web' ? 'shield-checkmark-outline' : 'phone-portrait-outline'}
+          size={18}
+          color="#D8CCE8"
+        />
+        <Text style={styles.paymentNoticeText}>
+          {Platform.OS === 'web'
+            ? 'Pagamento processado no ambiente seguro do Mercado Pago.'
+            : 'A compra pelo aplicativo será liberada após a configuração das lojas.'}
+        </Text>
+      </View>
+    </LinearGradient>
   );
 }
 
@@ -526,54 +519,94 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     gap: Spacing.lg,
   },
-  currentCard: { gap: Spacing.md },
+  hero: {
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: 270,
+    justifyContent: 'center',
+    gap: Spacing.md,
+    padding: Spacing.xl,
+    borderRadius: Radius.xl,
+  },
+  heroGlow: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    right: -80,
+    top: -110,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+  heroFacetOne: {
+    position: 'absolute',
+    width: 76,
+    height: 390,
+    right: 80,
+    top: -60,
+    backgroundColor: 'rgba(255,255,255,0.055)',
+    transform: [{ rotate: '27deg' }],
+  },
+  heroFacetTwo: {
+    position: 'absolute',
+    width: 34,
+    height: 360,
+    right: 5,
+    top: -35,
+    backgroundColor: 'rgba(248,206,98,0.10)',
+    transform: [{ rotate: '27deg' }],
+  },
+  heroEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  heroDot: { width: 7, height: 7, borderRadius: Radius.pill, backgroundColor: '#F8CE62' },
+  heroEyebrow: { color: '#F8CE62', fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 1.1 },
+  heroTitle: { maxWidth: 620, color: '#FFFFFF', fontSize: 34, lineHeight: 39, fontWeight: FontWeight.bold, letterSpacing: -0.8 },
+  heroDescription: { maxWidth: 600, color: '#E7DDF5', fontSize: FontSize.body, lineHeight: 22 },
+  heroPromises: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.xs },
+  heroPromise: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.11)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  heroPromiseText: { color: '#FFFFFF', fontSize: FontSize.small, fontWeight: FontWeight.semibold },
+  currentCard: { gap: Spacing.md, borderWidth: 1 },
   currentHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: Spacing.md,
   },
+  currentIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.md },
   currentText: { flex: 1, gap: 3 },
-  eyebrow: {
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.semibold,
-  },
+  eyebrow: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 0.7 },
   currentTitle: { fontSize: FontSize.title, fontWeight: FontWeight.bold },
   currentDescription: { fontSize: FontSize.small, lineHeight: 19 },
-  planCard: { gap: Spacing.lg },
+  planIntro: { maxWidth: 680, gap: Spacing.xs, paddingTop: Spacing.sm },
+  planIntroEyebrow: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 1 },
+  planIntroTitle: { fontSize: FontSize.title, lineHeight: 29, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
+  planIntroDescription: { fontSize: FontSize.body, lineHeight: 22 },
+  planGrid: { gap: Spacing.lg },
+  planGridDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
+  basicCard: { flex: 1, minWidth: 0, gap: Spacing.lg, borderWidth: 1 },
   planHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
   },
   planHeading: { flex: 1, gap: 2 },
-  planTitle: {
-    fontSize: FontSize.heading + 1,
-    fontWeight: FontWeight.bold,
-  },
+  planTitle: { fontSize: FontSize.heading + 1, fontWeight: FontWeight.bold },
   planSubtitle: { fontSize: FontSize.small, lineHeight: 18 },
-  planIcon: {
-    width: 22,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  kadMark: {
-    fontSize: 23,
-    lineHeight: 25,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -1.5,
-  },
-  benefits: { gap: Spacing.sm },
+  basicIcon: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.md },
+  basicSpotlight: { gap: 3, padding: Spacing.lg, borderRadius: Radius.lg },
+  basicSpotlightEyebrow: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 0.9 },
+  basicSpotlightTitle: { fontSize: FontSize.title, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
+  basicSpotlightDescription: { fontSize: FontSize.small, lineHeight: 19 },
+  benefits: { gap: Spacing.md },
   benefit: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   benefitText: { flex: 1, fontSize: FontSize.small, lineHeight: 20 },
-  freeNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    borderRadius: Radius.md,
-  },
-  freeNoticeText: { flex: 1, fontSize: FontSize.small },
   checkoutNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -583,14 +616,67 @@ const styles = StyleSheet.create({
   },
   checkoutNoticeText: { flex: 1, gap: 3 },
   checkoutNoticeTitle: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
+  diamondCard: {
+    flex: 1,
+    minWidth: 0,
+    position: 'relative',
+    overflow: 'hidden',
+    gap: Spacing.lg,
+    padding: Spacing.lg,
+    borderRadius: Radius.xl,
+    ...cardShadow('#160B2C', 3),
+  },
+  diamondGlow: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    right: -90,
+    top: -80,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(248,206,98,0.08)',
+  },
+  diamondFacet: {
+    position: 'absolute',
+    width: 42,
+    height: 420,
+    right: 42,
+    top: -80,
+    backgroundColor: 'rgba(255,255,255,0.045)',
+    transform: [{ rotate: '24deg' }],
+  },
+  diamondHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  diamondIcon: {
+    width: 46,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  diamondBrandMark: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+  },
+  diamondTitle: { color: '#FFFFFF', fontSize: FontSize.heading + 1, fontWeight: FontWeight.bold },
+  diamondSubtitle: { color: '#D8CCE8', fontSize: FontSize.small, lineHeight: 18 },
+  diamondBadge: { paddingVertical: 5, paddingHorizontal: 9, borderRadius: Radius.pill, backgroundColor: '#F8CE62' },
+  diamondBadgeText: { color: '#321657', fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5 },
+  diamondPromise: { gap: 4 },
+  diamondPromiseEyebrow: { color: '#F8CE62', fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 0.8 },
+  diamondPromiseTitle: { color: '#FFFFFF', fontSize: FontSize.title, lineHeight: 29, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
+  diamondBenefits: { gap: Spacing.sm + 2 },
+  diamondBenefit: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  diamondCheck: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill, backgroundColor: '#F8CE62' },
+  diamondBenefitText: { flex: 1, color: '#F4EDF9', fontSize: FontSize.small, lineHeight: 20 },
+  diamondCycleLabel: { color: '#C9B9DB', fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 0.9 },
   paymentNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.sm,
     padding: Spacing.md,
     borderRadius: Radius.md,
+    backgroundColor: 'rgba(10,4,20,0.20)',
   },
-  paymentNoticeText: { flex: 1, fontSize: FontSize.small, lineHeight: 19 },
+  paymentNoticeText: { flex: 1, color: '#D8CCE8', fontSize: FontSize.small, lineHeight: 19 },
   billingOptions: { gap: Spacing.sm },
   billingOption: {
     position: 'relative',
@@ -598,20 +684,30 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     paddingRight: Spacing.xxxl,
     borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
     borderRadius: Radius.md,
+    backgroundColor: 'rgba(255,255,255,0.07)',
   },
+  billingOptionSelected: { borderColor: '#F8CE62', backgroundColor: 'rgba(248,206,98,0.12)' },
   billingTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  billingName: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  billingPrice: {
-    fontSize: FontSize.title,
-    fontWeight: FontWeight.bold,
-  },
-  originalPrice: {
-    fontSize: FontSize.small,
-    textDecorationLine: 'line-through',
-  },
-  billingPeriod: { fontSize: FontSize.small, fontWeight: FontWeight.regular },
-  billingDescription: { fontSize: FontSize.small },
+  billingName: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: FontWeight.semibold },
+  billingPrice: { color: '#FFFFFF', fontSize: FontSize.title, fontWeight: FontWeight.bold },
+  billingPeriod: { color: '#D8CCE8', fontSize: FontSize.small, fontWeight: FontWeight.regular },
+  billingDescription: { color: '#C9B9DB', fontSize: FontSize.small },
+  savingsBadge: { paddingVertical: 3, paddingHorizontal: 7, borderRadius: Radius.pill, backgroundColor: 'rgba(248,206,98,0.16)' },
+  savingsBadgeText: { color: '#F8CE62', fontSize: 9, fontWeight: FontWeight.bold },
   radio: { position: 'absolute', right: Spacing.md, top: '50%', marginTop: -10 },
+  diamondCta: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.md,
+    backgroundColor: '#FFFFFF',
+  },
+  diamondCtaMuted: { opacity: 0.58, transform: [{ scale: 0.99 }] },
+  diamondCtaText: { color: '#3D176F', fontSize: FontSize.body, fontWeight: FontWeight.bold },
   pressed: { opacity: 0.75 },
 });

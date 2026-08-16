@@ -62,7 +62,6 @@ export default function PerformanceQuestionsScreen() {
     favoriteQuestionIds,
     canViewStatistics,
     answerQuestion,
-    canAnswerQuestion,
     resetQuestion,
   } = useApp();
   const type = normalizeType(tipo);
@@ -102,8 +101,6 @@ export default function PerformanceQuestionsScreen() {
       position={index + 1}
       total={questions.length}
       answer={answers[item.id]}
-      canAnswer={canAnswerQuestion(item.id)}
-      onLimitReached={() => router.push('/perfil/planos')}
       onAnswer={answerQuestion}
       onReset={resetQuestion}
     />

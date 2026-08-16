@@ -11,15 +11,11 @@ import {
 } from 'react';
 import { AppState as ReactNativeAppState } from 'react-native';
 
-import {
-  BASIC_DAILY_QUESTION_LIMIT,
-  DEFAULT_PROFILE,
-  DEFAULT_SUBSCRIPTION,
-} from '@/data/user';
+import { DEFAULT_PROFILE, DEFAULT_SUBSCRIPTION } from '@/data/user';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
-  canAnswerWithDailyLimit,
   currentDailyUsage,
+  recordDailyQuestionUsage,
   subscriptionWithCurrentStatus,
 } from '@/lib/access-rules';
 import { sanitizeLegacyGuestProfile } from '@/lib/profile';
@@ -91,13 +87,10 @@ type AppContextValue = AppDataState & {
   hydrated: boolean;
   performance: Performance;
   isPremium: boolean;
-  dailyQuestionLimit: number;
   dailyQuestionsAnswered: number;
-  dailyQuestionsRemaining: number;
   canViewStatistics: boolean;
   canUseSimulations: boolean;
   subscriptionLoading: boolean;
-  canAnswerQuestion: (questionId: string) => boolean;
   answerQuestion: (question: Question, selected: AlternativeId) => void;
   resetQuestion: (questionId: string) => void;
   toggleFavoriteQuestion: (questionId: string) => void;
@@ -437,21 +430,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const answerQuestion = useCallback((question: Question, selected: AlternativeId) => {
     setState((current) => {
-      const usage = currentDailyUsage(current.dailyQuestionUsage);
-      const alreadyCounted = usage.questionIds.includes(question.id);
-      const hasUnlimitedQuestions = subscriptionHasVerifiedAccess({
-        userId,
-        loading: subscriptionLoading,
-        subscription: current.subscription,
-      });
-
-      if (
-        !hasUnlimitedQuestions &&
-        !alreadyCounted &&
-        usage.questionIds.length >= BASIC_DAILY_QUESTION_LIMIT
-      ) {
-        return current;
-      }
+      const usage = recordDailyQuestionUsage(current.dailyQuestionUsage, question.id);
 
       return {
         ...current,
@@ -465,13 +444,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             answeredAt: isoToday(),
           },
         },
-        dailyQuestionUsage: alreadyCounted
-          ? usage
-          : { ...usage, questionIds: [...usage.questionIds, question.id] },
+        dailyQuestionUsage: usage,
       };
     });
     if (userId) saveRemoteAnswer(userId, question, selected).catch(() => {});
-  }, [subscriptionLoading, userId]);
+  }, [userId]);
 
   const resetQuestion = useCallback((questionId: string) => {
     setState((current) => {
@@ -599,21 +576,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const dailyUsage = currentDailyUsage(state.dailyQuestionUsage);
   const dailyQuestionsAnswered = dailyUsage.questionIds.length;
-  const dailyQuestionsRemaining = Math.max(
-    0,
-    BASIC_DAILY_QUESTION_LIMIT - dailyQuestionsAnswered
-  );
-
-  const canAnswerQuestion = useCallback(
-    (questionId: string) =>
-      canAnswerWithDailyLimit({
-        isPremium,
-        usage: dailyUsage,
-        questionId,
-        limit: BASIC_DAILY_QUESTION_LIMIT,
-      }),
-    [dailyUsage, isPremium]
-  );
 
   const systemScheme = useColorScheme();
   const scheme: 'light' | 'dark' =
@@ -635,12 +597,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       performance,
       isPremium,
       subscriptionLoading,
-      dailyQuestionLimit: BASIC_DAILY_QUESTION_LIMIT,
       dailyQuestionsAnswered,
-      dailyQuestionsRemaining,
       canViewStatistics: isPremium,
       canUseSimulations: isPremium,
-      canAnswerQuestion,
       answerQuestion,
       resetQuestion,
       toggleFavoriteQuestion,
@@ -664,8 +623,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isPremium,
       subscriptionLoading,
       dailyQuestionsAnswered,
-      dailyQuestionsRemaining,
-      canAnswerQuestion,
       answerQuestion,
       resetQuestion,
       toggleFavoriteQuestion,

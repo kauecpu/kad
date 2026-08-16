@@ -14,6 +14,8 @@ const result = source('../app/questoes/simulado/resultado.tsx');
 const configure = source('../app/questoes/simulado/configurar.tsx');
 const simulationsTab = source('../app/(tabs)/simulados.tsx');
 const home = source('../app/(tabs)/inicio.tsx');
+const questionsTab = source('../app/(tabs)/questoes.tsx');
+const questionCard = source('../components/question-card.tsx');
 
 test('rotas diretas do simulado aguardam a verificação e bloqueiam plano sem acesso', () => {
   for (const screen of [player, result]) {
@@ -52,4 +54,22 @@ test('cancelamento confirmado não é revertido por falha de atualização', () 
     provider,
     /subscriptionAfterCancellation\(current\.subscription\)[\s\S]*?refreshSubscription\(\)\.catch/
   );
+});
+
+test('o KAD Círculo não é oferecido para novas assinaturas', () => {
+  assert.doesNotMatch(plans, /title="KAD Círculo"/);
+  assert.doesNotMatch(plans, /subscribeTo\('circle'/);
+});
+
+test('o plano Diamante usa somente a identidade visual atual do KAD', () => {
+  assert.match(plans, /kad-icon-v4\.png/);
+  assert.doesNotMatch(plans, /kad-symbol-v3\.png/);
+  assert.doesNotMatch(plans, /name="diamond"/);
+});
+
+test('o Plano Básico permite responder questões sem limite diário', () => {
+  assert.doesNotMatch(provider, /BASIC_DAILY_QUESTION_LIMIT|canAnswerWithDailyLimit/);
+  assert.doesNotMatch(questionCard, /Limite diário atingido|onLimitReached|canAnswer/);
+  assert.match(questionsTab, /Plano Básico · questões ilimitadas/);
+  assert.match(plans, /Questões ilimitadas, sem cobrança e sem prazo/);
 });

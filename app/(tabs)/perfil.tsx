@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ListRow } from '@/components/ui/list-row';
-import { ProgressBar } from '@/components/ui/progress-bar';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
@@ -68,9 +67,6 @@ export default function PerfilScreen() {
     performance,
     isPremium,
     canViewStatistics,
-    dailyQuestionLimit,
-    dailyQuestionsAnswered,
-    dailyQuestionsRemaining,
     savedConcursos,
     updateProfile,
     resetProgress,
@@ -356,26 +352,11 @@ export default function PerfilScreen() {
                     ? subscription.status === 'past_due'
                       ? `Acesso até ${formatDate(subscription.renewsAt)} · renovação pendente`
                       : `Acesso até ${formatDate(subscription.renewsAt)}${subscription.autoRenew ? ' · renovação automática' : ' · renovação cancelada'}`
-                    : `${dailyQuestionsRemaining} de ${dailyQuestionLimit} questões disponíveis hoje`}
+                    : 'Questões ilimitadas, sem cobrança e sem prazo'}
                 </Text>
               </View>
               <Ionicons name="diamond-outline" size={22} color={colors.primary} />
             </View>
-
-            {!isPremium ? (
-              <View style={styles.quota}>
-                <View style={styles.quotaHeader}>
-                  <Text style={[styles.quotaLabel, { color: colors.textMuted }]}>Uso diário</Text>
-                  <Text style={[styles.quotaValue, { color: colors.primary }]}>
-                    {`${dailyQuestionsAnswered}/${dailyQuestionLimit}`}
-                  </Text>
-                </View>
-                <ProgressBar
-                  value={(dailyQuestionsAnswered / dailyQuestionLimit) * 100}
-                  label={`${dailyQuestionsAnswered} de ${dailyQuestionLimit} questões usadas hoje`}
-                />
-              </View>
-            ) : null}
 
             <Button
               label="Ver planos e benefícios"
@@ -634,10 +615,6 @@ const styles = StyleSheet.create({
   planHeaderText: { flex: 1, gap: 3 },
   planName: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
   planDescription: { fontSize: FontSize.small, lineHeight: 19 },
-  quota: { gap: Spacing.sm },
-  quotaHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  quotaLabel: { fontSize: FontSize.small },
-  quotaValue: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
   appearanceCard: { borderWidth: 1, gap: Spacing.md },
   appearanceHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   preferenceIcon: {

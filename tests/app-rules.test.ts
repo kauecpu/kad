@@ -5,10 +5,10 @@ import { CONCURSOS } from '../data/concursos.ts';
 import { DISCIPLINES } from '../data/disciplines.ts';
 import { CONCURSO_PACKS } from '../data/exam-concursos.ts';
 import { QUESTIONS } from '../data/questions.ts';
-import { CIRCLE_BILLING_OPTIONS, DIAMOND_BILLING_OPTIONS } from '../data/user.ts';
+import { BASIC_PLAN_ACCESS, DIAMOND_BENEFITS, DIAMOND_BILLING_OPTIONS } from '../data/user.ts';
 import {
-  canAnswerWithDailyLimit,
   currentDailyUsage,
+  recordDailyQuestionUsage,
   subscriptionHasAccess,
   subscriptionWithCurrentStatus,
 } from '../lib/access-rules.ts';
@@ -86,36 +86,7 @@ test('fechar o seletor limpa a pesquisa atual', () => {
   assert.equal(closed.visible, false);
 });
 
-test('o plano Básico bloqueia uma nova questão ao atingir dez no dia', () => {
-  const usage: DailyQuestionUsage = {
-    date: '2026-07-30',
-    questionIds: Array.from({ length: 10 }, (_, index) => `q-${index + 1}`),
-  };
-  const now = new Date(2026, 6, 30, 12);
-
-  assert.equal(
-    canAnswerWithDailyLimit({
-      isPremium: false,
-      usage,
-      questionId: 'q-99',
-      limit: 10,
-      now,
-    }),
-    false
-  );
-  assert.equal(
-    canAnswerWithDailyLimit({
-      isPremium: false,
-      usage,
-      questionId: 'q-1',
-      limit: 10,
-      now,
-    }),
-    true
-  );
-});
-
-test('a cota diária é renovada quando muda a data local', () => {
+test('a atividade diária é renovada quando muda a data local', () => {
   const previous: DailyQuestionUsage = {
     date: '2026-07-29',
     questionIds: ['q-1', 'q-2'],
@@ -124,6 +95,17 @@ test('a cota diária é renovada quando muda a data local', () => {
     date: '2026-07-30',
     questionIds: [],
   });
+});
+
+test('a atividade diária registra novas questões sem aplicar cota', () => {
+  const usage: DailyQuestionUsage = {
+    date: '2026-07-30',
+    questionIds: Array.from({ length: 25 }, (_, index) => `q-${index + 1}`),
+  };
+  const updated = recordDailyQuestionUsage(usage, 'q-26', new Date(2026, 6, 30, 12));
+
+  assert.equal(updated.questionIds.length, 26);
+  assert.equal(updated.questionIds.at(-1), 'q-26');
 });
 
 test('a assinatura expira sem precisar recarregar o estado salvo', () => {
@@ -523,24 +505,19 @@ test('o KAD Diamante oferece os três ciclos com desconto progressivo', () => {
   );
 });
 
-test('o KAD Círculo dá quatro acessos pelo preço de três', () => {
-  assert.equal(CIRCLE_BILLING_OPTIONS.length, DIAMOND_BILLING_OPTIONS.length);
+test('o Plano Básico comunica somente prática ilimitada e correção', () => {
+  assert.deepEqual(
+    BASIC_PLAN_ACCESS.map((feature) => feature.label),
+    ['Questões ilimitadas', 'Correção e gabarito comentado']
+  );
+  assert.ok(BASIC_PLAN_ACCESS.every((feature) => feature.included));
+});
 
-  for (const diamondOption of DIAMOND_BILLING_OPTIONS) {
-    const circleOption = CIRCLE_BILLING_OPTIONS.find(
-      (option) => option.id === diamondOption.id
-    );
-    assert.ok(circleOption);
-    assert.equal(
-      circleOption.price,
-      Number((diamondOption.price * 3).toFixed(2))
-    );
-    assert.equal(
-      circleOption.originalPrice,
-      Number((diamondOption.price * 4).toFixed(2))
-    );
-    assert.equal(circleOption.durationDays, diamondOption.durationDays);
-  }
+test('o KAD Diamante descreve apenas recursos premium já disponíveis', () => {
+  assert.ok(DIAMOND_BENEFITS.length >= 6);
+  assert.ok(DIAMOND_BENEFITS.some((benefit) => benefit.includes('Simulados personalizados')));
+  assert.ok(DIAMOND_BENEFITS.some((benefit) => benefit.includes('Desempenho geral')));
+  assert.ok(DIAMOND_BENEFITS.some((benefit) => benefit.includes('questões erradas')));
 });
 
 test('concursos compatíveis com a meta do perfil são recomendados', () => {

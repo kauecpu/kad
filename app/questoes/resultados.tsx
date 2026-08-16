@@ -17,7 +17,7 @@ export default function SearchResultsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { answers, answerQuestion, canAnswerQuestion, resetQuestion } = useApp();
+  const { answers, answerQuestion, resetQuestion } = useApp();
   const { search } = useSearch();
 
   const results = useMemo(() => searchQuestions(search, answers), [search, answers]);
@@ -28,8 +28,6 @@ export default function SearchResultsScreen() {
       position={index + 1}
       total={results.length}
       answer={answers[item.id]}
-      canAnswer={canAnswerQuestion(item.id)}
-      onLimitReached={() => router.push('/perfil/planos')}
       onAnswer={answerQuestion}
       onReset={resetQuestion}
     />
