@@ -50,3 +50,11 @@ test('níveis sem conteúdo permanecem em preparação sem repetir questões', (
   assert.equal(levels.filter((level) => level.questions.length > 0).length, 1);
   assert.equal(levels.flatMap((level) => level.questions).length, 1);
 });
+
+test('acervos pequenos ocupam níveis consecutivos sem fingir progressão avançada', () => {
+  const levels = createTrailLevels(QUESTIONS.slice(0, 4));
+  assert.deepEqual(
+    levels.filter((level) => level.questions.length > 0).map((level) => level.number),
+    [1, 2, 3, 4]
+  );
+});

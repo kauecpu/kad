@@ -89,11 +89,12 @@ export function createTrailLevels(questions: Question[]): TrailLevel[] {
   );
 
   const questionsByLevel: Question[][] = Array.from({ length: LEVELS.length }, () => []);
+  const activeLevelCount = Math.min(LEVELS.length, ordered.length);
   ordered.forEach((question, index) => {
-    const levelIndex =
-      ordered.length === 1
-        ? 0
-        : Math.round((index * (LEVELS.length - 1)) / (ordered.length - 1));
+    const levelIndex = Math.min(
+      activeLevelCount - 1,
+      Math.floor((index * activeLevelCount) / ordered.length)
+    );
     questionsByLevel[levelIndex].push(question);
   });
 

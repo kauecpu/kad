@@ -1,9 +1,18 @@
-import Ionicons from '@/components/ui/app-icon';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Ionicons from '@/components/ui/app-icon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,18 +23,26 @@ import { Section } from '@/components/ui/section';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { StackHeader } from '@/components/ui/stack-header';
 import type { Tone } from '@/components/ui/tone';
-import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { questionsForPack, recommendPackForGoal } from '@/lib/simulations';
-import { normalizeSearchText } from '@/lib/text';
+import {
+  filterTrailTracks,
+  parseTrailSelection,
+  resolveTrailSelection,
+  trailLevelMetrics,
+  trailMetrics,
+  trailSelectionStorageKey,
+  type TrailCatalog,
+  type TrailMode,
+} from '@/lib/trail-journey';
 import { createTrailLevels, questionsForDisciplines, type TrailLevel } from '@/lib/trails';
 import { useApp } from '@/providers/app-provider';
+import { useAuth } from '@/providers/auth-provider';
 import type { AnswerRecord } from '@/types';
-
-type TrailMode = 'concurso' | 'discipline';
 
 type TrailTrack = {
   id: string;
@@ -64,148 +81,231 @@ const DISCIPLINE_TRACKS: TrailTrack[] = DISCIPLINES.map((discipline) => ({
   kind: 'discipline',
 }));
 
-function recommendedDiscipline(answers: Record<string, AnswerRecord>): string {
-  const grouped = new Map<string, { total: number; correct: number }>();
-  for (const question of QUESTIONS) {
-    const answer = answers[question.id];
-    if (!answer) continue;
-    const current = grouped.get(question.discipline) ?? { total: 0, correct: 0 };
-    grouped.set(question.discipline, {
-      total: current.total + 1,
-      correct: current.correct + (answer.isCorrect ? 1 : 0),
-    });
-  }
-
-  return (
-    Array.from(grouped.entries())
-      .sort(([, a], [, b]) => a.correct / a.total - b.correct / b.total || b.total - a.total)[0]?.[0] ??
-    DISCIPLINE_TRACKS[0]?.id ??
-    ''
-  );
+function questionsForTrack(track: TrailTrack) {
+  const pack = track.packId
+    ? CONCURSO_PACKS.find((item) => item.id === track.packId)
+    : undefined;
+  return pack
+    ? questionsForPack(pack)
+    : questionsForDisciplines(QUESTIONS, track.disciplines);
 }
 
-function levelState(level: TrailLevel, answers: Record<string, AnswerRecord>) {
-  if (level.questions.length === 0) {
-    return {
-      label: 'Em preparação',
-      icon: 'time-outline' as const,
-      tone: 'neutral' as Tone,
-      answered: 0,
-    };
-  }
+function availableLevelsForTrack(track: TrailTrack): TrailLevel[] {
+  return createTrailLevels(questionsForTrack(track)).filter((level) => level.questions.length > 0);
+}
 
-  const answered = level.questions.filter((question) => answers[question.id]).length;
-  if (answered === level.questions.length) {
+const TRAIL_CATALOG: TrailCatalog = {
+  concurso: Object.fromEntries(
+    CONCURSO_TRACKS.map((track) => [
+      track.id,
+      availableLevelsForTrack(track).map((level) => level.number),
+    ])
+  ),
+  discipline: Object.fromEntries(
+    DISCIPLINE_TRACKS.map((track) => [
+      track.id,
+      availableLevelsForTrack(track).map((level) => level.number),
+    ])
+  ),
+};
+
+function levelState(level: TrailLevel, answers: Record<string, AnswerRecord>) {
+  const metrics = trailLevelMetrics(level, answers);
+  if (metrics.completed) {
     return {
+      ...metrics,
       label: 'Concluído',
       icon: 'checkmark-circle' as const,
       tone: 'success' as Tone,
-      answered,
     };
   }
-  if (answered > 0) {
+  if (metrics.answered > 0) {
     return {
+      ...metrics,
       label: 'Em andamento',
       icon: 'play-circle-outline' as const,
       tone: 'warning' as Tone,
-      answered,
     };
   }
   return {
+    ...metrics,
     label: 'Disponível',
     icon: 'ellipse-outline' as const,
     tone: 'accent' as Tone,
-    answered,
   };
 }
 
 export default function TrailsScreen() {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
+  const { session, isGuest } = useAuth();
   const { answers, profile } = useApp();
-  const initialPack = recommendPackForGoal(CONCURSO_PACKS, profile.targetRole) ?? CONCURSO_PACKS[0];
+  const recommendedPack = useMemo(
+    () => recommendPackForGoal(CONCURSO_PACKS, profile.targetRole),
+    [profile.targetRole]
+  );
+  const ownerId = session?.user.id ?? (isGuest ? 'guest' : null);
+  const storageKey = ownerId ? trailSelectionStorageKey(ownerId) : null;
+  const isDesktop = width >= 900;
+
   const [mode, setMode] = useState<TrailMode>('concurso');
-  const [selectedTrackId, setSelectedTrackId] = useState(initialPack?.id ?? '');
+  const [selectedTrackId, setSelectedTrackId] = useState('');
   const [selectedLevel, setSelectedLevel] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
+  const [selectorOffset, setSelectorOffset] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setHydratedStorageKey(null);
+    setMode('concurso');
+    setSelectedTrackId('');
+    setSelectedLevel(1);
+    setSearchQuery('');
+
+    if (!storageKey) {
+      return () => {
+        active = false;
+      };
+    }
+
+    void (async () => {
+      let stored = null;
+      try {
+        stored = parseTrailSelection(await AsyncStorage.getItem(storageKey));
+      } catch {
+        stored = null;
+      }
+      const initial = resolveTrailSelection({
+        stored,
+        recommendedTrackId: recommendedPack?.id,
+        catalog: TRAIL_CATALOG,
+      });
+      if (!active) return;
+      if (initial) {
+        setMode(initial.mode);
+        setSelectedTrackId(initial.trackId);
+        setSelectedLevel(initial.level);
+      }
+      setHydratedStorageKey(storageKey);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [recommendedPack?.id, storageKey]);
+
+  useEffect(() => {
+    if (!storageKey || hydratedStorageKey !== storageKey) return;
+    if (!selectedTrackId) {
+      void AsyncStorage.removeItem(storageKey).catch(() => undefined);
+      return;
+    }
+    void AsyncStorage.setItem(
+      storageKey,
+      JSON.stringify({ mode, trackId: selectedTrackId, level: selectedLevel })
+    ).catch(() => undefined);
+  }, [hydratedStorageKey, mode, selectedLevel, selectedTrackId, storageKey]);
 
   const tracks = mode === 'concurso' ? CONCURSO_TRACKS : DISCIPLINE_TRACKS;
-  const track = tracks.find((item) => item.id === selectedTrackId) ?? tracks[0];
-  const visibleTracks = useMemo(() => {
-    const query = normalizeSearchText(searchQuery);
-    if (!query) return tracks;
-    return tracks.filter((item) => normalizeSearchText(item.name).includes(query));
-  }, [searchQuery, tracks]);
-
-  const trailQuestions = useMemo(() => {
-    if (!track) return [];
-    const pack = track.packId
-      ? CONCURSO_PACKS.find((item) => item.id === track.packId)
-      : undefined;
-    return pack
-      ? questionsForPack(pack)
-      : questionsForDisciplines(QUESTIONS, track.disciplines);
-  }, [track]);
-  const levels = useMemo(() => createTrailLevels(trailQuestions), [trailQuestions]);
-  const activeLevel = levels[selectedLevel - 1] ?? levels[0];
-  const levelsWithActivity = levels.filter((level) => level.questions.length > 0);
-  const completedLevels = levelsWithActivity.filter(
-    (level) => levelState(level, answers).label === 'Concluído'
-  ).length;
-  const progress = levelsWithActivity.length > 0
-    ? (completedLevels / levelsWithActivity.length) * 100
-    : 0;
+  const track = tracks.find((item) => item.id === selectedTrackId);
+  const visibleTracks = useMemo(
+    () => filterTrailTracks(tracks, searchQuery),
+    [searchQuery, tracks]
+  );
+  const levels = useMemo(() => (track ? availableLevelsForTrack(track) : []), [track]);
+  const activeLevel = levels.find((level) => level.number === selectedLevel) ?? levels[0];
+  const currentMetrics = useMemo(() => trailMetrics(levels, answers), [answers, levels]);
+  const recommendedTrack = recommendedPack
+    ? CONCURSO_TRACKS.find((item) => item.id === recommendedPack.id)
+    : undefined;
+  const heroTrack = recommendedTrack ?? track;
+  const heroLevels = useMemo(
+    () => (heroTrack ? availableLevelsForTrack(heroTrack) : []),
+    [heroTrack]
+  );
+  const heroMetrics = useMemo(() => trailMetrics(heroLevels, answers), [answers, heroLevels]);
+  const heroResumeLevel =
+    heroLevels.find((level) => !trailLevelMetrics(level, answers).completed) ?? heroLevels[0];
+  const heroIsRecommendation = Boolean(
+    heroTrack && recommendedTrack && heroTrack.id === recommendedTrack.id,
+  );
 
   const changeMode = (nextMode: TrailMode) => {
+    const nextTrackId = nextMode === 'concurso' ? recommendedTrack?.id ?? '' : '';
+    const nextLevels = nextTrackId ? TRAIL_CATALOG[nextMode][nextTrackId] : undefined;
     setMode(nextMode);
-    setSelectedTrackId(
-      nextMode === 'concurso'
-        ? initialPack?.id ?? CONCURSO_TRACKS[0]?.id ?? ''
-        : recommendedDiscipline(answers)
-    );
-    setSelectedLevel(1);
+    setSelectedTrackId(nextTrackId);
+    setSelectedLevel(nextLevels?.[0] ?? 1);
     setSearchQuery('');
   };
 
-  const changeSearch = (value: string) => {
-    setSearchQuery(value);
-    const query = normalizeSearchText(value);
-    if (!query) return;
-    const firstMatch = tracks.find((item) => normalizeSearchText(item.name).includes(query));
-    if (firstMatch && firstMatch.id !== selectedTrackId) {
-      setSelectedTrackId(firstMatch.id);
-      setSelectedLevel(1);
-    }
-  };
-
   const selectTrack = (trackId: string) => {
+    const nextLevels = TRAIL_CATALOG[mode][trackId];
     setSelectedTrackId(trackId);
-    setSelectedLevel(1);
+    setSelectedLevel(nextLevels?.[0] ?? 1);
+    setSearchQuery('');
   };
 
-  const practiceLevel = (level: TrailLevel) => {
-    if (!track || level.questions.length === 0) return;
+  const practiceLevel = (targetTrack: TrailTrack, level: TrailLevel) => {
     router.push({
       pathname: '/questoes/trilha',
       params: {
         questionIds: level.questions.map((question) => question.id).join(','),
-        trackName: track.name,
+        trackName: targetTrack.name,
         level: String(level.number),
       },
     });
   };
 
-  if (!track || !activeLevel) return null;
+  const startHeroTrail = () => {
+    if (!heroTrack || !heroResumeLevel) {
+      scrollRef.current?.scrollTo({ y: Math.max(0, selectorOffset - Spacing.md), animated: true });
+      return;
+    }
+    const heroMode: TrailMode = heroTrack.kind === 'discipline' ? 'discipline' : 'concurso';
+    setMode(heroMode);
+    setSelectedTrackId(heroTrack.id);
+    setSelectedLevel(heroResumeLevel.number);
+    setSearchQuery('');
+    practiceLevel(heroTrack, heroResumeLevel);
+  };
 
-  const trackType =
-    track.kind === 'discipline' ? 'Disciplina' : track.kind === 'area' ? 'Área' : 'Concurso';
+  if (storageKey && hydratedStorageKey !== storageKey) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <StackHeader title="Trilhas de estudo" onBack={() => router.back()} center />
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  const trackType = track
+    ? track.kind === 'discipline'
+      ? 'Disciplina'
+      : track.kind === 'area'
+        ? 'Área'
+        : 'Concurso'
+    : undefined;
+  const heroActionLabel = !heroTrack
+    ? 'Escolher trilha'
+    : heroMetrics.answered === 0
+      ? 'Começar'
+      : heroMetrics.answered === heroMetrics.total
+        ? 'Revisar trilha'
+        : 'Continuar';
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <StackHeader title="Trilhas de estudo" onBack={() => router.back()} center />
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xxxl }]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.intro}>
@@ -213,188 +313,288 @@ export default function TrailsScreen() {
             <Ionicons name="map-outline" size={22} color={colors.primary} />
           </View>
           <View style={styles.introText}>
-            <Text style={[styles.introTitle, { color: colors.text }]}>Escolha por onde começar</Text>
-            <Text style={[styles.introDescription, { color: colors.textMuted }]}>Avance do iniciante ao avançado ou comece diretamente no nível que combina com você.</Text>
+            <Text style={[styles.introTitle, { color: colors.text }]}>Estude com uma sequência clara</Text>
+            <Text style={[styles.introDescription, { color: colors.textMuted }]}>Escolha uma trilha, acompanhe o que já respondeu e veja seu desempenho sem misturar as duas métricas.</Text>
           </View>
         </View>
 
-        <Segmented options={MODE_OPTIONS} value={mode} onChange={changeMode} />
-
-        <Section title={mode === 'concurso' ? 'Escolha o concurso ou área' : 'Escolha a disciplina'}>
-          <SearchField
-            value={searchQuery}
-            onChangeText={changeSearch}
-            placeholder={mode === 'concurso' ? 'Pesquisar concurso ou área' : 'Pesquisar disciplina'}
-            accessibilityLabel={
-              mode === 'concurso'
-                ? 'Pesquisar concurso ou área da trilha'
-                : 'Pesquisar disciplina da trilha'
-            }
-          />
-          {visibleTracks.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.trackSelector}>
-              {visibleTracks.map((item) => (
-                <Chip
-                  key={item.id}
-                  label={item.name}
-                  selected={item.id === track.id}
-                  icon={item.icon}
-                  onPress={() => selectTrack(item.id)}
+        <Card
+          style={[
+            styles.heroCard,
+            { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong },
+          ]}>
+          <View style={[styles.heroLayout, isDesktop && styles.heroLayoutDesktop]}>
+            <View style={styles.heroIdentity}>
+              <View style={[styles.heroIcon, { backgroundColor: colors.primary }]}>
+                <Ionicons
+                  name={heroTrack?.icon ?? 'navigate-outline'}
+                  size={23}
+                  color={colors.onPrimary}
                 />
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={[styles.searchEmpty, { borderColor: colors.border }]}>
-              <Ionicons name="search-outline" size={18} color={colors.textSubtle} />
-              <Text style={[styles.searchEmptyText, { color: colors.textMuted }]}>Nenhuma trilha encontrada</Text>
+              </View>
+              <View style={styles.heroText}>
+                <Text style={[styles.heroEyebrow, { color: colors.primary }]}>
+                  {heroTrack
+                    ? heroIsRecommendation
+                      ? 'RECOMENDADA PARA SUA META'
+                      : heroMetrics.answered > 0
+                        ? 'CONTINUE DE ONDE PAROU'
+                        : 'SUA TRILHA ATUAL'
+                    : 'PRIMEIRO PASSO'}
+                </Text>
+                <Text style={[styles.heroTitle, { color: colors.text }]}>
+                  {heroTrack?.name ?? 'Escolha sua primeira trilha'}
+                </Text>
+                <Text style={[styles.heroDescription, { color: colors.textMuted }]}>
+                  {heroTrack
+                    ? heroIsRecommendation && profile.targetRole
+                      ? `Esta trilha combina com sua meta de ${profile.targetRole}.`
+                      : `${heroMetrics.total} ${heroMetrics.total === 1 ? 'questão disponível' : 'questões disponíveis'} em ${heroLevels.length} ${heroLevels.length === 1 ? 'nível' : 'níveis'}.`
+                    : 'Escolha um concurso, uma área ou uma disciplina para começar.'}
+                </Text>
+              </View>
             </View>
-          )}
-        </Section>
 
-        <Card style={styles.trackSummary}>
-          <View style={styles.trackHeader}>
-            <View style={styles.trackIcon}>
-              <Ionicons name={track.icon} size={22} color={colors.primary} />
-            </View>
-            <View style={styles.trackText}>
-              <Text style={[styles.trackName, { color: colors.text }]}>{track.name}</Text>
-              <Text style={[styles.trackSubtitle, { color: colors.textMuted }]}>{track.subtitle}</Text>
-            </View>
-            <Badge label={trackType} tone="neutral" />
+            {heroTrack ? (
+              <View style={styles.heroMetrics}>
+                <View style={styles.heroMetric}>
+                  <Text style={[styles.heroMetricValue, { color: colors.text }]}>
+                    {heroMetrics.answered}/{heroMetrics.total}
+                  </Text>
+                  <Text style={[styles.heroMetricLabel, { color: colors.textMuted }]}>respondidas</Text>
+                </View>
+                <View style={[styles.heroMetricDivider, { backgroundColor: colors.borderStrong }]} />
+                <View style={styles.heroMetric}>
+                  <Text style={[styles.heroMetricValue, { color: colors.text }]}>
+                    {heroMetrics.answered > 0 ? `${Math.round(heroMetrics.accuracy)}%` : '—'}
+                  </Text>
+                  <Text style={[styles.heroMetricLabel, { color: colors.textMuted }]}>de acertos</Text>
+                </View>
+              </View>
+            ) : null}
+
+            <Button
+              label={heroActionLabel}
+              icon={heroTrack ? 'play' : 'arrow-down'}
+              onPress={startHeroTrail}
+              fullWidth={!isDesktop}
+              style={isDesktop ? styles.heroButtonDesktop : undefined}
+            />
           </View>
-          <View style={styles.progressHeader}>
-            <Text style={[styles.progressLabel, { color: colors.textMuted }]}>Progresso da trilha</Text>
-            <View style={styles.progressMetric}>
-              <Text style={[styles.progressValue, { color: colors.primary }]}>
-                {completedLevels}/{levelsWithActivity.length}
-              </Text>
-              <Text style={[styles.progressUnit, { color: colors.textSubtle }]}>níveis</Text>
-            </View>
-          </View>
-          <ProgressBar value={progress} color={colors.primary} label={`Progresso em ${track.name}`} />
         </Card>
 
-        <Section title="Escolha o nível">
-          <View style={styles.levelList}>
-            {levels.map((level) => {
-              const selected = level.number === activeLevel.number;
-              const state = levelState(level, answers);
-              const topicSummary =
-                level.questions.length === 0
-                  ? 'Atividade em preparação'
-                  : level.topics.length > 1
-                    ? `${level.topics[0]} + ${level.topics.length - 1}`
-                    : level.topics[0] ?? 'Questões da trilha';
+        <View
+          onLayout={(event) => setSelectorOffset(event.nativeEvent.layout.y)}
+          style={[styles.workspace, isDesktop && styles.workspaceDesktop]}>
+          <View style={[styles.selectorColumn, isDesktop && styles.selectorColumnDesktop]}>
+            <Segmented options={MODE_OPTIONS} value={mode} onChange={changeMode} />
 
-              return (
-                <Card
-                  key={level.number}
-                  padded={false}
-                  style={[
-                    styles.levelCard,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: selected ? colors.borderStrong : colors.border,
-                    },
-                  ]}>
-                  <Pressable
-                    onPress={() => setSelectedLevel(level.number)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Nível ${level.number}: ${level.title}. ${state.label}`}
-                    accessibilityState={{ selected }}
-                    style={({ pressed }) => [styles.levelHeader, pressed && styles.pressed]}>
-                    <View
-                      style={[
-                        styles.levelNumber,
-                        {
-                          backgroundColor: selected ? colors.primary : 'transparent',
-                          borderColor: selected ? colors.primary : colors.borderStrong,
-                        },
-                      ]}>
-                      <Text
+            <Section title={mode === 'concurso' ? 'Escolha o concurso ou área' : 'Escolha a disciplina'}>
+              <SearchField
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder={mode === 'concurso' ? 'Pesquisar concurso ou área' : 'Pesquisar disciplina'}
+                accessibilityLabel={
+                  mode === 'concurso'
+                    ? 'Pesquisar concurso ou área da trilha'
+                    : 'Pesquisar disciplina da trilha'
+                }
+              />
+              {visibleTracks.length > 0 ? (
+                isDesktop ? (
+                  <View style={styles.trackSelectorDesktop}>
+                    {visibleTracks.map((item) => (
+                      <Chip
+                        key={item.id}
+                        label={item.name}
+                        selected={item.id === track?.id}
+                        icon={item.icon}
+                        onPress={() => selectTrack(item.id)}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.trackSelector}>
+                    {visibleTracks.map((item) => (
+                      <Chip
+                        key={item.id}
+                        label={item.name}
+                        selected={item.id === track?.id}
+                        icon={item.icon}
+                        onPress={() => selectTrack(item.id)}
+                      />
+                    ))}
+                  </ScrollView>
+                )
+              ) : (
+                <View style={[styles.searchEmpty, { borderColor: colors.border }]}>
+                  <Ionicons name="search-outline" size={18} color={colors.textSubtle} />
+                  <Text style={[styles.searchEmptyText, { color: colors.textMuted }]}>Nenhuma trilha encontrada</Text>
+                </View>
+              )}
+            </Section>
+
+            {track && trackType ? (
+              <Card style={styles.trackSummary}>
+                <View style={styles.trackHeader}>
+                  <View style={styles.trackIcon}>
+                    <Ionicons name={track.icon} size={22} color={colors.primary} />
+                  </View>
+                  <View style={styles.trackText}>
+                    <Text style={[styles.trackName, { color: colors.text }]}>{track.name}</Text>
+                    <Text style={[styles.trackSubtitle, { color: colors.textMuted }]}>{track.subtitle}</Text>
+                  </View>
+                  <Badge label={trackType} tone="neutral" />
+                </View>
+
+                <View style={styles.summaryMetrics}>
+                  <View style={styles.summaryMetric}>
+                    <Text style={[styles.summaryMetricValue, { color: colors.primary }]}>
+                      {currentMetrics.answered}/{currentMetrics.total}
+                    </Text>
+                    <Text style={[styles.summaryMetricLabel, { color: colors.textMuted }]}>questões respondidas</Text>
+                  </View>
+                  <View style={styles.summaryMetric}>
+                    <Text style={[styles.summaryMetricValue, { color: colors.primary }]}>
+                      {currentMetrics.answered > 0 ? `${Math.round(currentMetrics.accuracy)}%` : '—'}
+                    </Text>
+                    <Text style={[styles.summaryMetricLabel, { color: colors.textMuted }]}>percentual de acertos</Text>
+                  </View>
+                </View>
+                <ProgressBar
+                  value={currentMetrics.progress}
+                  color={colors.primary}
+                  label={`${currentMetrics.answered} de ${currentMetrics.total} questões respondidas em ${track.name}`}
+                />
+              </Card>
+            ) : null}
+          </View>
+
+          <View style={styles.levelColumn}>
+            <Section title={track ? 'Níveis disponíveis' : 'Escolha uma trilha'}>
+              {!track ? (
+                <Card style={styles.chooseState}>
+                  <View style={[styles.chooseIcon, { backgroundColor: colors.primarySoft }]}>
+                    <Ionicons name="navigate-outline" size={23} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.chooseTitle, { color: colors.text }]}>Sua jornada começa pela escolha do foco</Text>
+                  <Text style={[styles.chooseDescription, { color: colors.textMuted }]}>Use as opções ao lado para escolher um concurso, uma área ou uma disciplina.</Text>
+                </Card>
+              ) : (
+                <View style={styles.levelList}>
+                  {levels.map((level) => {
+                    const selected = level.number === activeLevel?.number;
+                    const state = levelState(level, answers);
+                    const topicSummary =
+                      level.topics.length > 1
+                        ? `${level.topics[0]} + ${level.topics.length - 1}`
+                        : level.topics[0] ?? 'Questões da trilha';
+                    const actionLabel = state.completed
+                      ? 'Revisar este nível'
+                      : state.answered > 0
+                        ? 'Continuar este nível'
+                        : 'Praticar este nível';
+
+                    return (
+                      <Card
+                        key={level.number}
+                        padded={false}
                         style={[
-                          styles.levelNumberText,
-                          { color: selected ? colors.onPrimary : colors.textMuted },
+                          styles.levelCard,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: selected ? colors.borderStrong : colors.border,
+                          },
                         ]}>
-                        {level.number}
-                      </Text>
-                    </View>
-                    <View style={styles.levelText}>
-                      <Text style={[styles.levelTitle, { color: colors.text }]}>{level.title}</Text>
-                      <Text style={[styles.levelTopic, { color: colors.textMuted }]} numberOfLines={1}>
-                        {topicSummary}
-                      </Text>
-                    </View>
-                    <Badge label={state.label} icon={state.icon} tone={state.tone} />
-                    <Ionicons
-                      name={selected ? 'chevron-up' : 'chevron-down'}
-                      size={17}
-                      color={colors.textSubtle}
-                    />
-                  </Pressable>
-
-                  {selected ? (
-                    <View style={[styles.levelDetail, { borderTopColor: colors.border }]}>
-                      <Text style={[styles.detailDescription, { color: colors.textMuted }]}>
-                        {level.questions.length > 0
-                          ? level.description
-                          : 'Este nível já está estruturado e receberá atividades quando o conteúdo for cadastrado.'}
-                      </Text>
-
-                      <View style={styles.detailRows}>
-                        <DetailRow
-                          icon="book-outline"
-                          label="Assuntos"
-                          value={level.topics.join(' · ') || 'Conteúdo em preparação'}
-                        />
-                        <DetailRow
-                          icon="checkbox-outline"
-                          label="Atividade"
-                          value={
-                            level.questions.length > 0
-                              ? `${level.questions.length} ${level.questions.length === 1 ? 'questão para praticar' : 'questões para praticar'}`
-                              : 'Nenhuma atividade cadastrada neste nível'
-                          }
-                        />
-                      </View>
-
-                      {level.questions.length > 0 ? (
-                        <View
-                          style={[
-                            styles.tip,
-                            { borderColor: colors.border },
-                          ]}>
-                          <Ionicons name="bulb-outline" size={19} color={colors.warning} />
-                          <View style={styles.tipText}>
-                            <Text style={[styles.tipLabel, { color: colors.text }]}>Dica</Text>
-                            <Text style={[styles.tipDescription, { color: colors.textMuted }]}>
-                              {level.tip}
+                        <Pressable
+                          onPress={() => setSelectedLevel(level.number)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Nível ${level.number}: ${level.title}. ${state.label}`}
+                          accessibilityState={{ selected, expanded: selected, disabled: false }}
+                          style={({ pressed }) => [styles.levelHeader, pressed && styles.pressed]}>
+                          <View
+                            style={[
+                              styles.levelNumber,
+                              {
+                                backgroundColor: selected ? colors.primary : 'transparent',
+                                borderColor: selected ? colors.primary : colors.borderStrong,
+                              },
+                            ]}>
+                            <Text
+                              style={[
+                                styles.levelNumberText,
+                                { color: selected ? colors.onPrimary : colors.textMuted },
+                              ]}>
+                              {level.number}
                             </Text>
                           </View>
-                        </View>
-                      ) : null}
+                          <View style={styles.levelText}>
+                            <Text style={[styles.levelTitle, { color: colors.text }]}>{level.title}</Text>
+                            <Text style={[styles.levelTopic, { color: colors.textMuted }]} numberOfLines={1}>
+                              {topicSummary}
+                            </Text>
+                          </View>
+                          <Badge label={state.label} icon={state.icon} tone={state.tone} />
+                          <Ionicons
+                            name={selected ? 'chevron-up' : 'chevron-down'}
+                            size={17}
+                            color={colors.textSubtle}
+                          />
+                        </Pressable>
 
-                      <Button
-                        label={
-                          level.questions.length > 0
-                            ? 'Praticar este nível'
-                            : 'Disponível em breve'
-                        }
-                        icon={level.questions.length > 0 ? 'play' : 'time-outline'}
-                        onPress={() => practiceLevel(level)}
-                        disabled={level.questions.length === 0}
-                        fullWidth
-                      />
-                    </View>
-                  ) : null}
-                </Card>
-              );
-            })}
+                        {selected ? (
+                          <View style={[styles.levelDetail, { borderTopColor: colors.border }]}>
+                            <Text style={[styles.detailDescription, { color: colors.textMuted }]}>
+                              {level.description}
+                            </Text>
+
+                            <View style={styles.detailRows}>
+                              <DetailRow
+                                icon="book-outline"
+                                label="Assuntos"
+                                value={level.topics.join(' · ')}
+                              />
+                              <DetailRow
+                                icon="checkbox-outline"
+                                label="Progresso"
+                                value={`${state.answered}/${state.total} respondidas`}
+                              />
+                              <DetailRow
+                                icon="analytics-outline"
+                                label="Desempenho"
+                                value={state.answered > 0 ? `${Math.round(state.accuracy)}% de acertos` : 'Responda para calcular'}
+                              />
+                            </View>
+
+                            <View style={[styles.tip, { borderColor: colors.border }]}>
+                              <Ionicons name="bulb-outline" size={19} color={colors.warning} />
+                              <View style={styles.tipText}>
+                                <Text style={[styles.tipLabel, { color: colors.text }]}>Dica</Text>
+                                <Text style={[styles.tipDescription, { color: colors.textMuted }]}>
+                                  {level.tip}
+                                </Text>
+                              </View>
+                            </View>
+
+                            <Button
+                              label={actionLabel}
+                              icon="play"
+                              onPress={() => practiceLevel(track, level)}
+                              fullWidth
+                            />
+                          </View>
+                        ) : null}
+                      </Card>
+                    );
+                  })}
+                </View>
+              )}
+            </Section>
           </View>
-        </Section>
+        </View>
       </ScrollView>
     </View>
   );
@@ -423,29 +623,51 @@ function DetailRow({
   );
 }
 
+const TRAIL_CONTENT_MAX_WIDTH = 1120;
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: {
     width: '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
+    maxWidth: TRAIL_CONTENT_MAX_WIDTH,
     alignSelf: 'center',
     padding: Spacing.md,
     gap: Spacing.lg,
   },
   intro: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  introIcon: {
-    width: 28,
-    height: 46,
+  introIcon: { width: 28, height: 46, alignItems: 'center', justifyContent: 'center' },
+  introText: { flex: 1, gap: 3 },
+  introTitle: { fontSize: FontSize.heading + 1, fontWeight: FontWeight.bold },
+  introDescription: { fontSize: FontSize.small, lineHeight: 19, maxWidth: 720 },
+  heroCard: { borderWidth: 1, overflow: 'hidden' },
+  heroLayout: { gap: Spacing.lg },
+  heroLayoutDesktop: { flexDirection: 'row', alignItems: 'center' },
+  heroIdentity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  heroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  introText: { flex: 1, gap: 3 },
-  introTitle: {
-    fontSize: FontSize.heading + 1,
-    fontWeight: FontWeight.bold,
-  },
-  introDescription: { fontSize: FontSize.small, lineHeight: 19 },
+  heroText: { flex: 1, minWidth: 0, gap: 3 },
+  heroEyebrow: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 0.7 },
+  heroTitle: { fontSize: FontSize.title, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
+  heroDescription: { fontSize: FontSize.small, lineHeight: 19 },
+  heroMetrics: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  heroMetric: { minWidth: 80, gap: 2 },
+  heroMetricValue: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
+  heroMetricLabel: { fontSize: FontSize.tiny },
+  heroMetricDivider: { width: StyleSheet.hairlineWidth, height: 36 },
+  heroButtonDesktop: { minWidth: 150 },
+  workspace: { gap: Spacing.lg },
+  workspaceDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
+  selectorColumn: { gap: Spacing.lg },
+  selectorColumnDesktop: { width: 360 },
+  levelColumn: { flex: 1, minWidth: 0 },
   trackSelector: { gap: Spacing.sm, paddingRight: Spacing.md },
+  trackSelectorDesktop: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   searchEmpty: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -456,22 +678,27 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   searchEmptyText: { fontSize: FontSize.small },
-  trackSummary: { gap: Spacing.md },
+  trackSummary: { gap: Spacing.lg },
   trackHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  trackIcon: {
-    width: 26,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  trackIcon: { width: 26, height: 44, alignItems: 'center', justifyContent: 'center' },
   trackText: { flex: 1, minWidth: 0, gap: 2 },
   trackName: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
   trackSubtitle: { fontSize: FontSize.small, lineHeight: 18 },
-  progressHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: Spacing.md },
-  progressLabel: { fontSize: FontSize.small },
-  progressMetric: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  progressValue: { fontSize: FontSize.title, fontWeight: FontWeight.bold },
-  progressUnit: { fontSize: FontSize.tiny },
+  summaryMetrics: { flexDirection: 'row', gap: Spacing.lg },
+  summaryMetric: { flex: 1, minWidth: 0, gap: 2 },
+  summaryMetricValue: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
+  summaryMetricLabel: { fontSize: FontSize.tiny, lineHeight: 16 },
+  chooseState: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xxxl },
+  chooseIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
+  chooseTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold, textAlign: 'center' },
+  chooseDescription: { fontSize: FontSize.small, lineHeight: 19, textAlign: 'center', maxWidth: 360 },
   levelList: { gap: Spacing.sm },
   levelCard: { overflow: 'hidden' },
   levelHeader: {
@@ -502,12 +729,7 @@ const styles = StyleSheet.create({
   detailDescription: { fontSize: FontSize.body, lineHeight: 21 },
   detailRows: { gap: Spacing.md },
   detailRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
-  detailRowIcon: {
-    width: 22,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  detailRowIcon: { width: 22, height: 34, alignItems: 'center', justifyContent: 'center' },
   detailRowText: { flex: 1, gap: 2 },
   detailRowLabel: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
   detailRowValue: { fontSize: FontSize.small, lineHeight: 18 },
