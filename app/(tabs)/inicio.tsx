@@ -1,5 +1,4 @@
 import Ionicons from '@/components/ui/app-icon';
-import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,6 +10,7 @@ import {
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { FeaturedCard } from '@/components/ui/featured-card';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Section } from '@/components/ui/section';
@@ -38,11 +38,6 @@ type HomeAction = {
   marker: string;
   route: Href;
 };
-
-const HERO_GRADIENTS = {
-  light: ['#6D28D9', '#4C1D95', '#27104F'],
-  dark: ['#5B21B6', '#3B176F', '#17102B'],
-} as const;
 
 const PRACTICE_ACTIONS: HomeAction[] = [
   {
@@ -87,7 +82,7 @@ const EXPLORE_ACTIONS: HomeAction[] = [
 ];
 
 export function HomeContent() {
-  const { colors, scheme } = useTheme();
+  const { colors } = useTheme();
   const router = useRouter();
   const {
     profile,
@@ -164,50 +159,31 @@ export function HomeContent() {
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Card
+        <FeaturedCard
           onPress={() => router.push(primaryAction.route)}
           accessibilityLabel={`${primaryAction.title}. ${primaryAction.description}`}
-          padded={false}
-          style={styles.heroShell}>
-          <LinearGradient
-            colors={HERO_GRADIENTS[scheme]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.hero}>
-            <View pointerEvents="none" style={styles.heroRailOne} />
-            <View pointerEvents="none" style={styles.heroRailTwo} />
-
-            <View style={styles.heroHeading}>
-              <View style={styles.heroIcon}>
-                <Text style={styles.heroMark}>K/</Text>
-              </View>
-              <Text style={styles.heroEyebrow}>{primaryAction.eyebrow}</Text>
-            </View>
-
-            <View style={styles.heroCopy}>
-              <Text style={styles.heroTitle} accessibilityRole="header">
-                {primaryAction.title}
-              </Text>
-              <Text style={styles.heroDescription}>{primaryAction.description}</Text>
-            </View>
-
-            {primaryAction.progress !== undefined ? (
-              <ProgressBar
-                value={primaryAction.progress}
-                color="#DDD2FF"
-                height={5}
-                label={`Progresso do simulado: ${Math.round(primaryAction.progress)}%`}
-              />
-            ) : null}
-
-            <View style={styles.heroAction}>
-              <Text style={styles.heroActionText}>Abrir próximo passo</Text>
-              <View style={styles.heroArrow}>
-                <Text style={styles.heroArrowGlyph}>→</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </Card>
+          icon={
+            primaryAction.route === '/meta'
+              ? 'navigate-outline'
+              : primaryAction.route === '/questoes/simulado/resultado'
+                ? 'stats-chart-outline'
+                : primaryAction.route === '/questoes/simulado'
+                  ? 'timer-outline'
+                  : 'book-outline'
+          }
+          eyebrow={primaryAction.eyebrow}
+          title={primaryAction.title}
+          description={primaryAction.description}
+          actionLabel="Abrir próximo passo">
+          {primaryAction.progress !== undefined ? (
+            <ProgressBar
+              value={primaryAction.progress}
+              color={colors.primary}
+              height={5}
+              label={`Progresso do simulado: ${Math.round(primaryAction.progress)}%`}
+            />
+          ) : null}
+        </FeaturedCard>
 
         <View
           style={[
@@ -389,93 +365,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xxxl,
     gap: Spacing.xl,
-  },
-  heroShell: {
-    overflow: 'hidden',
-    borderRadius: Radius.xl,
-  },
-  hero: {
-    minHeight: 238,
-    padding: Spacing.xl,
-    justifyContent: 'space-between',
-    gap: Spacing.lg,
-    overflow: 'hidden',
-  },
-  heroRailOne: {
-    position: 'absolute',
-    width: 76,
-    height: 340,
-    top: -78,
-    right: 42,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    transform: [{ rotate: '24deg' }],
-  },
-  heroRailTwo: {
-    position: 'absolute',
-    width: 18,
-    height: 320,
-    top: -64,
-    right: 8,
-    backgroundColor: 'rgba(167, 139, 250, 0.26)',
-    transform: [{ rotate: '24deg' }],
-  },
-  heroHeading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  heroIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  heroMark: {
-    color: '#FFFFFF',
-    fontFamily: Fonts.mono,
-    fontSize: FontSize.small,
-    fontWeight: FontWeight.bold,
-  },
-  heroEyebrow: {
-    color: '#DDD2FF',
-    fontFamily: Fonts.mono,
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 1.1,
-  },
-  heroCopy: { maxWidth: 520, gap: Spacing.sm },
-  heroTitle: {
-    color: '#FFFFFF',
-    fontSize: 30,
-    lineHeight: 35,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.8,
-  },
-  heroDescription: {
-    maxWidth: 460,
-    color: '#E9E3FF',
-    fontSize: FontSize.body,
-    lineHeight: 21,
-  },
-  heroAction: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  heroActionText: {
-    color: '#FFFFFF',
-    fontSize: FontSize.small,
-    fontWeight: FontWeight.semibold,
-  },
-  heroArrow: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  heroArrowGlyph: {
-    color: '#3B176F',
-    fontSize: 20,
-    lineHeight: 22,
-    fontWeight: FontWeight.bold,
   },
   today: {
     minHeight: 92,

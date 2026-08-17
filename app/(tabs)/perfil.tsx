@@ -7,7 +7,6 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ListRow } from '@/components/ui/list-row';
@@ -27,6 +26,19 @@ const PLAN_LABEL: Record<SubscriptionPlan, string> = {
   diamond: 'KAD Diamante',
   circle: 'KAD Círculo',
 };
+
+const IDENTITY_COLORS = {
+  background: '#191321',
+  backgroundDeep: '#100C17',
+  surface: '#21192E',
+  foreground: '#FCFAFF',
+  muted: '#C7BDD4',
+  border: 'rgba(255,255,255,0.12)',
+  brand: '#7C3AED',
+  brandSoft: '#A78BFA',
+  status: '#62E6A7',
+  statusSoft: 'rgba(98,230,167,0.10)',
+} as const;
 
 const THEME_OPTIONS: SegmentedOption<ThemePreference>[] = [
   { value: 'system', label: 'Sistema' },
@@ -190,67 +202,132 @@ export default function PerfilScreen() {
           padded={false}
           style={[
             styles.identityCard,
-            { backgroundColor: colors.surface, borderColor: colors.borderStrong },
+            {
+              backgroundColor: IDENTITY_COLORS.background,
+              borderColor: IDENTITY_COLORS.border,
+            },
           ]}>
           <LinearGradient
             pointerEvents="none"
-            colors={[colors.primarySoft, colors.surface, colors.surface]}
-            locations={[0, 0.52, 1]}
+            colors={[
+              'rgba(124,58,237,0.30)',
+              IDENTITY_COLORS.background,
+              IDENTITY_COLORS.backgroundDeep,
+            ]}
+            locations={[0, 0.48, 1]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFillObject}
           />
+          <View pointerEvents="none" style={styles.identityBrandGlow} />
+          <View pointerEvents="none" style={styles.identityStatusGlow} />
           <View
             pointerEvents="none"
-            style={[styles.identityRail, { backgroundColor: colors.primary }]}
+            style={[styles.identityRail, { backgroundColor: IDENTITY_COLORS.brandSoft }]}
           />
           <View style={styles.identitySignature}>
-            <View style={[styles.signatureLineWide, { backgroundColor: colors.primary }]} />
-            <View style={[styles.signatureLineNarrow, { backgroundColor: colors.primary }]} />
+            <View
+              style={[styles.signatureLineWide, { backgroundColor: IDENTITY_COLORS.brandSoft }]}
+            />
+            <View
+              style={[styles.signatureLineNarrow, { backgroundColor: IDENTITY_COLORS.brand }]}
+            />
           </View>
 
           <View style={styles.identityContent}>
             <View style={styles.identityOverline}>
               <View style={styles.identityBrand}>
-                <View style={[styles.identityBrandMark, { backgroundColor: colors.primary }]}>
+                <LinearGradient
+                  colors={[IDENTITY_COLORS.brand, IDENTITY_COLORS.brandSoft]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.identityBrandMark}>
                   <Text style={styles.identityBrandText}>K/</Text>
-                </View>
-                <Text style={[styles.overlineText, { color: colors.primary }]}>IDENTIDADE KAD</Text>
+                </LinearGradient>
+                <Text style={[styles.overlineText, { color: IDENTITY_COLORS.muted }]}>
+                  IDENTIDADE KAD
+                </Text>
               </View>
-              <Badge
-                label={
-                  subscription.plan === 'circle'
+              <View style={styles.identityPlanBadge}>
+                <Ionicons
+                  name="sparkles-outline"
+                  size={14}
+                  color={IDENTITY_COLORS.brandSoft}
+                  filled={false}
+                />
+                <Text style={styles.identityPlanText}>
+                  {subscription.plan === 'circle'
                     ? 'Círculo'
                     : subscription.plan === 'diamond'
                       ? 'Diamante'
-                      : 'Básico'
-                }
-                tone={isPremium ? 'accent' : 'neutral'}
-              />
+                      : 'Básico'}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.identityUser}>
-              <View
-                style={[
-                  styles.identityAvatarFrame,
-                  { backgroundColor: colors.surface, borderColor: colors.borderStrong },
-                ]}>
-                <Avatar
-                  name={profile.name}
-                  uri={profile.avatarUri}
-                  size={72}
-                  onEdit={handlePickAvatar}
-                />
-              </View>
+              <LinearGradient
+                colors={[
+                  IDENTITY_COLORS.status,
+                  IDENTITY_COLORS.brand,
+                  IDENTITY_COLORS.brandSoft,
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.identityAvatarRing}>
+                <View style={styles.identityAvatarInner}>
+                  <Avatar
+                    name={profile.name}
+                    uri={profile.avatarUri}
+                    size={72}
+                    onEdit={handlePickAvatar}
+                  />
+                </View>
+              </LinearGradient>
               <View style={styles.identityCopy}>
-                <Text style={[styles.userName, { color: colors.text }]}>{profile.name}</Text>
-                {session && profile.username ? (
-                  <Text style={[styles.userHandle, { color: colors.primary }]}>@{profile.username}</Text>
-                ) : null}
-                <Text style={[styles.userDetail, { color: colors.textMuted }]} numberOfLines={2}>
-                  {session ? profile.email : 'Modo visitante · dados salvos neste aparelho'}
+                <Text style={[styles.userName, { color: IDENTITY_COLORS.foreground }]}>
+                  {profile.name}
                 </Text>
+                {session && profile.username ? (
+                  <Text style={[styles.userHandle, { color: IDENTITY_COLORS.brandSoft }]}>
+                    @{profile.username}
+                  </Text>
+                ) : null}
+                <View style={styles.identityStatusRow}>
+                  <View
+                    style={[
+                      styles.identityStatusDot,
+                      { backgroundColor: IDENTITY_COLORS.status },
+                    ]}
+                  />
+                  <Text
+                    style={[styles.userDetail, { color: IDENTITY_COLORS.muted }]}
+                    numberOfLines={2}>
+                    {session ? profile.email : 'Modo visitante · dados salvos neste aparelho'}
+                  </Text>
+                </View>
               </View>
+            </View>
+
+            <View
+              style={[
+                styles.identityStorageNote,
+                {
+                  backgroundColor: IDENTITY_COLORS.statusSoft,
+                  borderColor: IDENTITY_COLORS.border,
+                },
+              ]}>
+              <Ionicons
+                name={session ? 'cloud-done-outline' : 'shield-checkmark-outline'}
+                size={16}
+                color={IDENTITY_COLORS.status}
+                filled={false}
+              />
+              <Text style={[styles.identityStorageText, { color: IDENTITY_COLORS.muted }]}>
+                {session
+                  ? 'Seu perfil e sua preparação podem acompanhar você em outros aparelhos.'
+                  : 'Sua preparação fica salva só aqui. Crie uma conta para não perder nada.'}
+              </Text>
             </View>
 
             <Pressable
@@ -266,15 +343,17 @@ export default function PerfilScreen() {
                 !primaryAction.href && styles.disabled,
               ]}>
               <LinearGradient
-                colors={[colors.primaryStrong, colors.primary]}
+                colors={[IDENTITY_COLORS.brand, IDENTITY_COLORS.brandSoft]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.primaryActionGradient}>
+                <View pointerEvents="none" style={styles.primaryActionShine} />
                 <View style={styles.primaryActionIcon}>
                   <Ionicons
                     name={session ? 'create-outline' : 'cloud-upload-outline'}
                     size={19}
-                    color="#FFFFFF"
+                    color={IDENTITY_COLORS.foreground}
+                    filled={false}
                   />
                 </View>
                 <View style={styles.primaryActionCopy}>
@@ -283,7 +362,11 @@ export default function PerfilScreen() {
                 </View>
                 {primaryAction.href ? (
                   <View style={styles.primaryActionArrow}>
-                    <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+                    <Ionicons
+                      name="arrow-forward"
+                      size={17}
+                      color={IDENTITY_COLORS.foreground}
+                    />
                   </View>
                 ) : null}
               </LinearGradient>
@@ -560,14 +643,33 @@ const styles = StyleSheet.create({
   feedbackDescription: { fontSize: FontSize.small, lineHeight: 18 },
   identityCard: {
     borderWidth: 1,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
+  },
+  identityBrandGlow: {
+    position: 'absolute',
+    top: -112,
+    right: -76,
+    width: 224,
+    height: 224,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(124,58,237,0.24)',
+  },
+  identityStatusGlow: {
+    position: 'absolute',
+    bottom: -128,
+    left: -82,
+    width: 220,
+    height: 220,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(98,230,167,0.08)',
   },
   identityRail: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     left: 0,
-    width: 4,
+    width: 3,
   },
   identitySignature: {
     position: 'absolute',
@@ -576,7 +678,7 @@ const styles = StyleSheet.create({
     right: -18,
     width: 124,
     height: 96,
-    opacity: 0.16,
+    opacity: 0.2,
     transform: [{ rotate: '-18deg' }],
   },
   signatureLineWide: {
@@ -595,7 +697,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: Radius.sm,
   },
-  identityContent: { padding: Spacing.lg, gap: Spacing.lg },
+  identityContent: { padding: Spacing.lg + 2, gap: Spacing.lg + 2 },
   identityOverline: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -604,15 +706,15 @@ const styles = StyleSheet.create({
   },
   identityBrand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   identityBrandMark: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.sm,
+    borderRadius: Radius.md,
   },
   identityBrandText: {
     color: '#FFFFFF',
-    fontSize: FontSize.tiny,
+    fontSize: FontSize.small,
     fontWeight: FontWeight.bold,
     letterSpacing: -0.4,
   },
@@ -621,11 +723,32 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     letterSpacing: 1.1,
   },
-  identityUser: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
-  identityAvatarFrame: {
-    padding: 4,
+  identityPlanBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minHeight: 30,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 5,
     borderWidth: 1,
     borderRadius: Radius.pill,
+    borderColor: IDENTITY_COLORS.border,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  identityPlanText: {
+    color: IDENTITY_COLORS.foreground,
+    fontSize: FontSize.tiny,
+    fontWeight: FontWeight.semibold,
+  },
+  identityUser: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
+  identityAvatarRing: {
+    padding: 3,
+    borderRadius: Radius.pill,
+  },
+  identityAvatarInner: {
+    padding: 2,
+    borderRadius: Radius.pill,
+    backgroundColor: IDENTITY_COLORS.surface,
   },
   identityCopy: { flex: 1, gap: 3 },
   userName: {
@@ -634,19 +757,52 @@ const styles = StyleSheet.create({
     letterSpacing: -0.55,
   },
   userHandle: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
-  userDetail: { fontSize: FontSize.small, lineHeight: 18 },
-  primaryAction: {
-    minHeight: 62,
+  identityStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    marginTop: 3,
+  },
+  identityStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.pill,
+    marginTop: 5,
+  },
+  userDetail: { flex: 1, fontSize: FontSize.small, lineHeight: 18 },
+  identityStorageNote: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderWidth: 1,
     borderRadius: Radius.md,
+  },
+  identityStorageText: { flex: 1, fontSize: FontSize.tiny, lineHeight: 16 },
+  primaryAction: {
+    minHeight: 70,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
   },
   primaryActionGradient: {
-    minHeight: 62,
+    minHeight: 70,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
+    overflow: 'hidden',
+  },
+  primaryActionShine: {
+    position: 'absolute',
+    top: -32,
+    bottom: -32,
+    left: '22%',
+    width: 54,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    transform: [{ rotate: '18deg' }],
   },
   primaryActionIcon: {
     width: 40,
@@ -657,8 +813,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.16)',
   },
   primaryActionCopy: { flex: 1, gap: 2 },
-  primaryActionLabel: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  primaryActionDescription: { color: 'rgba(255,255,255,0.78)', fontSize: FontSize.small, lineHeight: 18 },
+  primaryActionLabel: {
+    color: IDENTITY_COLORS.foreground,
+    fontSize: FontSize.body,
+    fontWeight: FontWeight.bold,
+  },
+  primaryActionDescription: {
+    color: 'rgba(252,250,255,0.80)',
+    fontSize: FontSize.small,
+    lineHeight: 18,
+  },
   primaryActionArrow: {
     width: 30,
     height: 30,

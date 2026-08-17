@@ -5,6 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/ui/card';
+import { FeaturedCard } from '@/components/ui/featured-card';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
@@ -174,20 +175,29 @@ export default function QuestionsScreen() {
 
   const listHeader = () => (
     <View style={styles.listHeader}>
-      <Segmented options={STUDY_OPTIONS} value={studyMode} onChange={setStudyMode} />
-      <Pressable
-        onPress={() => router.push('/questoes/buscar')}
-        accessibilityRole="button"
-        accessibilityLabel="Procurar questões"
-        style={({ pressed }) => [
-          styles.searchEntry,
-          { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-          pressed && { opacity: 0.8 },
-        ]}>
-        <Ionicons name="search" size={18} color={colors.primary} />
-        <Text style={[styles.searchEntryText, { color: colors.textMuted }]}>Procurar questões</Text>
-        <Ionicons name="options-outline" size={18} color={colors.textSubtle} />
-      </Pressable>
+      <FeaturedCard
+        icon="compass-outline"
+        eyebrow="EXPLORAR QUESTÕES"
+        title="Escolha como estudar"
+        description="Navegue por matéria ou encontre uma questão específica."
+        compact>
+        <Segmented options={STUDY_OPTIONS} value={studyMode} onChange={setStudyMode} />
+        <Pressable
+          onPress={() => router.push('/questoes/buscar')}
+          accessibilityRole="button"
+          accessibilityLabel="Procurar questões"
+          style={({ pressed }) => [
+            styles.searchEntry,
+            { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+            pressed && styles.searchEntryPressed,
+          ]}>
+          <Ionicons name="search" size={18} color={colors.primary} />
+          <Text style={[styles.searchEntryText, { color: colors.textMuted }]}>Procurar questões</Text>
+          <View style={[styles.filterIcon, { backgroundColor: colors.surface }]}>
+            <Ionicons name="options-outline" size={17} color={colors.textSubtle} />
+          </View>
+        </Pressable>
+      </FeaturedCard>
       <View style={styles.sectionHeading}>
         <Text style={[styles.sectionLabel, { color: colors.text }]}>
           {studyMode === 'discipline' ? 'Escolha uma disciplina' : 'Escolha um concurso'}
@@ -257,7 +267,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   listHeader: {
-    gap: Spacing.sm + 2,
+    gap: Spacing.lg,
   },
   searchEntry: {
     flexDirection: 'row',
@@ -268,10 +278,21 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
   },
+  searchEntryPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.995 }],
+  },
   searchEntryText: {
     flex: 1,
     fontSize: FontSize.body,
     fontWeight: FontWeight.medium,
+  },
+  filterIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionLabel: {
     fontSize: FontSize.heading,

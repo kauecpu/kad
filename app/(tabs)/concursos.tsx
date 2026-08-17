@@ -20,6 +20,7 @@ import { ConcursoCard } from '@/components/concurso-card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FeedbackToast } from '@/components/ui/feedback-toast';
+import { FeaturedCard } from '@/components/ui/featured-card';
 import { MultiSelectSheet } from '@/components/ui/multi-select-sheet';
 import { SearchField } from '@/components/ui/search-field';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
@@ -223,27 +224,16 @@ export default function ConcursosScreen() {
 
   const listHeader = showGoalSuggestion ? (
     <View style={styles.listHeader}>
-      <Pressable
+      <FeaturedCard
         onPress={() => setGoalMode(true)}
-        accessibilityRole="button"
         accessibilityLabel={`Ver concursos para sua meta: ${targetRole}`}
-        style={({ pressed }) => [
-          styles.goalCard,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-          pressed && styles.pressed,
-        ]}>
-        <View style={[styles.goalRail, { backgroundColor: colors.primary }]} />
-        <View style={styles.goalMarker}>
-          <Text style={[styles.goalMarkerText, { color: colors.primary }]}>K/</Text>
-        </View>
-        <View style={styles.goalText}>
-          <Text style={[styles.goalEyebrow, { color: colors.textSubtle }]}>FOCO DA META</Text>
-          <Text style={[styles.goalTitle, { color: colors.text }]}>{targetRole}</Text>
-          <Text style={[styles.goalDescription, { color: colors.textMuted }]}>
-            {`${goalMatches.length} ${goalMatches.length === 1 ? 'oportunidade compatível' : 'oportunidades compatíveis'} · aplicar filtro`}
-          </Text>
-        </View>
-      </Pressable>
+        icon="navigate-outline"
+        eyebrow="FOCO DA META"
+        title={targetRole}
+        description={`${goalMatches.length} ${goalMatches.length === 1 ? 'oportunidade compatível' : 'oportunidades compatíveis'} com sua direção atual.`}
+        actionLabel="Ver oportunidades"
+        compact
+      />
     </View>
   ) : null;
 
@@ -517,34 +507,6 @@ const styles = StyleSheet.create({
   },
   listEmpty: { flexGrow: 1, justifyContent: 'center' },
   listHeader: { marginBottom: Spacing.md },
-  goalCard: {
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: 76,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    paddingLeft: Spacing.lg,
-    borderWidth: 1,
-    borderRadius: Radius.lg,
-  },
-  goalRail: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 4 },
-  goalMarker: { width: 32, alignItems: 'center' },
-  goalMarkerText: {
-    fontFamily: Fonts.mono,
-    fontSize: FontSize.small,
-    fontWeight: FontWeight.bold,
-  },
-  goalText: { flex: 1, minWidth: 0, gap: 2 },
-  goalEyebrow: {
-    fontFamily: Fonts.mono,
-    fontSize: 9,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.7,
-  },
-  goalTitle: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  goalDescription: { fontSize: FontSize.tiny, lineHeight: 16 },
   savedButton: {
     minHeight: 44,
     flexDirection: 'row',

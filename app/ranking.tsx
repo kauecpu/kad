@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -13,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Ionicons from '@/components/ui/app-icon';
 import { Chip } from '@/components/ui/chip';
+import { FeaturedCard } from '@/components/ui/featured-card';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { StackHeader } from '@/components/ui/stack-header';
 import { cardShadow, CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
@@ -111,27 +111,13 @@ export default function RankingScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xxxl }]}
         showsVerticalScrollIndicator={false}>
-        <LinearGradient
-          colors={['#2E1065', '#6D28D9', '#7C3AED']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}>
-          <View style={styles.heroStripeOne} />
-          <View style={styles.heroStripeTwo} />
-          <View style={styles.heroCopy}>
-            <View style={styles.eyebrowRow}>
-              <View style={styles.liveDot} />
-              <Text style={styles.heroEyebrow}>PRÉVIA FRONTEND</Text>
-            </View>
-            <Text style={styles.heroTitle}>Suba no ranking</Text>
-            <Text style={styles.heroDescription}>
-              Acerte questões, some pontos e acompanhe sua posição {periodLabel}.
-            </Text>
-          </View>
-          <View style={styles.trophyHalo}>
-            <Ionicons name="trophy" size={43} color="#F8CE62" />
-          </View>
-        </LinearGradient>
+        <FeaturedCard
+          icon="trophy"
+          eyebrow="PRÉVIA DO RANKING"
+          title="Suba no ranking"
+          description={`Acerte questões, some pontos e acompanhe sua posição ${periodLabel}.`}
+          tone="achievement"
+        />
 
         {rulesExpanded ? (
           <View style={[styles.rulesPanel, { backgroundColor: colors.warningSoft, borderColor: colors.warning }]}>
@@ -348,50 +334,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     padding: Spacing.md,
     gap: Spacing.lg,
-  },
-  hero: {
-    minHeight: 222,
-    overflow: 'hidden',
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
-    gap: Spacing.lg,
-  },
-  heroStripeOne: {
-    position: 'absolute',
-    top: -30,
-    right: 34,
-    width: 42,
-    height: 290,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    transform: [{ rotate: '24deg' }],
-  },
-  heroStripeTwo: {
-    position: 'absolute',
-    top: -22,
-    right: 98,
-    width: 16,
-    height: 270,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    transform: [{ rotate: '24deg' }],
-  },
-  heroCopy: { maxWidth: 520, paddingRight: 74, gap: Spacing.sm },
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  liveDot: { width: 7, height: 7, borderRadius: Radius.pill, backgroundColor: '#F8CE62' },
-  heroEyebrow: { color: '#EDE9FE', fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 1 },
-  heroTitle: { color: '#FFFFFF', fontSize: 31, lineHeight: 36, fontWeight: FontWeight.bold, letterSpacing: -0.8 },
-  heroDescription: { color: '#EDE9FE', fontSize: FontSize.body, lineHeight: 21 },
-  trophyHalo: {
-    position: 'absolute',
-    top: Spacing.xl,
-    right: Spacing.xl,
-    width: 64,
-    height: 64,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
   },
   rulesPanel: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
   rulesCopy: { flex: 1, gap: 3 },
