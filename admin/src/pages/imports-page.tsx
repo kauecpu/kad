@@ -40,6 +40,12 @@ const STATUS_LABEL: Record<string, string> = {
   rollback_blocked: 'Reversão bloqueada',
 };
 
+function importRecordLabel(record: EditorialImportRecord): string {
+  const data = record.data as Record<string, unknown>;
+  if (record.kind === 'question') return String(data.discipline ?? 'Questão');
+  return String(data.title ?? data.shortName ?? 'Concurso');
+}
+
 export function ImportsPage() {
   const { access, isPreview } = useAuth();
   const [batches, setBatches] = useState<AdminImportBatch[]>([]);
@@ -227,6 +233,7 @@ export function ImportsPage() {
           {preview ? <div className={`import-preview ${preview.issues.length ? 'import-preview--error' : ''}`}>
             <strong>{preview.issues.length ? `${preview.issues.length} problema(s)` : `${preview.records.length} envelope(s) válido(s)`}</strong>
             {preview.issues.slice(0, 5).map((issue) => <span key={`${issue.line}-${issue.message}`}>Linha {issue.line}: {issue.message}</span>)}
+            {!preview.issues.length ? preview.records.slice(0, 3).map((record) => <span key={`${record.kind}-${record.data.id}`}><b>{record.data.id}</b> · {importRecordLabel(record)}</span>) : null}
           </div> : null}
           <button className="primary-button" type="button" onClick={() => void sendBatch()} disabled={!preview?.records.length || busy || !canWrite}>{busy ? <LoaderCircle className="spin" size={17}/> : <Upload size={17}/>} Enviar para revisão</button>
         </article>
