@@ -7,9 +7,73 @@ export type ImportParseResult = {
 };
 
 const MAX_RECORDS = 500;
+const QUESTION_TEXT_FIELDS = [
+  'discipline', 'subject', 'topic', 'board', 'role', 'institution', 'concurso',
+] as const;
+const ALTERNATIVE_IDS = ['A', 'B', 'C', 'D', 'E'] as const;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasText(value: unknown, minimum = 2): value is string {
+  return typeof value === 'string' && value.trim().length >= minimum;
+}
+
+function isHttpsUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+function validateQuestionData(data: Record<string, unknown>, line: number): ImportParseIssue[] {
+  const issues: ImportParseIssue[] = [];
+  for (const field of QUESTION_TEXT_FIELDS) {
+    if (!hasText(data[field])) issues.push({ line, message: `data.${field} é obrigatório.` });
+  }
+  if (!Number.isInteger(data.year) || (data.year as number) < 1900 || (data.year as number) > 2100) {
+    issues.push({ line, message: 'data.year deve ser um ano válido.' });
+  }
+  if (!['Fundamental', 'Médio', 'Superior'].includes(String(data.level))) {
+    issues.push({ line, message: 'data.level é inválido.' });
+  }
+  if (!['Fácil', 'Média', 'Difícil'].includes(String(data.difficulty))) {
+    issues.push({ line, message: 'data.difficulty é inválida.' });
+  }
+  if (!hasText(data.statement, 10)) issues.push({ line, message: 'data.statement deve ter ao menos 10 caracteres.' });
+  if (!hasText(data.explanation, 10)) issues.push({ line, message: 'data.explanation deve ter ao menos 10 caracteres.' });
+  if (data.publicationStatus !== 'draft') {
+    issues.push({ line, message: 'data.publicationStatus deve ser draft; a importação nunca publica automaticamente.' });
+  }
+
+  const alternatives = data.alternatives;
+  if (!Array.isArray(alternatives) || alternatives.length < 2 || alternatives.length > 5) {
+    issues.push({ line, message: 'data.alternatives deve possuir de 2 a 5 opções.' });
+    return issues;
+  }
+  const ids: string[] = [];
+  alternatives.forEach((alternative, index) => {
+    if (!isObject(alternative)) {
+      issues.push({ line, message: `data.alternatives[${index}] deve ser um objeto.` });
+      return;
+    }
+    if (alternative.id !== ALTERNATIVE_IDS[index]) {
+      issues.push({ line, message: `data.alternatives deve ser sequencial de A até ${ALTERNATIVE_IDS[alternatives.length - 1]}.` });
+    }
+    if (!hasText(alternative.text, 1)) {
+      issues.push({ line, message: `data.alternatives[${index}].text é obrigatório.` });
+    }
+    if (typeof alternative.id === 'string') ids.push(alternative.id);
+  });
+  if (new Set(ids).size !== ids.length) issues.push({ line, message: 'data.alternatives possui letras duplicadas.' });
+  if (!ALTERNATIVE_IDS.includes(data.correct as typeof ALTERNATIVE_IDS[number]) || !ids.includes(String(data.correct))) {
+    issues.push({ line, message: 'data.correct não corresponde a uma alternativa válida.' });
+  }
+  return issues;
 }
 
 function validateRecord(value: unknown, line: number): ImportParseIssue[] {
@@ -28,15 +92,20 @@ function validateRecord(value: unknown, line: number): ImportParseIssue[] {
     if (typeof value.source.externalId !== 'string' || !value.source.externalId.trim()) {
       issues.push({ line, message: 'source.externalId é obrigatório.' });
     }
-    if (typeof value.source.url !== 'string' || !value.source.url.startsWith('https://')) {
+    if (!isHttpsUrl(value.source.url)) {
       issues.push({ line, message: 'source.url deve usar HTTPS.' });
     }
     if (typeof value.source.collectedAt !== 'string' || Number.isNaN(Date.parse(value.source.collectedAt))) {
       issues.push({ line, message: 'source.collectedAt deve ser uma data ISO válida.' });
     }
+    if (value.kind === 'question' && (typeof value.source.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(value.source.fingerprint))) {
+      issues.push({ line, message: 'source.fingerprint deve ser um SHA-256 para questões.' });
+    }
   }
   if (!isObject(value.data) || typeof value.data.id !== 'string' || !/^[a-z0-9][a-z0-9-]{2,119}$/.test(value.data.id)) {
     issues.push({ line, message: 'data.id é obrigatório e deve ser um slug.' });
+  } else if (value.kind === 'question') {
+    issues.push(...validateQuestionData(value.data, line));
   }
   return issues;
 }
@@ -72,6 +141,23 @@ export function parseEditorialImport(text: string): ImportParseResult {
   }
 
   for (const item of parsed) issues.push(...validateRecord(item.value, item.line));
+  const seenIds = new Set<string>();
+  const seenSources = new Set<string>();
+  const seenFingerprints = new Set<string>();
+  for (const item of parsed) {
+    if (!isObject(item.value) || !isObject(item.value.data) || !isObject(item.value.source)) continue;
+    const idKey = `${String(item.value.kind)}:${String(item.value.data.id)}`;
+    const sourceKey = `${String(item.value.source.provider)}:${String(item.value.source.externalId)}`;
+    const fingerprint = item.value.source.fingerprint;
+    if (seenIds.has(idKey)) issues.push({ line: item.line, message: 'data.id duplicado no arquivo.' });
+    if (seenSources.has(sourceKey)) issues.push({ line: item.line, message: 'Origem provider/externalId duplicada no arquivo.' });
+    if (typeof fingerprint === 'string' && seenFingerprints.has(fingerprint)) {
+      issues.push({ line: item.line, message: 'source.fingerprint duplicado no arquivo.' });
+    }
+    seenIds.add(idKey);
+    seenSources.add(sourceKey);
+    if (typeof fingerprint === 'string') seenFingerprints.add(fingerprint);
+  }
   return {
     records: issues.length ? [] : parsed.slice(0, MAX_RECORDS).map((item) => item.value as EditorialImportRecord),
     issues,

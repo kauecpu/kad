@@ -113,17 +113,38 @@ export type ImportBatchStatus = 'staging' | 'imported' | 'import_partial' | 'rol
 export type ImportItemStatus = 'ready' | 'invalid' | 'duplicate' | 'imported' | 'skipped' | 'failed' | 'rolled_back' | 'rollback_blocked';
 export type ImportDecision = 'import' | 'upsert' | 'skip';
 
+export type EditorialImportSource = {
+  provider: string;
+  externalId: string;
+  url: string;
+  collectedAt: string;
+  fingerprint?: string;
+};
+
+export type EditorialQuestionImportData = {
+  id: string;
+  discipline: string;
+  subject: string;
+  topic: string;
+  board: string;
+  year: number;
+  role: string;
+  institution: string;
+  concurso: string;
+  level: EducationLevel;
+  difficulty: 'Fácil' | 'Média' | 'Difícil';
+  statement: string;
+  alternatives: { id: AlternativeId; text: string }[];
+  correct: AlternativeId;
+  explanation: string;
+  publicationStatus: 'draft';
+};
+
 export type EditorialImportRecord = {
   schemaVersion: 1;
   kind: EditorialImportKind;
-  source: {
-    provider: string;
-    externalId: string;
-    url: string;
-    collectedAt: string;
-    fingerprint?: string;
-  };
-  data: Record<string, unknown> & { id: string };
+  source: EditorialImportSource;
+  data: (Record<string, unknown> & { id: string }) | EditorialQuestionImportData;
 };
 
 export type AdminImportBatch = {
