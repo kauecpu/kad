@@ -18,7 +18,7 @@ import { getPostAuthRoute, type PostAuthRoute } from '@/lib/onboarding';
 import { useAuth } from '@/providers/auth-provider';
 
 export default function WelcomeScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const router = useRouter();
@@ -85,12 +85,34 @@ export default function WelcomeScreen() {
         showsVerticalScrollIndicator={false}
         bounces={false}>
         <View style={styles.main}>
-          <Image
-            source={require('../assets/images/kad-logo-v4.png')}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel="KAD Concursos"
-          />
+          <View style={styles.logoFrame} accessibilityRole="image" accessibilityLabel="KAD Concursos">
+            <Image
+              source={require('../assets/images/kad-logo-v4.png')}
+              style={styles.logo}
+              resizeMode="stretch"
+              accessible={false}
+            />
+            {isDark ? (
+              <>
+                <View pointerEvents="none" style={styles.darkWordmarkClip}>
+                  <Image
+                    source={require('../assets/images/kad-logo-v4.png')}
+                    style={[styles.darkWordmark, { tintColor: colors.text }]}
+                    resizeMode="stretch"
+                    accessible={false}
+                  />
+                </View>
+                <View pointerEvents="none" style={styles.darkAccentClip}>
+                  <Image
+                    source={require('../assets/images/kad-logo-v4.png')}
+                    style={styles.darkAccent}
+                    resizeMode="stretch"
+                    accessible={false}
+                  />
+                </View>
+              </>
+            ) : null}
+          </View>
 
           <View style={styles.copy}>
             <Text style={[styles.title, { color: colors.text }]}>Estude com direção.</Text>
@@ -164,10 +186,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.xxxl,
   },
-  logo: {
+  logoFrame: {
     width: 210,
     height: 76,
     alignSelf: 'flex-start',
+    position: 'relative',
+  },
+  logo: {
+    position: 'absolute',
+    left: 16,
+    width: 178,
+    height: 76,
+  },
+  darkWordmarkClip: {
+    position: 'absolute',
+    left: 87,
+    top: 18,
+    width: 100,
+    height: 35,
+    overflow: 'hidden',
+  },
+  darkWordmark: {
+    position: 'absolute',
+    left: -71,
+    top: -18,
+    width: 178,
+    height: 76,
+  },
+  darkAccentClip: {
+    position: 'absolute',
+    left: 135,
+    top: 42,
+    width: 9,
+    height: 9,
+    overflow: 'hidden',
+  },
+  darkAccent: {
+    position: 'absolute',
+    left: -119,
+    top: -42,
+    width: 178,
+    height: 76,
   },
   copy: { gap: Spacing.md },
   title: {

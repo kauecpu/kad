@@ -40,6 +40,14 @@ test('a rota raiz permanece como âncora e redireciona sessões para o início',
   assert.match(welcomeScreen, /pathname === '\/'/);
 });
 
+test('a marca da tela inicial mantém contraste no tema escuro', () => {
+  assert.match(welcomeScreen, /const \{ colors, isDark \} = useTheme\(\)/);
+  assert.match(welcomeScreen, /isDark \? \(/);
+  assert.match(welcomeScreen, /styles\.darkWordmark/);
+  assert.match(welcomeScreen, /tintColor: colors\.text/);
+  assert.match(welcomeScreen, /accessibilityLabel="KAD Concursos"/);
+});
+
 test('sair da conta revoga apenas a sessão deste aparelho', () => {
   assert.match(authProvider, /auth\.signOut\(\{ scope: 'local' \}\)/);
   assert.doesNotMatch(authProvider, /auth\.signOut\(\);/);
