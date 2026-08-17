@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { FeaturedCard } from '@/components/ui/featured-card';
 import { SearchField } from '@/components/ui/search-field';
 import { Section } from '@/components/ui/section';
 import { StackHeader } from '@/components/ui/stack-header';
@@ -327,6 +328,16 @@ function TopicSelection({
         </Section>
       ) : null}
 
+      {!recommendedTopic && !hasActiveDiscovery ? (
+        <FeaturedCard
+          icon="create-outline"
+          eyebrow="PRÁTICA DE REDAÇÃO"
+          title="Sua próxima redação começa aqui"
+          description={`Explore ${disclosure.total} ${disclosure.total === 1 ? 'proposta preparada' : 'propostas preparadas'} para praticar do planejamento à revisão.`}
+          accessory={<Badge label="Prática guiada" tone="accent" />}
+        />
+      ) : null}
+
       <Section title="Explorar outros temas">
         <View style={styles.discoveryControls}>
           <View style={styles.searchControl}>
@@ -445,36 +456,21 @@ function FeaturedTopicCard({
   topic: EssayTopic;
   onStart: () => void;
 }) {
-  const { colors } = useTheme();
   const pack = CONCURSO_PACKS.find((item) => item.id === topic.packId);
   return (
-    <Card
-      style={[
-        styles.featuredTopicCard,
-        { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong },
-      ]}>
-      <View style={styles.topicHeader}>
-        <View style={[styles.featuredTopicIcon, { backgroundColor: colors.primary }]}>
-          <Ionicons
-            name={(pack?.icon as keyof typeof Ionicons.glyphMap) ?? 'document-text-outline'}
-            size={21}
-            color={colors.onPrimary}
-          />
-        </View>
-        <View style={styles.topicHeaderText}>
-          <Text style={[styles.topicPack, { color: colors.text }]}>{pack?.name ?? 'Concurso'}</Text>
-          <Text style={[styles.topicCategory, { color: colors.textMuted }]}>{topic.category}</Text>
-        </View>
-        <Badge label="Recomendado" tone="accent" />
-      </View>
-      <Text style={[styles.featuredTopicTitle, { color: colors.text }]}>{topic.title}</Text>
+    <FeaturedCard
+      icon={(pack?.icon as keyof typeof Ionicons.glyphMap) ?? 'document-text-outline'}
+      eyebrow={`${pack?.name ?? 'CONCURSO'} · ${topic.category}`.toLocaleUpperCase('pt-BR')}
+      title={topic.title}
+      description="Uma proposta selecionada para aproximar sua prática da meta atual."
+      accessory={<Badge label="Recomendado" tone="accent" />}>
       <View style={styles.topicMeta}>
         <Meta icon="speedometer-outline" label={topic.difficulty} />
         <Meta icon="timer-outline" label={`${topic.suggestedMinutes} min`} />
         <Meta icon="reorder-three-outline" label={topic.lineRange} />
       </View>
       <Button label="Começar redação" icon="create-outline" onPress={onStart} fullWidth />
-    </Card>
+    </FeaturedCard>
   );
 }
 
@@ -839,23 +835,6 @@ const styles = StyleSheet.create({
   filterOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   resultSummary: { fontSize: FontSize.tiny },
   topicList: { gap: Spacing.sm },
-  featuredTopicCard: { gap: Spacing.md, borderWidth: 1 },
-  topicHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  featuredTopicIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topicHeaderText: { flex: 1, gap: 1 },
-  topicPack: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
-  topicCategory: { fontSize: FontSize.tiny },
-  featuredTopicTitle: {
-    fontSize: FontSize.title,
-    fontWeight: FontWeight.bold,
-    lineHeight: 26,
-  },
   topicMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: FontSize.tiny },

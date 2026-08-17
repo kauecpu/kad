@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { FeaturedCard } from '@/components/ui/featured-card';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SearchField } from '@/components/ui/search-field';
 import { Section } from '@/components/ui/section';
@@ -323,43 +324,26 @@ export default function TrailsScreen() {
           </View>
         </View>
 
-        <Card
-          style={[
-            styles.heroCard,
-            { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong },
-          ]}>
-          <View style={[styles.heroLayout, isDesktop && styles.heroLayoutDesktop]}>
-            <View style={styles.heroIdentity}>
-              <View style={[styles.heroIcon, { backgroundColor: colors.primary }]}>
-                <Ionicons
-                  name={heroTrack?.icon ?? 'navigate-outline'}
-                  size={23}
-                  color={colors.onPrimary}
-                />
-              </View>
-              <View style={styles.heroText}>
-                <Text style={[styles.heroEyebrow, { color: colors.primary }]}>
-                  {heroTrack
-                    ? heroIsRecommendation
-                      ? 'RECOMENDADA PARA SUA META'
-                      : heroMetrics.answered > 0
-                        ? 'CONTINUE DE ONDE PAROU'
-                        : 'SUA TRILHA ATUAL'
-                    : 'PRIMEIRO PASSO'}
-                </Text>
-                <Text style={[styles.heroTitle, { color: colors.text }]}>
-                  {heroTrack?.name ?? 'Escolha sua primeira trilha'}
-                </Text>
-                <Text style={[styles.heroDescription, { color: colors.textMuted }]}>
-                  {heroTrack
-                    ? heroIsRecommendation && profile.targetRole
-                      ? `Esta trilha combina com sua meta de ${profile.targetRole}.`
-                      : `${heroMetrics.total} ${heroMetrics.total === 1 ? 'questão disponível' : 'questões disponíveis'} em ${heroLevels.length} ${heroLevels.length === 1 ? 'nível' : 'níveis'}.`
-                    : 'Escolha um concurso, uma área ou uma disciplina para começar.'}
-                </Text>
-              </View>
-            </View>
-
+        <FeaturedCard
+          icon={heroTrack?.icon ?? 'navigate-outline'}
+          eyebrow={
+            heroTrack
+              ? heroIsRecommendation
+                ? 'RECOMENDADA PARA SUA META'
+                : heroMetrics.answered > 0
+                  ? 'CONTINUE DE ONDE PAROU'
+                  : 'SUA TRILHA ATUAL'
+              : 'PRIMEIRO PASSO'
+          }
+          title={heroTrack?.name ?? 'Escolha sua primeira trilha'}
+          description={
+            heroTrack
+              ? heroIsRecommendation && profile.targetRole
+                ? `Esta trilha combina com sua meta de ${profile.targetRole}.`
+                : `${heroMetrics.total} ${heroMetrics.total === 1 ? 'questão disponível' : 'questões disponíveis'} em ${heroLevels.length} ${heroLevels.length === 1 ? 'nível' : 'níveis'}.`
+              : 'Escolha um concurso, uma área ou uma disciplina para começar.'
+          }>
+          <View style={[styles.heroFooter, isDesktop && styles.heroFooterDesktop]}>
             {heroTrack ? (
               <View style={styles.heroMetrics}>
                 <View style={styles.heroMetric}>
@@ -386,7 +370,7 @@ export default function TrailsScreen() {
               style={isDesktop ? styles.heroButtonDesktop : undefined}
             />
           </View>
-        </Card>
+        </FeaturedCard>
 
         <View
           onLayout={(event) => setSelectorOffset(event.nativeEvent.layout.y)}
@@ -645,21 +629,8 @@ const styles = StyleSheet.create({
   introText: { flex: 1, gap: 3 },
   introTitle: { fontSize: FontSize.heading + 1, fontWeight: FontWeight.bold },
   introDescription: { fontSize: FontSize.small, lineHeight: 19, maxWidth: 720 },
-  heroCard: { borderWidth: 1, overflow: 'hidden' },
-  heroLayout: { gap: Spacing.lg },
-  heroLayoutDesktop: { flexDirection: 'row', alignItems: 'center' },
-  heroIdentity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  heroIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroText: { flex: 1, minWidth: 0, gap: 3 },
-  heroEyebrow: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 0.7 },
-  heroTitle: { fontSize: FontSize.title, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
-  heroDescription: { fontSize: FontSize.small, lineHeight: 19 },
+  heroFooter: { gap: Spacing.lg },
+  heroFooterDesktop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroMetrics: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   heroMetric: { minWidth: 80, gap: 2 },
   heroMetricValue: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
