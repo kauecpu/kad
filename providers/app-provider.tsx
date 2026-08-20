@@ -484,7 +484,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ),
       };
     });
-    if (userId) saveRemoteAnswer(userId, question, selected).catch(() => {});
+    if (userId) saveRemoteAnswer(question, selected).catch(() => {});
   }, [userId]);
 
   const setWeeklyQuestionGoal = useCallback((goal: number) => {
