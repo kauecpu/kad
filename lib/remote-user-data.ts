@@ -48,19 +48,12 @@ export async function loadRemoteStudyData(userId: string): Promise<RemoteStudyDa
   };
 }
 
-export async function saveRemoteAnswer(userId: string, question: Question, selected: string) {
+export async function saveRemoteAnswer(question: Question, selected: string) {
   if (!supabase) return;
-  const { error } = await supabase.from('question_attempts').upsert(
-    {
-      user_id: userId,
-      question_id: question.id,
-      subject: question.subject,
-      selected,
-      is_correct: selected === question.correct,
-      answered_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id,question_id' }
-  );
+  const { error } = await supabase.rpc('record_question_attempt', {
+    p_question_id: question.id,
+    p_selected: selected,
+  });
   if (error) throw error;
 }
 

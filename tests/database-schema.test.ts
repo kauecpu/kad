@@ -108,6 +108,17 @@ const migrationNames = readdirSync(
 const readMigration = (name: string) =>
   readFileSync(new NodeURL(`../supabase/migrations/${name}`, import.meta.url), 'utf8');
 
+const questionAttemptSecurityMigrationName = migrationNames.find((name) =>
+  name.endsWith('_secure_question_attempts.sql')
+);
+const questionAttemptSecurityMigration = questionAttemptSecurityMigrationName
+  ? readMigration(questionAttemptSecurityMigrationName)
+  : '';
+const remoteUserData = readFileSync(
+  new NodeURL('../lib/remote-user-data.ts', import.meta.url),
+  'utf8'
+);
+
 test('dados pessoais e de estudo possuem RLS', () => {
   for (const table of [
     'question_attempts',
@@ -271,6 +282,49 @@ test('crédito de pagamento é imutável e estados de estorno são terminais', (
 test('agregação comunitária privilegiada fica no schema privado', () => {
   assert.match(migration, /function private\.question_community_accuracy/);
   assert.match(migration, /function public\.question_community_accuracy/);
+});
+
+test('tentativas de questões são corrigidas no banco sem escrita direta do cliente', () => {
+  assert.ok(questionAttemptSecurityMigrationName, 'migration de tentativas seguras ausente');
+  assert.match(
+    questionAttemptSecurityMigration,
+    /revoke insert, update on public\.question_attempts from authenticated/
+  );
+  assert.match(
+    questionAttemptSecurityMigration,
+    /drop policy if exists "question_attempts_insert_own" on public\.question_attempts/
+  );
+  assert.match(
+    questionAttemptSecurityMigration,
+    /drop policy if exists "question_attempts_update_own" on public\.question_attempts/
+  );
+  assert.match(
+    questionAttemptSecurityMigration,
+    /create or replace function public\.record_question_attempt\(p_question_id text, p_selected text\)/
+  );
+  assert.match(questionAttemptSecurityMigration, /security definer/);
+  assert.match(questionAttemptSecurityMigration, /v_user_id uuid := \(select auth\.uid\(\)\)/);
+  assert.match(questionAttemptSecurityMigration, /publication_status = 'published'/);
+  assert.match(questionAttemptSecurityMigration, /p_selected = question\.correct/);
+  assert.match(
+    questionAttemptSecurityMigration,
+    /revoke all on function public\.record_question_attempt\(text, text\) from public, anon, authenticated/
+  );
+  assert.match(
+    questionAttemptSecurityMigration,
+    /grant execute on function public\.record_question_attempt\(text, text\) to authenticated/
+  );
+});
+
+test('aplicativo envia somente a questão e a alternativa para a RPC de correção', () => {
+  assert.match(remoteUserData, /supabase\.rpc\('record_question_attempt'/);
+  assert.match(remoteUserData, /p_question_id: question\.id/);
+  assert.match(remoteUserData, /p_selected: selected/);
+  assert.doesNotMatch(
+    remoteUserData,
+    /from\('question_attempts'\)\.upsert/,
+    'o cliente não pode gravar is_correct diretamente'
+  );
 });
 
 test('profile write grants are limited to public fields', () => {
