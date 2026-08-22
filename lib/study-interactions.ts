@@ -6,6 +6,10 @@ export type StudyOptionStateInput = {
   correct: boolean;
 };
 
+export function studyOptionInstanceKey(questionId: string, alternativeId: string): string {
+  return `${questionId}:${alternativeId}`;
+}
+
 export function resolveStudyOptionState({
   selected,
   answered,

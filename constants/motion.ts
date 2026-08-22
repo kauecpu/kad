@@ -1,4 +1,6 @@
 /** Tokens compartilhados para movimentos curtos e previsíveis no KAD. */
+export const MINIMUM_TOUCH_TARGET = 44;
+
 export const MOTION_DURATION = {
   pressIn: 110,
   pressOut: 140,

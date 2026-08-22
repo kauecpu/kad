@@ -8,7 +8,7 @@ import { StudyOption } from '@/components/ui/study-option';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { canonicalAlternativeOrder } from '@/lib/simulations';
-import { resolveStudyOptionState } from '@/lib/study-interactions';
+import { resolveStudyOptionState, studyOptionInstanceKey } from '@/lib/study-interactions';
 import type { AlternativeId, Question } from '@/types';
 
 type SimulationQuestionCardProps = {
@@ -51,7 +51,7 @@ export function SimulationQuestionCard({
 
           return (
             <StudyOption
-              key={alternativeId}
+              key={studyOptionInstanceKey(question.id, alternativeId)}
               value={alternativeId}
               displayLetter={displayLetter}
               text={alternative.text}

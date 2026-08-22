@@ -5,8 +5,13 @@ import {
   createStudyActionGate,
   performStudyAction,
   resolveStudyOptionState,
+  studyOptionInstanceKey,
 } from '../lib/study-interactions.ts';
-import { MOTION_DURATION, resolveMotionDuration } from '../constants/motion.ts';
+import {
+  MINIMUM_TOUCH_TARGET,
+  MOTION_DURATION,
+  resolveMotionDuration,
+} from '../constants/motion.ts';
 
 test('estado visual distingue seleção, acerto, erro e alternativas neutras', () => {
   assert.equal(
@@ -36,6 +41,19 @@ test('gabarito correto permanece destacado mesmo quando não foi a alternativa e
     resolveStudyOptionState({ selected: false, answered: true, correct: true }),
     'correct'
   );
+});
+
+test('alternativas de questões diferentes nunca reutilizam o mesmo estado animado', () => {
+  assert.equal(studyOptionInstanceKey('questao-1', 'A'), 'questao-1:A');
+  assert.equal(studyOptionInstanceKey('questao-2', 'A'), 'questao-2:A');
+  assert.notEqual(
+    studyOptionInstanceKey('questao-1', 'A'),
+    studyOptionInstanceKey('questao-2', 'A')
+  );
+});
+
+test('navegação compacta mantém o alvo mínimo de toque do aplicativo', () => {
+  assert.ok(MINIMUM_TOUCH_TARGET >= 44);
 });
 
 test('toques repetidos executam a mutação e o feedback apenas uma vez', () => {

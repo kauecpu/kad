@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { StackHeader } from '@/components/ui/stack-header';
+import { MINIMUM_TOUCH_TARGET } from '@/constants/motion';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { triggerHapticFeedback } from '@/lib/haptics';
@@ -316,8 +317,8 @@ const styles = StyleSheet.create({
   answeredText: { fontSize: FontSize.small, fontWeight: FontWeight.medium },
   questionNav: { gap: Spacing.sm, paddingTop: Spacing.xs },
   questionNumber: {
-    width: 34,
-    height: 34,
+    width: MINIMUM_TOUCH_TARGET,
+    height: MINIMUM_TOUCH_TARGET,
     borderRadius: Radius.sm,
     borderWidth: 1,
     alignItems: 'center',
