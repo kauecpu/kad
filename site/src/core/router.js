@@ -14,6 +14,11 @@ export function currentRoute() {
   };
 }
 
+export function shouldOpenStudyHome(pathname, state) {
+  return pathname === '/'
+    && (state?.auth?.mode === 'authenticated' || state?.preferences?.hasStarted === true);
+}
+
 export function navigate(target, { replace = false } = {}) {
   const url = sameOriginUrl(target);
   if (!url || !globalThis.history) return;

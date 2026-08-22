@@ -14,20 +14,18 @@ export function welcomeView() {
           <h1 id="welcome-title">Estude com <span>direção.</span></h1>
           <p class="welcome__lead">Questões comentadas, simulados, trilhas e concursos organizados para transformar constância em aprovação — agora também no computador.</p>
           <div class="welcome__actions">
-            ${button('Começar a estudar', { action: 'continue-visitor', iconName: 'Play', size: 'lg' })}
+            ${button('Estudar como visitante', { action: 'continue-visitor', iconName: 'Play', size: 'lg' })}
             ${button('Entrar na minha conta', { route: '/entrar', variant: 'secondary', size: 'lg' })}
           </div>
           <div class="welcome__proof" aria-label="Recursos do KAD">
             <span>${icon('CheckCircle2')} Questões ilimitadas</span>
-            <span>${icon('CheckCircle2')} Progresso salvo</span>
+            <span>${icon('CheckCircle2')} Progresso salvo neste navegador</span>
             <span>${icon('CheckCircle2')} Feito para qualquer tela</span>
           </div>
         </div>
         <div class="welcome__visual" aria-hidden="true">
           <div class="welcome__halo"></div>
-          <img class="welcome__mascot" src="/assets/kad-mascot-study.png" alt="" width="620" height="620" />
-          <div class="floating-card floating-card--top"><strong>82%</strong><span>acerto esta semana</span></div>
-          <div class="floating-card floating-card--bottom"><strong>+12 questões</strong><span>ritmo de hoje</span></div>
+          <img class="welcome__mascot" src="/assets/kad-mascot-goal.png" alt="" width="620" height="620" />
         </div>
       </section>`,
   };

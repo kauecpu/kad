@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { createStore, recordAnswer } from '../src/core/store.js';
 import { filterQuestions, matchesPack, questionsPerformance } from '../src/core/utils.js';
-import { matchRoute } from '../src/core/router.js';
+import { matchRoute, shouldOpenStudyHome } from '../src/core/router.js';
 import { createSimulation, simulationScore } from '../src/views/simulations.js';
 import { getCatalog } from '../src/data/catalog.js';
 
@@ -67,4 +67,11 @@ test('simulado respeita quantidade, recebe respostas e calcula resultado', () =>
 test('roteador reconhece parâmetros sem aceitar rotas de tamanhos diferentes', () => {
   assert.deepEqual(matchRoute('/concursos/:id', '/concursos/tj-sp'), { id: 'tj-sp' });
   assert.equal(matchRoute('/concursos/:id', '/concursos/tj-sp/edital'), null);
+});
+
+test('raiz abre o estudo apenas para conta ou visitante que já iniciou', () => {
+  assert.equal(shouldOpenStudyHome('/', { auth: { mode: 'visitor' }, preferences: { hasStarted: false } }), false);
+  assert.equal(shouldOpenStudyHome('/', { auth: { mode: 'visitor' }, preferences: { hasStarted: true } }), true);
+  assert.equal(shouldOpenStudyHome('/', { auth: { mode: 'authenticated' }, preferences: { hasStarted: false } }), true);
+  assert.equal(shouldOpenStudyHome('/entrar', { auth: { mode: 'authenticated' }, preferences: { hasStarted: true } }), false);
 });

@@ -1,7 +1,8 @@
 .public-shell { min-height: 100vh; background: var(--surface); }
 .public-header { position: relative; z-index: 10; display: flex; max-width: 1240px; height: 86px; align-items: center; justify-content: space-between; margin: 0 auto; padding: 0 32px; }
-.brand { display: inline-flex; align-items: center; }
+.brand { display: inline-flex; align-items: center; border-radius: 12px; transition: background 160ms ease, box-shadow 160ms ease; }
 .brand img { width: 146px; height: auto; object-fit: contain; }
+:root[data-theme='dark'] .brand { background: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); padding: 5px 8px; }
 .public-header__actions { display: flex; align-items: center; gap: 14px; }
 .text-link { color: var(--text-muted); font-size: 0.88rem; font-weight: 750; }
 .text-link:hover { color: var(--primary); }
@@ -18,12 +19,7 @@
 .welcome__proof svg { width: 16px; color: var(--success); }
 .welcome__visual { position: relative; min-height: 570px; }
 .welcome__halo { position: absolute; inset: 2% 0 5%; border-radius: 48% 52% 42% 58% / 50% 40% 60% 50%; background: radial-gradient(circle at 45% 42%, #8b5cf6 0, #6d28d9 45%, #391381 100%); transform: rotate(-4deg); }
-.welcome__mascot { position: absolute; z-index: 1; right: 2%; bottom: 1%; width: min(92%, 530px); filter: drop-shadow(0 28px 36px rgba(42, 15, 84, 0.28)); }
-.floating-card { position: absolute; z-index: 2; display: grid; gap: 5px; border: 1px solid color-mix(in srgb, var(--border) 80%, transparent); border-radius: 16px; background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: var(--shadow); padding: 14px 16px; backdrop-filter: blur(16px); }
-.floating-card strong { font-size: 1.15rem; }
-.floating-card span { color: var(--text-muted); font-size: 0.74rem; }
-.floating-card--top { top: 14%; left: -3%; }
-.floating-card--bottom { right: -2%; bottom: 13%; }
+.welcome__mascot { position: absolute; z-index: 1; right: 3%; bottom: 2%; width: min(90%, 520px); filter: drop-shadow(0 28px 36px rgba(42, 15, 84, 0.28)); }
 
 .auth-page { display: grid; min-height: calc(100vh - 86px); place-items: center; padding: 40px 20px 72px; background: radial-gradient(circle at 20% 10%, var(--primary-soft), transparent 42%), var(--background); }
 .auth-card { display: grid; width: min(100%, 450px); gap: 24px; padding: 30px; }
@@ -260,8 +256,6 @@ button.list-row:hover { background: var(--surface-alt); }
   .welcome__copy { z-index: 2; }
   .welcome__visual { min-height: 440px; }
   .welcome__mascot { right: 10%; width: min(78%, 460px); }
-  .floating-card--top { left: 4%; }
-  .floating-card--bottom { right: 4%; }
 }
 
 @media (max-width: 680px) {
@@ -276,9 +270,6 @@ button.list-row:hover { background: var(--surface-alt); }
   .welcome__visual { min-height: 340px; }
   .welcome__halo { inset: 2% 2% 3%; }
   .welcome__mascot { right: 4%; width: 88%; }
-  .floating-card { padding: 10px 12px; }
-  .floating-card--top { top: 6%; left: 0; }
-  .floating-card--bottom { right: 0; bottom: 8%; }
   .auth-card { padding: 22px; }
   .topbar { padding: 10px 16px; }
   .topbar__title p,
@@ -288,9 +279,8 @@ button.list-row:hover { background: var(--surface-alt); }
   .mobile-tabs { position: fixed; z-index: 42; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--border); border-radius: 18px; background: color-mix(in srgb, var(--surface) 92%, transparent); box-shadow: var(--shadow); padding: 6px; backdrop-filter: blur(18px); }
   .nav-link--compact { display: grid; min-height: 48px; justify-items: center; gap: 3px; border-radius: 12px; padding: 5px 2px; font-size: 0.61rem; }
   .nav-link--compact svg { width: 19px; }
-  .hero-card { min-height: 380px; grid-template-columns: 1fr; padding: 24px; }
-  .hero-card__art { position: absolute; right: -30px; bottom: -10px; opacity: 0.34; }
-  .hero-card__art img { max-height: 240px; }
+  .hero-card { min-height: 0; grid-template-columns: 1fr; padding: 24px; }
+  .hero-card__art { display: none; }
   .hero-card__content { align-content: start; }
   .summary-grid,
   .action-grid,

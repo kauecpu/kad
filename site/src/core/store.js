@@ -16,6 +16,7 @@ export const DEFAULT_STATE = Object.freeze({
   preferences: {
     theme: 'system',
     weeklyGoal: 30,
+    hasStarted: false,
   },
   subscription: {
     plan: 'basic',

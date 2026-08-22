@@ -2,7 +2,7 @@ import './styles/base.css';
 import './styles/app.css';
 
 import { getCatalog, replacePublishedCatalog } from './data/catalog.js';
-import { back, currentRoute, matchRoute, navigate, subscribeRouter } from './core/router.js';
+import { back, currentRoute, matchRoute, navigate, shouldOpenStudyHome, subscribeRouter } from './core/router.js';
 import { recordAnswer, store } from './core/store.js';
 import { randomId } from './core/utils.js';
 import { hydrateIcons } from './ui/icons.js';
@@ -217,6 +217,10 @@ function render({ routeChanged = false } = {}) {
     ui.lastRouteKey = routeKey;
   }
   const state = store.getState();
+  if (shouldOpenStudyHome(route.pathname, state)) {
+    navigate('/inicio', { replace: true });
+    return;
+  }
   applyTheme(state);
   const view = resolveView(route, state);
   const layout = view.layout?.startsWith('public')
@@ -284,6 +288,7 @@ async function handleForm(form) {
     if (result.ok) {
       store.update((draft) => {
         draft.auth = { mode: 'authenticated', userId: result.user.id };
+        draft.preferences.hasStarted = true;
         draft.profile.email = result.user.email ?? values.email;
         draft.profile.name = result.user.user_metadata?.full_name ?? draft.profile.name;
       });
@@ -291,6 +296,7 @@ async function handleForm(form) {
     } else if (result.offline) {
       store.update((draft) => {
         draft.auth = { mode: 'visitor', userId: null };
+        draft.preferences.hasStarted = true;
         draft.profile.email = values.email;
       });
       toast('Supabase não configurado: você entrou no modo demonstrativo.');
@@ -311,6 +317,7 @@ async function handleForm(form) {
       draft.profile.email = values.email;
       draft.profile.username = `@${values.email.split('@')[0].replace(/[^a-z0-9_]/gi, '').toLocaleLowerCase('pt-BR')}`;
       draft.auth = result.ok ? { mode: 'authenticated', userId: result.user?.id ?? null } : { mode: 'visitor', userId: null };
+      draft.preferences.hasStarted = true;
     });
     if (result.ok) navigate(result.requiresConfirmation ? `/confirmar-email?email=${encodeURIComponent(values.email)}` : '/onboarding', { replace: true });
     else if (result.offline) {
@@ -331,6 +338,7 @@ async function handleForm(form) {
     if (result.ok) {
       store.update((draft) => {
         draft.auth = { mode: 'authenticated', userId: result.user?.id ?? null };
+        draft.preferences.hasStarted = true;
         draft.profile.email = result.user?.email ?? values.email;
       });
       navigate('/onboarding', { replace: true });
@@ -355,6 +363,7 @@ async function handleForm(form) {
     store.update((draft) => {
       draft.profile.targetRole = values.targetRole?.trim() ?? '';
       draft.preferences.weeklyGoal = Number(values.weeklyGoal) || 30;
+      draft.preferences.hasStarted = true;
     });
     toast('Meta atualizada.');
     navigate('/inicio', { replace: formName === 'onboarding' });
@@ -472,7 +481,10 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'continue-visitor' || action === 'skip-onboarding') {
-    store.update((draft) => { draft.auth = { mode: 'visitor', userId: null }; });
+    store.update((draft) => {
+      draft.auth = { mode: 'visitor', userId: null };
+      draft.preferences.hasStarted = true;
+    });
     navigate('/inicio');
     return;
   }
@@ -568,7 +580,10 @@ document.addEventListener('click', async (event) => {
   if (action === 'trail-mode') return navigate(`/trilhas?mode=${target.dataset.mode}`);
   if (action === 'sign-out') {
     await signOut();
-    store.update((draft) => { draft.auth = { mode: 'visitor', userId: null }; });
+    store.update((draft) => {
+      draft.auth = { mode: 'visitor', userId: null };
+      draft.preferences.hasStarted = false;
+    });
     navigate('/', { replace: true });
     return;
   }
@@ -664,6 +679,7 @@ if (supabaseConfigured) {
     ]);
     store.update((draft) => {
       draft.auth = { mode: 'authenticated', userId: user.id };
+      draft.preferences.hasStarted = true;
       draft.profile.email = user.email ?? draft.profile.email;
       draft.profile.name = user.user_metadata?.full_name ?? draft.profile.name;
       if (remote) {

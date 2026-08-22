@@ -47,3 +47,19 @@ test('integrações web reutilizam RPCs seguras e apenas a chave pública', asyn
   assert.match(service, /mercadopago\.com\.br/);
   assert.doesNotMatch(service, /service_role|SUPABASE_SERVICE/);
 });
+
+test('apresentação pública usa somente imagens existentes e não inventa métricas pessoais', async () => {
+  const [view, explore, assets] = await Promise.all([
+    source('src/views/public.js'),
+    source('src/views/explore.js'),
+    Promise.all([
+      source('public/assets/kad-logo.png'),
+      source('public/assets/kad-mascot-goal.png'),
+    ]),
+  ]);
+  assert.equal(assets.length, 2);
+  assert.match(view, /kad-mascot-goal\.png/);
+  assert.match(explore, /kad-mascot-goal\.png/);
+  assert.doesNotMatch(`${view}${explore}`, /kad-mascot-study\.png/);
+  assert.doesNotMatch(view, /82%|\+12 questões|acerto esta semana|ritmo de hoje/);
+});
