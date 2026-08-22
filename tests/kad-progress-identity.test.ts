@@ -4,6 +4,7 @@ import test from 'node:test';
 import { URL as NodeURL } from 'node:url';
 
 const themeSource = readFileSync(new NodeURL('../constants/theme.ts', import.meta.url), 'utf8');
+const tabsLayout = readFileSync(new NodeURL('../app/(tabs)/_layout.tsx', import.meta.url), 'utf8');
 
 const semanticTokens = [
   'brandSurfaceStrong',
@@ -90,4 +91,17 @@ test('a assinatura de progresso é puramente decorativa', () => {
   assert.match(progressSignature, /importantForAccessibility="no-hide-descendants"/);
   assert.equal(progressSignature.match(/styles\.rail,/g)?.length, 2);
   assert.match(progressSignature, /colors\.brandTrace/);
+});
+
+test('a cápsula ativa reaproveita a única animação curta do ícone', () => {
+  assert.match(tabsLayout, /styles\.tabActiveCapsule/);
+  assert.match(tabsLayout, /backgroundColor: colors\.tabActiveSurface/);
+  assert.match(tabsLayout, /opacity: active/);
+  assert.equal(tabsLayout.match(/new Animated\.Value/g)?.length, 1);
+  assert.doesNotMatch(tabsLayout, /setTimeout|Animated\.loop/);
+});
+
+test('a navegação ativa chega ao estado final quando o movimento é reduzido', () => {
+  assert.match(tabsLayout, /useReducedMotion\(\)/);
+  assert.match(tabsLayout, /resolveMotionDuration\('icon', reduceMotion\)/);
 });
