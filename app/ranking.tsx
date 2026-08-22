@@ -139,7 +139,6 @@ export default function RankingScreen() {
               value={period}
               onChange={setPeriod}
               animated
-              haptic
             />
           </View>
           <View style={styles.filterControl}>

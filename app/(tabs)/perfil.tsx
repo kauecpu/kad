@@ -503,7 +503,6 @@ export default function PerfilScreen() {
               value={themePreference}
               onChange={setThemePreference}
               animated
-              haptic
             />
           </Card>
         </DossierSection>

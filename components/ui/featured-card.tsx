@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import Ionicons from '@/components/ui/app-icon';
+import { PressFeedback } from '@/components/ui/press-feedback';
 import { cardShadow, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -28,6 +29,7 @@ type FeaturedCardProps = {
   disabled?: boolean;
   tone?: FeaturedCardTone;
   compact?: boolean;
+  motionFeedback?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -48,6 +50,7 @@ export function FeaturedCard({
   disabled = false,
   tone = 'brand',
   compact = false,
+  motionFeedback = false,
   style,
 }: FeaturedCardProps) {
   const { colors } = useTheme();
@@ -127,6 +130,20 @@ export function FeaturedCard({
 
   if (!onPress) {
     return <View style={frameStyle}>{surface}</View>;
+  }
+
+  if (motionFeedback) {
+    return (
+      <PressFeedback
+        disabled={disabled}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ disabled }}
+        style={frameStyle}>
+        {surface}
+      </PressFeedback>
+    );
   }
 
   return (
