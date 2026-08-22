@@ -34,8 +34,9 @@ export function questionsIndexView(state) {
     const available = questions.filter((question) => question.discipline === discipline.name);
     const answered = available.filter((question) => state.answers[question.id]).length;
     return `<button class="discipline-card" type="button" data-route="/questoes/disciplina/${slugify(discipline.name)}" style="--discipline-color:${discipline.color}">
-      <span class="discipline-card__top"><span class="discipline-card__mark">${escapeHtml(discipline.name.slice(0, 2).toUpperCase())}</span>${icon('ChevronRight')}</span>
-      <span><h3>${escapeHtml(discipline.name)}</h3><p>${questionCountLabel(available.length)} · ${answered} respondidas</p></span>
+      <span class="discipline-card__mark">${escapeHtml(discipline.name.slice(0, 2).toUpperCase())}</span>
+      <span class="discipline-card__copy"><h3>${escapeHtml(discipline.name)}</h3><p>${questionCountLabel(available.length)} · ${answered} respondidas</p></span>
+      ${icon('ChevronRight')}
     </button>`;
   }).join('');
 
@@ -55,7 +56,7 @@ export function questionsIndexView(state) {
         </div>
         <div class="hero-card__art"><img src="/assets/kad-mascot-practice.png" alt="" width="300" height="300" /></div>
       `, 'hero-card')}
-      <div class="summary-grid">
+      <div class="summary-grid summary-grid--strip">
         ${card(`<div class="card--padded"><strong>${performance.total}</strong><p class="muted">respondidas</p></div>`)}
         ${card(`<div class="card--padded"><strong>${formatPercent(performance.accuracy)}</strong><p class="muted">taxa de acerto</p></div>`)}
         ${card(`<div class="card--padded"><strong>${state.favorites.length}</strong><p class="muted">favoritas</p></div>`)}
@@ -210,7 +211,7 @@ export function questionSessionView(state, params, ui) {
         `, 'question-card')}
         <aside class="study-side">
           ${card(`<p class="eyebrow">PROGRESSO</p><h3>Mapa da sessão</h3><div class="question-map">${map}</div>`, 'detail-panel')}
-          ${card(`<p class="eyebrow">COMUNIDADE</p><h3>Comentários</h3><div class="comment-list">${commentList}</div><form class="comment-form" data-form="question-comment" data-question-id="${escapeHtml(question.id)}"><label class="sr-only" for="comment-${escapeHtml(question.id)}">Adicionar comentário</label><input class="input" id="comment-${escapeHtml(question.id)}" name="comment" maxlength="280" placeholder="Compartilhe uma dúvida" required />${button('Enviar', { type: 'submit', variant: 'secondary', iconName: 'Send', size: 'sm' })}</form>`, 'detail-panel')}
+          ${card(`<p class="eyebrow">COMUNIDADE</p><h3>Comentários</h3><div class="comment-list">${commentList}</div><form class="comment-form" data-form="question-comment" data-question-id="${escapeHtml(question.id)}"><label class="sr-only" for="comment-${escapeHtml(question.id)}">Adicionar comentário</label><textarea class="textarea" id="comment-${escapeHtml(question.id)}" name="comment" maxlength="280" rows="3" placeholder="Compartilhe uma dúvida" required></textarea>${button('Enviar comentário', { type: 'submit', variant: 'secondary', iconName: 'Send', size: 'sm' })}</form>`, 'detail-panel')}
         </aside>
       </div>
     `,

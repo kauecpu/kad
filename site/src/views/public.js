@@ -46,6 +46,26 @@ const authCopy = {
   },
 };
 
+function authShowcase() {
+  const features = [
+    ['BookOpen', 'Questões comentadas', 'Pratique com gabarito e explicação no mesmo fluxo.'],
+    ['Timer', 'Simulados configuráveis', 'Treine conteúdo, estratégia e tempo de prova.'],
+    ['Compass', 'Trilhas organizadas', 'Avance por disciplina ou pelo concurso da sua meta.'],
+  ];
+  return `
+    <aside class="auth-showcase" aria-label="Recursos de estudo do KAD">
+      <div class="auth-showcase__copy">
+        <p class="eyebrow">SEU AMBIENTE DE ESTUDO</p>
+        <h2>Entre e continue exatamente de onde parou.</h2>
+        <p>O computador oferece mais espaço para comparar alternativas, acompanhar a sessão e revisar seus pontos de atenção.</p>
+      </div>
+      <div class="auth-showcase__features">
+        ${features.map(([iconName, title, description]) => `<div class="auth-showcase__feature"><span>${icon(iconName)}</span><div><strong>${title}</strong><p>${description}</p></div></div>`).join('')}
+      </div>
+      <img src="/assets/kad-mascot-practice.png" alt="" width="320" height="320" />
+    </aside>`;
+}
+
 export function authView(kind = 'entrar') {
   const copy = authCopy[kind] ?? authCopy.entrar;
   const signup = kind === 'cadastro';
@@ -54,7 +74,8 @@ export function authView(kind = 'entrar') {
     description: copy.description,
     layout: 'public-simple',
     content: `
-      <section class="auth-page">
+      <section class="auth-page auth-page--split">
+        ${authShowcase()}
         ${card(`
           <div class="auth-card__heading">
             <p class="eyebrow">CONTA KAD</p>

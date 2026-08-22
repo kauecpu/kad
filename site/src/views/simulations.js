@@ -74,7 +74,7 @@ export function simulationsView(state) {
         <div class="hero-card__content"><p class="eyebrow">SIMULADOS KAD</p><h2>Treine como se fosse o dia da prova.</h2><p>Escolha conteúdo, quantidade e duração. O relógio, a navegação e o resultado já funcionam nesta versão web.</p><div class="welcome__actions">${button('Montar simulado', { route: '/simulados/configurar', iconName: 'Timer' })}${button('Prévia rápida', { action: 'start-demo-simulation', variant: 'secondary', iconName: 'Play' })}</div></div>
         <div class="hero-card__art"><img src="/assets/kad-mascot-simulation.png" alt="" width="300" height="300" /></div>
       `, 'hero-card')}
-      <div class="summary-grid">
+      <div class="summary-grid summary-grid--strip">
         ${card(stat(String(history.length), 'Simulados concluídos', 'ClipboardCheck'))}
         ${card(stat(history.length ? formatPercent(history.reduce((sum, item) => sum + simulationScore(item).accuracy, 0) / history.length) : '0%', 'Média de acerto', 'TrendingUp', 'success'))}
         ${card(stat(String(history.reduce((sum, item) => sum + simulationScore(item).answered, 0)), 'Questões treinadas', 'BookOpen'))}
@@ -82,7 +82,7 @@ export function simulationsView(state) {
       </div>
       ${section('Por concurso e área', `<div class="discipline-grid">${featuredPacks.map((pack) => {
         const total = getCatalog().questions.filter((question) => matchesPack(question, pack)).length;
-        return `<button class="discipline-card" type="button" data-route="/simulados/configurar?packId=${pack.id}" style="--discipline-color:${pack.color}"><span class="discipline-card__top"><span class="discipline-card__mark">${escapeHtml(pack.name.slice(0, 2).toUpperCase())}</span>${pack.kind === 'concurso' ? badge('Concurso') : badge('Área')}</span><span><h3>${escapeHtml(pack.name)}</h3><p>${total} questões disponíveis</p></span></button>`;
+        return `<button class="discipline-card" type="button" data-route="/simulados/configurar?packId=${pack.id}" style="--discipline-color:${pack.color}"><span class="discipline-card__mark">${escapeHtml(pack.name.slice(0, 2).toUpperCase())}</span><span class="discipline-card__copy"><h3>${escapeHtml(pack.name)}</h3><p>${total} questões disponíveis</p></span>${pack.kind === 'concurso' ? badge('Concurso') : badge('Área')}</button>`;
       }).join('')}</div>`)}
       ${section('Histórico recente', history.length ? `<div class="dashboard-main">${history.map((session) => {
         const score = simulationScore(session);

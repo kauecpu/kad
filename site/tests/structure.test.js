@@ -63,3 +63,17 @@ test('apresentação pública usa somente imagens existentes e não inventa mét
   assert.doesNotMatch(`${view}${explore}`, /kad-mascot-study\.png/);
   assert.doesNotMatch(view, /82%|\+12 questões|acerto esta semana|ritmo de hoje/);
 });
+
+test('layout web usa autenticação dividida, resumos compactos e comentários legíveis', async () => {
+  const [publicView, questionsView, styles] = await Promise.all([
+    source('src/views/public.js'),
+    source('src/views/questions.js'),
+    source('src/styles/app.css'),
+  ]);
+  assert.match(publicView, /auth-page auth-page--split/);
+  assert.match(publicView, /auth-showcase__features/);
+  assert.match(questionsView, /summary-grid summary-grid--strip/);
+  assert.match(questionsView, /discipline-card__copy/);
+  assert.match(questionsView, /<textarea class="textarea"[^>]+rows="3"/);
+  assert.match(styles, /\.comment-form \.button \{ width: 100%; \}/);
+});

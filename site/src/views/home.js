@@ -45,7 +45,7 @@ export function homeView(state) {
         <div class="hero-card__art"><img src="/assets/kad-mascot-practice.png" alt="" width="310" height="310" /></div>
       `, 'hero-card')}
 
-      <div class="summary-grid" aria-label="Resumo da preparação">
+      <div class="summary-grid summary-grid--strip" aria-label="Resumo da preparação">
         ${card(stat(String(todayCount), 'Questões hoje', 'CheckCircle2', 'success'))}
         ${card(stat(`${weeklyAnswered}/${state.preferences.weeklyGoal}`, 'Meta semanal', 'Flag'))}
         ${card(stat(formatPercent(performance.accuracy), 'Taxa de acerto', 'TrendingUp', 'success'))}
