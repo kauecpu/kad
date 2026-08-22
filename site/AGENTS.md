@@ -32,3 +32,16 @@ aplicativo Expo.
 - Mantenha regras de domínio em módulos JavaScript puros e cobertos por testes.
 - Execute `npm run check` dentro de `site/` e `npm run check` na raiz antes de
   concluir.
+
+## Fluxo de UI/UX
+
+- Em tarefas visuais do site, use a skill local `kad-site-ui` em
+  `../.agents/skills/kad-site-ui/` e siga sua referência de produto.
+- A skill externa `ui-ux-pro-max` é consultiva: suas sugestões nunca substituem
+  a identidade, a arquitetura, as rotas ou estas regras.
+- Não adicione Tailwind, React ou outro framework. O KAD Site permanece Vite com
+  HTML, CSS e JavaScript nativos.
+- Antes de um redesign amplo, apresente diagnóstico e direção visual para
+  revisão. Correções pontuais já autorizadas podem ser implementadas direto.
+- Preserve as telas e rotas de autenticação. A área pública não deve inventar ou
+  exibir métricas pessoais antes da entrada no ambiente de estudo.

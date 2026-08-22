@@ -1,0 +1,4 @@
+interface:
+  display_name: "KAD Site UI"
+  short_description: "Refina o frontend web do KAD com seguranca"
+  default_prompt: "Use $kad-site-ui para revisar e melhorar o frontend do KAD Site sem alterar o aplicativo Expo."

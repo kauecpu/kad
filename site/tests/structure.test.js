@@ -32,6 +32,19 @@ test('regras isolam site, aplicativo e credenciais administrativas', async () =>
   assert.match(siteRules, /nunca registre chaves, tokens, cookies ou `service_role`/);
 });
 
+test('skill visual do site preserva stack, identidade e autenticação', async () => {
+  const [skill, constraints, siteRules] = await Promise.all([
+    source('../.agents/skills/kad-site-ui/SKILL.md'),
+    source('../.agents/skills/kad-site-ui/references/kad-site-constraints.md'),
+    source('AGENTS.md'),
+  ]);
+  assert.match(skill, /name: kad-site-ui/);
+  assert.match(skill, /Não adicionar Tailwind, React ou outro framework/);
+  assert.match(constraints, /Não remover a tela de login/);
+  assert.match(constraints, /Não exibir métricas pessoais antes da entrada/);
+  assert.match(siteRules, /skill local `kad-site-ui`/);
+});
+
 test('rotas privadas são excluídas de indexação no robots', async () => {
   const robots = await source('public/robots.txt');
   assert.match(robots, /Disallow: \/perfil\//);
