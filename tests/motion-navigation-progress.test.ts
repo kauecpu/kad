@@ -78,6 +78,8 @@ test('barras iniciam no valor final e animam somente alterações posteriores', 
     progressBar,
     /accessibilityValue=\{\{ min: 0, max: 100, now: Math\.round\(clampedValue\) \}\}/
   );
+  assert.match(progressBar, /trackColor\?: string/);
+  assert.match(progressBar, /backgroundColor: trackColor \?\? colors\.surfaceSunken/);
 });
 
 test('contadores preservam o número real para acessibilidade e não animam na montagem', () => {

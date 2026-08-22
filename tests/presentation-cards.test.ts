@@ -26,6 +26,16 @@ test('o card de destaque define uma assinatura visual compartilhada e adaptativa
   assert.match(featuredCard, /tone === 'achievement'/);
 });
 
+test('a intensidade forte é opcional e preserva o card padrão', () => {
+  assert.match(featuredCard, /intensity\?: 'standard' \| 'strong'/);
+  assert.match(featuredCard, /artwork\?: ReactNode/);
+  assert.match(featuredCard, /intensity = 'standard'/);
+  assert.match(featuredCard, /<KadProgressSignature/);
+  assert.match(featuredCard, /colors\.brandSurfaceDeep/);
+  assert.match(featuredCard, /colors\.brandSurfaceStrong/);
+  assert.match(featuredCard, /\[soft, colors\.surface, colors\.surface\]/);
+});
+
 test('o card de montar simulado mantém estados e CTA dentro da nova superfície', () => {
   assert.match(simulations, /<FeaturedCard/);
   assert.match(simulations, /PROVA PERSONALIZADA/);
@@ -58,7 +68,10 @@ test('o explorador de questões reúne modo e busca em um card acessível', () =
 });
 
 test('os demais destaques usam a mesma família sem substituir o cartão de perfil', () => {
-  assert.match(home, /<FeaturedCard[\s\S]*?eyebrow=\{primaryAction\.eyebrow\}/);
+  assert.match(
+    home,
+    /<FeaturedCard[\s\S]*?intensity="strong"[\s\S]*?eyebrow=\{primaryAction\.eyebrow\}/
+  );
   assert.match(concursos, /<FeaturedCard[\s\S]*?eyebrow="FOCO DA META"/);
   assert.match(ranking, /<FeaturedCard[\s\S]*?tone="achievement"/);
   assert.match(trails, /<FeaturedCard[\s\S]*?heroTrack\?\.name/);

@@ -12,6 +12,26 @@ export type HomePrimaryAction = {
   progress?: number;
 };
 
+export type HomePrimaryVisual = {
+  mascot: 'goal' | 'practice' | 'simulation';
+  tone: 'brand' | 'achievement';
+};
+
+export function getHomePrimaryVisual(
+  action: Pick<HomePrimaryAction, 'route'>
+): HomePrimaryVisual {
+  switch (action.route) {
+    case '/meta':
+      return { mascot: 'goal', tone: 'brand' };
+    case '/questoes':
+      return { mascot: 'practice', tone: 'brand' };
+    case '/questoes/simulado':
+      return { mascot: 'simulation', tone: 'brand' };
+    case '/questoes/simulado/resultado':
+      return { mascot: 'simulation', tone: 'achievement' };
+  }
+}
+
 export function getHomePrimaryAction({
   hasGoal,
   simulation,

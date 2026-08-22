@@ -2,8 +2,10 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Platform, StyleSheet, Text } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { resolveMotionDuration } from '@/constants/motion';
 import { FontSize, FontWeight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { shouldFreezeInactiveTabs } from '@/lib/theme-responsiveness';
@@ -18,21 +20,29 @@ function tabIcon(
 ) {
   return function TabIcon({ focused }: { color: string; focused: boolean }) {
     const { colors } = useTheme();
+    const reduceMotion = useReducedMotion();
     const active = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
     useEffect(() => {
       const animation = Animated.timing(active, {
         toValue: focused ? 1 : 0,
-        duration: 110,
+        duration: resolveMotionDuration('icon', reduceMotion),
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       });
       animation.start();
       return () => animation.stop();
-    }, [active, focused]);
+    }, [active, focused, reduceMotion]);
 
     return (
       <Animated.View style={styles.tabGlyph}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.tabActiveCapsule,
+            { backgroundColor: colors.tabActiveSurface, opacity: active },
+          ]}
+        />
         <Animated.View
           style={[
             styles.tabGlyphLayer,
@@ -54,6 +64,23 @@ const RankTabIcon = tabIcon('trophy-outline', 'trophy');
 const SimulationsTabIcon = tabIcon('clock-outline', 'clock');
 const ProfileTabIcon = tabIcon('account-outline', 'account');
 
+function TabLabel({ children, focused }: { children: string; focused: boolean }) {
+  const { colors } = useTheme();
+
+  return (
+    <Text
+      style={[
+        styles.tabLabel,
+        {
+          color: focused ? colors.tabActive : colors.tabInactive,
+          fontWeight: focused ? FontWeight.semibold : FontWeight.medium,
+        },
+      ]}>
+      {children}
+    </Text>
+  );
+}
+
 export default function MainLayout() {
   const { colors } = useTheme();
 
@@ -72,9 +99,7 @@ export default function MainLayout() {
           { backgroundColor: colors.surface, borderTopColor: colors.border },
         ],
         tabBarIconStyle: styles.tabIcon,
-        tabBarLabel: ({ children }) => (
-          <Text style={[styles.tabLabel, { color: colors.tabInactive }]}>{children}</Text>
-        ),
+        tabBarLabel: TabLabel,
         sceneStyle: { backgroundColor: colors.background },
       }}>
       <Tabs.Screen
@@ -124,6 +149,14 @@ const styles = StyleSheet.create({
   tabGlyph: {
     width: 24,
     height: 24,
+  },
+  tabActiveCapsule: {
+    position: 'absolute',
+    width: 42,
+    height: 30,
+    left: -9,
+    top: -3,
+    borderRadius: 15,
   },
   tabGlyphLayer: {
     ...StyleSheet.absoluteFillObject,

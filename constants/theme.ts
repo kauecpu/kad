@@ -24,6 +24,11 @@ const light = {
   primarySoft: '#F3EEFF',
   primaryStrong: '#4C1D95',
   onPrimary: '#FFFFFF',
+  brandSurfaceStrong: '#6D28D9',
+  brandSurfaceDeep: '#42158B',
+  onBrand: '#FFFFFF',
+  onBrandMuted: '#F3EEFF',
+  brandTrace: 'rgba(255, 255, 255, 0.18)',
 
   success: '#167447',
   successSoft: '#E9F7EF',
@@ -38,7 +43,8 @@ const light = {
   accentSoft: '#F3EEFF',
 
   tabActive: '#7657F6',
-  tabInactive: '#7B8794',
+  tabInactive: '#6B7787',
+  tabActiveSurface: '#F3EEFF',
   overlay: 'rgba(13, 24, 38, 0.48)',
   shadow: '#0B1420',
 };
@@ -62,6 +68,11 @@ const dark: ThemeColors = {
   primarySoft: '#251F3D',
   primaryStrong: '#8B5CF6',
   onPrimary: '#0B1118',
+  brandSurfaceStrong: '#6D28D9',
+  brandSurfaceDeep: '#2E1065',
+  onBrand: '#FFFFFF',
+  onBrandMuted: '#F3EEFF',
+  brandTrace: 'rgba(255, 255, 255, 0.18)',
 
   success: '#5DD39E',
   successSoft: '#112C24',
@@ -77,6 +88,7 @@ const dark: ThemeColors = {
 
   tabActive: '#A78BFA',
   tabInactive: '#8D9AA8',
+  tabActiveSurface: '#251F3D',
   overlay: 'rgba(2, 6, 12, 0.72)',
   shadow: '#000000',
 };

@@ -122,3 +122,12 @@ test('o Rank ocupa o centro da barra inferior e abre a tela de ranking', () => {
   assert.match(tabsLayout, /name="concursos" options=\{\{ href: null \}\}/);
   assert.match(rankTab, /export \{ default \} from '\.\.\/ranking';/);
 });
+
+test('a barra inferior distingue a tab ativa por superfície, ícone e texto', () => {
+  assert.match(tabsLayout, /styles\.tabActiveCapsule/);
+  assert.match(tabsLayout, /backgroundColor: colors\.tabActiveSurface/);
+  assert.match(tabsLayout, /function TabLabel/);
+  assert.match(tabsLayout, /focused \? colors\.tabActive : colors\.tabInactive/);
+  assert.match(tabsLayout, /focused \? FontWeight\.semibold : FontWeight\.medium/);
+  assert.match(tabsLayout, /tabBarLabel: TabLabel/);
+});

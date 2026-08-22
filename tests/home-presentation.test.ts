@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getHomePrimaryAction } from '../lib/home-presentation.ts';
+import {
+  getHomePrimaryAction,
+  getHomePrimaryVisual,
+} from '../lib/home-presentation.ts';
 
 test('prioriza a escolha do concurso quando o estudante ainda não tem meta', () => {
   assert.deepEqual(getHomePrimaryAction({ hasGoal: false }), {
@@ -41,4 +44,23 @@ test('um simulado concluído direciona para a revisão real', () => {
   assert.equal(action.title, 'Revisar resultado');
   assert.equal(action.route, '/questoes/simulado/resultado');
   assert.equal(action.progress, 100);
+});
+
+test('a apresentação da ação principal deriva somente da rota real', () => {
+  assert.deepEqual(getHomePrimaryVisual({ route: '/meta' }), {
+    mascot: 'goal',
+    tone: 'brand',
+  });
+  assert.deepEqual(getHomePrimaryVisual({ route: '/questoes' }), {
+    mascot: 'practice',
+    tone: 'brand',
+  });
+  assert.deepEqual(getHomePrimaryVisual({ route: '/questoes/simulado' }), {
+    mascot: 'simulation',
+    tone: 'brand',
+  });
+  assert.deepEqual(getHomePrimaryVisual({ route: '/questoes/simulado/resultado' }), {
+    mascot: 'simulation',
+    tone: 'achievement',
+  });
 });
