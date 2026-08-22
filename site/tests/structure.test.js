@@ -91,6 +91,14 @@ test('layout web usa autenticação dividida, resumos compactos e comentários l
   assert.match(styles, /\.comment-form \.button \{ width: 100%; \}/);
 });
 
+test('login cabe em desktops baixos sem ocultar conteúdo', async () => {
+  const styles = await source('src/styles/app.css');
+
+  assert.match(styles, /@media \(min-width: 901px\) and \(max-height: 820px\)/);
+  assert.match(styles, /\.auth-page--split \{ padding-block: 16px; \}/);
+  assert.match(styles, /min-height: min\(610px, calc\(100dvh - 118px\)\)/);
+});
+
 test('melhorias de interface preservam semântica, privacidade e linguagem de produto', async () => {
   const [publicView, questionsView, simulationsView, components, layout, styles] = await Promise.all([
     source('src/views/public.js'),
