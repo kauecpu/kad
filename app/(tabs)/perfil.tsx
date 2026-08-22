@@ -2,7 +2,7 @@ import Ionicons from '@/components/ui/app-icon';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,6 +16,7 @@ import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/cons
 import { useTheme } from '@/hooks/use-theme';
 import { formatDate, formatPercent } from '@/lib/format';
 import { profileHeroAction } from '@/lib/profile-presentation';
+import { createDeferredThemeCommitter } from '@/lib/theme-responsiveness';
 import { useApp, useAppTheme } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { useSimulation } from '@/providers/simulation-provider';
@@ -69,9 +70,49 @@ function DossierSection({ index, title, children }: DossierSectionProps) {
   );
 }
 
+function ThemePreferenceControl() {
+  const { themePreference, setThemePreference } = useAppTheme();
+  const [visualPreference, setVisualPreference] = useState(themePreference);
+  const commitRef = useRef(setThemePreference);
+  commitRef.current = setThemePreference;
+  const committer = useMemo(
+    () =>
+      createDeferredThemeCommitter(
+        (preference) => commitRef.current(preference),
+        {
+          request: requestAnimationFrame,
+          cancel: cancelAnimationFrame,
+        }
+      ),
+    []
+  );
+
+  useEffect(() => {
+    setVisualPreference(themePreference);
+  }, [themePreference]);
+
+  useEffect(() => () => committer.dispose(), [committer]);
+
+  const handleChange = useCallback(
+    (preference: ThemePreference) => {
+      setVisualPreference(preference);
+      committer.select(preference);
+    },
+    [committer]
+  );
+
+  return (
+    <Segmented
+      options={THEME_OPTIONS}
+      value={visualPreference}
+      onChange={handleChange}
+      animated
+    />
+  );
+}
+
 export default function PerfilScreen() {
   const { colors } = useTheme();
-  const { themePreference, setThemePreference } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const {
@@ -498,12 +539,7 @@ export default function PerfilScreen() {
                 </Text>
               </View>
             </View>
-            <Segmented
-              options={THEME_OPTIONS}
-              value={themePreference}
-              onChange={setThemePreference}
-              animated
-            />
+            <ThemePreferenceControl />
           </Card>
         </DossierSection>
 

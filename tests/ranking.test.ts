@@ -117,10 +117,8 @@ test('o Rank ocupa o centro da barra inferior e abre a tela de ranking', () => {
   );
 
   assert.deepEqual(visibleTabs, ['inicio', 'questoes', 'rank', 'simulados', 'perfil']);
-  assert.match(
-    tabsLayout,
-    /name="rank"[\s\S]*?title: 'Rank'[\s\S]*?tabIcon\('trophy-outline', 'trophy'\)/
-  );
+  assert.match(tabsLayout, /const RankTabIcon = tabIcon\('trophy-outline', 'trophy'\)/);
+  assert.match(tabsLayout, /name="rank"[\s\S]*?title: 'Rank'[\s\S]*?tabBarIcon: RankTabIcon/);
   assert.match(tabsLayout, /name="concursos" options=\{\{ href: null \}\}/);
   assert.match(rankTab, /export \{ default \} from '\.\.\/ranking';/);
 });

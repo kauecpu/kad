@@ -1,11 +1,12 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, Text } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { FontSize, FontWeight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { shouldFreezeInactiveTabs } from '@/lib/theme-responsiveness';
 
 export const unstable_settings = {
   initialRouteName: 'inicio',
@@ -47,6 +48,12 @@ function tabIcon(
   };
 }
 
+const HomeTabIcon = tabIcon('home-variant-outline', 'home-variant');
+const QuestionsTabIcon = tabIcon('book-outline', 'book');
+const RankTabIcon = tabIcon('trophy-outline', 'trophy');
+const SimulationsTabIcon = tabIcon('clock-outline', 'clock');
+const ProfileTabIcon = tabIcon('account-outline', 'account');
+
 export default function MainLayout() {
   const { colors } = useTheme();
 
@@ -58,6 +65,8 @@ export default function MainLayout() {
         tabBarInactiveTintColor: colors.tabInactive,
         tabBarButton: HapticTab,
         tabBarHideOnKeyboard: true,
+        freezeOnBlur: shouldFreezeInactiveTabs(Platform.OS),
+        lazy: true,
         tabBarStyle: [
           styles.tabBar,
           { backgroundColor: colors.surface, borderTopColor: colors.border },
@@ -70,27 +79,27 @@ export default function MainLayout() {
       }}>
       <Tabs.Screen
         name="inicio"
-        options={{ title: 'Início', tabBarIcon: tabIcon('home-variant-outline', 'home-variant') }}
+        options={{ title: 'Início', tabBarIcon: HomeTabIcon }}
       />
       <Tabs.Screen
         name="questoes"
         options={{
           title: 'Questões',
-          tabBarIcon: tabIcon('book-outline', 'book'),
+          tabBarIcon: QuestionsTabIcon,
         }}
       />
       <Tabs.Screen
         name="rank"
-        options={{ title: 'Rank', tabBarIcon: tabIcon('trophy-outline', 'trophy') }}
+        options={{ title: 'Rank', tabBarIcon: RankTabIcon }}
       />
       <Tabs.Screen name="concursos" options={{ href: null }} />
       <Tabs.Screen
         name="simulados"
-        options={{ title: 'Simulados', tabBarIcon: tabIcon('clock-outline', 'clock') }}
+        options={{ title: 'Simulados', tabBarIcon: SimulationsTabIcon }}
       />
       <Tabs.Screen
         name="perfil"
-        options={{ title: 'Perfil', tabBarIcon: tabIcon('account-outline', 'account') }}
+        options={{ title: 'Perfil', tabBarIcon: ProfileTabIcon }}
       />
     </Tabs>
   );

@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useMemo } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useReducedMotion } from 'react-native-reanimated';
@@ -26,18 +27,21 @@ function RootNavigator() {
   const { scheme } = useAppTheme();
   const colors = Colors[scheme];
   const baseNavigationTheme = scheme === 'dark' ? DarkTheme : DefaultTheme;
-  const navigationTheme = {
-    ...baseNavigationTheme,
-    colors: {
-      ...baseNavigationTheme.colors,
-      primary: colors.primary,
-      background: colors.background,
-      card: colors.surface,
-      text: colors.text,
-      border: colors.border,
-      notification: colors.danger,
-    },
-  };
+  const navigationTheme = useMemo(
+    () => ({
+      ...baseNavigationTheme,
+      colors: {
+        ...baseNavigationTheme.colors,
+        primary: colors.primary,
+        background: colors.background,
+        card: colors.surface,
+        text: colors.text,
+        border: colors.border,
+        notification: colors.danger,
+      },
+    }),
+    [baseNavigationTheme, colors]
+  );
   const { session, isGuest, isLoading } = useAuth();
   const routeAccess = authRouteAccess({
     hasSession: Boolean(session),
