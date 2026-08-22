@@ -1,8 +1,8 @@
 # KAD
 
-Aplicativo de preparação para concursos públicos desenvolvido com Expo e React Native.
-O produto reúne questões comentadas, busca avançada, concursos, simulados e gestão de
-perfil e planos.
+Plataforma de preparação para concursos públicos com dois frontends no mesmo
+repositório: o aplicativo Expo/React Native e o KAD Site em HTML, CSS e JavaScript.
+Ambos reúnem questões comentadas, busca, concursos, simulados e gestão de perfil.
 
 > Repositório privado para uso interno da equipe KAD. Não compartilhe código,
 > documentação ou dados fora das pessoas autorizadas.
@@ -15,7 +15,7 @@ perfil e planos.
 
 - Estudo de questões por disciplina e assunto.
 - Busca por palavra-chave, banca, ano, cargo, órgão, dificuldade e situação.
-- Limite de 10 questões por dia para usuários do Plano Básico.
+- Questões ilimitadas para usuários do Plano Básico.
 - Listagem de concursos com filtros por banca, estado, escolaridade e região.
 - Página de detalhes com cargos, salários, prazos e acesso ao canal oficial do órgão.
 - Simulados configuráveis por concurso, disciplina, assunto, banca, ano, dificuldade,
@@ -46,6 +46,7 @@ com Google Play Billing e Apple In-App Purchase.
 - TypeScript em modo estrito
 - AsyncStorage
 - Node Test Runner para os testes unitários
+- Vite e JavaScript modular para o site responsivo
 
 ## Pré-requisitos
 
@@ -55,10 +56,23 @@ com Google Play Billing e Apple In-App Purchase.
 
 ## Executando o projeto
 
+Aplicativo Expo:
+
 ```bash
 npm install
 npm start
 ```
+
+Site:
+
+```bash
+cd site
+npm install
+npm run dev
+```
+
+Também é possível iniciar o site pela raiz com `npm run site` depois de instalar
+as dependências do diretório `site/`.
 
 ## Autenticação e banco
 
@@ -97,6 +111,7 @@ npm run test       # regras de acesso e integridade dos dados
 npm run typecheck  # validação TypeScript
 npm run lint       # ESLint configurado pelo Expo
 npm run check      # executa as três verificações
+npm run site:check # testes e build de produção do KAD Site
 ```
 
 Os testes verificam regras de acesso, persistência, integridade dos dados e segurança.
@@ -107,6 +122,7 @@ Os testes verificam regras de acesso, persistência, integridade dos dados e seg
 app/                    rotas e telas do Expo Router
 components/             componentes visuais reutilizáveis
 lib/, providers/, types/ lógica e tipos usados pelo aplicativo
+site/                   frontend web HTML/CSS/JS independente do Expo
 tests/                  testes automatizados
 ```
 
