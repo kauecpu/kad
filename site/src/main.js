@@ -60,6 +60,8 @@ import {
   profileView,
 } from './views/profile.js';
 
+const AUTH_STORY_INTERVAL = 6500;
+
 const root = document.querySelector('#app');
 const announcer = document.querySelector('#announcer');
 const ui = {
@@ -72,6 +74,10 @@ const ui = {
   essayTimer: null,
   checkoutId: '',
   checkoutTimer: null,
+  authStoryIndex: 0,
+  authStoryTimer: null,
+  authStoryPaused: false,
+  authStoryInteractionPaused: false,
 };
 
 function applyTheme(state = store.getState()) {
@@ -146,12 +152,64 @@ function resolveView(route, state) {
 function stopPageTimers() {
   clearInterval(ui.simulationTimer);
   clearInterval(ui.essayTimer);
+  clearInterval(ui.authStoryTimer);
   ui.simulationTimer = null;
   ui.essayTimer = null;
+  ui.authStoryTimer = null;
+  ui.authStoryInteractionPaused = false;
+}
+
+function showAuthStory(index, { announce = false } = {}) {
+  const carousel = document.querySelector('[data-auth-carousel]');
+  const slides = [...(carousel?.querySelectorAll('[data-auth-slide]') ?? [])];
+  if (!slides.length) return;
+  const requested = Number.isFinite(Number(index)) ? Number(index) : 0;
+  const activeIndex = ((requested % slides.length) + slides.length) % slides.length;
+  ui.authStoryIndex = activeIndex;
+  slides.forEach((slide, slideIndex) => {
+    const active = slideIndex === activeIndex;
+    slide.classList.toggle('is-active', active);
+    slide.setAttribute('aria-hidden', String(!active));
+  });
+  carousel.querySelectorAll('[data-action="select-auth-story"]').forEach((dot, dotIndex) => {
+    const active = dotIndex === activeIndex;
+    dot.classList.toggle('is-active', active);
+    dot.setAttribute('aria-pressed', String(active));
+  });
+  if (announce) {
+    const status = carousel.querySelector('[data-auth-carousel-status]');
+    const title = slides[activeIndex].dataset.slideTitle;
+    if (status) status.textContent = `Destaque ${activeIndex + 1} de ${slides.length}: ${title}`;
+  }
+}
+
+function updateAuthStoryPauseControl() {
+  const control = document.querySelector('[data-action="pause-auth-story"]');
+  if (!control) return;
+  control.setAttribute('aria-pressed', String(ui.authStoryPaused));
+  control.setAttribute('aria-label', ui.authStoryPaused ? 'Retomar rotação' : 'Pausar rotação');
+  control.innerHTML = icon(ui.authStoryPaused ? 'Play' : 'Pause');
+  hydrateIcons(control);
+}
+
+function startAuthStoryTimer() {
+  clearInterval(ui.authStoryTimer);
+  ui.authStoryTimer = null;
+  const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!document.querySelector('[data-auth-carousel]') || reduceMotion || ui.authStoryPaused) return;
+  ui.authStoryTimer = setInterval(() => {
+    if (ui.authStoryInteractionPaused || document.hidden) return;
+    showAuthStory(ui.authStoryIndex + 1);
+  }, AUTH_STORY_INTERVAL);
 }
 
 function startPageTimers(route, state) {
   stopPageTimers();
+  if (route.pathname === '/entrar' || route.pathname === '/cadastro') {
+    showAuthStory(ui.authStoryIndex);
+    updateAuthStoryPauseControl();
+    startAuthStoryTimer();
+  }
   if (route.pathname === '/simulados/em-andamento' && state.simulations.current?.status === 'active') {
     ui.simulationTimer = setInterval(() => {
       const current = store.getState().simulations.current;
@@ -486,6 +544,20 @@ document.addEventListener('click', async (event) => {
     store.update((draft) => { draft.preferences.theme = dark ? 'light' : 'dark'; });
     return;
   }
+  if (action === 'previous-auth-story' || action === 'next-auth-story' || action === 'select-auth-story') {
+    const nextIndex = action === 'select-auth-story'
+      ? Number(target.dataset.slideIndex)
+      : ui.authStoryIndex + (action === 'next-auth-story' ? 1 : -1);
+    showAuthStory(nextIndex, { announce: true });
+    startAuthStoryTimer();
+    return;
+  }
+  if (action === 'pause-auth-story') {
+    ui.authStoryPaused = !ui.authStoryPaused;
+    updateAuthStoryPauseControl();
+    startAuthStoryTimer();
+    return;
+  }
   if (action === 'continue-visitor' || action === 'skip-onboarding') {
     store.update((draft) => {
       draft.auth = { mode: 'visitor', userId: null };
@@ -627,6 +699,30 @@ document.addEventListener('click', async (event) => {
   }
 });
 
+document.addEventListener('pointerover', (event) => {
+  const carousel = event.target.closest?.('[data-auth-carousel]');
+  if (!carousel || carousel.contains(event.relatedTarget)) return;
+  ui.authStoryInteractionPaused = true;
+});
+
+document.addEventListener('pointerout', (event) => {
+  const carousel = event.target.closest?.('[data-auth-carousel]');
+  if (!carousel || carousel.contains(event.relatedTarget)) return;
+  ui.authStoryInteractionPaused = false;
+  startAuthStoryTimer();
+});
+
+document.addEventListener('focusin', (event) => {
+  if (event.target.closest?.('[data-auth-carousel]')) ui.authStoryInteractionPaused = true;
+});
+
+document.addEventListener('focusout', (event) => {
+  const carousel = event.target.closest?.('[data-auth-carousel]');
+  if (!carousel || carousel.contains(event.relatedTarget)) return;
+  ui.authStoryInteractionPaused = false;
+  startAuthStoryTimer();
+});
+
 document.addEventListener('submit', (event) => {
   const form = event.target.closest('form[data-form]');
   if (!form) return;
@@ -670,6 +766,7 @@ globalThis.addEventListener('beforeunload', persistEssayBuffer);
 globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (store.getState().preferences.theme === 'system') applyTheme();
 });
+globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener('change', startAuthStoryTimer);
 
 subscribeRouter(() => render({ routeChanged: true }));
 store.subscribe(() => render());

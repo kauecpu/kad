@@ -84,7 +84,8 @@ test('layout web usa autenticação dividida, resumos compactos e comentários l
     source('src/styles/app.css'),
   ]);
   assert.match(publicView, /auth-page auth-page--split/);
-  assert.match(publicView, /auth-showcase__features/);
+  assert.match(publicView, /auth-story__slides/);
+  assert.match(publicView, /auth-card auth-card--portal/);
   assert.match(questionsView, /summary-grid summary-grid--strip/);
   assert.match(questionsView, /discipline-card__copy/);
   assert.match(questionsView, /<textarea class="textarea"[^>]+rows="3"/);
@@ -94,9 +95,29 @@ test('layout web usa autenticação dividida, resumos compactos e comentários l
 test('login cabe em desktops baixos sem ocultar conteúdo', async () => {
   const styles = await source('src/styles/app.css');
 
-  assert.match(styles, /@media \(min-width: 901px\) and \(max-height: 820px\)/);
-  assert.match(styles, /\.auth-page--split \{ padding-block: 16px; \}/);
-  assert.match(styles, /min-height: min\(610px, calc\(100dvh - 118px\)\)/);
+  assert.match(styles, /grid-template-columns: minmax\(0, 1fr\) minmax\(340px, 370px\)/);
+  assert.match(styles, /min-height: min\(700px, calc\(100dvh - 126px\)\)/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]+grid-template-areas: 'access' 'story'/);
+});
+
+test('entrada apresenta recursos reais em carrossel controlável e sensível a movimento', async () => {
+  const [publicView, main, styles] = await Promise.all([
+    source('src/views/public.js'),
+    source('src/main.js'),
+    source('src/styles/app.css'),
+  ]);
+
+  assert.match(publicView, /data-auth-carousel/);
+  assert.match(publicView, /data-action="pause-auth-story"/);
+  assert.match(publicView, /kad-mascot-practice\.png/);
+  assert.match(publicView, /kad-mascot-simulation\.png/);
+  assert.match(publicView, /kad-mascot-writing\.png/);
+  assert.match(publicView, /kad-mascot-goal\.png/);
+  assert.match(main, /AUTH_STORY_INTERVAL = 6500/);
+  assert.match(main, /prefers-reduced-motion: reduce/);
+  assert.match(main, /pointerover/);
+  assert.match(main, /focusin/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
 });
 
 test('melhorias de interface preservam semântica, privacidade e linguagem de produto', async () => {

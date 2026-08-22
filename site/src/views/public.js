@@ -46,23 +46,68 @@ const authCopy = {
   },
 };
 
+const authStories = [
+  {
+    eyebrow: 'PRÁTICA COM DIREÇÃO',
+    title: 'Transforme questões em um plano de estudo.',
+    description: 'Resolva, confira o gabarito e retome seus pontos de atenção sem perder o contexto da sessão.',
+    image: 'kad-mascot-practice.png',
+    highlights: [['ClipboardCheck', 'Gabarito no mesmo fluxo'], ['Bookmark', 'Favoritos para revisar']],
+  },
+  {
+    eyebrow: 'SIMULADOS',
+    title: 'Treine conteúdo, estratégia e tempo de prova.',
+    description: 'Monte sessões objetivas, acompanhe o relógio e revise o resultado quando terminar.',
+    image: 'kad-mascot-simulation.png',
+    highlights: [['Timer', 'Tempo sob controle'], ['ListChecks', 'Revisão por questão']],
+  },
+  {
+    eyebrow: 'REDAÇÃO E REPERTÓRIO',
+    title: 'Escreva com foco e preserve cada versão.',
+    description: 'Organize propostas, rascunhos e referências no mesmo ambiente usado para estudar as disciplinas.',
+    image: 'kad-mascot-writing.png',
+    highlights: [['PenLine', 'Editor focado'], ['Library', 'Biblioteca de apoio']],
+  },
+  {
+    eyebrow: 'TRILHAS E CONCURSOS',
+    title: 'Tenha clareza sobre o próximo passo.',
+    description: 'Escolha uma meta e encontre questões, trilhas e concursos organizados para a sua preparação.',
+    image: 'kad-mascot-goal.png',
+    highlights: [['Compass', 'Trilhas organizadas'], ['Target', 'Meta sempre visível']],
+  },
+];
+
 function authShowcase() {
-  const features = [
-    ['BookOpen', 'Questões comentadas', 'Pratique com gabarito e explicação no mesmo fluxo.'],
-    ['Timer', 'Simulados configuráveis', 'Treine conteúdo, estratégia e tempo de prova.'],
-    ['Compass', 'Trilhas organizadas', 'Avance por disciplina ou pelo concurso da sua meta.'],
-  ];
   return `
-    <aside class="auth-showcase" aria-label="Recursos de estudo do KAD">
-      <div class="auth-showcase__copy">
-        <p class="eyebrow">SEU AMBIENTE DE ESTUDO</p>
-        <h2>Entre e continue exatamente de onde parou.</h2>
-        <p>O computador oferece mais espaço para comparar alternativas, acompanhar a sessão e revisar seus pontos de atenção.</p>
+    <aside class="auth-story" data-auth-carousel aria-label="Conheça o ambiente de estudos KAD" aria-roledescription="carrossel">
+      <div class="auth-story__slides">
+        ${authStories.map((story, index) => `
+          <article class="auth-story__slide auth-story__slide--${index + 1} ${index === 0 ? 'is-active' : ''}" data-auth-slide="${index}" data-slide-title="${story.title}" aria-hidden="${index === 0 ? 'false' : 'true'}">
+            <div class="auth-story__copy">
+              <p class="eyebrow">${story.eyebrow}</p>
+              <h2>${story.title}</h2>
+              <p>${story.description}</p>
+              <div class="auth-story__highlights" aria-label="Recursos relacionados">
+                ${story.highlights.map(([iconName, label]) => `<span>${icon(iconName)} ${label}</span>`).join('')}
+              </div>
+            </div>
+            <div class="auth-story__art" aria-hidden="true">
+              <span class="auth-story__orbit"></span>
+              <img src="/assets/${story.image}" alt="" width="520" height="520" />
+            </div>
+          </article>`).join('')}
       </div>
-      <div class="auth-showcase__features">
-        ${features.map(([iconName, title, description]) => `<div class="auth-showcase__feature"><span>${icon(iconName)}</span><div><strong>${title}</strong><p>${description}</p></div></div>`).join('')}
+      <div class="auth-story__controls">
+        <div class="auth-story__dots" role="group" aria-label="Escolher destaque do KAD">
+          ${authStories.map((story, index) => `<button class="auth-story__dot ${index === 0 ? 'is-active' : ''}" type="button" data-action="select-auth-story" data-slide-index="${index}" aria-label="Mostrar destaque ${index + 1}: ${story.title}" aria-pressed="${index === 0 ? 'true' : 'false'}"><span></span></button>`).join('')}
+        </div>
+        <div class="auth-story__buttons" role="group" aria-label="Controles do destaque">
+          <button class="auth-story__control" type="button" data-action="previous-auth-story" aria-label="Destaque anterior">${icon('ArrowLeft')}</button>
+          <button class="auth-story__control auth-story__pause" type="button" data-action="pause-auth-story" aria-label="Pausar rotação" aria-pressed="false">${icon('Pause')}</button>
+          <button class="auth-story__control" type="button" data-action="next-auth-story" aria-label="Próximo destaque">${icon('ChevronRight')}</button>
+        </div>
       </div>
-      <img src="/assets/kad-mascot-practice.png" alt="" width="320" height="320" />
+      <p class="sr-only" data-auth-carousel-status aria-live="polite"></p>
     </aside>`;
 }
 
@@ -77,22 +122,27 @@ export function authView(kind = 'entrar') {
       <section class="auth-page auth-page--split">
         ${authShowcase()}
         ${card(`
+          <nav class="auth-mode-switch" aria-label="Escolha como acessar">
+            <a href="/entrar" data-route="/entrar" class="${signup ? '' : 'is-active'}" ${signup ? '' : 'aria-current="page"'}>Entrar</a>
+            <a href="/cadastro" data-route="/cadastro" class="${signup ? 'is-active' : ''}" ${signup ? 'aria-current="page"' : ''}>Criar conta</a>
+          </nav>
           <div class="auth-card__heading">
-            <p class="eyebrow">CONTA KAD</p>
             <h1>${copy.title}</h1>
             <p>${copy.description}</p>
           </div>
-          <form class="form-stack" data-form="${copy.form}" novalidate>
+          <form class="form-stack auth-form" data-form="${copy.form}" novalidate>
             ${signup ? `<div class="field"><label for="name">Nome completo</label><input class="input" id="name" name="name" autocomplete="name" required /></div>` : ''}
             <div class="field"><label for="email">E-mail</label><input class="input" id="email" name="email" type="email" autocomplete="email" required /></div>
             ${passwordField({ id: 'password', label: 'Senha', autocomplete: signup ? 'new-password' : 'current-password' })}
-            ${signup ? passwordField({ id: 'password-confirmation', label: 'Repetir senha', name: 'passwordConfirmation', autocomplete: 'new-password' }) : `<a class="text-link" href="/recuperar-senha" data-route="/recuperar-senha">Esqueci minha senha</a>`}
-            <p class="form-message" data-form-message>Se preferir, você pode estudar como visitante e manter o progresso neste navegador.</p>
+            ${signup ? passwordField({ id: 'password-confirmation', label: 'Repetir senha', name: 'passwordConfirmation', autocomplete: 'new-password' }) : `<a class="text-link auth-form__recovery" href="/recuperar-senha" data-route="/recuperar-senha">Esqueci minha senha</a>`}
+            <p class="form-message" data-form-message aria-live="polite"></p>
             ${button(copy.submit, { type: 'submit', size: 'lg', className: 'full-width' })}
           </form>
-          <p class="auth-footer">${signup ? 'Já possui conta?' : 'Ainda não possui conta?'} <a href="/${signup ? 'entrar' : 'cadastro'}" data-route="/${signup ? 'entrar' : 'cadastro'}">${signup ? 'Entrar' : 'Criar conta'}</a></p>
-          <button class="button button--ghost" type="button" data-action="continue-visitor">Continuar como visitante</button>
-        `, 'auth-card')}
+          <div class="auth-guest">
+            <span>ou</span>
+            <button class="button button--ghost" type="button" data-action="continue-visitor">Continuar como visitante</button>
+          </div>
+        `, 'auth-card auth-card--portal')}
       </section>`,
   };
 }
