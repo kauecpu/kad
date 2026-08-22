@@ -31,6 +31,22 @@ export function button(label, {
   return `<button class="button button--${escapeHtml(variant)} button--${escapeHtml(size)} ${escapeHtml(className)}" type="${escapeHtml(type)}" ${navigation} ${behavior} ${disabled ? 'disabled' : ''} ${attrs}>${iconName ? icon(iconName) : ''}<span>${escapeHtml(label)}</span></button>`;
 }
 
+export function passwordField({
+  id,
+  label,
+  name = 'password',
+  autocomplete = 'current-password',
+  minlength = 8,
+} = {}) {
+  return `<div class="field">
+    <label for="${escapeHtml(id)}">${escapeHtml(label)}</label>
+    <div class="password-control">
+      <input class="input" id="${escapeHtml(id)}" name="${escapeHtml(name)}" type="password" autocomplete="${escapeHtml(autocomplete)}" minlength="${Number(minlength) || 8}" required />
+      <button class="password-toggle" type="button" data-action="toggle-password" aria-controls="${escapeHtml(id)}" aria-label="Mostrar senha" aria-pressed="false">${icon('Eye')}</button>
+    </div>
+  </div>`;
+}
+
 export function card(content, className = '') {
   return `<article class="card ${escapeHtml(className)}">${content}</article>`;
 }

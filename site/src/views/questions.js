@@ -28,7 +28,7 @@ function questionResultCard(question, state) {
 }
 
 export function questionsIndexView(state) {
-  const { disciplines, questions, packs } = getCatalog();
+  const { disciplines, questions } = getCatalog();
   const performance = questionsPerformance(state.answers);
   const disciplineCards = disciplines.map((discipline) => {
     const available = questions.filter((question) => question.discipline === discipline.name);
@@ -39,6 +39,13 @@ export function questionsIndexView(state) {
       ${icon('ChevronRight')}
     </button>`;
   }).join('');
+  const progressSummary = performance.total ? `
+      <div class="summary-grid summary-grid--strip" aria-label="Seu progresso nas questões">
+        ${card(`<div class="card--padded"><strong>${performance.total}</strong><p class="muted">respondidas</p></div>`)}
+        ${card(`<div class="card--padded"><strong>${formatPercent(performance.accuracy)}</strong><p class="muted">taxa de acerto</p></div>`)}
+        ${card(`<div class="card--padded"><strong>${performance.correct}</strong><p class="muted">acertadas</p></div>`)}
+        ${card(`<div class="card--padded"><strong>${state.favorites.length}</strong><p class="muted">favoritas</p></div>`)}
+      </div>` : '';
 
   return {
     title: 'Questões',
@@ -55,14 +62,9 @@ export function questionsIndexView(state) {
           </div>
         </div>
         <div class="hero-card__art"><img src="/assets/kad-mascot-practice.png" alt="" width="300" height="300" /></div>
-      `, 'hero-card')}
-      <div class="summary-grid summary-grid--strip">
-        ${card(`<div class="card--padded"><strong>${performance.total}</strong><p class="muted">respondidas</p></div>`)}
-        ${card(`<div class="card--padded"><strong>${formatPercent(performance.accuracy)}</strong><p class="muted">taxa de acerto</p></div>`)}
-        ${card(`<div class="card--padded"><strong>${state.favorites.length}</strong><p class="muted">favoritas</p></div>`)}
-        ${card(`<div class="card--padded"><strong>${packs.length}</strong><p class="muted">áreas e concursos</p></div>`)}
-      </div>
+      `, 'hero-card hero-card--task')}
       ${section('Estudar por disciplina', `<div class="discipline-grid">${disciplineCards}</div>`, { eyebrow: 'BANCO DE QUESTÕES' })}
+      ${progressSummary}
       ${section('Revisar', `<div class="action-grid">
         <button class="action-card" type="button" data-route="/questoes/revisar?tipo=favoritas"><span class="action-card__icon">${icon('Bookmark')}</span><div><h3>Favoritas</h3><p>${state.favorites.length} questões marcadas</p></div></button>
         <button class="action-card" type="button" data-route="/questoes/revisar?tipo=erradas"><span class="action-card__icon">${icon('RotateCcw')}</span><div><h3>Questões erradas</h3><p>Reforce os pontos frágeis</p></div></button>
@@ -176,6 +178,8 @@ export function questionSessionView(state, params, ui) {
   const answer = state.answers[question.id];
   const favorite = state.favorites.includes(question.id);
   const comments = state.comments[question.id] ?? [];
+  ui.visitedQuestionIds ??= new Set();
+  ui.visitedQuestionIds.add(question.id);
   const options = question.alternatives.map((alternative) => {
     const selected = answer?.selected === alternative.id;
     const correct = answer && question.correct === alternative.id;
@@ -183,11 +187,23 @@ export function questionSessionView(state, params, ui) {
     const statusIcon = correct ? icon('CheckCircle2') : wrong ? icon('XCircle') : '';
     return `<button class="option ${selected ? 'is-selected' : ''} ${correct ? 'is-correct' : ''} ${wrong ? 'is-wrong' : ''}" type="button" data-action="answer-question" data-question-id="${escapeHtml(question.id)}" data-alternative="${escapeHtml(alternative.id)}" ${answer ? 'disabled' : ''}><span class="option__letter">${escapeHtml(alternative.id)}</span><span>${escapeHtml(alternative.text)}</span>${statusIcon}</button>`;
   }).join('');
-  const map = questions.map((item, mapIndex) => `<button type="button" data-action="go-question" data-index="${mapIndex}" class="${mapIndex === index ? 'is-active' : ''} ${state.answers[item.id] ? 'is-answered' : ''}" aria-label="Questão ${mapIndex + 1}${state.answers[item.id] ? ', respondida' : ''}">${mapIndex + 1}</button>`).join('');
+  const map = questions.map((item, mapIndex) => {
+    const answered = Boolean(state.answers[item.id]);
+    const skipped = !answered && mapIndex !== index && ui.visitedQuestionIds.has(item.id);
+    const stateLabel = answered ? ', respondida' : skipped ? ', pulada' : '';
+    return `<button type="button" data-action="go-question" data-index="${mapIndex}" class="${mapIndex === index ? 'is-active' : ''} ${answered ? 'is-answered' : ''} ${skipped ? 'is-skipped' : ''}" aria-label="Questão ${mapIndex + 1}${stateLabel}">${mapIndex + 1}</button>`;
+  }).join('');
   const commentList = comments.length
     ? comments.slice(-4).map((comment) => `<div class="comment"><strong>${escapeHtml(comment.author)}</strong><p>${escapeHtml(comment.text)}</p></div>`).join('')
     : '<p class="muted">Ainda não há comentários nesta questão.</p>';
   const progressValue = ((index + 1) / questions.length) * 100;
+  const isLastQuestion = index === questions.length - 1;
+  const forwardLabel = answer
+    ? (isLastQuestion ? 'Concluir sessão' : 'Próxima questão')
+    : (isLastQuestion ? 'Concluir sem responder' : 'Pular questão');
+  const forwardButton = isLastQuestion
+    ? button(forwardLabel, { route: '/perfil/desempenho', iconName: 'CheckCircle2' })
+    : button(forwardLabel, { action: 'next-question', iconName: 'ChevronRight' });
 
   return {
     title,
@@ -206,12 +222,12 @@ export function questionSessionView(state, params, ui) {
           ${answer ? `<div class="explanation"><strong>${answer.isCorrect ? 'Resposta correta' : `Resposta incorreta · gabarito ${question.correct}`}</strong><p>${escapeHtml(question.explanation)}</p></div>` : ''}
           <div class="study-controls">
             ${button('Anterior', { action: 'previous-question', variant: 'secondary', iconName: 'ArrowLeft', disabled: index === 0 })}
-            <div class="toolbar__group">${answer ? button('Tentar novamente', { action: 'retry-question', variant: 'ghost', iconName: 'RotateCcw', attrs: `data-question-id="${escapeHtml(question.id)}"` }) : ''}${index === questions.length - 1 ? button('Concluir sessão', { route: '/perfil/desempenho', iconName: 'CheckCircle2' }) : button('Próxima questão', { action: 'next-question', iconName: 'ChevronRight' })}</div>
+            <div class="toolbar__group">${answer ? button('Tentar novamente', { action: 'retry-question', variant: 'ghost', iconName: 'RotateCcw', attrs: `data-question-id="${escapeHtml(question.id)}"` }) : ''}${forwardButton}</div>
           </div>
         `, 'question-card')}
         <aside class="study-side">
           ${card(`<p class="eyebrow">PROGRESSO</p><h3>Mapa da sessão</h3><div class="question-map">${map}</div>`, 'detail-panel')}
-          ${card(`<p class="eyebrow">COMUNIDADE</p><h3>Comentários</h3><div class="comment-list">${commentList}</div><form class="comment-form" data-form="question-comment" data-question-id="${escapeHtml(question.id)}"><label class="sr-only" for="comment-${escapeHtml(question.id)}">Adicionar comentário</label><textarea class="textarea" id="comment-${escapeHtml(question.id)}" name="comment" maxlength="280" rows="3" placeholder="Compartilhe uma dúvida" required></textarea>${button('Enviar comentário', { type: 'submit', variant: 'secondary', iconName: 'Send', size: 'sm' })}</form>`, 'detail-panel')}
+          ${card(`<details class="comments-disclosure" ${comments.length ? 'open' : ''}><summary><span><span class="eyebrow">COMUNIDADE</span><strong>Comentários</strong></span><span class="comments-disclosure__meta">${comments.length}</span>${icon('ChevronDown')}</summary><div class="comments-disclosure__content"><div class="comment-list">${commentList}</div><form class="comment-form" data-form="question-comment" data-question-id="${escapeHtml(question.id)}"><label class="sr-only" for="comment-${escapeHtml(question.id)}">Adicionar comentário</label><textarea class="textarea" id="comment-${escapeHtml(question.id)}" name="comment" maxlength="280" rows="3" placeholder="Compartilhe uma dúvida" required></textarea>${button('Enviar comentário', { type: 'submit', variant: 'secondary', iconName: 'Send', size: 'sm' })}</form></div></details>`, 'detail-panel comments-card')}
         </aside>
       </div>
     `,

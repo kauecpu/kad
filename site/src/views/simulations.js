@@ -62,7 +62,15 @@ export function simulationsView(state) {
   const { packs } = getCatalog();
   const current = state.simulations.current;
   const history = state.simulations.history.slice(0, 4);
+  const historyScores = history.map((item) => simulationScore(item));
   const featuredPacks = packs.slice(0, 6);
+  const historySummary = history.length ? `
+      <div class="summary-grid summary-grid--strip" aria-label="Resumo dos simulados">
+        ${card(stat(String(history.length), 'Simulados concluídos', 'ClipboardCheck'))}
+        ${card(stat(formatPercent(historyScores.reduce((sum, item) => sum + item.accuracy, 0) / history.length), 'Média de acerto', 'TrendingUp', 'success'))}
+        ${card(stat(String(historyScores.reduce((sum, item) => sum + item.answered, 0)), 'Questões treinadas', 'BookOpen'))}
+        ${card(stat(formatPercent(Math.max(...historyScores.map((item) => item.accuracy))), 'Melhor resultado', 'Trophy', 'warning'))}
+      </div>` : '';
   return {
     title: 'Simulados',
     subtitle: 'Monte provas, controle o tempo e acompanhe sua evolução',
@@ -70,20 +78,15 @@ export function simulationsView(state) {
       ${current && current.status !== 'completed' ? card(`
         <div class="hero-card__content"><p class="eyebrow">SIMULADO EM ANDAMENTO</p><h2>Seu treino está esperando.</h2><p>${Object.keys(current.answers).length} de ${current.questionIds.length} questões respondidas · ${formatTimer(current.remainingSeconds)} restantes.</p>${button(current.status === 'paused' ? 'Retomar simulado' : 'Continuar simulado', { route: '/simulados/em-andamento', iconName: 'Play' })}</div>
         <div class="hero-card__art"><img src="/assets/kad-mascot-simulation.png" alt="" width="300" height="300" /></div>
-      `, 'hero-card') : card(`
-        <div class="hero-card__content"><p class="eyebrow">SIMULADOS KAD</p><h2>Treine como se fosse o dia da prova.</h2><p>Escolha conteúdo, quantidade e duração. O relógio, a navegação e o resultado já funcionam nesta versão web.</p><div class="welcome__actions">${button('Montar simulado', { route: '/simulados/configurar', iconName: 'Timer' })}${button('Prévia rápida', { action: 'start-demo-simulation', variant: 'secondary', iconName: 'Play' })}</div></div>
+      `, 'hero-card hero-card--task') : card(`
+        <div class="hero-card__content"><p class="eyebrow">SIMULADOS KAD</p><h2>Treine como se fosse o dia da prova.</h2><p>Escolha o conteúdo, defina o tempo e acompanhe seu resultado ao final.</p><div class="welcome__actions">${button('Montar simulado', { route: '/simulados/configurar', iconName: 'Timer' })}${button('Simulado rápido', { action: 'start-demo-simulation', variant: 'secondary', iconName: 'Play' })}</div></div>
         <div class="hero-card__art"><img src="/assets/kad-mascot-simulation.png" alt="" width="300" height="300" /></div>
-      `, 'hero-card')}
-      <div class="summary-grid summary-grid--strip">
-        ${card(stat(String(history.length), 'Simulados concluídos', 'ClipboardCheck'))}
-        ${card(stat(history.length ? formatPercent(history.reduce((sum, item) => sum + simulationScore(item).accuracy, 0) / history.length) : '0%', 'Média de acerto', 'TrendingUp', 'success'))}
-        ${card(stat(String(history.reduce((sum, item) => sum + simulationScore(item).answered, 0)), 'Questões treinadas', 'BookOpen'))}
-        ${card(stat(state.subscription.plan === 'diamond' ? 'Diamond' : 'Básico', 'Plano atual', 'Crown', 'warning'))}
-      </div>
+      `, 'hero-card hero-card--task')}
       ${section('Por concurso e área', `<div class="discipline-grid">${featuredPacks.map((pack) => {
         const total = getCatalog().questions.filter((question) => matchesPack(question, pack)).length;
-        return `<button class="discipline-card" type="button" data-route="/simulados/configurar?packId=${pack.id}" style="--discipline-color:${pack.color}"><span class="discipline-card__mark">${escapeHtml(pack.name.slice(0, 2).toUpperCase())}</span><span class="discipline-card__copy"><h3>${escapeHtml(pack.name)}</h3><p>${total} questões disponíveis</p></span>${pack.kind === 'concurso' ? badge('Concurso') : badge('Área')}</button>`;
+        return `<button class="discipline-card" type="button" data-route="/simulados/configurar?packId=${pack.id}" style="--discipline-color:${pack.color}"><span class="discipline-card__mark">${escapeHtml(pack.name.slice(0, 2).toUpperCase())}</span><span class="discipline-card__copy"><h3>${escapeHtml(pack.name)}</h3><p>${total} ${total === 1 ? 'questão disponível' : 'questões disponíveis'}</p></span>${pack.kind === 'concurso' ? badge('Concurso') : badge('Área')}</button>`;
       }).join('')}</div>`)}
+      ${historySummary}
       ${section('Histórico recente', history.length ? `<div class="dashboard-main">${history.map((session) => {
         const score = simulationScore(session);
         return card(`<button class="list-row" type="button" data-action="open-simulation-result" data-simulation-id="${session.id}"><span class="list-row__icon">${icon('BarChart3')}</span><span class="list-row__copy"><strong>${session.config.packId ? escapeHtml(packs.find((pack) => pack.id === session.config.packId)?.name ?? 'Simulado') : 'Simulado personalizado'}</strong><span>${score.correct} acertos de ${score.total} · ${new Intl.DateTimeFormat('pt-BR').format(new Date(session.completedAt ?? session.createdAt))}</span></span>${badge(formatPercent(score.accuracy), score.accuracy >= 70 ? 'success' : 'warning')}${icon('ChevronRight')}</button>`) }).join('')}</div>` : emptyState('Nenhum simulado concluído', 'Monte seu primeiro treino para criar um histórico de desempenho.', { route: '/simulados/configurar', actionLabel: 'Montar simulado' }))}
@@ -117,8 +120,7 @@ export function simulationConfigView(params = {}) {
           ${button('Iniciar simulado', { type: 'submit', size: 'lg', iconName: 'Play', className: 'full-width' })}
         </form>`)}
         <aside class="dashboard-aside">
-          ${card(`<div class="detail-panel"><p class="eyebrow">COMO FUNCIONA</p><h2>Treino fiel ao app</h2><ul class="benefit-list"><li>${icon('Check')}Tempo salvo mesmo se atualizar a página</li><li>${icon('Check')}Navegação livre entre questões</li><li>${icon('Check')}Pausa, retomada e conclusão manual</li><li>${icon('Check')}Resultado detalhado ao final</li></ul></div>`)}
-          ${card(`<div class="detail-panel"><span class="badge badge--warning">${icon('Info')} Frontend</span><p class="muted">A cobrança do plano não é simulada. A futura integração usará o checkout seguro já existente no backend do KAD.</p></div>`)}
+          ${card(`<div class="detail-panel"><p class="eyebrow">COMO FUNCIONA</p><h2>Você controla o ritmo</h2><ul class="benefit-list"><li>${icon('Check')}Tempo preservado se você atualizar a página</li><li>${icon('Check')}Navegação livre entre questões</li><li>${icon('Check')}Pausa, retomada e conclusão manual</li><li>${icon('Check')}Resultado detalhado ao final</li></ul></div>`)}
         </aside>
       </div>`,
   };

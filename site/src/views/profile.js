@@ -1,6 +1,6 @@
 import { getCatalog } from '../data/catalog.js';
 import { escapeHtml, formatPercent, formatTimer, groupPerformance, normalizeText, questionsPerformance } from '../core/utils.js';
-import { avatar, badge, button, card, emptyState, icon, metricRing, progress, section, stat } from '../ui/components.js';
+import { avatar, badge, button, card, emptyState, icon, metricRing, passwordField, progress, section, stat } from '../ui/components.js';
 import { stackHeader } from '../ui/layout.js';
 
 export function essayView(state, params = {}) {
@@ -48,7 +48,7 @@ export function essayView(state, params = {}) {
     title: 'Redação',
     subtitle: 'Pratique no formato dos concursos',
     content: `
-      ${card(`<div class="hero-card__content"><p class="eyebrow">PRÁTICA GUIADA</p><h2>Sua próxima redação começa aqui.</h2><p>${escapeHtml(recommended.title)}. Organize os argumentos, escreva no seu tempo e finalize com um roteiro de autorrevisão.</p>${button('Começar tema recomendado', { route: `/redacao?topic=${recommended.id}&stage=write`, iconName: 'PenLine' })}</div><div class="hero-card__art"><img src="/assets/kad-mascot-writing.png" alt="" width="300" height="300" /></div>`, 'hero-card')}
+      ${card(`<div class="hero-card__content"><p class="eyebrow">PRÁTICA GUIADA</p><h2>Sua próxima redação começa aqui.</h2><p>${escapeHtml(recommended.title)}. Organize os argumentos, escreva no seu tempo e finalize com um roteiro de autorrevisão.</p>${button('Começar tema recomendado', { route: `/redacao?topic=${recommended.id}&stage=write`, iconName: 'PenLine' })}</div><div class="hero-card__art"><img src="/assets/kad-mascot-writing.png" alt="" width="300" height="300" /></div>`, 'hero-card hero-card--task')}
       ${card(`<form class="filter-bar card--padded" data-form="essay-filter"><div class="field"><label class="sr-only" for="essay-q">Buscar tema</label><input class="input" id="essay-q" name="q" value="${escapeHtml(params.q ?? '')}" placeholder="Buscar tema ou categoria" /></div><div class="field"><label class="sr-only" for="essay-pack">Concurso</label><select class="select" id="essay-pack" name="packId"><option value="">Todos os concursos</option>${packs.map((pack) => `<option value="${pack.id}" ${params.packId === pack.id ? 'selected' : ''}>${escapeHtml(pack.name)}</option>`).join('')}</select></div>${button('Filtrar', { type: 'submit', iconName: 'Filter' })}</form>`)}
       ${section('Explorar temas', topics.length ? `<div class="topic-grid">${topics.map((item) => {
         const pack = packs.find((candidate) => candidate.id === item.packId);
@@ -152,7 +152,7 @@ export function feedbackView(state) {
 export function passwordView(state) {
   return {
     title: 'Alterar senha',
-    content: `${stackHeader('Alterar senha', 'Proteja o acesso à sua conta')}${state.auth.mode !== 'authenticated' ? emptyState('Entre em uma conta para alterar a senha', 'No modo visitante não existe uma senha armazenada.', { route: '/entrar', actionLabel: 'Entrar na conta' }) : card(`<form class="form-stack card--padded" data-form="password-change"><div class="field"><label for="password-new">Nova senha</label><input class="input" id="password-new" name="password" type="password" minlength="8" required /></div><div class="field"><label for="password-new-confirm">Confirmar nova senha</label><input class="input" id="password-new-confirm" name="passwordConfirmation" type="password" minlength="8" required /></div><p class="form-message" data-form-message></p>${button('Salvar nova senha', { type: 'submit', iconName: 'KeyRound' })}</form>`)}`,
+    content: `${stackHeader('Alterar senha', 'Proteja o acesso à sua conta')}${state.auth.mode !== 'authenticated' ? emptyState('Entre em uma conta para alterar a senha', 'No modo visitante não existe uma senha armazenada.', { route: '/entrar', actionLabel: 'Entrar na conta' }) : card(`<form class="form-stack card--padded" data-form="password-change">${passwordField({ id: 'password-new', label: 'Nova senha', autocomplete: 'new-password' })}${passwordField({ id: 'password-new-confirm', label: 'Confirmar nova senha', name: 'passwordConfirmation', autocomplete: 'new-password' })}<p class="form-message" data-form-message></p>${button('Salvar nova senha', { type: 'submit', iconName: 'KeyRound' })}</form>`)}`,
   };
 }
 

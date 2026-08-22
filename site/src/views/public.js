@@ -1,4 +1,4 @@
-import { badge, button, card, icon } from '../ui/components.js';
+import { badge, button, card, icon, passwordField } from '../ui/components.js';
 import { escapeHtml } from '../core/utils.js';
 
 export function welcomeView() {
@@ -85,9 +85,9 @@ export function authView(kind = 'entrar') {
           <form class="form-stack" data-form="${copy.form}" novalidate>
             ${signup ? `<div class="field"><label for="name">Nome completo</label><input class="input" id="name" name="name" autocomplete="name" required /></div>` : ''}
             <div class="field"><label for="email">E-mail</label><input class="input" id="email" name="email" type="email" autocomplete="email" required /></div>
-            <div class="field"><label for="password">Senha</label><input class="input" id="password" name="password" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="8" required /></div>
-            ${signup ? `<div class="field"><label for="password-confirmation">Repetir senha</label><input class="input" id="password-confirmation" name="passwordConfirmation" type="password" autocomplete="new-password" minlength="8" required /></div>` : `<a class="text-link" href="/recuperar-senha" data-route="/recuperar-senha">Esqueci minha senha</a>`}
-            <p class="form-message" data-form-message>Se o Supabase ainda não estiver configurado, você poderá continuar no modo demonstrativo.</p>
+            ${passwordField({ id: 'password', label: 'Senha', autocomplete: signup ? 'new-password' : 'current-password' })}
+            ${signup ? passwordField({ id: 'password-confirmation', label: 'Repetir senha', name: 'passwordConfirmation', autocomplete: 'new-password' }) : `<a class="text-link" href="/recuperar-senha" data-route="/recuperar-senha">Esqueci minha senha</a>`}
+            <p class="form-message" data-form-message>Se preferir, você pode estudar como visitante e manter o progresso neste navegador.</p>
             ${button(copy.submit, { type: 'submit', size: 'lg', className: 'full-width' })}
           </form>
           <p class="auth-footer">${signup ? 'Já possui conta?' : 'Ainda não possui conta?'} <a href="/${signup ? 'entrar' : 'cadastro'}" data-route="/${signup ? 'entrar' : 'cadastro'}">${signup ? 'Entrar' : 'Criar conta'}</a></p>
@@ -115,8 +115,8 @@ export function recoveryView(kind = 'request', params = {}) {
       <div class="auth-card__heading"><p class="eyebrow">SEGURANÇA</p><h1>${title}</h1><p>${description}</p></div>
       <form class="form-stack" data-form="${formName}">
         ${isNewPassword ? `
-          <div class="field"><label for="new-password">Nova senha</label><input class="input" id="new-password" name="password" type="password" minlength="8" required /></div>
-          <div class="field"><label for="new-password-confirmation">Confirmar nova senha</label><input class="input" id="new-password-confirmation" name="passwordConfirmation" type="password" minlength="8" required /></div>
+          ${passwordField({ id: 'new-password', label: 'Nova senha', autocomplete: 'new-password' })}
+          ${passwordField({ id: 'new-password-confirmation', label: 'Confirmar nova senha', name: 'passwordConfirmation', autocomplete: 'new-password' })}
         ` : `
           <div class="field"><label for="recovery-email">E-mail</label><input class="input" id="recovery-email" name="email" type="email" autocomplete="email" value="${escapeHtml(params.email ?? '')}" required /></div>
           ${isConfirmation ? `<div class="field"><label for="confirmation-code">Código de 6 dígitos</label><input class="input" id="confirmation-code" name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required /></div>` : ''}

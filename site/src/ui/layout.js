@@ -37,7 +37,7 @@ export function publicLayout(content, { simple = false } = {}) {
           ${!simple ? `<a href="/entrar" data-route="/entrar" class="text-link">Entrar</a>` : ''}
         </div>
       </header>
-      <main id="conteudo" class="public-main">${content}</main>
+      <main id="conteudo" class="public-main" tabindex="-1">${content}</main>
     </div>`;
 }
 
@@ -77,7 +77,7 @@ export function appLayout(content, { pathname, title, subtitle, state }) {
             <button class="avatar-button" type="button" data-route="/perfil" aria-label="Abrir perfil">${avatar(profile.name, 'sm')}</button>
           </div>
         </header>
-        <main id="conteudo" class="page-content">${content}</main>
+        <main id="conteudo" class="page-content" tabindex="-1">${content}</main>
       </div>
       <nav class="mobile-tabs" aria-label="Navegação principal">
         ${mainNavigation.map((item) => navLink(item, pathname, true)).join('')}
@@ -87,5 +87,5 @@ export function appLayout(content, { pathname, title, subtitle, state }) {
 }
 
 export function stackHeader(title, subtitle = '') {
-  return `<header class="stack-header"><button class="icon-button" type="button" data-action="back" aria-label="Voltar">${icon('ArrowLeft')}</button><div><h1>${escapeHtml(title)}</h1>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div></header>`;
+  return `<header class="stack-header"><button class="icon-button" type="button" data-action="back" aria-label="Voltar">${icon('ArrowLeft')}</button><div><h2>${escapeHtml(title)}</h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div></header>`;
 }

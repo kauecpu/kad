@@ -7,7 +7,7 @@ import { recordAnswer, store } from './core/store.js';
 import { randomId } from './core/utils.js';
 import { hydrateIcons } from './ui/icons.js';
 import { appLayout, publicLayout } from './ui/layout.js';
-import { emptyState } from './ui/components.js';
+import { emptyState, icon } from './ui/components.js';
 import { updateMetadata } from './services/metadata.js';
 import {
   cancelRemoteSubscription,
@@ -64,6 +64,7 @@ const root = document.querySelector('#app');
 const announcer = document.querySelector('#announcer');
 const ui = {
   questionIndex: 0,
+  visitedQuestionIds: new Set(),
   lastRouteKey: '',
   essayBuffer: null,
   toastTimer: null,
@@ -213,6 +214,7 @@ function render({ routeChanged = false } = {}) {
   const routeKey = `${route.pathname}${route.search}`;
   if (routeKey !== ui.lastRouteKey) {
     ui.questionIndex = 0;
+    ui.visitedQuestionIds = new Set();
     routeChanged = true;
     ui.lastRouteKey = routeKey;
   }
@@ -293,15 +295,8 @@ async function handleForm(form) {
         draft.profile.name = result.user.user_metadata?.full_name ?? draft.profile.name;
       });
       navigate('/inicio', { replace: true });
-    } else if (result.offline) {
-      store.update((draft) => {
-        draft.auth = { mode: 'visitor', userId: null };
-        draft.preferences.hasStarted = true;
-        draft.profile.email = values.email;
-      });
-      toast('Supabase não configurado: você entrou no modo demonstrativo.');
-      navigate('/inicio', { replace: true });
-    } else updateFormMessage(form, result.message, 'error');
+    } else if (result.offline) updateFormMessage(form, 'O acesso à conta não está disponível neste ambiente. Você ainda pode continuar como visitante.', 'error');
+    else updateFormMessage(form, result.message, 'error');
     return;
   }
 
@@ -312,24 +307,23 @@ async function handleForm(form) {
     }
     updateFormMessage(form, 'Criando sua conta...');
     const result = await signUp(values);
-    store.update((draft) => {
-      draft.profile.name = values.name;
-      draft.profile.email = values.email;
-      draft.profile.username = `@${values.email.split('@')[0].replace(/[^a-z0-9_]/gi, '').toLocaleLowerCase('pt-BR')}`;
-      draft.auth = result.ok ? { mode: 'authenticated', userId: result.user?.id ?? null } : { mode: 'visitor', userId: null };
-      draft.preferences.hasStarted = true;
-    });
-    if (result.ok) navigate(result.requiresConfirmation ? `/confirmar-email?email=${encodeURIComponent(values.email)}` : '/onboarding', { replace: true });
-    else if (result.offline) {
-      toast('Conta remota indisponível: seus dados ficarão somente neste navegador.');
-      navigate('/onboarding', { replace: true });
-    } else updateFormMessage(form, result.message, 'error');
+    if (result.ok) {
+      store.update((draft) => {
+        draft.profile.name = values.name;
+        draft.profile.email = values.email;
+        draft.profile.username = `@${values.email.split('@')[0].replace(/[^a-z0-9_]/gi, '').toLocaleLowerCase('pt-BR')}`;
+        draft.auth = { mode: 'authenticated', userId: result.user?.id ?? null };
+        draft.preferences.hasStarted = true;
+      });
+      navigate(result.requiresConfirmation ? `/confirmar-email?email=${encodeURIComponent(values.email)}` : '/onboarding', { replace: true });
+    } else if (result.offline) updateFormMessage(form, 'A criação de conta não está disponível neste ambiente. Você ainda pode continuar como visitante.', 'error');
+    else updateFormMessage(form, result.message, 'error');
     return;
   }
 
   if (formName === 'recovery') {
     const result = await requestPasswordRecovery(values.email);
-    updateFormMessage(form, result.ok ? 'Confira seu e-mail para continuar.' : result.offline ? 'A recuperação será ativada quando o Supabase web estiver configurado.' : result.message, result.ok ? 'success' : 'error');
+    updateFormMessage(form, result.ok ? 'Confira seu e-mail para continuar.' : result.offline ? 'A recuperação de conta não está disponível neste ambiente.' : result.message, result.ok ? 'success' : 'error');
     return;
   }
 
@@ -342,7 +336,7 @@ async function handleForm(form) {
         draft.profile.email = result.user?.email ?? values.email;
       });
       navigate('/onboarding', { replace: true });
-    } else updateFormMessage(form, result.offline ? 'A confirmação exige a configuração pública do Supabase.' : result.message, 'error');
+    } else updateFormMessage(form, result.offline ? 'A confirmação de conta não está disponível neste ambiente.' : result.message, 'error');
     return;
   }
 
@@ -465,6 +459,18 @@ document.addEventListener('click', async (event) => {
   const state = store.getState();
 
   if (action === 'back') return back();
+  if (action === 'toggle-password') {
+    const input = document.getElementById(target.getAttribute('aria-controls'));
+    if (!input) return;
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    target.setAttribute('aria-pressed', String(!showing));
+    target.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+    target.innerHTML = icon(showing ? 'Eye' : 'EyeOff');
+    hydrateIcons(target);
+    input.focus({ preventScroll: true });
+    return;
+  }
   if (action === 'open-menu') {
     document.body.classList.add('nav-open');
     target.setAttribute('aria-expanded', 'true');

@@ -4,7 +4,8 @@ import test from 'node:test';
 import { createStore, recordAnswer } from '../src/core/store.js';
 import { filterQuestions, matchesPack, questionsPerformance } from '../src/core/utils.js';
 import { matchRoute, shouldOpenStudyHome } from '../src/core/router.js';
-import { createSimulation, simulationScore } from '../src/views/simulations.js';
+import { questionSessionView, questionsIndexView } from '../src/views/questions.js';
+import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.js';
 import { getCatalog } from '../src/data/catalog.js';
 
 function memoryStorage() {
@@ -62,6 +63,26 @@ test('simulado respeita quantidade, recebe respostas e calcula resultado', () =>
     { total: score.total, answered: score.answered, correct: score.correct, blank: score.blank },
     { total: 5, answered: 3, correct: 3, blank: 2 },
   );
+});
+
+test('catálogos omitem métricas vazias até existir atividade real', () => {
+  const state = createStore(memoryStorage()).getState();
+
+  assert.doesNotMatch(questionsIndexView(state).content, /Seu progresso nas questões/);
+  assert.doesNotMatch(simulationsView(state).content, /Resumo dos simulados/);
+
+  const question = getCatalog().questions[0];
+  recordAnswer(state, question, question.correct);
+  assert.match(questionsIndexView(state).content, /Seu progresso nas questões/);
+});
+
+test('sessão identifica avanço sem resposta como questão pulada', () => {
+  const state = createStore(memoryStorage()).getState();
+  const ui = { questionIndex: 0, visitedQuestionIds: new Set() };
+
+  assert.match(questionSessionView(state, { limit: '2' }, ui).content, /Pular questão/);
+  ui.questionIndex = 1;
+  assert.match(questionSessionView(state, { limit: '2' }, ui).content, /Questão 1, pulada/);
 });
 
 test('roteador reconhece parâmetros sem aceitar rotas de tamanhos diferentes', () => {

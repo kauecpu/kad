@@ -90,3 +90,26 @@ test('layout web usa autenticação dividida, resumos compactos e comentários l
   assert.match(questionsView, /<textarea class="textarea"[^>]+rows="3"/);
   assert.match(styles, /\.comment-form \.button \{ width: 100%; \}/);
 });
+
+test('melhorias de interface preservam semântica, privacidade e linguagem de produto', async () => {
+  const [publicView, questionsView, simulationsView, components, layout, styles] = await Promise.all([
+    source('src/views/public.js'),
+    source('src/views/questions.js'),
+    source('src/views/simulations.js'),
+    source('src/ui/components.js'),
+    source('src/ui/layout.js'),
+    source('src/styles/base.css'),
+  ]);
+
+  assert.match(components, /data-action="toggle-password"/);
+  assert.match(publicView, /continuar como visitante/i);
+  assert.doesNotMatch(publicView, /Supabase ainda não estiver configurado/);
+  assert.match(layout, /stack-header[\s\S]+<h2>/);
+  assert.doesNotMatch(layout, /stack-header[\s\S]+<h1>/);
+  assert.match(questionsView, /comments-disclosure/);
+  assert.match(questionsView, /Pular questão/);
+  assert.match(simulationsView, /questão disponível/);
+  assert.doesNotMatch(simulationsView, /versão web|Frontend|Treino fiel ao app/);
+  assert.match(styles, /--text-subtle: #5f6c7d/);
+  assert.match(styles, /scroll-padding-bottom/);
+});
