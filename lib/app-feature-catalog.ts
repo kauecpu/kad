@@ -135,3 +135,7 @@ export const APP_FEATURES = [
 export function featuresForGroup(group: AppFeatureGroupId): ReadonlyArray<AppFeature> {
   return APP_FEATURES.filter((feature) => feature.group === group);
 }
+
+export function exploreColumnCount(fontScale: number): 1 | 2 {
+  return fontScale >= 1.35 ? 1 : 2;
+}

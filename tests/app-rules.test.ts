@@ -467,6 +467,14 @@ test('códigos de confirmação por e-mail aceitam somente seis números', () =>
 });
 
 test('as rotas de sessão separam visitante, conta autenticada e acesso público', () => {
+  assert.deepEqual(
+    authRouteAccess({ hasSession: false, isGuest: false, isLoading: true }),
+    {
+      welcome: false,
+      auth: true,
+      app: true,
+    }
+  );
   assert.deepEqual(authRouteAccess({ hasSession: false, isGuest: false }), {
     welcome: true,
     auth: true,

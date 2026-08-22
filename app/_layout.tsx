@@ -46,6 +46,7 @@ function RootNavigator() {
   const routeAccess = authRouteAccess({
     hasSession: Boolean(session),
     isGuest,
+    isLoading,
   });
 
   return (

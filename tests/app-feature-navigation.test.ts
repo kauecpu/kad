@@ -8,6 +8,7 @@ import {
   APP_FEATURE_GROUPS,
   APP_PRIMARY_TABS,
   APP_ROUTE_ALIASES,
+  exploreColumnCount,
   featuresForGroup,
 } from '../lib/app-feature-catalog.ts';
 
@@ -61,4 +62,24 @@ test('o card de função mantém ação acessível e texto sem truncamento', () 
   assert.ok(minHeight && Number(minHeight[1]) >= 44);
   assert.match(card, /flexShrink:\s*1/);
   assert.doesNotMatch(card, /numberOfLines/);
+});
+
+test('Explorar troca a grade por uma coluna quando a fonte está ampliada', () => {
+  assert.equal(exploreColumnCount(1), 2);
+  assert.equal(exploreColumnCount(1.34), 2);
+  assert.equal(exploreColumnCount(1.35), 1);
+  assert.equal(exploreColumnCount(2), 1);
+});
+
+test('Explorar conecta o catálogo, a conta e os componentes de descoberta', () => {
+  const explore = source('../app/(tabs)/explorar.tsx');
+
+  assert.match(explore, /APP_FEATURE_GROUPS/);
+  assert.match(explore, /featuresForGroup/);
+  assert.match(explore, /FeatureLinkCard/);
+  assert.match(explore, /ListRow/);
+  assert.match(explore, /accessibilityLabel="Abrir perfil"/);
+  assert.match(explore, /router\.push\('\/perfil'\)/);
+  assert.match(explore, /useSafeAreaInsets\(\)/);
+  assert.match(explore, /exploreColumnCount\(fontScale\)/);
 });
