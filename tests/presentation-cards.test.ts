@@ -68,7 +68,10 @@ test('o explorador de questões reúne modo e busca em um card acessível', () =
 });
 
 test('os demais destaques usam a mesma família sem substituir o cartão de perfil', () => {
-  assert.match(home, /<FeaturedCard[\s\S]*?eyebrow=\{primaryAction\.eyebrow\}/);
+  assert.match(
+    home,
+    /<FeaturedCard[\s\S]*?intensity="strong"[\s\S]*?eyebrow=\{primaryAction\.eyebrow\}/
+  );
   assert.match(concursos, /<FeaturedCard[\s\S]*?eyebrow="FOCO DA META"/);
   assert.match(ranking, /<FeaturedCard[\s\S]*?tone="achievement"/);
   assert.match(trails, /<FeaturedCard[\s\S]*?heroTrack\?\.name/);

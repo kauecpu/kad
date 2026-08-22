@@ -18,6 +18,17 @@ test('a tela inicial mantém uma única ação principal antes dos atalhos', () 
   assert.ok(shortcuts > summary);
 });
 
+test('a ação principal une jornada real, marca forte e mascote decorativo', () => {
+  assert.match(home, /getHomePrimaryVisual\(primaryAction\)/);
+  assert.match(home, /intensity="strong"/);
+  assert.match(home, /tone=\{primaryVisual\.tone\}/);
+  assert.match(home, /artwork=\{[\s\S]*?<KadMascot/);
+  assert.match(home, /variant=\{primaryVisual\.mascot\}/);
+  assert.match(home, /active=\{false\}/);
+  assert.match(home, /color=\{colors\.onBrand\}/);
+  assert.equal(home.match(/<FeaturedCard/g)?.length, 1);
+});
+
 test('o resumo compacto mostra atividade de hoje e meta semanal reais', () => {
   assert.match(home, /\{dailyQuestionsAnswered\}/);
   assert.match(home, /\{studyMomentum\.weeklyQuestions\} de \{studyMomentum\.weeklyGoal\}/);

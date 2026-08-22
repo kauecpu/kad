@@ -1,12 +1,20 @@
 import Ionicons from '@/components/ui/app-icon';
 import { type Href, useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import {
   RecentStudyCard,
   StudyMomentumCard,
 } from '@/components/home-study-momentum';
+import { KadMascot } from '@/components/kad-mascot';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -27,7 +35,7 @@ import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { deadlineInfo, recommendConcursosForGoal, sortConcursos } from '@/lib/concursos';
 import { formatSalaryShort } from '@/lib/format';
-import { getHomePrimaryAction } from '@/lib/home-presentation';
+import { getHomePrimaryAction, getHomePrimaryVisual } from '@/lib/home-presentation';
 import { buildStudyMomentum } from '@/lib/study-momentum';
 import { useApp } from '@/providers/app-provider';
 import { useConcursos } from '@/providers/concursos-provider';
@@ -86,6 +94,7 @@ const EXPLORE_ACTIONS: ExploreAction[] = [
 
 export function HomeContent() {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
   const router = useRouter();
   const {
     profile,
@@ -132,6 +141,8 @@ export function HomeContent() {
         }
       : undefined,
   });
+  const primaryVisual = getHomePrimaryVisual(primaryAction);
+  const primaryArtworkSize = width < 420 ? 88 : width < 768 ? 108 : 128;
   const studyMomentum = useMemo(
     () =>
       buildStudyMomentum({
@@ -164,6 +175,15 @@ export function HomeContent() {
         <FeaturedCard
           onPress={() => router.push(primaryAction.route)}
           accessibilityLabel={`${primaryAction.title}. ${primaryAction.description}`}
+          intensity="strong"
+          tone={primaryVisual.tone}
+          artwork={
+            <KadMascot
+              variant={primaryVisual.mascot}
+              size={primaryArtworkSize}
+              active={false}
+            />
+          }
           icon={
             primaryAction.route === '/meta'
               ? 'navigate-outline'
@@ -181,7 +201,7 @@ export function HomeContent() {
           {primaryAction.progress !== undefined ? (
             <ProgressBar
               value={primaryAction.progress}
-              color={colors.primary}
+              color={colors.onBrand}
               height={5}
               label={`Progresso do simulado: ${Math.round(primaryAction.progress)}%`}
             />
