@@ -5,6 +5,7 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SimulationReviewCard } from '@/components/simulation-question-card';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -139,12 +140,12 @@ export default function SimulationResultScreen() {
               borderColor: colors.primary,
             },
           ]}>
-          <Text
-            adjustsFontSizeToFit
-            numberOfLines={1}
-            style={[styles.scoreValue, { color: colors.primary }]}>
-            {`${Math.round(score.accuracy)}%`}
-          </Text>
+          <AnimatedCounter
+            value={Math.round(score.accuracy)}
+            suffix="%"
+            accessibilityLabel={`${Math.round(score.accuracy)} por cento`}
+            style={[styles.scoreValue, { color: colors.primary }]}
+          />
         </View>
         <View style={styles.scoreText}>
           <Text style={[styles.scoreEyebrow, { color: colors.primary }]}>Aproveitamento</Text>
@@ -166,12 +167,14 @@ export default function SimulationResultScreen() {
           icon="checkmark-circle-outline"
           label="Acertos"
           value={String(score.correct)}
+          animatedValue={score.correct}
           tone="success"
         />
         <StatCard
           icon="close-circle-outline"
           label="Erros"
           value={String(score.wrong)}
+          animatedValue={score.wrong}
           tone="danger"
         />
       </View>
@@ -180,6 +183,7 @@ export default function SimulationResultScreen() {
           icon="remove-circle-outline"
           label="Em branco"
           value={String(score.blank)}
+          animatedValue={score.blank}
           tone="neutral"
         />
         <StatCard

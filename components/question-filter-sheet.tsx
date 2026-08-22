@@ -1,11 +1,13 @@
 import Ionicons from '@/components/ui/app-icon';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useModalTransition } from '@/hooks/use-modal-transition';
 import { countActiveFilters, EMPTY_FILTERS, toggleValue } from '@/lib/questions';
 import type { QuestionFilters } from '@/types';
 
@@ -35,16 +37,24 @@ export function QuestionFilterSheet({
 }: QuestionFilterSheetProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { mounted, interactive, backdropStyle, surfaceStyle } = useModalTransition(visible);
   const activeCount = countActiveFilters(filters);
 
   return (
     <Modal
-      visible={visible}
+      visible={mounted}
       transparent
-      animationType="slide"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}>
-      <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
+      <Animated.View
+        accessibilityElementsHidden={!interactive}
+        importantForAccessibility={interactive ? 'auto' : 'no-hide-descendants'}
+        style={[
+          styles.backdrop,
+          { backgroundColor: colors.overlay, pointerEvents: interactive ? 'auto' : 'none' },
+          backdropStyle,
+        ]}>
         <Pressable
           style={styles.backdropTouchable}
           onPress={onClose}
@@ -52,7 +62,7 @@ export function QuestionFilterSheet({
           accessibilityLabel="Fechar filtros"
         />
 
-        <View
+        <Animated.View
           accessibilityViewIsModal
           style={[
             styles.sheet,
@@ -61,6 +71,7 @@ export function QuestionFilterSheet({
               paddingBottom: insets.bottom + Spacing.lg,
               borderColor: colors.border,
             },
+            surfaceStyle,
           ]}>
           <View style={[styles.grabber, { backgroundColor: colors.borderStrong }]} />
 
@@ -159,8 +170,8 @@ export function QuestionFilterSheet({
             onPress={onClose}
             fullWidth
           />
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }

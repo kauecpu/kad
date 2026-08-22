@@ -47,12 +47,15 @@ export default function PerformanceScreen() {
                   icon="reader-outline"
                   label="Questões respondidas"
                   value={String(performance.total)}
+                  animatedValue={performance.total}
                   tone="primary"
                 />
                 <StatCard
                   icon="checkmark-done-outline"
                   label="Taxa de acerto"
                   value={performance.total > 0 ? formatPercent(performance.accuracy) : '--'}
+                  animatedValue={performance.total > 0 ? performance.accuracy : undefined}
+                  valueSuffix="%"
                   tone="success"
                 />
               </View>
@@ -61,12 +64,14 @@ export default function PerformanceScreen() {
                   icon="thumbs-up-outline"
                   label="Acertos"
                   value={String(performance.correct)}
+                  animatedValue={performance.correct}
                   tone="success"
                 />
                 <StatCard
                   icon="thumbs-down-outline"
                   label="Erros"
                   value={String(performance.wrong)}
+                  animatedValue={performance.wrong}
                   tone="danger"
                 />
               </View>

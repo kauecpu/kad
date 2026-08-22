@@ -1,12 +1,14 @@
 import Ionicons from '@/components/ui/app-icon';
 import { useEffect, useMemo, useReducer } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
 import { SearchField } from '@/components/ui/search-field';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useModalTransition } from '@/hooks/use-modal-transition';
 import { toggleValue } from '@/lib/questions';
 import { normalizeSearchText } from '@/lib/text';
 import {
@@ -36,6 +38,7 @@ export function MultiSelectSheet({
 }: MultiSelectSheetProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { mounted, interactive, backdropStyle, surfaceStyle } = useModalTransition(visible);
   const [search, dispatchSearch] = useReducer(
     selectionSheetSearchReducer,
     INITIAL_SELECTION_SHEET_SEARCH
@@ -58,19 +61,26 @@ export function MultiSelectSheet({
 
   return (
     <Modal
-      visible={visible}
+      visible={mounted}
       transparent
-      animationType="slide"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={handleClose}>
-      <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
+      <Animated.View
+        accessibilityElementsHidden={!interactive}
+        importantForAccessibility={interactive ? 'auto' : 'no-hide-descendants'}
+        style={[
+          styles.backdrop,
+          { backgroundColor: colors.overlay, pointerEvents: interactive ? 'auto' : 'none' },
+          backdropStyle,
+        ]}>
         <Pressable
           style={styles.backdropTouchable}
           onPress={handleClose}
           accessibilityLabel="Fechar"
         />
 
-        <View
+        <Animated.View
           style={[
             styles.sheet,
             {
@@ -78,6 +88,7 @@ export function MultiSelectSheet({
               borderColor: colors.border,
               paddingBottom: insets.bottom + Spacing.md,
             },
+            surfaceStyle,
           ]}>
           <View style={[styles.grabber, { backgroundColor: colors.borderStrong }]} />
 
@@ -172,8 +183,8 @@ export function MultiSelectSheet({
             onPress={handleClose}
             fullWidth
           />
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
