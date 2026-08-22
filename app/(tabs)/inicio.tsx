@@ -94,7 +94,7 @@ const EXPLORE_ACTIONS: ExploreAction[] = [
 
 export function HomeContent() {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const { fontScale, width } = useWindowDimensions();
   const router = useRouter();
   const {
     profile,
@@ -142,7 +142,8 @@ export function HomeContent() {
       : undefined,
   });
   const primaryVisual = getHomePrimaryVisual(primaryAction);
-  const primaryArtworkSize = width < 420 ? 88 : width < 768 ? 108 : 128;
+  const primaryArtworkSize =
+    fontScale >= 1.25 ? 72 : width < 420 ? 88 : width < 768 ? 108 : 128;
   const studyMomentum = useMemo(
     () =>
       buildStudyMomentum({
@@ -202,6 +203,7 @@ export function HomeContent() {
             <ProgressBar
               value={primaryAction.progress}
               color={colors.onBrand}
+              trackColor={colors.brandTrace}
               height={5}
               label={`Progresso do simulado: ${Math.round(primaryAction.progress)}%`}
             />

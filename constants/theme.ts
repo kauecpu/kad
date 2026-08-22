@@ -43,7 +43,7 @@ const light = {
   accentSoft: '#F3EEFF',
 
   tabActive: '#7657F6',
-  tabInactive: '#7B8794',
+  tabInactive: '#6B7787',
   tabActiveSurface: '#F3EEFF',
   overlay: 'rgba(13, 24, 38, 0.48)',
   shadow: '#0B1420',

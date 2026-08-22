@@ -5,6 +5,10 @@ import { URL as NodeURL } from 'node:url';
 
 const themeSource = readFileSync(new NodeURL('../constants/theme.ts', import.meta.url), 'utf8');
 const tabsLayout = readFileSync(new NodeURL('../app/(tabs)/_layout.tsx', import.meta.url), 'utf8');
+const featuredCard = readFileSync(
+  new NodeURL('../components/ui/featured-card.tsx', import.meta.url),
+  'utf8'
+);
 
 const semanticTokens = [
   'brandSurfaceStrong',
@@ -25,7 +29,7 @@ function themeBlock(name: 'light' | 'dark') {
   return match[1];
 }
 
-function tokenValue(block: string, token: (typeof semanticTokens)[number]) {
+function tokenValue(block: string, token: string) {
   const match = block.match(new RegExp(`${token}:\\s*'([^']+)'`));
   assert.ok(match, `token ${token} precisa existir`);
   return match[1];
@@ -77,6 +81,20 @@ test('os textos do destaque forte mantêm contraste AA em todo o gradiente', () 
   }
 });
 
+test('a label inativa da navegação mantém contraste AA no tema claro', () => {
+  const block = themeBlock('light');
+  assert.ok(contrastRatio(tokenValue(block, 'tabInactive'), tokenValue(block, 'surface')) >= 4.5);
+});
+
+test('o ícone de conquista mantém contraste em todo o próprio gradiente', () => {
+  const gradient = featuredCard.match(
+    /const ACHIEVEMENT_ICON_GRADIENT = \['(#[0-9A-F]{6})', '(#[0-9A-F]{6})'\] as const;/i
+  );
+  assert.ok(gradient, 'o gradiente de conquista precisa ser verificável');
+  assert.ok(contrastRatio('#FFFFFF', gradient[1]) >= 3);
+  assert.ok(contrastRatio('#FFFFFF', gradient[2]) >= 3);
+});
+
 test('a assinatura de progresso é puramente decorativa', () => {
   const componentUrl = new NodeURL(
     '../components/ui/kad-progress-signature.tsx',
@@ -104,4 +122,12 @@ test('a cápsula ativa reaproveita a única animação curta do ícone', () => {
 test('a navegação ativa chega ao estado final quando o movimento é reduzido', () => {
   assert.match(tabsLayout, /useReducedMotion\(\)/);
   assert.match(tabsLayout, /resolveMotionDuration\('icon', reduceMotion\)/);
+});
+
+test('texto ampliado recebe prioridade sobre a arte decorativa', () => {
+  assert.match(featuredCard, /const \{ fontScale, width \} = useWindowDimensions\(\)/);
+  assert.match(featuredCard, /fontScale < 1\.5/);
+  assert.match(featuredCard, /fontScale >= 1\.25 \? 72/);
+  assert.match(featuredCard, /maxWidth: '100%'/);
+  assert.match(featuredCard, /actionText:[\s\S]*?flexShrink: 1/);
 });

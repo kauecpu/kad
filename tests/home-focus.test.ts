@@ -26,6 +26,8 @@ test('a ação principal une jornada real, marca forte e mascote decorativo', ()
   assert.match(home, /variant=\{primaryVisual\.mascot\}/);
   assert.match(home, /active=\{false\}/);
   assert.match(home, /color=\{colors\.onBrand\}/);
+  assert.match(home, /trackColor=\{colors\.brandTrace\}/);
+  assert.match(home, /fontScale >= 1\.25 \? 72/);
   assert.equal(home.match(/<FeaturedCard/g)?.length, 1);
 });
 

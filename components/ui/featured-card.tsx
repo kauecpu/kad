@@ -18,6 +18,8 @@ import { useTheme } from '@/hooks/use-theme';
 
 type FeaturedCardTone = 'brand' | 'achievement';
 
+const ACHIEVEMENT_ICON_GRADIENT = ['#6B4300', '#9A6700'] as const;
+
 type FeaturedCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
   eyebrow: string;
@@ -60,7 +62,7 @@ export function FeaturedCard({
   style,
 }: FeaturedCardProps) {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const { fontScale, width } = useWindowDimensions();
   const achievement = tone === 'achievement';
   const strong = intensity === 'strong';
   const accent = achievement ? colors.warning : colors.primary;
@@ -70,12 +72,13 @@ export function FeaturedCard({
   const detailAccent = strong ? colors.onBrandMuted : accent;
   const iconGradient = strong
     ? achievement
-      ? (['#805100', '#D39A16'] as const)
+      ? ACHIEVEMENT_ICON_GRADIENT
       : (['rgba(255, 255, 255, 0.28)', 'rgba(255, 255, 255, 0.12)'] as const)
     : achievement
-      ? (['#805100', '#D39A16'] as const)
+      ? ACHIEVEMENT_ICON_GRADIENT
       : ([colors.primaryStrong, colors.primary] as const);
-  const artworkWidth = width < 420 ? 88 : width < 768 ? 108 : 128;
+  const artworkWidth = fontScale >= 1.25 ? 72 : width < 420 ? 88 : width < 768 ? 108 : 128;
+  const showArtwork = Boolean(artwork) && fontScale < 1.5;
 
   const cardContent = (
     <>
@@ -162,7 +165,7 @@ export function FeaturedCard({
       end={{ x: 1, y: 0 }}
       style={[styles.surface, styles.surfaceStrong, compact && styles.surfaceCompact]}>
       <KadProgressSignature />
-      {artwork ? (
+      {showArtwork ? (
         <View style={styles.strongLayout}>
           <View style={styles.strongContent}>{cardContent}</View>
           <View style={[styles.artwork, { width: artworkWidth }]}>{artwork}</View>
@@ -341,6 +344,7 @@ const styles = StyleSheet.create({
   },
   action: {
     minHeight: 40,
+    maxWidth: '100%',
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
@@ -352,12 +356,14 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   actionText: {
+    flexShrink: 1,
     fontSize: FontSize.small,
     fontWeight: FontWeight.bold,
   },
   actionArrow: {
     width: 30,
     height: 30,
+    flexShrink: 0,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
