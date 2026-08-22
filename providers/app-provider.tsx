@@ -27,6 +27,11 @@ import {
   recordQuestionStudyActivity,
 } from '@/lib/study-momentum';
 import {
+  getThemeHydrationMarker,
+  isThemePersistenceReady,
+  isThemeResetPersistencePending,
+} from '@/lib/theme-responsiveness';
+import {
   subscriptionAfterCancellation,
   subscriptionHasVerifiedAccess,
   subscriptionIsLoading,
@@ -180,10 +185,83 @@ function computePerformance(answers: Record<string, AnswerRecord>): Performance 
   };
 }
 
+function AppThemeStateProvider({
+  children,
+  hydrated,
+  hydrationKey,
+  initialPreference,
+  resetVersion,
+}: {
+  children: ReactNode;
+  hydrated: boolean;
+  hydrationKey: string | null;
+  initialPreference: ThemePreference;
+  resetVersion: number;
+}) {
+  const [themePreference, setThemePreferenceState] =
+    useState<ThemePreference>(initialPreference);
+  const [synchronizedHydrationKey, setSynchronizedHydrationKey] = useState<
+    string | null
+  >(getThemeHydrationMarker(hydrated, hydrationKey));
+  const acknowledgedResetVersionRef = useRef(resetVersion);
+  const systemScheme = useColorScheme();
+
+  useEffect(() => {
+    const nextHydrationMarker = getThemeHydrationMarker(hydrated, hydrationKey);
+    if (nextHydrationMarker === null) {
+      setSynchronizedHydrationKey(null);
+      return;
+    }
+    setThemePreferenceState(initialPreference);
+    setSynchronizedHydrationKey(nextHydrationMarker);
+  }, [hydrated, hydrationKey, initialPreference]);
+
+  useEffect(() => {
+    if (
+      !isThemePersistenceReady(
+        hydrated,
+        synchronizedHydrationKey,
+        hydrationKey
+      )
+    ) {
+      return;
+    }
+    if (
+      isThemeResetPersistencePending(
+        resetVersion,
+        acknowledgedResetVersionRef.current
+      )
+    ) {
+      acknowledgedResetVersionRef.current = resetVersion;
+      return;
+    }
+    AsyncStorage.setItem(THEME_STORAGE_KEY, themePreference).catch(() => {
+      // A preferência continua ativa em memória mesmo se a gravação local falhar.
+    });
+  }, [hydrated, hydrationKey, resetVersion, synchronizedHydrationKey, themePreference]);
+
+  const setThemePreference = useCallback((preference: ThemePreference) => {
+    setThemePreferenceState((current) => (current === preference ? current : preference));
+  }, []);
+  const scheme: 'light' | 'dark' =
+    themePreference === 'system'
+      ? systemScheme === 'dark'
+        ? 'dark'
+        : 'light'
+      : themePreference;
+  const themeValue = useMemo<ThemeContextValue>(
+    () => ({ themePreference, scheme, setThemePreference }),
+    [scheme, setThemePreference, themePreference]
+  );
+
+  return <ThemeContext.Provider value={themeValue}>{children}</ThemeContext.Provider>;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const { session, isLoading: authLoading } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
+  const [themeResetVersion, setThemeResetVersion] = useState(0);
   const [subscriptionRefreshing, setSubscriptionRefreshing] = useState(false);
   const [subscriptionCheckedUserId, setSubscriptionCheckedUserId] = useState<string | null>(null);
   const subscriptionRequestRef = useRef(0);
@@ -353,13 +431,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     storageKey,
     userId,
   ]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    AsyncStorage.setItem(THEME_STORAGE_KEY, state.themePreference).catch(() => {
-      // A preferência continua ativa em memória mesmo se a gravação local falhar.
-    });
-  }, [hydrated, state.themePreference]);
 
   useEffect(() => {
     if (!hydrated || !userId || !supabase) return;
@@ -575,14 +646,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [userId]
   );
 
-  const setThemePreference = useCallback((preference: ThemePreference) => {
-    setState((current) =>
-      current.themePreference === preference
-        ? current
-        : { ...current, themePreference: preference }
-    );
-  }, []);
-
   const subscribe = useCallback(
     (plan: Exclude<SubscriptionPlan, 'basic'>, billingCycle: BillingCycle) =>
       createSubscriptionCheckout(plan, billingCycle),
@@ -628,9 +691,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async () => {
     setState({ ...INITIAL_STATE });
+    setThemeResetVersion((current) => current + 1);
     try {
-      if (storageKey) await AsyncStorage.removeItem(storageKey);
-      if (!userId) await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+      const removals = [AsyncStorage.removeItem(THEME_STORAGE_KEY)];
+      if (storageKey) removals.push(AsyncStorage.removeItem(storageKey));
+      if (!userId) removals.push(AsyncStorage.removeItem(LEGACY_STORAGE_KEY));
+      await Promise.all(removals);
     } catch {
       // Nada a fazer: os dados locais já foram redefinidos em memória.
     }
@@ -644,14 +710,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const dailyUsage = currentDailyUsage(state.dailyQuestionUsage);
   const dailyQuestionsAnswered = dailyUsage.questionIds.length;
-
-  const systemScheme = useColorScheme();
-  const scheme: 'light' | 'dark' =
-    state.themePreference === 'system'
-      ? systemScheme === 'dark'
-        ? 'dark'
-        : 'light'
-      : state.themePreference;
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -712,18 +770,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  const themeValue = useMemo<ThemeContextValue>(
-    () => ({
-      themePreference: state.themePreference,
-      scheme,
-      setThemePreference,
-    }),
-    [scheme, setThemePreference, state.themePreference]
-  );
-
   return (
     <AppContext.Provider value={value}>
-      <ThemeContext.Provider value={themeValue}>{children}</ThemeContext.Provider>
+      <AppThemeStateProvider
+        hydrated={hydrated}
+        hydrationKey={
+          hydratedStorageKey === null
+            ? null
+            : `${hydratedStorageKey}:reset-${themeResetVersion}`
+        }
+        initialPreference={state.themePreference}
+        resetVersion={themeResetVersion}>
+        {children}
+      </AppThemeStateProvider>
     </AppContext.Provider>
   );
 }
