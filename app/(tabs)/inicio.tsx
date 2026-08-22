@@ -25,7 +25,7 @@ import {
 import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
 import { deadlineInfo, recommendConcursosForGoal, sortConcursos } from '@/lib/concursos';
-import { formatPercent, formatSalaryShort } from '@/lib/format';
+import { formatSalaryShort } from '@/lib/format';
 import { getHomePrimaryAction } from '@/lib/home-presentation';
 import { buildStudyMomentum } from '@/lib/study-momentum';
 import { useApp } from '@/providers/app-provider';
@@ -35,32 +35,34 @@ import { useSimulation } from '@/providers/simulation-provider';
 type HomeAction = {
   title: string;
   description: string;
-  marker: string;
+  icon: keyof typeof Ionicons.glyphMap;
   route: Href;
 };
+
+type ExploreAction = Omit<HomeAction, 'icon'> & { marker: string };
 
 const PRACTICE_ACTIONS: HomeAction[] = [
   {
     title: 'Questões',
     description: 'Praticar por assunto',
-    marker: '01',
+    icon: 'reader-outline',
     route: '/questoes',
   },
   {
     title: 'Simulados',
     description: 'Treinar ritmo de prova',
-    marker: '02',
+    icon: 'timer-outline',
     route: '/simulados',
   },
   {
     title: 'Trilhas',
     description: 'Seguir uma sequência',
-    marker: '03',
+    icon: 'map-outline',
     route: '/trilhas',
   },
 ];
 
-const EXPLORE_ACTIONS: HomeAction[] = [
+const EXPLORE_ACTIONS: ExploreAction[] = [
   {
     title: 'Redação',
     description: 'Escolha um tema e pratique sua escrita',
@@ -86,7 +88,6 @@ export function HomeContent() {
   const router = useRouter();
   const {
     profile,
-    performance,
     isPremium,
     answers,
     questionActivityByDate,
@@ -186,46 +187,70 @@ export function HomeContent() {
         </FeaturedCard>
 
         <View
-          style={[
-            styles.today,
-            { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-          ]}>
-          <View style={styles.todayMetric}>
-            <Text style={[styles.todayNumber, { color: colors.text }]}>
+          accessible
+          accessibilityLabel="Resumo da preparação"
+          style={styles.summaryGrid}>
+          <View
+            accessible
+            accessibilityLabel={`${dailyQuestionsAnswered} questões respondidas hoje`}
+            style={[
+              styles.summaryCard,
+              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+            ]}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={[styles.summaryIcon, { backgroundColor: colors.primarySoft }]}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={18}
+                color={colors.primary}
+                aria-hidden={true}
+              />
+            </View>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
               {dailyQuestionsAnswered}
             </Text>
-            <Text style={[styles.todayUnit, { color: colors.textMuted }]}>hoje</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Questões hoje</Text>
           </View>
-          <View style={[styles.todayDivider, { backgroundColor: colors.borderStrong }]} />
-          <View style={styles.todayCopy}>
-            <View style={styles.todayTitleRow}>
-              <Text style={[styles.todayTitle, { color: colors.text }]}>Questões respondidas</Text>
-              {isPremium ? (
-                <Text style={[styles.accuracy, { color: colors.primary }]}>
-                  {formatPercent(performance.accuracy)} de acerto
-                </Text>
-              ) : (
-                <Text style={[styles.todayRemaining, { color: colors.textMuted }]}>
-                  Sem limite diário
-                </Text>
-              )}
+
+          <View
+            accessible
+            accessibilityLabel={`${studyMomentum.weeklyQuestions} de ${studyMomentum.weeklyGoal} questões da meta semanal`}
+            style={[
+              styles.summaryCard,
+              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+            ]}>
+            <View style={styles.summaryHeading}>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>
+                {studyMomentum.weeklyQuestions} de {studyMomentum.weeklyGoal}
+              </Text>
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={[styles.summaryIcon, { backgroundColor: colors.primarySoft }]}>
+                <Ionicons
+                  name="flag-outline"
+                  size={18}
+                  color={colors.primary}
+                  aria-hidden={true}
+                />
+              </View>
             </View>
-            <Text style={[styles.premiumNote, { color: colors.textMuted }]}>
-              {isPremium
-                ? 'Acompanhe seus acertos e sua evolução no Diamante'
-                : 'Questões ilimitadas no Plano Básico'}
-            </Text>
+            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Meta semanal</Text>
+            <ProgressBar
+              value={studyMomentum.weeklyProgress}
+              color={colors.primary}
+              height={5}
+              label={`Meta semanal: ${studyMomentum.weeklyQuestions} de ${studyMomentum.weeklyGoal} questões`}
+            />
           </View>
         </View>
 
-        <Section title="Seu ritmo">
-          <StudyMomentumCard
-            momentum={studyMomentum}
-            onGoalChange={setWeeklyQuestionGoal}
-          />
-        </Section>
-
-        <Section title="Praticar">
+        <Section
+          title="Praticar agora"
+          actionLabel="Ver tudo"
+          onAction={() => router.push('/questoes')}>
           <Card padded={false} style={[styles.practicePanel, { borderColor: colors.border }]}>
             {PRACTICE_ACTIONS.map((item, index) => (
               <Pressable
@@ -241,8 +266,16 @@ export function HomeContent() {
                   },
                   pressed && styles.explorePressed,
                 ]}>
-                <View style={[styles.practiceIcon, { backgroundColor: colors.primarySoft }]}>
-                  <Text style={[styles.practiceMarker, { color: colors.primary }]}>{item.marker}</Text>
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  style={[styles.practiceIcon, { backgroundColor: colors.primarySoft }]}>
+                  <Ionicons
+                    name={item.icon}
+                    size={20}
+                    color={colors.primary}
+                    aria-hidden={true}
+                  />
                 </View>
                 <Text style={[styles.practiceTitle, { color: colors.text }]}>{item.title}</Text>
                 <Text style={[styles.practiceDescription, { color: colors.textMuted }]}>
@@ -258,6 +291,13 @@ export function HomeContent() {
             activities={studyMomentum.recentActivities}
             onOpen={(route) => router.push(route)}
             onStart={() => router.push('/questoes')}
+          />
+        </Section>
+
+        <Section title="Seu ritmo">
+          <StudyMomentumCard
+            momentum={studyMomentum}
+            onGoalChange={setWeeklyQuestionGoal}
           />
         </Section>
 
@@ -366,31 +406,36 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxxl,
     gap: Spacing.xl,
   },
-  today: {
-    minHeight: 92,
+  summaryGrid: { flexDirection: 'row', gap: Spacing.sm },
+  summaryCard: {
+    minWidth: 0,
+    minHeight: 108,
+    flex: 1,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.lg,
+    padding: Spacing.md,
+    gap: Spacing.xs,
+  },
+  summaryHeading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.lg,
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
   },
-  todayMetric: { minWidth: 58, alignItems: 'center' },
-  todayNumber: {
+  summaryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryValue: {
     fontFamily: Fonts.mono,
-    fontSize: 28,
-    lineHeight: 31,
+    fontSize: FontSize.heading,
+    lineHeight: 22,
     fontWeight: FontWeight.bold,
-    letterSpacing: -1,
   },
-  todayUnit: { fontSize: FontSize.tiny, fontWeight: FontWeight.medium },
-  todayDivider: { width: 1, alignSelf: 'stretch' },
-  todayCopy: { flex: 1, gap: Spacing.sm },
-  todayTitleRow: { gap: 2 },
-  todayTitle: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  todayRemaining: { fontSize: FontSize.small },
-  accuracy: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
-  premiumNote: { fontSize: FontSize.small },
+  summaryLabel: { fontSize: FontSize.tiny, fontWeight: FontWeight.medium },
   practicePanel: {
     flexDirection: 'row',
     overflow: 'hidden',
@@ -409,12 +454,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  practiceMarker: {
-    fontFamily: Fonts.mono,
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.5,
   },
   practiceTitle: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
   practiceDescription: { fontSize: FontSize.tiny, lineHeight: 16 },
