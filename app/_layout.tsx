@@ -46,6 +46,7 @@ function RootNavigator() {
   const routeAccess = authRouteAccess({
     hasSession: Boolean(session),
     isGuest,
+    isLoading,
   });
 
   return (
@@ -75,6 +76,7 @@ function RootNavigator() {
           <Stack.Screen name="questoes/simulado/resultado" options={{ headerShown: false }} />
           <Stack.Screen name="concurso/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="concursos/salvos" options={{ headerShown: false }} />
+          <Stack.Screen name="perfil/index" options={{ headerShown: false }} />
           <Stack.Screen name="perfil/editar" options={{ headerShown: false }} />
           <Stack.Screen name="perfil/senha" options={{ headerShown: false }} />
           <Stack.Screen name="perfil/excluir-conta" options={{ headerShown: false }} />

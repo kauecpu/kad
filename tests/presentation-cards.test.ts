@@ -8,7 +8,7 @@ function source(path: string) {
 }
 
 const simulations = source('../app/(tabs)/simulados.tsx');
-const profile = source('../app/(tabs)/perfil.tsx');
+const profile = source('../app/perfil/index.tsx');
 const questions = source('../app/(tabs)/questoes.tsx');
 const home = source('../app/(tabs)/inicio.tsx');
 const concursos = source('../app/(tabs)/concursos.tsx');

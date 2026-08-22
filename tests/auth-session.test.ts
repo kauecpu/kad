@@ -13,7 +13,7 @@ const loginScreen = source('../app/auth/login.tsx');
 const signupScreen = source('../app/auth/cadastro.tsx');
 const confirmationScreen = source('../app/auth/confirmar-email.tsx');
 const onboardingScreen = source('../app/onboarding.tsx');
-const profileScreen = source('../app/(tabs)/perfil.tsx');
+const profileScreen = source('../app/perfil/index.tsx');
 const onboardingStorage = source('../lib/onboarding.ts');
 const authProvider = source('../providers/auth-provider.tsx');
 

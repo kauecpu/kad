@@ -110,17 +110,16 @@ test('classificação ordena por pontos e mantém a posição do usuário atual'
   assert.ok(ranking.every((entry, index) => entry.rank === index + 1));
 });
 
-test('o Rank ocupa o centro da barra inferior e abre a tela de ranking', () => {
+test('Ranking sai da barra inferior e a rota antiga redireciona', () => {
   const visibleTabs = Array.from(
-    tabsLayout.matchAll(/name="(inicio|questoes|rank|simulados|perfil)"/g),
+    tabsLayout.matchAll(/name="(inicio|questoes|concursos|simulados|explorar)"/g),
     (match) => match[1]
   );
 
-  assert.deepEqual(visibleTabs, ['inicio', 'questoes', 'rank', 'simulados', 'perfil']);
-  assert.match(tabsLayout, /const RankTabIcon = tabIcon\('trophy-outline', 'trophy'\)/);
-  assert.match(tabsLayout, /name="rank"[\s\S]*?title: 'Rank'[\s\S]*?tabBarIcon: RankTabIcon/);
-  assert.match(tabsLayout, /name="concursos" options=\{\{ href: null \}\}/);
-  assert.match(rankTab, /export \{ default \} from '\.\.\/ranking';/);
+  assert.deepEqual(visibleTabs, ['inicio', 'questoes', 'concursos', 'simulados', 'explorar']);
+  assert.doesNotMatch(tabsLayout, /const RankTabIcon/);
+  assert.match(tabsLayout, /name="rank"[\s\S]*?href:\s*null/);
+  assert.match(rankTab, /<Redirect href=\{APP_ROUTE_ALIASES\.rank\}/);
 });
 
 test('a barra inferior distingue a tab ativa por superfície, ícone e texto', () => {
