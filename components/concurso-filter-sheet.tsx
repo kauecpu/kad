@@ -1,12 +1,14 @@
 import Ionicons from '@/components/ui/app-icon';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
 import { SearchField } from '@/components/ui/search-field';
 import { FontSize, FontWeight, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useModalTransition } from '@/hooks/use-modal-transition';
 import type { ConcursoFilterKey, ConcursoFilters } from '@/lib/concursos';
 import { normalizeSearchText } from '@/lib/text';
 
@@ -35,6 +37,7 @@ export function ConcursoFilterSheet({
 }: ConcursoFilterSheetProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { mounted, interactive, backdropStyle, surfaceStyle } = useModalTransition(visible);
   const [query, setQuery] = useState('');
   const activeCount = Object.values(filters).reduce((total, selected) => total + selected.length, 0);
 
@@ -65,14 +68,21 @@ export function ConcursoFilterSheet({
 
   return (
     <Modal
-      visible={visible}
+      visible={mounted}
       transparent
-      animationType="slide"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}>
-      <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
+      <Animated.View
+        accessibilityElementsHidden={!interactive}
+        importantForAccessibility={interactive ? 'auto' : 'no-hide-descendants'}
+        style={[
+          styles.backdrop,
+          { backgroundColor: colors.overlay, pointerEvents: interactive ? 'auto' : 'none' },
+          backdropStyle,
+        ]}>
         <Pressable style={styles.backdropTouchable} onPress={onClose} accessibilityLabel="Fechar" />
-        <View
+        <Animated.View
           style={[
             styles.sheet,
             {
@@ -80,6 +90,7 @@ export function ConcursoFilterSheet({
               borderColor: colors.border,
               paddingBottom: insets.bottom + Spacing.md,
             },
+            surfaceStyle,
           ]}>
           <View style={[styles.grabber, { backgroundColor: colors.borderStrong }]} />
           <View style={styles.header}>
@@ -164,8 +175,8 @@ export function ConcursoFilterSheet({
             onPress={onClose}
             fullWidth
           />
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }

@@ -1,14 +1,15 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import 'react-native-reanimated';
+import { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppProvider, useApp, useAppTheme } from '@/providers/app-provider';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 import { Colors } from '@/constants/theme';
+import { resolveMotionDuration, resolveStackAnimation } from '@/constants/motion';
 import { authRouteAccess } from '@/lib/auth-routing';
 import { SearchProvider } from '@/providers/search-provider';
 import { SimulationProvider } from '@/providers/simulation-provider';
@@ -20,6 +21,7 @@ export const unstable_settings = {
 };
 
 function RootNavigator() {
+  const reduceMotion = useReducedMotion();
   const { hydrated } = useApp();
   const { scheme } = useAppTheme();
   const colors = Colors[scheme];
@@ -44,7 +46,15 @@ function RootNavigator() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          // iOS usa push de 250 ms; Android usa o push curto nativo de 200 ms.
+          // O Native Stack não anima rotas no web, então a troca é imediata.
+          animation: resolveStackAnimation(Platform.OS, reduceMotion),
+          animationDuration: resolveMotionDuration('navigation', reduceMotion),
+          freezeOnBlur: Platform.OS !== 'web',
+        }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
 
         <Stack.Protected guard={routeAccess.app}>

@@ -2,6 +2,10 @@
 export const MOTION_DURATION = {
   pressIn: 110,
   pressOut: 140,
+  navigation: 250,
+  modal: 240,
+  progress: 240,
+  counter: 260,
 } as const;
 
 export const MOTION_SCALE = {
@@ -24,6 +28,42 @@ export type PressFeedbackState = {
   opacity: number;
   scale: number;
 };
+
+export type MotionTransition = 'navigation' | 'modal' | 'progress' | 'counter';
+export type StackMotionAnimation = 'none' | 'simple_push' | 'ios_from_right';
+
+export function resolveMotionDuration(
+  transition: MotionTransition,
+  reduceMotion: boolean
+) {
+  return reduceMotion ? 0 : MOTION_DURATION[transition];
+}
+
+export function resolveStackAnimation(
+  platform: string,
+  reduceMotion: boolean
+): StackMotionAnimation {
+  if (reduceMotion || platform === 'web') return 'none';
+  if (platform === 'android') return 'ios_from_right';
+  return 'simple_push';
+}
+
+export function resolveProgressFill(progress: number) {
+  const value = Math.max(0, Math.min(100, progress));
+  return {
+    value,
+    // Mantém avanços pequenos perceptíveis sem alterar o valor real anunciado.
+    fill: value > 0 ? Math.max(value, 5) : 0,
+  };
+}
+
+export function shouldUnmountModal(
+  closingGeneration: number,
+  currentGeneration: number,
+  visible: boolean
+) {
+  return closingGeneration === currentGeneration && visible === false;
+}
 
 export function resolvePressFeedback(
   pressed: boolean,

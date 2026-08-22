@@ -5,6 +5,7 @@ import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 import { toneColors, type Tone } from './tone';
+import { AnimatedCounter } from './animated-counter';
 
 type StatCardProps = {
   label: string;
@@ -12,9 +13,19 @@ type StatCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
   tone?: Tone;
   hint?: string;
+  animatedValue?: number;
+  valueSuffix?: string;
 };
 
-export function StatCard({ label, value, icon, tone = 'primary', hint }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  icon,
+  tone = 'primary',
+  hint,
+  animatedValue,
+  valueSuffix = '',
+}: StatCardProps) {
   const { colors } = useTheme();
   const { background, foreground } = toneColors(colors, tone);
 
@@ -30,9 +41,18 @@ export function StatCard({ label, value, icon, tone = 'primary', hint }: StatCar
           {label}
         </Text>
       </View>
-      <Text style={[styles.value, { color: foreground }]} numberOfLines={1}>
-        {value}
-      </Text>
+      {animatedValue === undefined ? (
+        <Text style={[styles.value, { color: foreground }]} numberOfLines={1}>
+          {value}
+        </Text>
+      ) : (
+        <AnimatedCounter
+          value={animatedValue}
+          suffix={valueSuffix}
+          accessibilityLabel={`${label}: ${value}`}
+          style={[styles.value, { color: foreground }]}
+        />
+      )}
       {hint ? <Text style={[styles.hint, { color: colors.textSubtle }]}>{hint}</Text> : null}
     </View>
   );
