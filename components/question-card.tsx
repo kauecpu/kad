@@ -1,15 +1,25 @@
 import Ionicons from '@/components/ui/app-icon';
-import { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from 'react-native-reanimated';
 
 import { QuestionComments } from '@/components/question-comments';
 import { QuestionCommunityStat } from '@/components/question-community-stat';
 import { QuestionFavoriteButton } from '@/components/question-favorite-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ExpandableChevron } from '@/components/ui/expandable-chevron';
+import { StudyOption } from '@/components/ui/study-option';
 import { toneColors, type Tone } from '@/components/ui/tone';
+import { MOTION_DURATION } from '@/constants/motion';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { triggerHapticFeedback } from '@/lib/haptics';
+import {
+  createStudyActionGate,
+  performStudyAction,
+  resolveStudyOptionState,
+} from '@/lib/study-interactions';
 import type { AlternativeId, AnswerRecord, Difficulty, Question } from '@/types';
 
 type QuestionCardProps = {
@@ -40,19 +50,31 @@ function QuestionCardComponent({
   const { colors } = useTheme();
   const [pendingSelection, setPendingSelection] = useState<AlternativeId | null>(null);
   const [showExplanation, setShowExplanation] = useState(true);
+  const answerGate = useRef(createStudyActionGate());
 
   const answered = Boolean(answer);
   const chosen = answer?.selected ?? pendingSelection;
   const isCorrect = answer?.isCorrect ?? false;
 
+  useEffect(() => {
+    if (!answered) answerGate.current.reset();
+  }, [answered, question.id]);
+
   const handleAnswer = () => {
     if (answered) return;
     if (!pendingSelection) return;
-    setShowExplanation(true);
-    onAnswer(question, pendingSelection);
+    performStudyAction({
+      gate: answerGate.current,
+      commit: () => {
+        setShowExplanation(true);
+        onAnswer(question, pendingSelection);
+      },
+      feedback: () => triggerHapticFeedback('confirm-answer'),
+    });
   };
 
   const handleReset = () => {
+    answerGate.current.reset();
     setPendingSelection(null);
     setShowExplanation(true);
     onReset(question.id);
@@ -93,58 +115,22 @@ function QuestionCardComponent({
         {question.alternatives.map((alternative) => {
           const isChosen = chosen === alternative.id;
           const isRightAnswer = alternative.id === question.correct;
-
-          let borderColor = colors.border;
-          let background = colors.surface;
-          let letterBackground = colors.surfaceAlt;
-          let letterColor = colors.textMuted;
-          let textColor = colors.text;
-
-          if (answered) {
-            if (isRightAnswer) {
-              borderColor = colors.success;
-              background = colors.successSoft;
-              letterBackground = colors.success;
-              letterColor = colors.surface;
-            } else if (isChosen) {
-              borderColor = colors.danger;
-              background = colors.dangerSoft;
-              letterBackground = colors.danger;
-              letterColor = colors.surface;
-            } else {
-              textColor = colors.textMuted;
-            }
-          } else if (isChosen) {
-            borderColor = colors.primary;
-            background = colors.primarySoft;
-            letterBackground = colors.primary;
-            letterColor = colors.onPrimary;
-          }
+          const state = resolveStudyOptionState({
+            selected: isChosen,
+            answered,
+            correct: isRightAnswer,
+          });
 
           return (
-            <Pressable
+            <StudyOption
               key={alternative.id}
+              value={alternative.id}
+              text={alternative.text}
+              state={state}
+              selected={isChosen}
               onPress={() => setPendingSelection(alternative.id)}
               disabled={answered}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: isChosen, disabled: answered }}
-              accessibilityLabel={`Alternativa ${alternative.id}: ${alternative.text}`}
-              style={({ pressed }) => [
-                styles.alternative,
-                { borderColor, backgroundColor: background },
-                pressed && !answered && { opacity: 0.75 },
-              ]}>
-              <View style={[styles.letter, { backgroundColor: letterBackground }]}>
-                <Text style={[styles.letterText, { color: letterColor }]}>{alternative.id}</Text>
-              </View>
-              <Text style={[styles.alternativeText, { color: textColor }]}>{alternative.text}</Text>
-              {answered && isRightAnswer ? (
-                <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-              ) : null}
-              {answered && isChosen && !isRightAnswer ? (
-                <Ionicons name="close-circle" size={18} color={colors.danger} />
-              ) : null}
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -153,13 +139,18 @@ function QuestionCardComponent({
         <Button
           label={pendingSelection ? `Responder alternativa ${pendingSelection}` : 'Selecione uma alternativa'}
           icon="paper-plane-outline"
+          iconMotion="forward"
           onPress={handleAnswer}
           disabled={!pendingSelection}
           fullWidth
         />
       ) : (
         <View style={styles.answeredArea}>
-          <View style={[styles.resultBanner, { backgroundColor: resultTone.background }]}>
+          <Animated.View
+            entering={FadeIn.duration(MOTION_DURATION.reaction).reduceMotion(ReduceMotion.System)}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={[styles.resultBanner, { backgroundColor: resultTone.background }]}>
             <Ionicons
               name={isCorrect ? 'checkmark-circle' : 'alert-circle'}
               size={18}
@@ -170,11 +161,14 @@ function QuestionCardComponent({
                 ? 'Resposta correta. Gabarito comentado abaixo.'
                 : `Resposta incorreta. O gabarito é a alternativa ${question.correct}.`}
             </Text>
-          </View>
+          </Animated.View>
 
           <QuestionCommunityStat question={question} />
 
-          <View
+          <Animated.View
+            layout={LinearTransition.duration(MOTION_DURATION.expand).reduceMotion(
+              ReduceMotion.System
+            )}
             style={[
               styles.explanationCard,
               { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
@@ -183,30 +177,31 @@ function QuestionCardComponent({
               onPress={() => setShowExplanation((current) => !current)}
               accessibilityRole="button"
               accessibilityState={{ expanded: showExplanation }}
+              aria-expanded={showExplanation}
               accessibilityLabel="Gabarito comentado"
               style={styles.explanationHeader}>
               <Ionicons name="bulb-outline" size={18} color={colors.accent} />
               <Text style={[styles.explanationTitle, { color: colors.text }]}>Gabarito comentado</Text>
-              <Ionicons
-                name={showExplanation ? 'chevron-up' : 'chevron-down'}
-                size={17}
-                color={colors.textSubtle}
-              />
+              <ExpandableChevron expanded={showExplanation} color={colors.textSubtle} />
             </Pressable>
 
             {showExplanation ? (
-              <View style={[styles.explanationBody, { borderTopColor: colors.border }]}>
+              <Animated.View
+                entering={FadeIn.duration(MOTION_DURATION.expand).reduceMotion(ReduceMotion.System)}
+                exiting={FadeOut.duration(MOTION_DURATION.expand).reduceMotion(ReduceMotion.System)}
+                style={[styles.explanationBody, { borderTopColor: colors.border }]}>
                 <Text style={[styles.explanationText, { color: colors.textMuted }]}>
                   {question.explanation}
                 </Text>
-              </View>
+              </Animated.View>
             ) : null}
-          </View>
+          </Animated.View>
 
           <Button
             label="Tentar novamente"
             variant="secondary"
             icon="refresh"
+            iconMotion="up"
             onPress={handleReset}
           />
           <QuestionComments questionId={question.id} />
@@ -264,30 +259,6 @@ const styles = StyleSheet.create({
   },
   alternatives: {
     gap: Spacing.sm,
-  },
-  alternative: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderRadius: Radius.md,
-  },
-  letter: {
-    width: 26,
-    height: 26,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  letterText: {
-    fontSize: FontSize.small,
-    fontWeight: FontWeight.bold,
-  },
-  alternativeText: {
-    flex: 1,
-    fontSize: FontSize.body,
-    lineHeight: 21,
   },
   answeredArea: {
     gap: Spacing.sm,

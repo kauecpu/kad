@@ -1,11 +1,22 @@
 import Ionicons from '@/components/ui/app-icon';
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  ReduceMotion,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
+import { MOTION_EASING, resolveMotionDuration } from '@/constants/motion';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'md' | 'lg';
+type ButtonIconMotion = 'forward' | 'backward' | 'up';
 
 type ButtonProps = {
   label: string;
@@ -13,6 +24,7 @@ type ButtonProps = {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: keyof typeof Ionicons.glyphMap;
+  iconMotion?: ButtonIconMotion;
   disabled?: boolean;
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -24,11 +36,14 @@ export function Button({
   variant = 'primary',
   size = 'md',
   icon,
+  iconMotion,
   disabled = false,
   fullWidth = false,
   style,
 }: ButtonProps) {
   const { colors } = useTheme();
+  const reduceMotion = useReducedMotion();
+  const iconProgress = useSharedValue(0);
 
   const palette: Record<ButtonVariant, { background: string; foreground: string; border: string }> = {
     primary: { background: colors.primary, foreground: colors.onPrimary, border: colors.primary },
@@ -42,10 +57,31 @@ export function Button({
   };
 
   const { background, foreground, border } = palette[variant];
+  const iconDistance = iconMotion === 'backward' ? -3 : iconMotion === 'up' ? -2 : 3;
+
+  const animateIcon = (pressed: boolean) => {
+    if (!iconMotion || disabled) return;
+    cancelAnimation(iconProgress);
+    iconProgress.value = withTiming(pressed ? 1 : 0, {
+      duration: resolveMotionDuration('icon', reduceMotion),
+      easing: Easing.bezier(...MOTION_EASING.standard),
+      reduceMotion: ReduceMotion.System,
+    });
+  };
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: !iconMotion
+      ? []
+      : iconMotion === 'up'
+        ? [{ translateY: reduceMotion ? 0 : iconProgress.value * iconDistance }]
+        : [{ translateX: reduceMotion ? 0 : iconProgress.value * iconDistance }],
+  }));
 
   return (
     <Pressable
       onPress={onPress}
+      onPressIn={() => animateIcon(true)}
+      onPressOut={() => animateIcon(false)}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -60,11 +96,18 @@ export function Button({
         fullWidth && styles.fullWidth,
         (pressed || disabled) && {
           opacity: disabled ? 0.45 : 0.9,
-          transform: [{ scale: disabled ? 1 : 0.985 }],
+          transform: iconMotion ? undefined : [{ scale: disabled ? 1 : 0.985 }],
         },
         style,
       ]}>
-      {icon ? <Ionicons name={icon} size={size === 'lg' ? 20 : 17} color={foreground} /> : null}
+      {icon ? (
+        <Animated.View
+          style={iconStyle}
+          accessibilityElementsHidden
+          importantForAccessibility="no">
+          <Ionicons name={icon} size={size === 'lg' ? 20 : 17} color={foreground} />
+        </Animated.View>
+      ) : null}
       <Text
         style={[
           styles.label,

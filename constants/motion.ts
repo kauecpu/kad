@@ -1,4 +1,6 @@
 /** Tokens compartilhados para movimentos curtos e previsíveis no KAD. */
+export const MINIMUM_TOUCH_TARGET = 44;
+
 export const MOTION_DURATION = {
   pressIn: 110,
   pressOut: 140,
@@ -6,6 +8,10 @@ export const MOTION_DURATION = {
   modal: 240,
   progress: 240,
   counter: 260,
+  selection: 180,
+  reaction: 180,
+  expand: 220,
+  icon: 140,
 } as const;
 
 export const MOTION_SCALE = {
@@ -29,7 +35,15 @@ export type PressFeedbackState = {
   scale: number;
 };
 
-export type MotionTransition = 'navigation' | 'modal' | 'progress' | 'counter';
+export type MotionTransition =
+  | 'navigation'
+  | 'modal'
+  | 'progress'
+  | 'counter'
+  | 'selection'
+  | 'reaction'
+  | 'expand'
+  | 'icon';
 export type StackMotionAnimation = 'none' | 'simple_push' | 'ios_from_right';
 
 export function resolveMotionDuration(

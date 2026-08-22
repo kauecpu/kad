@@ -1,12 +1,14 @@
 import Ionicons from '@/components/ui/app-icon';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { QuestionCommunityStat } from '@/components/question-community-stat';
 import { QuestionFavoriteButton } from '@/components/question-favorite-button';
 import { Badge } from '@/components/ui/badge';
+import { StudyOption } from '@/components/ui/study-option';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { canonicalAlternativeOrder } from '@/lib/simulations';
+import { resolveStudyOptionState, studyOptionInstanceKey } from '@/lib/study-interactions';
 import type { AlternativeId, Question } from '@/types';
 
 type SimulationQuestionCardProps = {
@@ -48,37 +50,19 @@ export function SimulationQuestionCard({
           const displayLetter = displayLetters[index] ?? alternativeId;
 
           return (
-            <Pressable
-              key={alternativeId}
+            <StudyOption
+              key={studyOptionInstanceKey(question.id, alternativeId)}
+              value={alternativeId}
+              displayLetter={displayLetter}
+              text={alternative.text}
+              state={resolveStudyOptionState({
+                selected: isSelected,
+                answered: false,
+                correct: false,
+              })}
+              selected={isSelected}
               onPress={() => onSelect(alternativeId)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: isSelected }}
-              accessibilityLabel={`Alternativa ${displayLetter}: ${alternative.text}`}
-              style={({ pressed }) => [
-                styles.alternative,
-                {
-                  backgroundColor: isSelected ? colors.primarySoft : colors.surface,
-                  borderColor: isSelected ? colors.primary : colors.border,
-                },
-                pressed && { opacity: 0.75 },
-              ]}>
-              <View
-                style={[
-                  styles.letter,
-                  { backgroundColor: isSelected ? colors.primary : colors.surfaceAlt },
-                ]}>
-                <Text
-                  style={[
-                    styles.letterText,
-                    { color: isSelected ? colors.onPrimary : colors.textMuted },
-                  ]}>
-                  {displayLetter}
-                </Text>
-              </View>
-              <Text style={[styles.alternativeText, { color: colors.text }]}>
-                {alternative.text}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -218,30 +202,6 @@ const styles = StyleSheet.create({
   },
   alternatives: {
     gap: Spacing.sm,
-  },
-  alternative: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderRadius: Radius.md,
-  },
-  letter: {
-    width: 28,
-    height: 28,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  letterText: {
-    fontSize: FontSize.small,
-    fontWeight: FontWeight.bold,
-  },
-  alternativeText: {
-    flex: 1,
-    fontSize: FontSize.body,
-    lineHeight: 21,
   },
   reviewCard: {
     gap: Spacing.md,
