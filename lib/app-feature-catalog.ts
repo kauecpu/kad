@@ -38,6 +38,18 @@ export type AppFeature = {
   presentation: 'card' | 'row';
 };
 
+export const APP_PRIMARY_TABS = [
+  { name: 'inicio', title: 'Início' },
+  { name: 'questoes', title: 'Questões' },
+  { name: 'concursos', title: 'Concursos' },
+  { name: 'simulados', title: 'Simulados' },
+  { name: 'explorar', title: 'Explorar' },
+] as const;
+
+export const APP_ROUTE_ALIASES = {
+  rank: '/ranking',
+} as const;
+
 export const APP_FEATURE_GROUPS = [
   { id: 'practice', title: 'Praticar' },
   { id: 'progress', title: 'Acompanhar' },

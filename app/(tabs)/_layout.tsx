@@ -8,6 +8,7 @@ import { HapticTab } from '@/components/haptic-tab';
 import { resolveMotionDuration } from '@/constants/motion';
 import { FontSize, FontWeight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { APP_PRIMARY_TABS } from '@/lib/app-feature-catalog';
 import { shouldFreezeInactiveTabs } from '@/lib/theme-responsiveness';
 
 export const unstable_settings = {
@@ -60,9 +61,11 @@ function tabIcon(
 
 const HomeTabIcon = tabIcon('home-variant-outline', 'home-variant');
 const QuestionsTabIcon = tabIcon('book-outline', 'book');
-const RankTabIcon = tabIcon('trophy-outline', 'trophy');
+const ContestsTabIcon = tabIcon('briefcase-outline', 'briefcase');
 const SimulationsTabIcon = tabIcon('clock-outline', 'clock');
-const ProfileTabIcon = tabIcon('account-outline', 'account');
+const ExploreTabIcon = tabIcon('view-grid-outline', 'view-grid');
+
+const [homeTab, questionsTab, contestsTab, simulationsTab, exploreTab] = APP_PRIMARY_TABS;
 
 function TabLabel({ children, focused }: { children: string; focused: boolean }) {
   const { colors } = useTheme();
@@ -104,28 +107,28 @@ export default function MainLayout() {
       }}>
       <Tabs.Screen
         name="inicio"
-        options={{ title: 'Início', tabBarIcon: HomeTabIcon }}
+        options={{ title: homeTab.title, tabBarIcon: HomeTabIcon }}
       />
       <Tabs.Screen
         name="questoes"
         options={{
-          title: 'Questões',
+          title: questionsTab.title,
           tabBarIcon: QuestionsTabIcon,
         }}
       />
       <Tabs.Screen
-        name="rank"
-        options={{ title: 'Rank', tabBarIcon: RankTabIcon }}
+        name="concursos"
+        options={{ title: contestsTab.title, tabBarIcon: ContestsTabIcon }}
       />
-      <Tabs.Screen name="concursos" options={{ href: null }} />
       <Tabs.Screen
         name="simulados"
-        options={{ title: 'Simulados', tabBarIcon: SimulationsTabIcon }}
+        options={{ title: simulationsTab.title, tabBarIcon: SimulationsTabIcon }}
       />
       <Tabs.Screen
-        name="perfil"
-        options={{ title: 'Perfil', tabBarIcon: ProfileTabIcon }}
+        name="explorar"
+        options={{ title: exploreTab.title, tabBarIcon: ExploreTabIcon }}
       />
+      <Tabs.Screen name="rank" options={{ href: null }} />
     </Tabs>
   );
 }

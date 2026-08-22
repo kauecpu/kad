@@ -11,7 +11,7 @@ import {
 
 const source = (path: string) => readFileSync(new NodeURL(path, import.meta.url), 'utf8');
 const feedbackScreen = source('../app/perfil/feedback.tsx');
-const profileScreen = source('../app/(tabs)/perfil.tsx');
+const profileScreen = source('../app/perfil/index.tsx');
 const feedbackApi = source('../lib/feedback.ts');
 const adminApp = source('../admin/src/app.tsx');
 const adminLayout = source('../admin/src/layout/admin-layout.tsx');

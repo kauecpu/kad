@@ -231,7 +231,12 @@ export default function PerfilScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ScreenHeader title="Meu KAD" subtitle="Dossiê do candidato" />
+      <ScreenHeader
+        title="Meu KAD"
+        subtitle="Dossiê do candidato"
+        onBack={() => router.back()}
+        backLabel="Voltar"
+      />
 
       <ScrollView
         contentContainerStyle={[
