@@ -1,0 +1,263 @@
+import { createClient } from '@supabase/supabase-js';
+
+const url = import.meta.env.VITE_SUPABASE_URL?.trim();
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+
+function trustedProjectUrl(value) {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export const supabaseConfigured = Boolean(url && anonKey && trustedProjectUrl(url));
+
+export const supabase = supabaseConfigured
+  ? createClient(url, anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
+  : null;
+
+export async function signIn(email, password) {
+  if (!supabase) return { ok: false, offline: true };
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  return error
+    ? { ok: false, message: 'Não foi possível entrar. Confira seus dados e tente novamente.' }
+    : { ok: true, user: data.user };
+}
+
+export async function signUp({ name, email, password }) {
+  if (!supabase) return { ok: false, offline: true };
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: name } },
+  });
+  return error
+    ? { ok: false, message: 'Não foi possível criar a conta agora.' }
+    : { ok: true, user: data.user, requiresConfirmation: !data.session };
+}
+
+export async function verifyEmailOtp(email, token) {
+  if (!supabase) return { ok: false, offline: true };
+  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+  return error
+    ? { ok: false, message: 'Código inválido ou expirado. Solicite um novo envio.' }
+    : { ok: true, user: data.user };
+}
+
+export async function getCurrentUser() {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  return error ? null : data.user;
+}
+
+export async function loadRemoteStudyData(userId) {
+  if (!supabase) return { answers: {}, favorites: [], savedConcursos: [] };
+  const [attempts, favorites, concursos] = await Promise.all([
+    supabase
+      .from('question_attempts')
+      .select('question_id, subject, selected, is_correct, answered_at')
+      .eq('user_id', userId),
+    supabase.from('question_favorites').select('question_id').eq('user_id', userId),
+    supabase.from('saved_concursos').select('concurso_id').eq('user_id', userId),
+  ]);
+  const error = attempts.error ?? favorites.error ?? concursos.error;
+  if (error) throw error;
+  return {
+    answers: Object.fromEntries((attempts.data ?? []).map((item) => [item.question_id, {
+      questionId: item.question_id,
+      subject: item.subject,
+      selected: item.selected,
+      isCorrect: item.is_correct,
+      answeredAt: item.answered_at,
+    }])),
+    favorites: (favorites.data ?? []).map((item) => item.question_id),
+    savedConcursos: (concursos.data ?? []).map((item) => item.concurso_id),
+  };
+}
+
+export async function saveRemoteAnswer(questionId, selected) {
+  if (!supabase) return;
+  const { error } = await supabase.rpc('record_question_attempt', {
+    p_question_id: questionId,
+    p_selected: selected,
+  });
+  if (error) throw error;
+}
+
+export async function removeRemoteAnswer(userId, questionId) {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('question_attempts')
+    .delete()
+    .eq('user_id', userId)
+    .eq('question_id', questionId);
+  if (error) throw error;
+}
+
+export async function setRemoteFavorite(userId, questionId, favorite) {
+  if (!supabase) return;
+  const result = favorite
+    ? await supabase.from('question_favorites').upsert({ user_id: userId, question_id: questionId })
+    : await supabase.from('question_favorites').delete().eq('user_id', userId).eq('question_id', questionId);
+  if (result.error) throw result.error;
+}
+
+export async function setRemoteSavedConcurso(userId, concursoId, saved) {
+  if (!supabase) return;
+  const result = saved
+    ? await supabase.from('saved_concursos').upsert({ user_id: userId, concurso_id: concursoId })
+    : await supabase.from('saved_concursos').delete().eq('user_id', userId).eq('concurso_id', concursoId);
+  if (result.error) throw result.error;
+}
+
+export async function loadRemoteSubscription(userId) {
+  if (!supabase || !userId) return null;
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('plan, billing_cycle, provider, status, current_period_end, cancel_at_period_end')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return { plan: 'basic', status: 'inactive', autoRenew: false };
+  return {
+    plan: ['diamond', 'circle'].includes(data.plan) ? data.plan : 'basic',
+    billingCycle: data.billing_cycle ?? undefined,
+    provider: data.provider ?? undefined,
+    status: data.status ?? 'inactive',
+    renewsAt: data.current_period_end ?? undefined,
+    autoRenew: !data.cancel_at_period_end,
+  };
+}
+
+function trustedCheckoutUrl(value) {
+  if (typeof value !== 'string') return false;
+  try {
+    const checkout = new URL(value);
+    const host = checkout.hostname.toLocaleLowerCase('en-US');
+    return checkout.protocol === 'https:' && (
+      host === 'mercadopago.com'
+      || host.endsWith('.mercadopago.com')
+      || host === 'mercadopago.com.br'
+      || host.endsWith('.mercadopago.com.br')
+    );
+  } catch {
+    return false;
+  }
+}
+
+export async function createSubscriptionCheckout(billingCycle) {
+  if (!supabase) return { ok: false, offline: true };
+  const { data, error } = await supabase.functions.invoke('create-payment-checkout', {
+    body: { plan: 'diamond', billingCycle },
+  });
+  if (error || !trustedCheckoutUrl(data?.checkoutUrl)) {
+    return { ok: false, message: 'Não foi possível abrir o pagamento agora.' };
+  }
+  return { ok: true, checkoutUrl: data.checkoutUrl };
+}
+
+export async function cancelRemoteSubscription() {
+  if (!supabase) return { ok: false, offline: true };
+  const { error } = await supabase.functions.invoke('cancel-subscription', { body: {} });
+  return error
+    ? { ok: false, message: 'Não foi possível cancelar a renovação agora.' }
+    : { ok: true };
+}
+
+export async function requestPasswordRecovery(email) {
+  if (!supabase) return { ok: false, offline: true };
+  const redirectTo = new URL('/nova-senha', globalThis.location.origin).toString();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  return error
+    ? { ok: false, message: 'Não foi possível enviar as instruções agora.' }
+    : { ok: true };
+}
+
+export async function updatePassword(password) {
+  if (!supabase) return { ok: false, offline: true };
+  const { error } = await supabase.auth.updateUser({ password });
+  return error
+    ? { ok: false, message: 'Não foi possível atualizar a senha agora.' }
+    : { ok: true };
+}
+
+export async function signOut() {
+  if (supabase) await supabase.auth.signOut();
+}
+
+export async function loadPublishedContent() {
+  if (!supabase) return { questions: [], concursos: [] };
+  const [questionsResult, concursosResult] = await Promise.all([
+    supabase
+      .from('questions')
+      .select(`
+        id, discipline, subject, topic, board, year, role, institution, concurso,
+        level, difficulty, statement, alternatives, correct, explanation
+      `)
+      .eq('publication_status', 'published')
+      .order('updated_at', { ascending: false }),
+    supabase
+      .from('concursos')
+      .select(`
+        id, short_name, icon, icon_color, organ, title, board, state, city, region, levels,
+        vacancies, salary_min, salary_max, registration_start, registration_end,
+        exam_date, fee, status, highlights, edital_url, updated_at, source_provider,
+        concurso_roles (name, vacancies, salary, level, sort_order)
+      `)
+      .eq('publication_status', 'published')
+      .order('updated_at', { ascending: false }),
+  ]);
+  if (questionsResult.error || concursosResult.error) throw new Error('published-content-unavailable');
+  return {
+    questions: questionsResult.data ?? [],
+    concursos: (concursosResult.data ?? []).map((item) => ({
+      id: item.id,
+      shortName: item.short_name,
+      icon: item.icon,
+      iconColor: item.icon_color,
+      organ: item.organ,
+      title: item.title,
+      board: item.board,
+      state: item.state,
+      city: item.city,
+      region: item.region,
+      levels: item.levels ?? [],
+      vacancies: item.vacancies,
+      salaryMin: item.salary_min,
+      salaryMax: item.salary_max,
+      registrationStart: item.registration_start,
+      registrationEnd: item.registration_end,
+      examDate: item.exam_date,
+      fee: item.fee,
+      status: item.status,
+      roles: (item.concurso_roles ?? [])
+        .sort((left, right) => left.sort_order - right.sort_order)
+        .map(({ name, vacancies, salary, level }) => ({ name, vacancies, salary, level })),
+      highlights: item.highlights ?? [],
+      editalUrl: item.edital_url,
+      updatedAt: item.updated_at,
+      contentSource: 'published',
+    })),
+  };
+}
+
+export async function sendFeedback(payload) {
+  if (!supabase) return { ok: false, offline: true };
+  const { error } = await supabase.rpc('submit_user_feedback', {
+    p_category: payload.kind,
+    p_message: payload.message,
+    p_source_screen: 'profile/feedback',
+    p_platform: 'web',
+    p_app_version: 'site-0.1.0',
+  });
+  return error
+    ? { ok: false, message: 'Não foi possível enviar o comentário agora.' }
+    : { ok: true };
+}

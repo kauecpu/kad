@@ -1,0 +1,21 @@
+{
+  "name": "kad-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "postbuild": "node scripts/postbuild-seo.mjs",
+    "preview": "vite preview",
+    "test": "node --no-warnings --test tests/*.test.js",
+    "check": "npm run test && npm run build"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "lucide": "^1.33.0"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}
