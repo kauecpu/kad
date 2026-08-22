@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { FeaturedCard } from '@/components/ui/featured-card';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import { PressFeedback } from '@/components/ui/press-feedback';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Section } from '@/components/ui/section';
 import {
@@ -175,6 +176,7 @@ export function HomeContent() {
           eyebrow={primaryAction.eyebrow}
           title={primaryAction.title}
           description={primaryAction.description}
+          motionFeedback
           actionLabel="Abrir próximo passo">
           {primaryAction.progress !== undefined ? (
             <ProgressBar
@@ -253,18 +255,17 @@ export function HomeContent() {
           onAction={() => router.push('/questoes')}>
           <Card padded={false} style={[styles.practicePanel, { borderColor: colors.border }]}>
             {PRACTICE_ACTIONS.map((item, index) => (
-              <Pressable
+              <PressFeedback
                 key={item.title}
                 onPress={() => router.push(item.route)}
                 accessibilityRole="button"
                 accessibilityLabel={`${item.title}. ${item.description}`}
-                style={({ pressed }) => [
+                style={[
                   styles.practiceAction,
                   index > 0 && {
                     borderLeftColor: colors.border,
                     borderLeftWidth: StyleSheet.hairlineWidth,
                   },
-                  pressed && styles.explorePressed,
                 ]}>
                 <View
                   accessibilityElementsHidden
@@ -281,7 +282,7 @@ export function HomeContent() {
                 <Text style={[styles.practiceDescription, { color: colors.textMuted }]}>
                   {item.description}
                 </Text>
-              </Pressable>
+              </PressFeedback>
             ))}
           </Card>
         </Section>

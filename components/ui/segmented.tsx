@@ -1,6 +1,5 @@
-import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -15,7 +14,6 @@ type SegmentedProps<T extends string> = {
   value: T;
   onChange: (value: T) => void;
   animated?: boolean;
-  haptic?: boolean;
 };
 
 /** Controle segmentado. O item selecionado é destacado com o roxo da marca. */
@@ -24,7 +22,6 @@ export function Segmented<T extends string>({
   value,
   onChange,
   animated = false,
-  haptic = false,
 }: SegmentedProps<T>) {
   const { colors } = useTheme();
   const [containerWidth, setContainerWidth] = useState(0);
@@ -60,14 +57,6 @@ export function Segmented<T extends string>({
     if (nextValue === value) return;
 
     onChange(nextValue);
-
-    if (haptic) {
-      const feedback =
-        Platform.OS === 'android'
-          ? Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Segment_Tick)
-          : Haptics.selectionAsync();
-      void feedback.catch(() => undefined);
-    }
   }
 
   return (
