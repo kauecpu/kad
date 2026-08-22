@@ -18,7 +18,10 @@ export function Section({ title, actionLabel, onAction, children }: SectionProps
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
+        <Text
+          style={[styles.title, { color: colors.text }]}
+          accessibilityRole="header"
+          aria-level={2}>
           {title}
         </Text>
         {actionLabel && onAction ? (
