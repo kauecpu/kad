@@ -4,12 +4,14 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
 import Ionicons from '@/components/ui/app-icon';
+import { KadProgressSignature } from '@/components/ui/kad-progress-signature';
 import { PressFeedback } from '@/components/ui/press-feedback';
 import { cardShadow, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -28,6 +30,8 @@ type FeaturedCardProps = {
   accessibilityLabel?: string;
   disabled?: boolean;
   tone?: FeaturedCardTone;
+  intensity?: 'standard' | 'strong';
+  artwork?: ReactNode;
   compact?: boolean;
   motionFeedback?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -49,56 +53,60 @@ export function FeaturedCard({
   accessibilityLabel,
   disabled = false,
   tone = 'brand',
+  intensity = 'standard',
+  artwork,
   compact = false,
   motionFeedback = false,
   style,
 }: FeaturedCardProps) {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
   const achievement = tone === 'achievement';
+  const strong = intensity === 'strong';
   const accent = achievement ? colors.warning : colors.primary;
   const soft = achievement ? colors.warningSoft : colors.primarySoft;
-  const iconGradient = achievement
-    ? (['#805100', '#D39A16'] as const)
-    : ([colors.primaryStrong, colors.primary] as const);
+  const foreground = strong ? colors.onBrand : colors.text;
+  const mutedForeground = strong ? colors.onBrandMuted : colors.textMuted;
+  const detailAccent = strong ? colors.onBrandMuted : accent;
+  const iconGradient = strong
+    ? achievement
+      ? (['#805100', '#D39A16'] as const)
+      : (['rgba(255, 255, 255, 0.28)', 'rgba(255, 255, 255, 0.12)'] as const)
+    : achievement
+      ? (['#805100', '#D39A16'] as const)
+      : ([colors.primaryStrong, colors.primary] as const);
+  const artworkWidth = width < 420 ? 88 : width < 768 ? 108 : 128;
 
-  const surface = (
-    <LinearGradient
-      colors={[soft, colors.surface, colors.surface]}
-      locations={[0, 0.58, 1]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.surface, compact && styles.surfaceCompact]}>
-      <View pointerEvents="none" style={[styles.facet, { backgroundColor: accent }]} />
-      <View pointerEvents="none" style={[styles.facetThin, { backgroundColor: accent }]} />
-
+  const cardContent = (
+    <>
       <View style={styles.header}>
         <LinearGradient
           colors={iconGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.icon, cardShadow(accent, 1)]}>
+          style={[styles.icon, cardShadow(strong ? colors.brandSurfaceDeep : accent, 1)]}>
           <View pointerEvents="none" style={styles.iconGleam} />
-          <Ionicons name={icon} size={compact ? 20 : 23} color="#FFFFFF" />
+          <Ionicons name={icon} size={compact ? 20 : 23} color={colors.onBrand} />
         </LinearGradient>
 
         <View style={styles.heading}>
           <View style={styles.eyebrowRow}>
-            <View style={[styles.eyebrowLine, { backgroundColor: accent }]} />
-            <Text style={[styles.eyebrow, { color: accent }]}>{eyebrow}</Text>
+            <View style={[styles.eyebrowLine, { backgroundColor: detailAccent }]} />
+            <Text style={[styles.eyebrow, { color: detailAccent }]}>{eyebrow}</Text>
           </View>
           <View style={styles.titleRow}>
             <Text
               style={[
                 styles.title,
                 compact && styles.titleCompact,
-                { color: colors.text },
+                { color: foreground },
               ]}>
               {title}
             </Text>
             {accessory}
           </View>
           {description ? (
-            <Text style={[styles.description, { color: colors.textMuted }]}>{description}</Text>
+            <Text style={[styles.description, { color: mutedForeground }]}>{description}</Text>
           ) : null}
         </View>
       </View>
@@ -109,21 +117,68 @@ export function FeaturedCard({
         <View
           style={[
             styles.action,
-            { backgroundColor: colors.surface, borderColor: colors.border },
+            {
+              backgroundColor: strong ? colors.onBrand : colors.surface,
+              borderColor: strong ? colors.brandTrace : colors.border,
+            },
           ]}>
-          <Text style={[styles.actionText, { color: accent }]}>{actionLabel}</Text>
-          <View style={[styles.actionArrow, { backgroundColor: accent }]}>
-            <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+          <Text
+            style={[
+              styles.actionText,
+              { color: strong ? colors.brandSurfaceDeep : accent },
+            ]}>
+            {actionLabel}
+          </Text>
+          <View
+            style={[
+              styles.actionArrow,
+              { backgroundColor: strong ? colors.brandSurfaceStrong : accent },
+            ]}>
+            <Ionicons name="arrow-forward" size={15} color={colors.onBrand} />
           </View>
         </View>
       ) : null}
+    </>
+  );
+
+  const standardSurface = (
+    <LinearGradient
+      colors={[soft, colors.surface, colors.surface]}
+      locations={[0, 0.58, 1]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.surface, compact && styles.surfaceCompact]}>
+      <View pointerEvents="none" style={[styles.facet, { backgroundColor: accent }]} />
+      <View pointerEvents="none" style={[styles.facetThin, { backgroundColor: accent }]} />
+      {cardContent}
     </LinearGradient>
   );
 
+  const strongSurface = (
+    <LinearGradient
+      colors={[colors.brandSurfaceDeep, colors.brandSurfaceStrong]}
+      locations={[0, 1]}
+      start={{ x: 0, y: 1 }}
+      end={{ x: 1, y: 0 }}
+      style={[styles.surface, styles.surfaceStrong, compact && styles.surfaceCompact]}>
+      <KadProgressSignature />
+      {artwork ? (
+        <View style={styles.strongLayout}>
+          <View style={styles.strongContent}>{cardContent}</View>
+          <View style={[styles.artwork, { width: artworkWidth }]}>{artwork}</View>
+        </View>
+      ) : (
+        cardContent
+      )}
+    </LinearGradient>
+  );
+
+  const surface = strong ? strongSurface : standardSurface;
+
   const frameStyle: StyleProp<ViewStyle> = [
     styles.frame,
-    { borderColor: colors.borderStrong },
-    cardShadow(colors.shadow, 2),
+    { borderColor: strong ? colors.brandTrace : colors.borderStrong },
+    cardShadow(strong ? colors.brandSurfaceDeep : colors.shadow, 2),
     disabled && styles.disabled,
     style,
   ];
@@ -176,6 +231,25 @@ const styles = StyleSheet.create({
     minHeight: 0,
     padding: Spacing.lg,
     gap: Spacing.md,
+  },
+  surfaceStrong: {
+    minHeight: 188,
+  },
+  strongLayout: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: Spacing.sm,
+  },
+  strongContent: {
+    flex: 1,
+    minWidth: 0,
+    gap: Spacing.lg,
+  },
+  artwork: {
+    flexShrink: 0,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   facet: {
     position: 'absolute',

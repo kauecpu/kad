@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import { URL as NodeURL } from 'node:url';
 
@@ -74,4 +74,20 @@ test('os textos do destaque forte mantêm contraste AA em todo o gradiente', () 
       }
     }
   }
+});
+
+test('a assinatura de progresso é puramente decorativa', () => {
+  const componentUrl = new NodeURL(
+    '../components/ui/kad-progress-signature.tsx',
+    import.meta.url
+  );
+  assert.ok(existsSync(componentUrl), 'o componente de assinatura precisa existir');
+
+  const progressSignature = readFileSync(componentUrl, 'utf8');
+  assert.match(progressSignature, /export function KadProgressSignature/);
+  assert.match(progressSignature, /pointerEvents="none"/);
+  assert.match(progressSignature, /accessibilityElementsHidden/);
+  assert.match(progressSignature, /importantForAccessibility="no-hide-descendants"/);
+  assert.equal(progressSignature.match(/styles\.rail,/g)?.length, 2);
+  assert.match(progressSignature, /colors\.brandTrace/);
 });

@@ -26,6 +26,16 @@ test('o card de destaque define uma assinatura visual compartilhada e adaptativa
   assert.match(featuredCard, /tone === 'achievement'/);
 });
 
+test('a intensidade forte é opcional e preserva o card padrão', () => {
+  assert.match(featuredCard, /intensity\?: 'standard' \| 'strong'/);
+  assert.match(featuredCard, /artwork\?: ReactNode/);
+  assert.match(featuredCard, /intensity = 'standard'/);
+  assert.match(featuredCard, /<KadProgressSignature/);
+  assert.match(featuredCard, /colors\.brandSurfaceDeep/);
+  assert.match(featuredCard, /colors\.brandSurfaceStrong/);
+  assert.match(featuredCard, /\[soft, colors\.surface, colors\.surface\]/);
+});
+
 test('o card de montar simulado mantém estados e CTA dentro da nova superfície', () => {
   assert.match(simulations, /<FeaturedCard/);
   assert.match(simulations, /PROVA PERSONALIZADA/);
