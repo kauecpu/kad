@@ -16,6 +16,7 @@ const onboardingScreen = source('../app/onboarding.tsx');
 const profileScreen = source('../app/perfil/index.tsx');
 const onboardingStorage = source('../lib/onboarding.ts');
 const authProvider = source('../providers/auth-provider.tsx');
+const supabaseClient = source('../lib/supabase.ts');
 
 test('a tela de nova senha permanece montada quando a recuperacao cria a sessao', () => {
   assert.match(rootLayout, /<Stack\.Screen name="auth\/nova-senha"/);
@@ -51,6 +52,12 @@ test('a marca da tela inicial mantém contraste no tema escuro', () => {
 test('sair da conta revoga apenas a sessão deste aparelho', () => {
   assert.match(authProvider, /auth\.signOut\(\{ scope: 'local' \}\)/);
   assert.doesNotMatch(authProvider, /auth\.signOut\(\);/);
+});
+
+test('callback móvel usa o flow id correlacionado e não reprocessa links', () => {
+  assert.match(authProvider, /exchangeCodeForSession\(code, \{ flowId \}\)/);
+  assert.match(authProvider, /authCallbackReplayGuard\.current\.claim\(url\)/);
+  assert.match(supabaseClient, /appendPkceFlowIdToRedirects: true/);
 });
 
 test('sair da conta usa uma confirmação compatível com a web', () => {

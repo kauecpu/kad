@@ -11,6 +11,7 @@ import { emptyState, icon } from './ui/components.ts';
 import { updateMetadata } from './services/metadata.ts';
 import {
   cancelRemoteSubscription,
+  completePasswordRecoveryCallback,
   createSubscriptionCheckout,
   getCurrentUser,
   loadPublishedContent,
@@ -26,7 +27,8 @@ import {
   setRemoteFavorite,
   setRemoteSavedConcurso,
   supabaseConfigured,
-  updatePassword,
+  updateAccountPassword,
+  updateRecoveredPassword,
   verifyEmailOtp,
 } from './services/supabase.ts';
 import { authView, legalView, onboardingView, recoveryView, welcomeView } from './views/public.ts';
@@ -88,6 +90,7 @@ const ui: UiState = {
   simulationTimer: null,
   essayTimer: null,
   checkoutId: '',
+  recoveryStatus: currentRoute().pathname === '/nova-senha' ? 'checking' : 'idle',
   checkoutTimer: null,
   authStoryIndex: 0,
   authStoryTimer: null,
@@ -129,7 +132,7 @@ function resolveView(route: Route, state: SiteState): ViewModel {
   if (pathname === '/cadastro') return authView('cadastro');
   if (pathname === '/recuperar-senha') return recoveryView('request');
   if (pathname === '/confirmar-email') return recoveryView('confirmation', params);
-  if (pathname === '/nova-senha') return recoveryView('new-password', params);
+  if (pathname === '/nova-senha') return recoveryView('new-password', { ...params, recoveryStatus: ui.recoveryStatus });
   if (pathname === '/onboarding') return onboardingView(state);
   if (pathname === '/termos') return legalView('termos');
   if (pathname === '/privacidade') return legalView('privacidade');
@@ -371,6 +374,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
     updateFormMessage(form, 'Entrando...');
     const result = await signIn(values.email, values.password);
     if (result.ok) {
+      store.switchOwner(result.user.id);
       store.update((draft) => {
         draft.auth = { mode: 'authenticated', userId: result.user.id };
         draft.preferences.hasStarted = true;
@@ -391,13 +395,17 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
     updateFormMessage(form, 'Criando sua conta...');
     const result = await signUp({ name: values.name, email: values.email, password: values.password });
     if (result.ok) {
-      store.update((draft) => {
-        draft.profile.name = values.name;
-        draft.profile.email = values.email;
-        draft.profile.username = `@${values.email.split('@')[0].replace(/[^a-z0-9_]/gi, '').toLocaleLowerCase('pt-BR')}`;
-        draft.auth = { mode: 'authenticated', userId: result.user?.id ?? null };
-        draft.preferences.hasStarted = true;
-      });
+      const user = result.user;
+      if (result.authenticated && user) {
+        store.switchOwner(user.id);
+        store.update((draft) => {
+          draft.profile.name = values.name;
+          draft.profile.email = values.email;
+          draft.profile.username = `@${values.email.split('@')[0].replace(/[^a-z0-9_]/gi, '').toLocaleLowerCase('pt-BR')}`;
+          draft.auth = { mode: 'authenticated', userId: user.id };
+          draft.preferences.hasStarted = true;
+        });
+      }
       navigate(result.requiresConfirmation ? `/confirmar-email?email=${encodeURIComponent(values.email)}` : '/onboarding', { replace: true });
     } else if (result.offline) updateFormMessage(form, 'A criação de conta não está disponível neste ambiente. Você ainda pode continuar como visitante.', 'error');
     else updateFormMessage(form, result.message, 'error');
@@ -413,6 +421,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
   if (formName === 'confirmation') {
     const result = await verifyEmailOtp(values.email, values.code);
     if (result.ok) {
+      store.switchOwner(result.user.id);
       store.update((draft) => {
         draft.auth = { mode: 'authenticated', userId: result.user?.id ?? null };
         draft.preferences.hasStarted = true;
@@ -428,7 +437,9 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       updateFormMessage(form, 'As senhas precisam ser iguais.', 'error');
       return;
     }
-    const result = await updatePassword(values.password);
+    const result = formName === 'new-password'
+      ? await updateRecoveredPassword(values.password)
+      : await updateAccountPassword(values.currentPassword, values.password);
     if (result.ok) {
       updateFormMessage(form, 'Senha atualizada com sucesso.', 'success');
       setTimeout(() => navigate('/perfil'), 700);
@@ -599,6 +610,7 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'continue-visitor' || action === 'skip-onboarding') {
+    store.switchOwner(null);
     store.update((draft) => {
       draft.auth = { mode: 'visitor', userId: null };
       draft.preferences.hasStarted = true;
@@ -711,6 +723,7 @@ document.addEventListener('click', async (event) => {
   if (action === 'trail-mode') return navigate(`/trilhas?mode=${target.dataset.mode}`);
   if (action === 'sign-out') {
     await signOut();
+    store.switchOwner(null);
     store.update((draft) => {
       draft.auth = { mode: 'visitor', userId: null };
       draft.preferences.hasStarted = false;
@@ -836,22 +849,43 @@ store.subscribe(() => render());
 applyTheme();
 render({ routeChanged: true });
 
+const recoveryBootstrap = currentRoute().pathname === '/nova-senha'
+  ? completePasswordRecoveryCallback(globalThis.location.href)
+    .then((result) => {
+      ui.recoveryStatus = result.ok ? 'ready' : 'invalid';
+      if (result.ok && result.user?.id) {
+        store.switchOwner(result.user.id);
+        store.update((draft) => {
+          draft.auth = { mode: 'authenticated', userId: result.user.id };
+          draft.profile.email = result.user.email ?? draft.profile.email;
+        });
+      }
+      navigate('/nova-senha', { replace: true });
+    })
+    .catch(() => {
+      ui.recoveryStatus = 'invalid';
+      navigate('/nova-senha', { replace: true });
+    })
+  : Promise.resolve();
+
 if (supabaseConfigured) {
-  getCurrentUser().then(async (user) => {
+  recoveryBootstrap.then(() => getCurrentUser()).then(async (user) => {
     if (!user) return;
+    store.switchOwner(user.id);
     const [remote, subscription] = await Promise.all([
       loadRemoteStudyData(user.id).catch(() => null),
       loadRemoteSubscription(user.id).catch(() => null),
     ]);
+    if (store.getOwnerId() !== user.id) return;
     store.update((draft) => {
       draft.auth = { mode: 'authenticated', userId: user.id };
       draft.preferences.hasStarted = true;
       draft.profile.email = user.email ?? draft.profile.email;
       draft.profile.name = user.user_metadata?.full_name ?? draft.profile.name;
       if (remote) {
-        draft.answers = { ...draft.answers, ...remote.answers };
-        draft.favorites = [...new Set([...draft.favorites, ...remote.favorites])];
-        draft.savedConcursos = [...new Set([...draft.savedConcursos, ...remote.savedConcursos])];
+        draft.answers = remote.answers;
+        draft.favorites = remote.favorites;
+        draft.savedConcursos = remote.savedConcursos;
       }
       if (subscription) draft.subscription = subscription;
     });

@@ -162,6 +162,15 @@ export function recoveryView(kind: RecoveryViewKind = 'request', params: Record<
       ? 'Use o código enviado para concluir seu cadastro.'
       : 'Enviaremos as instruções para o endereço cadastrado.';
   const formName = isNewPassword ? 'new-password' : isConfirmation ? 'confirmation' : 'recovery';
+  if (isNewPassword && params.recoveryStatus !== 'ready') {
+    const checking = params.recoveryStatus === 'checking';
+    return {
+      title,
+      description,
+      layout: 'public-simple',
+      content: `<section class="auth-page">${card(`<div class="auth-card__heading"><p class="eyebrow">SEGURANÇA</p><h1>${checking ? 'Validando link' : 'Link inválido'}</h1><p>${checking ? 'Aguarde enquanto confirmamos esta recuperação neste navegador.' : 'Solicite um novo e-mail de recuperação para definir sua senha.'}</p></div>${checking ? '' : button('Solicitar novo link', { route: '/recuperar-senha', size: 'lg', className: 'full-width' })}`, 'auth-card')}</section>`,
+    };
+  }
   return {
     title,
     description,

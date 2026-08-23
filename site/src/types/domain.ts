@@ -136,6 +136,7 @@ export type UiState = {
   simulationTimer: ReturnType<typeof setInterval> | null;
   essayTimer: ReturnType<typeof setInterval> | null;
   checkoutId: string;
+  recoveryStatus: 'idle' | 'checking' | 'ready' | 'invalid';
   checkoutTimer: ReturnType<typeof setTimeout> | null;
   authStoryIndex: number;
   authStoryTimer: ReturnType<typeof setInterval> | null;
@@ -147,6 +148,8 @@ export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 export type Store = {
   getState(): SiteState;
+  getOwnerId(): string | null;
+  switchOwner(userId: string | null): SiteState;
   replace(next: unknown): SiteState;
   update(recipe: (draft: SiteState) => SiteState | void, options?: { silent?: boolean }): SiteState;
   subscribe(listener: (state: SiteState) => void): () => boolean;

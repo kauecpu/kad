@@ -1,7 +1,8 @@
 import { localDay } from './utils.ts';
 import type { AlternativeId, Question, SiteState, StorageLike, Store } from '../types/domain.ts';
 
-export const STORAGE_KEY = 'kad-site/state/v1';
+export const LEGACY_STORAGE_KEY = 'kad-site/state/v1';
+export const STORAGE_KEY_PREFIX = 'kad-site/state/v2';
 
 export const DEFAULT_STATE: Readonly<SiteState> = Object.freeze({
   version: 1,
@@ -55,21 +56,59 @@ function mergeState(candidate: unknown): SiteState {
   };
 }
 
-function readStoredState(storage?: StorageLike): SiteState {
+export function storageKeyForOwner(userId: string | null | undefined): string {
+  const owner = typeof userId === 'string' && userId.trim() ? `user:${userId.trim()}` : 'guest';
+  return `${STORAGE_KEY_PREFIX}/${encodeURIComponent(owner)}`;
+}
+
+function parseStoredState(value: string | null | undefined): SiteState | null {
   try {
-    return mergeState(JSON.parse(storage?.getItem(STORAGE_KEY) ?? 'null'));
+    if (!value) return null;
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object' || parsed.version !== 1) return null;
+    return mergeState(parsed);
   } catch {
-    return cloneDefault();
+    return null;
   }
 }
 
-export function createStore(storage: StorageLike | undefined = globalThis.localStorage): Store {
-  let state = readStoredState(storage);
+function readOwnerState(storage: StorageLike | undefined, userId: string | null): SiteState {
+  const state = parseStoredState(storage?.getItem(storageKeyForOwner(userId))) ?? cloneDefault();
+  state.auth = typeof userId === 'string' && userId.trim()
+    ? { mode: 'authenticated', userId: userId.trim() }
+    : { mode: 'visitor', userId: null };
+  return state;
+}
+
+function migrateLegacyState(storage?: StorageLike): void {
+  try {
+    if (!storage) return;
+    const legacyValue = storage.getItem(LEGACY_STORAGE_KEY);
+    const legacyState = parseStoredState(legacyValue);
+    if (!legacyState || !legacyValue) return;
+    const destination = storageKeyForOwner(legacyState.auth.userId);
+    if (!storage.getItem(destination)) storage.setItem(destination, JSON.stringify(legacyState));
+    const migrated = parseStoredState(storage.getItem(destination));
+    if (migrated && JSON.stringify(migrated) === JSON.stringify(legacyState)) {
+      storage.removeItem(LEGACY_STORAGE_KEY);
+    }
+  } catch {
+    // O valor antigo permanece intacto quando a migração é interrompida.
+  }
+}
+
+export function createStore(
+  storage: StorageLike | undefined = globalThis.localStorage,
+  initialUserId: string | null = null,
+): Store {
+  migrateLegacyState(storage);
+  let ownerId = initialUserId;
+  let state = readOwnerState(storage, ownerId);
   const listeners = new Set<(state: SiteState) => void>();
 
   const persist = () => {
     try {
-      storage?.setItem(STORAGE_KEY, JSON.stringify(state));
+      storage?.setItem(storageKeyForOwner(ownerId), JSON.stringify(state));
     } catch {
       // A aplicação continua utilizável quando o navegador bloqueia armazenamento.
     }
@@ -79,6 +118,13 @@ export function createStore(storage: StorageLike | undefined = globalThis.localS
 
   return {
     getState: () => state,
+    getOwnerId: () => ownerId,
+    switchOwner(userId: string | null) {
+      ownerId = typeof userId === 'string' && userId.trim() ? userId.trim() : null;
+      state = readOwnerState(storage, ownerId);
+      notify();
+      return state;
+    },
     replace(next: unknown) {
       state = mergeState(next);
       persist();
@@ -100,7 +146,7 @@ export function createStore(storage: StorageLike | undefined = globalThis.localS
     reset() {
       state = cloneDefault();
       try {
-        storage?.removeItem(STORAGE_KEY);
+        storage?.removeItem(storageKeyForOwner(ownerId));
       } catch {
         // Sem ação: o estado em memória já foi limpo.
       }

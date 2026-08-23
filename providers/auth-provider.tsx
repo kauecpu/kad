@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FunctionsHttpError, type Session, type User } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import {
   createContext,
@@ -17,6 +18,7 @@ import { authErrorMessage } from '@/lib/auth-errors';
 import {
   EMAIL_OTP_LENGTH,
   authCodeFromUrl,
+  createAuthCallbackReplayGuard,
   isAuthCallbackUrl,
   isValidEmailOtp,
   normalizeEmailOtp,
@@ -76,7 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authLinkChecking, setAuthLinkChecking] = useState(true);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string>();
   const [linkError, setLinkError] = useState<string>();
-  const processedAuthLinks = useRef(new Set<string>());
+  const authCallbackReplayGuard = useRef(createAuthCallbackReplayGuard());
+  const configuredScheme = Constants.expoConfig?.scheme;
+  const authCallbackOptions = useMemo(() => ({
+    allowedSchemes: (Array.isArray(configuredScheme) ? configuredScheme : [configuredScheme])
+      .filter((value): value is string => typeof value === 'string' && value.length > 0),
+    allowExpoGo: __DEV__,
+    webOrigin: Platform.OS === 'web' ? globalThis.location?.origin : undefined,
+  }), [configuredScheme]);
 
   const rememberPendingVerificationEmail = useCallback((email?: string) => {
     const nextEmail = email?.trim();
@@ -139,11 +148,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const handleUrl = async (url: string | null) => {
       if (!url) return false;
-      if (!isAuthCallbackUrl(url)) return false;
-      const { callback, code, errorDescription } = authCodeFromUrl(url);
+      if (!isAuthCallbackUrl(url, authCallbackOptions)) return false;
+      const { callback, code, flowId, errorDescription } = authCodeFromUrl(
+        url,
+        authCallbackOptions
+      );
       if (!callback) return false;
-      if (processedAuthLinks.current.has(url)) return true;
-      processedAuthLinks.current.add(url);
+      if (!authCallbackReplayGuard.current.claim(url)) return true;
       setAuthLinkChecking(true);
       setLinkError(undefined);
       if (callback === 'recovery') setRecoveryReady(false);
@@ -152,15 +163,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthLinkChecking(false);
         return true;
       }
-      if (!code) {
+      if (!code || !flowId) {
         setLinkError('Este link não é válido. Solicite um novo e-mail.');
         setAuthLinkChecking(false);
         return true;
       }
 
-      const { data, error } = await client.auth.exchangeCodeForSession(code);
+      const { data, error } = await client.auth.exchangeCodeForSession(code, { flowId });
       if (error || !data.session) {
-        processedAuthLinks.current.delete(url);
         setLinkError('Este link expirou ou já foi utilizado. Solicite um novo e-mail.');
         setAuthLinkChecking(false);
         return true;
@@ -186,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       handleUrl(url).catch(handleLinkError);
     });
     return () => subscription.remove();
-  }, []);
+  }, [authCallbackOptions]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthActionResult> => {
     if (!supabase) return missingConfiguration();
