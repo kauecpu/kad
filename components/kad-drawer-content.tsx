@@ -36,9 +36,9 @@ export function KadDrawerContent({ navigation, ...props }: DrawerContentComponen
           accessibilityRole="header"
           accessibilityLabel="KAD Concursos"
           style={styles.brand}>
-          <View style={[styles.brandSymbol, { backgroundColor: colors.primarySoft }]}>
+          <View style={styles.brandSymbol}>
             <Image
-              source={require('../assets/images/kad-symbol-v3.png')}
+              source={require('../assets/images/kad-icon-v4.png')}
               resizeMode="contain"
               style={styles.brandImage}
             />
@@ -167,8 +167,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  brandImage: { width: 34, height: 34 },
+  brandImage: { width: 48, height: 48 },
   brandCopy: { gap: 1 },
   brandName: {
     fontSize: FontSize.title,

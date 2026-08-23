@@ -18,16 +18,13 @@ test('a tela inicial mantém uma única ação principal antes dos atalhos', () 
   assert.ok(shortcuts > summary);
 });
 
-test('a ação principal une jornada real, marca forte e mascote decorativo', () => {
+test('a ação principal preserva jornada e marca sem o mascote', () => {
   assert.match(home, /getHomePrimaryVisual\(primaryAction\)/);
   assert.match(home, /intensity="strong"/);
   assert.match(home, /tone=\{primaryVisual\.tone\}/);
-  assert.match(home, /artwork=\{[\s\S]*?<KadMascot/);
-  assert.match(home, /variant=\{primaryVisual\.mascot\}/);
-  assert.match(home, /active=\{false\}/);
+  assert.doesNotMatch(home, /KadMascot|primaryVisual\.mascot|artwork=/);
   assert.match(home, /color=\{colors\.onBrand\}/);
   assert.match(home, /trackColor=\{colors\.brandTrace\}/);
-  assert.match(home, /fontScale >= 1\.25 \? 72/);
   assert.equal(home.match(/<FeaturedCard/g)?.length, 1);
 });
 

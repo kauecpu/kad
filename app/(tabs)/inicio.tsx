@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -14,7 +13,6 @@ import {
   RecentStudyCard,
   StudyMomentumCard,
 } from '@/components/home-study-momentum';
-import { KadMascot } from '@/components/kad-mascot';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -95,7 +93,6 @@ const EXPLORE_ACTIONS: ExploreAction[] = [
 
 export function HomeContent() {
   const { colors } = useTheme();
-  const { fontScale, width } = useWindowDimensions();
   const router = useRouter();
   const openMenu = useOpenAppDrawer();
   const {
@@ -144,8 +141,6 @@ export function HomeContent() {
       : undefined,
   });
   const primaryVisual = getHomePrimaryVisual(primaryAction);
-  const primaryArtworkSize =
-    fontScale >= 1.25 ? 72 : width < 420 ? 88 : width < 768 ? 108 : 128;
   const studyMomentum = useMemo(
     () =>
       buildStudyMomentum({
@@ -181,13 +176,6 @@ export function HomeContent() {
           accessibilityLabel={`${primaryAction.title}. ${primaryAction.description}`}
           intensity="strong"
           tone={primaryVisual.tone}
-          artwork={
-            <KadMascot
-              variant={primaryVisual.mascot}
-              size={primaryArtworkSize}
-              active={false}
-            />
-          }
           icon={
             primaryAction.route === '/meta'
               ? 'navigate-outline'

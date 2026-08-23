@@ -66,6 +66,8 @@ test('o conteúdo rolável fecha o drawer sem aguardar a animação e destaca a 
   const drawer = source('../components/kad-drawer-content.tsx');
 
   assert.match(drawer, /DrawerContentScrollView/);
+  assert.match(drawer, /kad-icon-v4\.png/);
+  assert.doesNotMatch(drawer, /kad-symbol-v3\.png/);
   assert.match(drawer, /navigation\.closeDrawer\(\)/);
   assert.match(drawer, /router\.navigate\(item\.href\)/);
   assert.match(drawer, /isDrawerRouteActive\(pathname, item\.href\)/);
