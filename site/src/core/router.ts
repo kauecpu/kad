@@ -1,11 +1,13 @@
-const listeners = new Set();
+import type { AuthMode, Route } from '../types/domain.ts';
 
-function sameOriginUrl(target) {
+const listeners = new Set<(route: Route) => void>();
+
+function sameOriginUrl(target: string | URL): URL | null {
   const url = new URL(target, globalThis.location?.origin ?? 'http://localhost');
   if (globalThis.location && url.origin !== globalThis.location.origin) return null;
   return url;
 }
-export function currentRoute() {
+export function currentRoute(): Route {
   const pathname = globalThis.location?.pathname?.replace(/\/+$/, '') || '/';
   return {
     pathname: pathname || '/',
@@ -14,12 +16,15 @@ export function currentRoute() {
   };
 }
 
-export function shouldOpenStudyHome(pathname, state) {
+export function shouldOpenStudyHome(pathname: string, state?: {
+  auth?: { mode?: AuthMode };
+  preferences?: { hasStarted?: boolean };
+} | null): boolean {
   return pathname === '/'
     && (state?.auth?.mode === 'authenticated' || state?.preferences?.hasStarted === true);
 }
 
-export function navigate(target, { replace = false } = {}) {
+export function navigate(target: string | URL, { replace = false }: { replace?: boolean } = {}): void {
   const url = sameOriginUrl(target);
   if (!url || !globalThis.history) return;
   globalThis.history[replace ? 'replaceState' : 'pushState']({}, '', `${url.pathname}${url.search}${url.hash}`);
@@ -27,11 +32,11 @@ export function navigate(target, { replace = false } = {}) {
   globalThis.scrollTo?.({ top: 0, behavior: 'instant' });
 }
 
-export function back() {
+export function back(): void {
   globalThis.history?.back();
 }
 
-export function subscribeRouter(listener) {
+export function subscribeRouter(listener: (route: Route) => void): () => boolean {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
@@ -40,15 +45,15 @@ globalThis.addEventListener?.('popstate', () => {
   listeners.forEach((listener) => listener(currentRoute()));
 });
 
-export function matchRoute(pattern, pathname) {
+export function matchRoute(pattern: string, pathname: string): Record<string, string> | null {
   const patternParts = pattern.split('/').filter(Boolean);
   const pathParts = pathname.split('/').filter(Boolean);
   if (patternParts.length !== pathParts.length) return null;
-  const params = {};
+  const params: Record<string, string> = {};
   for (let index = 0; index < patternParts.length; index += 1) {
     const expected = patternParts[index];
     const actual = pathParts[index];
-    if (expected.startsWith(':')) params[expected.slice(1)] = decodeURIComponent(actual);
+    if (expected?.startsWith(':') && actual !== undefined) params[expected.slice(1)] = decodeURIComponent(actual);
     else if (expected !== actual) return null;
   }
   return params;

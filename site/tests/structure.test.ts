@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { URL as NodeUrl, fileURLToPath } from 'node:url';
 
-const projectUrl = new URL('../', import.meta.url);
+const projectUrl = new NodeUrl('../', import.meta.url);
 
-async function source(path) {
-  return readFile(new URL(path, projectUrl), 'utf8');
+async function source(path: string): Promise<string> {
+  return readFile(fileURLToPath(new NodeUrl(path, projectUrl)), 'utf8');
 }
 
 test('HTML inicial inclui metadados essenciais e conteúdo alternativo', async () => {
@@ -52,7 +53,7 @@ test('rotas privadas são excluídas de indexação no robots', async () => {
 });
 
 test('integrações web reutilizam RPCs seguras e apenas a chave pública', async () => {
-  const service = await source('src/services/supabase.js');
+  const service = await source('src/services/supabase.ts');
   assert.match(service, /VITE_SUPABASE_ANON_KEY/);
   assert.match(service, /rpc\('record_question_attempt'/);
   assert.match(service, /rpc\('submit_user_feedback'/);
@@ -63,8 +64,8 @@ test('integrações web reutilizam RPCs seguras e apenas a chave pública', asyn
 
 test('apresentação pública usa somente imagens existentes e não inventa métricas pessoais', async () => {
   const [view, explore, assets] = await Promise.all([
-    source('src/views/public.js'),
-    source('src/views/explore.js'),
+    source('src/views/public.ts'),
+    source('src/views/explore.ts'),
     Promise.all([
       source('public/assets/kad-logo.png'),
       source('public/assets/kad-mascot-goal.png'),
@@ -79,8 +80,8 @@ test('apresentação pública usa somente imagens existentes e não inventa mét
 
 test('layout web usa autenticação dividida, resumos compactos e comentários legíveis', async () => {
   const [publicView, questionsView, styles] = await Promise.all([
-    source('src/views/public.js'),
-    source('src/views/questions.js'),
+    source('src/views/public.ts'),
+    source('src/views/questions.ts'),
     source('src/styles/app.css'),
   ]);
   assert.match(publicView, /auth-page auth-page--split/);
@@ -102,8 +103,8 @@ test('login cabe em desktops baixos sem ocultar conteúdo', async () => {
 
 test('entrada apresenta recursos reais em carrossel controlável e sensível a movimento', async () => {
   const [publicView, main, styles] = await Promise.all([
-    source('src/views/public.js'),
-    source('src/main.js'),
+    source('src/views/public.ts'),
+    source('src/main.ts'),
     source('src/styles/app.css'),
   ]);
 
@@ -122,11 +123,11 @@ test('entrada apresenta recursos reais em carrossel controlável e sensível a m
 
 test('melhorias de interface preservam semântica, privacidade e linguagem de produto', async () => {
   const [publicView, questionsView, simulationsView, components, layout, styles] = await Promise.all([
-    source('src/views/public.js'),
-    source('src/views/questions.js'),
-    source('src/views/simulations.js'),
-    source('src/ui/components.js'),
-    source('src/ui/layout.js'),
+    source('src/views/public.ts'),
+    source('src/views/questions.ts'),
+    source('src/views/simulations.ts'),
+    source('src/ui/components.ts'),
+    source('src/ui/layout.ts'),
     source('src/styles/base.css'),
   ]);
 

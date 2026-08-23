@@ -1,14 +1,14 @@
 import './styles/base.css';
 import './styles/app.css';
 
-import { getCatalog, replacePublishedCatalog } from './data/catalog.js';
-import { back, currentRoute, matchRoute, navigate, shouldOpenStudyHome, subscribeRouter } from './core/router.js';
-import { recordAnswer, store } from './core/store.js';
-import { randomId } from './core/utils.js';
-import { hydrateIcons } from './ui/icons.js';
-import { appLayout, publicLayout } from './ui/layout.js';
-import { emptyState, icon } from './ui/components.js';
-import { updateMetadata } from './services/metadata.js';
+import { getCatalog, replacePublishedCatalog } from './data/catalog.ts';
+import { back, currentRoute, matchRoute, navigate, shouldOpenStudyHome, subscribeRouter } from './core/router.ts';
+import { recordAnswer, store } from './core/store.ts';
+import { randomId } from './core/utils.ts';
+import { hydrateIcons } from './ui/icons.ts';
+import { appLayout, publicLayout } from './ui/layout.ts';
+import { emptyState, icon } from './ui/components.ts';
+import { updateMetadata } from './services/metadata.ts';
 import {
   cancelRemoteSubscription,
   createSubscriptionCheckout,
@@ -28,9 +28,9 @@ import {
   supabaseConfigured,
   updatePassword,
   verifyEmailOtp,
-} from './services/supabase.js';
-import { authView, legalView, onboardingView, recoveryView, welcomeView } from './views/public.js';
-import { homeView } from './views/home.js';
+} from './services/supabase.ts';
+import { authView, legalView, onboardingView, recoveryView, welcomeView } from './views/public.ts';
+import { homeView } from './views/home.ts';
 import {
   disciplineView,
   questionSessionView,
@@ -38,15 +38,15 @@ import {
   quickChallengeView,
   reviewView,
   searchView,
-} from './views/questions.js';
+} from './views/questions.ts';
 import {
   createSimulation,
   simulationConfigView,
   simulationPlayerView,
   simulationResultView,
   simulationsView,
-} from './views/simulations.js';
-import { concursoDetailView, concursosView, rankingView, trailsView } from './views/explore.js';
+} from './views/simulations.ts';
+import { concursoDetailView, concursosView, rankingView, trailsView } from './views/explore.ts';
 import {
   deleteView,
   essayView,
@@ -58,15 +58,30 @@ import {
   plansView,
   profileEditView,
   profileView,
-} from './views/profile.js';
+} from './views/profile.ts';
+import type {
+  AlternativeId,
+  BillingCycle,
+  Route,
+  SiteState,
+  UiState,
+  ViewModel,
+} from './types/domain.ts';
 
 const AUTH_STORY_INTERVAL = 6500;
 
-const root = document.querySelector('#app');
-const announcer = document.querySelector('#announcer');
-const ui = {
+function requiredElement<T extends Element>(selector: string): T {
+  const element = document.querySelector<T>(selector);
+  if (!element) throw new Error(`kad-site-element-missing:${selector}`);
+  return element;
+}
+
+const root = requiredElement<HTMLElement>('#app');
+const announcer = requiredElement<HTMLElement>('#announcer');
+
+const ui: UiState = {
   questionIndex: 0,
-  visitedQuestionIds: new Set(),
+  visitedQuestionIds: new Set<string>(),
   lastRouteKey: '',
   essayBuffer: null,
   toastTimer: null,
@@ -80,7 +95,7 @@ const ui = {
   authStoryInteractionPaused: false,
 };
 
-function applyTheme(state = store.getState()) {
+function applyTheme(state: SiteState = store.getState()): void {
   const preference = state.preferences.theme;
   const dark = preference === 'dark'
     || (preference === 'system' && globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches);
@@ -88,7 +103,7 @@ function applyTheme(state = store.getState()) {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b1118' : '#6d28d9');
 }
 
-function toast(message) {
+function toast(message: string): void {
   document.querySelector('.toast')?.remove();
   const element = document.createElement('div');
   element.className = 'toast';
@@ -96,18 +111,18 @@ function toast(message) {
   element.textContent = message;
   document.body.append(element);
   announcer.textContent = message;
-  clearTimeout(ui.toastTimer);
+  if (ui.toastTimer !== null) clearTimeout(ui.toastTimer);
   ui.toastTimer = setTimeout(() => element.remove(), 3600);
 }
 
-function notFoundView() {
+function notFoundView(): ViewModel {
   return {
     title: 'Página não encontrada',
     content: emptyState('Esta página não existe', 'Use o menu para voltar ao seu ambiente de estudos.', { route: '/inicio', actionLabel: 'Ir para o início' }),
   };
 }
 
-function resolveView(route, state) {
+function resolveView(route: Route, state: SiteState): ViewModel {
   const { pathname, params } = route;
   if (pathname === '/') return welcomeView();
   if (pathname === '/entrar') return authView('entrar');
@@ -150,18 +165,19 @@ function resolveView(route, state) {
 }
 
 function stopPageTimers() {
-  clearInterval(ui.simulationTimer);
-  clearInterval(ui.essayTimer);
-  clearInterval(ui.authStoryTimer);
+  if (ui.simulationTimer !== null) clearInterval(ui.simulationTimer);
+  if (ui.essayTimer !== null) clearInterval(ui.essayTimer);
+  if (ui.authStoryTimer !== null) clearInterval(ui.authStoryTimer);
   ui.simulationTimer = null;
   ui.essayTimer = null;
   ui.authStoryTimer = null;
   ui.authStoryInteractionPaused = false;
 }
 
-function showAuthStory(index, { announce = false } = {}) {
-  const carousel = document.querySelector('[data-auth-carousel]');
-  const slides = [...(carousel?.querySelectorAll('[data-auth-slide]') ?? [])];
+function showAuthStory(index: number, { announce = false }: { announce?: boolean } = {}): void {
+  const carousel = document.querySelector<HTMLElement>('[data-auth-carousel]');
+  if (!carousel) return;
+  const slides = Array.from(carousel.querySelectorAll<HTMLElement>('[data-auth-slide]'));
   if (!slides.length) return;
   const requested = Number.isFinite(Number(index)) ? Number(index) : 0;
   const activeIndex = ((requested % slides.length) + slides.length) % slides.length;
@@ -193,7 +209,7 @@ function updateAuthStoryPauseControl() {
 }
 
 function startAuthStoryTimer() {
-  clearInterval(ui.authStoryTimer);
+  if (ui.authStoryTimer !== null) clearInterval(ui.authStoryTimer);
   ui.authStoryTimer = null;
   const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   if (!document.querySelector('[data-auth-carousel]') || reduceMotion || ui.authStoryPaused) return;
@@ -203,7 +219,7 @@ function startAuthStoryTimer() {
   }, AUTH_STORY_INTERVAL);
 }
 
-function startPageTimers(route, state) {
+function startPageTimers(route: Route, state: SiteState): void {
   stopPageTimers();
   if (route.pathname === '/entrar' || route.pathname === '/cadastro') {
     showAuthStory(ui.authStoryIndex);
@@ -247,16 +263,17 @@ function startPageTimers(route, state) {
   }
 }
 
-function maybeConfirmCheckout(route, state) {
+function maybeConfirmCheckout(route: Route, state: SiteState): void {
   const checkoutId = route.pathname === '/perfil/planos' ? route.params.checkout : '';
   const validId = typeof checkoutId === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutId);
   if (!validId || !state.auth.userId || ui.checkoutId === checkoutId) return;
+  const userId = state.auth.userId;
   ui.checkoutId = checkoutId;
   let attempts = 0;
   const poll = async () => {
     attempts += 1;
-    const subscription = await loadRemoteSubscription(state.auth.userId).catch(() => null);
+    const subscription = await loadRemoteSubscription(userId).catch(() => null);
     if (subscription) store.update((draft) => { draft.subscription = subscription; });
     if (subscription?.plan === 'diamond') {
       toast('Pagamento confirmado. Seu acesso Diamond foi atualizado.');
@@ -267,7 +284,7 @@ function maybeConfirmCheckout(route, state) {
   void poll();
 }
 
-function render({ routeChanged = false } = {}) {
+function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void {
   const route = currentRoute();
   const routeKey = `${route.pathname}${route.search}`;
   if (routeKey !== ui.lastRouteKey) {
@@ -282,7 +299,7 @@ function render({ routeChanged = false } = {}) {
     return;
   }
   applyTheme(state);
-  const view = resolveView(route, state);
+  const view: ViewModel = resolveView(route, state);
   const layout = view.layout?.startsWith('public')
     ? publicLayout(view.content, { simple: view.layout === 'public-simple' })
     : appLayout(view.content, {
@@ -302,10 +319,10 @@ function render({ routeChanged = false } = {}) {
   document.body.classList.remove('nav-open');
   startPageTimers(route, state);
   maybeConfirmCheckout(route, state);
-  if (routeChanged) document.querySelector('#conteudo')?.focus?.({ preventScroll: true });
+  if (routeChanged) document.querySelector<HTMLElement>('#conteudo')?.focus({ preventScroll: true });
 }
 
-function persistEssayBuffer() {
+function persistEssayBuffer(): void {
   if (!ui.essayBuffer) return;
   const { topicId, content } = ui.essayBuffer;
   store.update((draft) => {
@@ -320,7 +337,7 @@ function persistEssayBuffer() {
   ui.essayBuffer = null;
 }
 
-function completeSimulation(draft) {
+function completeSimulation(draft: SiteState): void {
   const session = draft.simulations.current;
   if (!session) return;
   session.status = 'completed';
@@ -330,15 +347,23 @@ function completeSimulation(draft) {
   draft.simulations.history = [structuredClone(session), ...history].slice(0, 20);
 }
 
-function updateFormMessage(form, message, tone = '') {
+function updateFormMessage(form: HTMLFormElement, message: string, tone = ''): void {
   const target = form.querySelector('[data-form-message]');
   if (!target) return;
   target.textContent = message;
   target.className = `form-message ${tone ? `is-${tone}` : ''}`;
 }
 
-async function handleForm(form) {
-  const values = Object.fromEntries(new FormData(form));
+function readTextFormData(form: HTMLFormElement): Record<string, string> {
+  const values: Record<string, string> = {};
+  new FormData(form).forEach((value, key) => {
+    if (typeof value === 'string') values[key] = value;
+  });
+  return values;
+}
+
+async function handleForm(form: HTMLFormElement): Promise<void> {
+  const values = readTextFormData(form);
   const formName = form.dataset.form;
   if (!form.reportValidity()) return;
 
@@ -364,7 +389,7 @@ async function handleForm(form) {
       return;
     }
     updateFormMessage(form, 'Criando sua conta...');
-    const result = await signUp(values);
+    const result = await signUp({ name: values.name, email: values.email, password: values.password });
     if (result.ok) {
       store.update((draft) => {
         draft.profile.name = values.name;
@@ -430,6 +455,7 @@ async function handleForm(form) {
 
   if (formName === 'question-comment') {
     const questionId = form.dataset.questionId;
+    if (!questionId) return;
     store.update((draft) => {
       const current = draft.comments[questionId] ?? [];
       current.push({ id: randomId('comment'), author: draft.profile.name, text: values.comment.trim(), createdAt: new Date().toISOString() });
@@ -440,9 +466,10 @@ async function handleForm(form) {
   }
 
   if (formName === 'simulation-config') {
+    const shuffleQuestions = form.elements.namedItem('shuffleQuestions');
     const session = createSimulation({
       ...values,
-      shuffleQuestions: form.elements.shuffleQuestions.checked,
+      shuffleQuestions: shuffleQuestions instanceof HTMLInputElement ? shuffleQuestions.checked : false,
     });
     if (!session) {
       updateFormMessage(form, 'Nenhuma questão corresponde a esses filtros.', 'error');
@@ -498,28 +525,41 @@ async function handleForm(form) {
   }
 }
 
-function actionFromElement(element) {
-  return element.closest('[data-action]');
+function actionFromElement(element: EventTarget | null): HTMLElement | null {
+  return element instanceof Element ? element.closest<HTMLElement>('[data-action]') : null;
+}
+
+function isAlternativeId(value?: string): value is AlternativeId {
+  return value === 'A' || value === 'B' || value === 'C' || value === 'D' || value === 'E';
+}
+
+function isBillingCycle(value?: string): value is BillingCycle {
+  return value === 'monthly' || value === 'quarterly' || value === 'annual';
 }
 
 document.addEventListener('click', async (event) => {
-  const routeElement = event.target.closest('[data-route]');
-  if (routeElement && !routeElement.disabled) {
+  const source = event.target instanceof Element ? event.target : null;
+  if (!source) return;
+  const routeElement = source.closest<HTMLElement>('[data-route]');
+  if (routeElement && (!(routeElement instanceof HTMLButtonElement) || !routeElement.disabled)) {
+    const routeTarget = routeElement.dataset.route;
+    if (!routeTarget) return;
     event.preventDefault();
     persistEssayBuffer();
-    navigate(routeElement.dataset.route);
+    navigate(routeTarget);
     return;
   }
 
   const target = actionFromElement(event.target);
-  if (!target || target.disabled) return;
+  if (!target || (target instanceof HTMLButtonElement && target.disabled)) return;
   const action = target.dataset.action;
   const state = store.getState();
 
   if (action === 'back') return back();
   if (action === 'toggle-password') {
-    const input = document.getElementById(target.getAttribute('aria-controls'));
-    if (!input) return;
+    const controlId = target.getAttribute('aria-controls');
+    const input = controlId ? document.getElementById(controlId) : null;
+    if (!(input instanceof HTMLInputElement)) return;
     const showing = input.type === 'text';
     input.type = showing ? 'password' : 'text';
     target.setAttribute('aria-pressed', String(!showing));
@@ -567,26 +607,30 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'open-question') {
-    navigate(`/questoes/sessao?id=${encodeURIComponent(target.dataset.questionId)}`);
+    if (target.dataset.questionId) navigate(`/questoes/sessao?id=${encodeURIComponent(target.dataset.questionId)}`);
     return;
   }
   if (action === 'study-all-questions') return navigate('/questoes/sessao');
   if (action === 'study-search-results') return navigate(`/questoes/sessao?${target.dataset.search ?? ''}`);
   if (action === 'answer-question') {
+    const selected = target.dataset.alternative;
     const question = getCatalog().questions.find((item) => item.id === target.dataset.questionId);
-    if (!question) return;
-    store.update((draft) => recordAnswer(draft, question, target.dataset.alternative));
-    if (state.auth.userId) saveRemoteAnswer(question.id, target.dataset.alternative).catch(() => {});
-    announcer.textContent = target.dataset.alternative === question.correct ? 'Resposta correta.' : `Resposta incorreta. Gabarito ${question.correct}.`;
+    if (!question || !isAlternativeId(selected)) return;
+    store.update((draft) => recordAnswer(draft, question, selected));
+    if (state.auth.userId) saveRemoteAnswer(question.id, selected).catch(() => {});
+    announcer.textContent = selected === question.correct ? 'Resposta correta.' : `Resposta incorreta. Gabarito ${question.correct}.`;
     return;
   }
   if (action === 'retry-question') {
-    store.update((draft) => { delete draft.answers[target.dataset.questionId]; });
-    if (state.auth.userId) removeRemoteAnswer(state.auth.userId, target.dataset.questionId).catch(() => {});
+    const questionId = target.dataset.questionId;
+    if (!questionId) return;
+    store.update((draft) => { delete draft.answers[questionId]; });
+    if (state.auth.userId) removeRemoteAnswer(state.auth.userId, questionId).catch(() => {});
     return;
   }
   if (action === 'toggle-favorite') {
     const id = target.dataset.questionId;
+    if (!id) return;
     const favorite = !state.favorites.includes(id);
     store.update((draft) => {
       draft.favorites = draft.favorites.includes(id) ? draft.favorites.filter((item) => item !== id) : [id, ...draft.favorites];
@@ -599,15 +643,19 @@ document.addEventListener('click', async (event) => {
   if (action === 'next-question') { ui.questionIndex += 1; render(); return; }
   if (action === 'start-demo-simulation') {
     const session = createSimulation({ questionCount: 5, durationMinutes: 10 });
+    if (!session) return;
     store.update((draft) => { draft.simulations.current = session; });
     navigate('/simulados/em-andamento');
     return;
   }
   if (action === 'answer-simulation') {
+    const questionId = target.dataset.questionId;
+    const selected = target.dataset.alternative;
+    if (!questionId || !isAlternativeId(selected)) return;
     store.update((draft) => {
       const session = draft.simulations.current;
       if (!session || session.status === 'completed') return;
-      session.answers[target.dataset.questionId] = target.dataset.alternative;
+      session.answers[questionId] = selected;
       session.updatedAt = new Date().toISOString();
     });
     return;
@@ -639,9 +687,13 @@ document.addEventListener('click', async (event) => {
     navigate('/simulados');
     return;
   }
-  if (action === 'open-simulation-result') return navigate(`/simulados/resultado?id=${encodeURIComponent(target.dataset.simulationId)}`);
+  if (action === 'open-simulation-result') {
+    if (target.dataset.simulationId) navigate(`/simulados/resultado?id=${encodeURIComponent(target.dataset.simulationId)}`);
+    return;
+  }
   if (action === 'toggle-concurso') {
     const id = target.dataset.concursoId;
+    if (!id) return;
     const saved = !state.savedConcursos.includes(id);
     store.update((draft) => {
       draft.savedConcursos = draft.savedConcursos.includes(id) ? draft.savedConcursos.filter((item) => item !== id) : [id, ...draft.savedConcursos];
@@ -651,6 +703,7 @@ document.addEventListener('click', async (event) => {
   }
   if (action === 'ranking-period') {
     const params = currentRoute().params;
+    if (!target.dataset.period) return;
     params.period = target.dataset.period;
     navigate(`/ranking?${new URLSearchParams(params)}`);
     return;
@@ -671,16 +724,19 @@ document.addEventListener('click', async (event) => {
       navigate('/entrar');
       return;
     }
-    target.disabled = true;
-    const result = await createSubscriptionCheckout(target.dataset.cycle);
+    const cycle = target.dataset.cycle;
+    if (!isBillingCycle(cycle)) return;
+    if (target instanceof HTMLButtonElement) target.disabled = true;
+    const result = await createSubscriptionCheckout(cycle);
     if (result.ok) globalThis.location.assign(result.checkoutUrl);
     else {
-      target.disabled = false;
+      if (target instanceof HTMLButtonElement) target.disabled = false;
       toast(result.offline ? 'O pagamento ainda não está configurado neste ambiente.' : result.message);
     }
     return;
   }
   if (action === 'refresh-subscription') {
+    if (!state.auth.userId) return;
     const subscription = await loadRemoteSubscription(state.auth.userId).catch(() => null);
     if (subscription) {
       store.update((draft) => { draft.subscription = subscription; });
@@ -692,6 +748,7 @@ document.addEventListener('click', async (event) => {
     if (!globalThis.confirm('Cancelar a renovação? Seu acesso continua até o fim do período já pago.')) return;
     const result = await cancelRemoteSubscription();
     if (result.ok) {
+      if (!state.auth.userId) return;
       const subscription = await loadRemoteSubscription(state.auth.userId).catch(() => null);
       if (subscription) store.update((draft) => { draft.subscription = subscription; });
       toast('Renovação cancelada.');
@@ -700,38 +757,42 @@ document.addEventListener('click', async (event) => {
 });
 
 document.addEventListener('pointerover', (event) => {
-  const carousel = event.target.closest?.('[data-auth-carousel]');
-  if (!carousel || carousel.contains(event.relatedTarget)) return;
+  const carousel = event.target instanceof Element ? event.target.closest('[data-auth-carousel]') : null;
+  const related = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+  if (!carousel || carousel.contains(related)) return;
   ui.authStoryInteractionPaused = true;
 });
 
 document.addEventListener('pointerout', (event) => {
-  const carousel = event.target.closest?.('[data-auth-carousel]');
-  if (!carousel || carousel.contains(event.relatedTarget)) return;
+  const carousel = event.target instanceof Element ? event.target.closest('[data-auth-carousel]') : null;
+  const related = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+  if (!carousel || carousel.contains(related)) return;
   ui.authStoryInteractionPaused = false;
   startAuthStoryTimer();
 });
 
 document.addEventListener('focusin', (event) => {
-  if (event.target.closest?.('[data-auth-carousel]')) ui.authStoryInteractionPaused = true;
+  if (event.target instanceof Element && event.target.closest('[data-auth-carousel]')) ui.authStoryInteractionPaused = true;
 });
 
 document.addEventListener('focusout', (event) => {
-  const carousel = event.target.closest?.('[data-auth-carousel]');
-  if (!carousel || carousel.contains(event.relatedTarget)) return;
+  const carousel = event.target instanceof Element ? event.target.closest('[data-auth-carousel]') : null;
+  const related = event.relatedTarget instanceof Node ? event.relatedTarget : null;
+  if (!carousel || carousel.contains(related)) return;
   ui.authStoryInteractionPaused = false;
   startAuthStoryTimer();
 });
 
 document.addEventListener('submit', (event) => {
-  const form = event.target.closest('form[data-form]');
-  if (!form) return;
+  const form = event.target instanceof Element ? event.target.closest<HTMLFormElement>('form[data-form]') : null;
+  if (!(form instanceof HTMLFormElement)) return;
   event.preventDefault();
   void handleForm(form);
 });
 
 document.addEventListener('change', (event) => {
   const element = event.target;
+  if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return;
   if (element.matches('[data-action="ranking-pack"]')) {
     const params = currentRoute().params;
     if (element.value) params.packId = element.value;
@@ -746,11 +807,13 @@ document.addEventListener('change', (event) => {
 });
 
 document.addEventListener('input', (event) => {
-  const textarea = event.target.closest('[data-essay-input]');
-  if (!textarea) return;
-  ui.essayBuffer = { topicId: textarea.dataset.topicId, content: textarea.value };
+  const textarea = event.target instanceof Element ? event.target.closest<HTMLTextAreaElement>('[data-essay-input]') : null;
+  const topicId = textarea?.dataset.topicId;
+  if (!(textarea instanceof HTMLTextAreaElement) || !topicId) return;
+  ui.essayBuffer = { topicId, content: textarea.value };
   const wordCount = textarea.value.trim() ? textarea.value.trim().split(/\s+/).length : 0;
-  document.querySelector('[data-word-count]').textContent = `${wordCount} palavras`;
+  const counter = document.querySelector<HTMLElement>('[data-word-count]');
+  if (counter) counter.textContent = `${wordCount} palavras`;
 });
 
 document.addEventListener('keydown', (event) => {

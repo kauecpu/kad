@@ -85,7 +85,7 @@ const icons = {
   XCircle, Zap,
 };
 
-export function hydrateIcons(root = document) {
+export function hydrateIcons(root: Element | Document | DocumentFragment = document): void {
   createIcons({
     icons,
     root,

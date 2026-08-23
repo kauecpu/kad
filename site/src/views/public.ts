@@ -1,7 +1,12 @@
-import { badge, button, card, icon, passwordField } from '../ui/components.js';
-import { escapeHtml } from '../core/utils.js';
+import { badge, button, card, icon, passwordField } from '../ui/components.ts';
+import { escapeHtml } from '../core/utils.ts';
+import type { SiteState, ViewModel } from '../types/domain.ts';
 
-export function welcomeView() {
+type AuthViewKind = 'entrar' | 'cadastro';
+type RecoveryViewKind = 'request' | 'confirmation' | 'new-password';
+type LegalViewKind = 'termos' | 'privacidade';
+
+export function welcomeView(): ViewModel {
   return {
     title: 'KAD Concursos',
     description: 'Questões, simulados e concursos reunidos em uma experiência de estudo feita para manter seu foco.',
@@ -77,7 +82,7 @@ const authStories = [
   },
 ];
 
-function authShowcase() {
+function authShowcase(): string {
   return `
     <aside class="auth-story" data-auth-carousel aria-label="Conheça o ambiente de estudos KAD" aria-roledescription="carrossel">
       <div class="auth-story__slides">
@@ -111,7 +116,7 @@ function authShowcase() {
     </aside>`;
 }
 
-export function authView(kind = 'entrar') {
+export function authView(kind: AuthViewKind = 'entrar'): ViewModel {
   const copy = authCopy[kind] ?? authCopy.entrar;
   const signup = kind === 'cadastro';
   return {
@@ -147,7 +152,7 @@ export function authView(kind = 'entrar') {
   };
 }
 
-export function recoveryView(kind = 'request', params = {}) {
+export function recoveryView(kind: RecoveryViewKind = 'request', params: Record<string, string | undefined> = {}): ViewModel {
   const isNewPassword = kind === 'new-password';
   const isConfirmation = kind === 'confirmation';
   const title = isNewPassword ? 'Nova senha' : isConfirmation ? 'Confirmar e-mail' : 'Recuperar senha';
@@ -179,7 +184,7 @@ export function recoveryView(kind = 'request', params = {}) {
   };
 }
 
-export function onboardingView(state) {
+export function onboardingView(state: SiteState): ViewModel {
   return {
     title: 'Escolha sua meta',
     description: 'Personalize as recomendações do seu ambiente de estudos.',
@@ -225,7 +230,7 @@ const legalDocuments = {
   },
 };
 
-export function legalView(kind) {
+export function legalView(kind: LegalViewKind): ViewModel {
   const document = legalDocuments[kind] ?? legalDocuments.termos;
   return {
     title: document.title,

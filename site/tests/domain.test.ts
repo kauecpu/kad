@@ -1,19 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createStore, recordAnswer } from '../src/core/store.js';
-import { filterQuestions, matchesPack, questionsPerformance } from '../src/core/utils.js';
-import { matchRoute, shouldOpenStudyHome } from '../src/core/router.js';
-import { questionSessionView, questionsIndexView } from '../src/views/questions.js';
-import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.js';
-import { getCatalog } from '../src/data/catalog.js';
+import { createStore, recordAnswer } from '../src/core/store.ts';
+import { filterQuestions, matchesPack, questionsPerformance } from '../src/core/utils.ts';
+import { matchRoute, shouldOpenStudyHome } from '../src/core/router.ts';
+import { questionSessionView, questionsIndexView } from '../src/views/questions.ts';
+import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.ts';
+import { getCatalog } from '../src/data/catalog.ts';
+import type { StorageLike } from '../src/types/domain.ts';
 
-function memoryStorage() {
-  const values = new Map();
+function memoryStorage(): StorageLike {
+  const values = new Map<string, string>();
   return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, value),
-    removeItem: (key) => values.delete(key),
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+    removeItem: (key: string) => { values.delete(key); },
   };
 }
 
@@ -21,6 +22,7 @@ test('estado local registra resposta, atividade e restaura dados persistidos', (
   const storage = memoryStorage();
   const first = createStore(storage);
   const question = getCatalog().questions[0];
+  assert.ok(question);
 
   first.update((draft) => recordAnswer(draft, question, question.correct));
   const restored = createStore(storage).getState();
@@ -39,6 +41,7 @@ test('busca combina palavra-chave, disciplina e pacote sem misturar escopos', ()
   assert.ok(candidates.every((question) => matchesPack(question, pack)));
 
   const question = candidates[0];
+  assert.ok(question);
   assert.deepEqual(
     filterQuestions(candidates, { discipline: question.discipline, keyword: question.board }),
     candidates.filter(
@@ -56,6 +59,7 @@ test('simulado respeita quantidade, recebe respostas e calcula resultado', () =>
   const questions = getCatalog().questions;
   for (const id of session.questionIds.slice(0, 3)) {
     const question = questions.find((item) => item.id === id);
+    assert.ok(question);
     session.answers[id] = question.correct;
   }
   const score = simulationScore(session);
@@ -72,13 +76,14 @@ test('catálogos omitem métricas vazias até existir atividade real', () => {
   assert.doesNotMatch(simulationsView(state).content, /Resumo dos simulados/);
 
   const question = getCatalog().questions[0];
+  assert.ok(question);
   recordAnswer(state, question, question.correct);
   assert.match(questionsIndexView(state).content, /Seu progresso nas questões/);
 });
 
 test('sessão identifica avanço sem resposta como questão pulada', () => {
   const state = createStore(memoryStorage()).getState();
-  const ui = { questionIndex: 0, visitedQuestionIds: new Set() };
+  const ui = { questionIndex: 0, visitedQuestionIds: new Set<string>() };
 
   assert.match(questionSessionView(state, { limit: '2' }, ui).content, /Pular questão/);
   ui.questionIndex = 1;

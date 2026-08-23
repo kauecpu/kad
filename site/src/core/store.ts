@@ -1,8 +1,9 @@
-import { localDay } from './utils.js';
+import { localDay } from './utils.ts';
+import type { AlternativeId, Question, SiteState, StorageLike, Store } from '../types/domain.ts';
 
 export const STORAGE_KEY = 'kad-site/state/v1';
 
-export const DEFAULT_STATE = Object.freeze({
+export const DEFAULT_STATE: Readonly<SiteState> = Object.freeze({
   version: 1,
   auth: { mode: 'visitor', userId: null },
   profile: {
@@ -32,27 +33,29 @@ export const DEFAULT_STATE = Object.freeze({
   trail: null,
   feedback: [],
   activityByDate: {},
-});
+} satisfies SiteState);
 
-function cloneDefault() {
-  return JSON.parse(JSON.stringify(DEFAULT_STATE));
+function cloneDefault(): SiteState {
+  return structuredClone(DEFAULT_STATE);
 }
 
-function mergeState(candidate) {
+function mergeState(candidate: unknown): SiteState {
   const fallback = cloneDefault();
-  if (!candidate || typeof candidate !== 'object' || candidate.version !== 1) return fallback;
+  if (!candidate || typeof candidate !== 'object' || !('version' in candidate) || candidate.version !== 1) return fallback;
+  const partial = candidate as Partial<SiteState>;
   return {
     ...fallback,
-    ...candidate,
-    auth: { ...fallback.auth, ...candidate.auth },
-    profile: { ...fallback.profile, ...candidate.profile },
-    preferences: { ...fallback.preferences, ...candidate.preferences },
-    subscription: { ...fallback.subscription, ...candidate.subscription },
-    simulations: { ...fallback.simulations, ...candidate.simulations },
+    ...partial,
+    version: 1,
+    auth: { ...fallback.auth, ...partial.auth },
+    profile: { ...fallback.profile, ...partial.profile },
+    preferences: { ...fallback.preferences, ...partial.preferences },
+    subscription: { ...fallback.subscription, ...partial.subscription },
+    simulations: { ...fallback.simulations, ...partial.simulations },
   };
 }
 
-function readStoredState(storage) {
+function readStoredState(storage?: StorageLike): SiteState {
   try {
     return mergeState(JSON.parse(storage?.getItem(STORAGE_KEY) ?? 'null'));
   } catch {
@@ -60,9 +63,9 @@ function readStoredState(storage) {
   }
 }
 
-export function createStore(storage = globalThis.localStorage) {
+export function createStore(storage: StorageLike | undefined = globalThis.localStorage): Store {
   let state = readStoredState(storage);
-  const listeners = new Set();
+  const listeners = new Set<(state: SiteState) => void>();
 
   const persist = () => {
     try {
@@ -76,13 +79,13 @@ export function createStore(storage = globalThis.localStorage) {
 
   return {
     getState: () => state,
-    replace(next) {
+    replace(next: unknown) {
       state = mergeState(next);
       persist();
       notify();
       return state;
     },
-    update(recipe, { silent = false } = {}) {
+    update(recipe: (draft: SiteState) => SiteState | void, { silent = false } = {}) {
       const draft = structuredClone(state);
       const returned = recipe(draft);
       state = mergeState(returned ?? draft);
@@ -90,7 +93,7 @@ export function createStore(storage = globalThis.localStorage) {
       if (!silent) notify();
       return state;
     },
-    subscribe(listener) {
+    subscribe(listener: (state: SiteState) => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
@@ -107,7 +110,7 @@ export function createStore(storage = globalThis.localStorage) {
   };
 }
 
-export function recordAnswer(draft, question, selected) {
+export function recordAnswer(draft: SiteState, question: Question, selected: AlternativeId): void {
   const answeredAt = new Date().toISOString();
   draft.answers[question.id] = {
     questionId: question.id,

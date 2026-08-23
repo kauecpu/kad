@@ -1,4 +1,4 @@
-import { getCatalog } from '../data/catalog.js';
+import { getCatalog } from '../data/catalog.ts';
 import {
   escapeHtml,
   filterQuestions,
@@ -10,11 +10,16 @@ import {
   questionsPerformance,
   slugify,
   unique,
-} from '../core/utils.js';
-import { avatar, badge, button, card, emptyState, icon, progress, section, stat } from '../ui/components.js';
-import { stackHeader } from '../ui/layout.js';
+} from '../core/utils.ts';
+import { avatar, badge, button, card, emptyState, icon, progress, section, stat } from '../ui/components.ts';
+import { stackHeader } from '../ui/layout.ts';
+import type { Concurso, ConcursoPack, Question, SiteState, ViewModel } from '../types/domain.ts';
 
-function contestCard(concurso, state) {
+type ViewParams = Record<string, string | undefined>;
+type RankingPeriod = 'today' | 'month' | 'all';
+type LocalRankingScore = { points: number; correct: number; accuracy: number };
+
+function contestCard(concurso: Concurso, state: SiteState): string {
   const saved = state.savedConcursos.includes(concurso.id);
   return card(`
     <div class="contest-card__heading"><span class="contest-mark">${escapeHtml(concurso.shortName)}</span><button class="icon-button" type="button" data-action="toggle-concurso" data-concurso-id="${escapeHtml(concurso.id)}" aria-label="${saved ? 'Remover concurso dos salvos' : 'Salvar concurso'}">${icon(saved ? 'BookmarkCheck' : 'Bookmark')}</button></div>
@@ -24,7 +29,7 @@ function contestCard(concurso, state) {
     <div class="contest-card__actions">${button('Ver detalhes', { route: `/concursos/${concurso.id}`, variant: 'secondary', className: 'full-width' })}</div>
   `, 'contest-card');
 }
-export function concursosView(state, params = {}, savedOnly = false) {
+export function concursosView(state: SiteState, params: ViewParams = {}, savedOnly = false): ViewModel {
   const { concursos } = getCatalog();
   const statuses = ['aberto', 'previsto', 'encerrado'];
   const regions = unique(concursos.map((item) => item.region));
@@ -55,14 +60,14 @@ export function concursosView(state, params = {}, savedOnly = false) {
   };
 }
 
-function packForConcurso(concurso, packs) {
+function packForConcurso(concurso: Concurso, packs: ConcursoPack[]): ConcursoPack | undefined {
   return packs.find((pack) => {
     const text = normalizeText(`${concurso.organ} ${concurso.title} ${concurso.roles.map((role) => role.name).join(' ')}`);
     return [...pack.goalKeywords, pack.name].some((term) => text.includes(normalizeText(term)) || normalizeText(term).includes(normalizeText(concurso.shortName)));
   });
 }
 
-export function concursoDetailView(id, state) {
+export function concursoDetailView(id: string, state: SiteState): ViewModel {
   const { concursos, packs, questions } = getCatalog();
   const concurso = concursos.find((item) => item.id === id);
   if (!concurso) return { title: 'Concurso', content: `${stackHeader('Concurso')}${emptyState('Concurso não encontrado', 'O catálogo pode ter sido atualizado.', { route: '/concursos', actionLabel: 'Ver concursos' })}` };
@@ -82,13 +87,13 @@ export function concursoDetailView(id, state) {
         </div>
         <aside class="dashboard-aside">
           ${card(`<div class="detail-panel"><p class="eyebrow">CRONOGRAMA</p><div class="detail-list"><div class="detail-row"><span>Início das inscrições</span><strong>${formatDate(concurso.registrationStart)}</strong></div><div class="detail-row"><span>Fim das inscrições</span><strong>${formatDate(concurso.registrationEnd)}</strong></div><div class="detail-row"><span>Data da prova</span><strong>${formatDate(concurso.examDate)}</strong></div><div class="detail-row"><span>Taxa</span><strong>${concurso.fee ? formatCurrency(concurso.fee) : 'A definir'}</strong></div></div></div>`)}
-          ${card(`<div class="detail-panel"><p class="eyebrow">ESTUDAR</p><h2>${pack ? escapeHtml(pack.name) : 'Conteúdo em preparação'}</h2><p class="muted">${pack ? `${packQuestions.length} questões relacionadas ao escopo deste concurso.` : 'Ainda não há um pacote de questões ligado a este edital.'}</p>${packQuestions.length ? button('Estudar para este concurso', { route: `/questoes/sessao?packId=${pack.id}`, iconName: 'Play', className: 'full-width' }) : ''}</div>`)}
+          ${card(`<div class="detail-panel"><p class="eyebrow">ESTUDAR</p><h2>${pack ? escapeHtml(pack.name) : 'Conteúdo em preparação'}</h2><p class="muted">${pack ? `${packQuestions.length} questões relacionadas ao escopo deste concurso.` : 'Ainda não há um pacote de questões ligado a este edital.'}</p>${pack && packQuestions.length ? button('Estudar para este concurso', { route: `/questoes/sessao?packId=${pack.id}`, iconName: 'Play', className: 'full-width' }) : ''}</div>`)}
         </aside>
       </div>`,
   };
 }
 
-function localRankingScore(state, questions, period, pack) {
+function localRankingScore(state: SiteState, questions: Question[], period: RankingPeriod, pack?: ConcursoPack): LocalRankingScore {
   const now = new Date();
   const records = Object.values(state.answers).filter((answer) => {
     const date = new Date(answer.answeredAt);
@@ -100,15 +105,16 @@ function localRankingScore(state, questions, period, pack) {
   const points = records.reduce((sum, answer) => {
     if (!answer.isCorrect) return sum;
     const question = questions.find((item) => item.id === answer.questionId);
-    return sum + ({ Fácil: 1, Média: 2, Difícil: 3 }[question?.difficulty] ?? 1);
+    return sum + (question ? { Fácil: 1, Média: 2, Difícil: 3 }[question.difficulty] : 1);
   }, 0);
   const correct = records.filter((answer) => answer.isCorrect).length;
   return { points, correct, accuracy: records.length ? (correct / records.length) * 100 : 0 };
 }
 
-export function rankingView(state, params = {}) {
+export function rankingView(state: SiteState, params: ViewParams = {}): ViewModel {
   const { questions, packs, rankingParticipants } = getCatalog();
-  const period = ['today', 'month', 'all'].includes(params.period) ? params.period : 'month';
+  const requestedPeriod = params.period;
+  const period: RankingPeriod = requestedPeriod === 'today' || requestedPeriod === 'all' ? requestedPeriod : 'month';
   const pack = packs.find((item) => item.id === params.packId);
   const local = localRankingScore(state, questions, period, pack);
   const factor = period === 'today' ? 0.07 : period === 'month' ? 1 : 6.5;
@@ -137,15 +143,15 @@ export function rankingView(state, params = {}) {
   };
 }
 
-function trailChunks(questions) {
+function trailChunks(questions: Question[]): Question[][] {
   const sorted = [...questions].sort((left, right) => ({ Fácil: 0, Média: 1, Difícil: 2 }[left.difficulty] - ({ Fácil: 0, Média: 1, Difícil: 2 }[right.difficulty])));
   const active = Math.min(10, sorted.length);
-  const chunks = Array.from({ length: 10 }, () => []);
+  const chunks: Question[][] = Array.from({ length: 10 }, () => []);
   sorted.forEach((question, index) => chunks[Math.min(active - 1, Math.floor((index * active) / sorted.length))].push(question));
   return chunks;
 }
 
-export function trailsView(state, params = {}) {
+export function trailsView(state: SiteState, params: ViewParams = {}): ViewModel {
   const { disciplines, packs, questions } = getCatalog();
   const mode = params.mode === 'disciplina' ? 'disciplina' : 'concurso';
   const selectedId = params.track ?? (mode === 'concurso' ? packs[0]?.id : slugify(disciplines[0]?.name));
