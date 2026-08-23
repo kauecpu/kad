@@ -16,63 +16,67 @@ const ranking = source('../app/ranking.tsx');
 const trails = source('../app/trilhas.tsx');
 const essays = source('../app/redacao.tsx');
 const featuredCard = source('../components/ui/featured-card.tsx');
+const concursoCard = source('../components/concurso-card.tsx');
 
-test('o card de destaque define uma assinatura visual compartilhada e adaptativa', () => {
+test('o destaque compartilhado usa superfície sólida e hierarquia direta', () => {
   assert.match(featuredCard, /export function FeaturedCard/);
-  assert.match(featuredCard, /colors=\{\[soft, colors\.surface, colors\.surface\]\}/);
-  assert.match(featuredCard, /styles\.facetThin/);
-  assert.match(featuredCard, /styles\.iconGleam/);
+  assert.match(featuredCard, /backgroundColor: colors\.surfaceAlt/);
+  assert.match(featuredCard, /backgroundColor: colors\.brandSurfaceStrong/);
+  assert.doesNotMatch(featuredCard, /LinearGradient|facetThin|iconGleam|eyebrow/);
+  assert.match(featuredCard, /minHeight: 44/);
   assert.match(featuredCard, /accessibilityState=\{\{ disabled \}\}/);
   assert.match(featuredCard, /tone === 'achievement'/);
 });
 
-test('a intensidade forte é opcional e preserva o card padrão', () => {
+test('a intensidade forte é opcional e não adiciona decoração gratuita', () => {
   assert.match(featuredCard, /intensity\?: 'standard' \| 'strong'/);
   assert.match(featuredCard, /artwork\?: ReactNode/);
   assert.match(featuredCard, /intensity = 'standard'/);
-  assert.match(featuredCard, /<KadProgressSignature/);
-  assert.match(featuredCard, /colors\.brandSurfaceDeep/);
   assert.match(featuredCard, /colors\.brandSurfaceStrong/);
-  assert.match(featuredCard, /\[soft, colors\.surface, colors\.surface\]/);
+  assert.match(featuredCard, /styles\.frameStrong/);
+  assert.doesNotMatch(featuredCard, /KadProgressSignature|cardShadow/);
 });
 
 test('o card de montar simulado mantém estados e CTA dentro da nova superfície', () => {
   assert.match(simulations, /<FeaturedCard/);
-  assert.match(simulations, /PROVA PERSONALIZADA/);
   assert.match(simulations, /Verificando seu plano para montar simulados/);
   assert.match(simulations, /Conhecer planos com simulados personalizados/);
   assert.match(simulations, /canUseSimulations[\s\S]*?Configurar prova[\s\S]*?Conhecer planos/);
 });
 
-test('o cartão de identidade preserva perfil, plano e ação acessível', () => {
-  assert.match(profile, /IDENTIDADE KAD/);
-  assert.match(profile, /IDENTITY_COLORS/);
-  assert.match(profile, /styles\.identityBrandGlow/);
-  assert.match(profile, /styles\.identityRail/);
-  assert.match(profile, /styles\.identityAvatarRing/);
+test('o perfil preserva conta e plano sem a decoração do antigo dossiê', () => {
+  assert.match(profile, /Conta, plano e preferências/);
+  assert.match(profile, /styles\.identityHeader/);
+  assert.match(profile, /styles\.identityAvatar/);
   assert.match(profile, /styles\.identityStorageNote/);
   assert.match(profile, /Sua preparação fica salva só aqui/);
-  assert.match(profile, /styles\.primaryActionGradient/);
+  assert.match(profile, /backgroundColor: colors\.primary/);
   assert.match(profile, /accessibilityLabel=\{primaryAction\.label\}/);
   assert.match(profile, /accessibilityHint=\{primaryAction\.description\}/);
   assert.match(profile, /subscription\.plan === 'diamond'/);
+  assert.doesNotMatch(
+    profile,
+    /LinearGradient|IDENTIDADE KAD|identityBrandGlow|identityRail|primaryActionGradient|Dossiê do candidato/
+  );
+  assert.doesNotMatch(profile, /<DossierSection index=/);
 });
 
 test('o explorador de questões reúne modo e busca em um card acessível', () => {
   assert.match(questions, /<FeaturedCard/);
-  assert.match(questions, /EXPLORAR QUESTÕES/);
   assert.match(questions, /Escolha como estudar/);
   assert.match(questions, /<Segmented options=\{STUDY_OPTIONS\}/);
   assert.match(questions, /accessibilityLabel="Procurar questões"/);
-  assert.match(questions, /styles\.filterIcon/);
+  assert.doesNotMatch(questions, /styles\.filterIcon/);
+  assert.match(questions, /styles\.itemSeparator/);
+  assert.doesNotMatch(questions, /<Card/);
 });
 
 test('os demais destaques usam a mesma família sem substituir o cartão de perfil', () => {
   assert.match(
     home,
-    /<FeaturedCard[\s\S]*?intensity="strong"[\s\S]*?eyebrow=\{primaryAction\.eyebrow\}/
+    /<FeaturedCard[\s\S]*?intensity="strong"[\s\S]*?title=\{primaryAction\.title\}/
   );
-  assert.match(concursos, /<FeaturedCard[\s\S]*?eyebrow="FOCO DA META"/);
+  assert.match(concursos, /<FeaturedCard[\s\S]*?title=\{targetRole\}/);
   assert.match(ranking, /<FeaturedCard[\s\S]*?tone="achievement"/);
   assert.match(trails, /<FeaturedCard[\s\S]*?heroTrack\?\.name/);
   assert.match(essays, /<FeaturedCard[\s\S]*?Badge label="Recomendado"/);
@@ -81,8 +85,22 @@ test('os demais destaques usam a mesma família sem substituir o cartão de perf
 
 test('a Redação mantém um destaque mesmo quando o perfil ainda não possui meta', () => {
   assert.match(essays, /!recommendedTopic && !hasActiveDiscovery/);
-  assert.match(essays, /eyebrow="PRÁTICA DE REDAÇÃO"/);
   assert.match(essays, /Sua próxima redação começa aqui/);
   assert.match(essays, /Prática guiada/);
   assert.match(essays, /recommendedTopic && !hasActiveDiscovery[\s\S]*?Para sua meta/);
+});
+
+test('os destaques não reintroduzem kickers genéricos nas jornadas', () => {
+  for (const screen of [simulations, questions, home, concursos, ranking, trails, essays]) {
+    assert.doesNotMatch(screen, /<FeaturedCard[\s\S]*?eyebrow=/);
+  }
+});
+
+test('o radar de editais mantém os dados e remove ornamentos de template', () => {
+  assert.doesNotMatch(concursos, /KAD \/ CONCURSOS|eyebrowRail|Fonts\.mono/);
+  assert.doesNotMatch(concursoCard, /accentRail|accentSlash|Fonts\.mono|K\/\$\{marker\}/);
+  assert.match(concursoCard, /concurso\.title/);
+  assert.match(concursoCard, /REMUNERAÇÃO/);
+  assert.match(concursoCard, /VAGAS/);
+  assert.match(concursoCard, /deadline\.label/);
 });

@@ -66,7 +66,7 @@ test('os temas expõem a mesma identidade semântica de progresso', () => {
   }
 });
 
-test('os textos do destaque forte mantêm contraste AA em todo o gradiente', () => {
+test('os textos do destaque forte mantêm contraste AA nas superfícies da marca', () => {
   for (const theme of ['light', 'dark'] as const) {
     const block = themeBlock(theme);
     for (const foregroundToken of ['onBrand', 'onBrandMuted'] as const) {
@@ -89,13 +89,27 @@ test('a label inativa da navegação mantém contraste AA no tema claro', () => 
   assert.ok(contrastRatio(tokenValue(block, 'tabInactive'), tokenValue(block, 'surface')) >= 4.5);
 });
 
-test('o ícone de conquista mantém contraste em todo o próprio gradiente', () => {
-  const gradient = featuredCard.match(
-    /const ACHIEVEMENT_ICON_GRADIENT = \['(#[0-9A-F]{6})', '(#[0-9A-F]{6})'\] as const;/i
-  );
-  assert.ok(gradient, 'o gradiente de conquista precisa ser verificável');
-  assert.ok(contrastRatio('#FFFFFF', gradient[1]) >= 3);
-  assert.ok(contrastRatio('#FFFFFF', gradient[2]) >= 3);
+test('os ícones do destaque mantêm contraste nas superfícies tonais', () => {
+  assert.match(featuredCard, /const accent = achievement \? colors\.warning : colors\.primary/);
+  assert.match(featuredCard, /const soft = achievement \? colors\.warningSoft : colors\.primarySoft/);
+
+  for (const theme of ['light', 'dark'] as const) {
+    const block = themeBlock(theme);
+    for (const [foregroundToken, backgroundToken] of [
+      ['primary', 'primarySoft'],
+      ['warning', 'warningSoft'],
+      ['onBrand', 'brandSurfaceStrong'],
+    ] as const) {
+      const ratio = contrastRatio(
+        tokenValue(block, foregroundToken),
+        tokenValue(block, backgroundToken)
+      );
+      assert.ok(
+        ratio >= 3,
+        `${theme}.${foregroundToken} precisa contrastar com ${backgroundToken}; recebeu ${ratio.toFixed(2)}`
+      );
+    }
+  }
 });
 
 test('a assinatura de progresso é puramente decorativa', () => {

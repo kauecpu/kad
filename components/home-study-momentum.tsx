@@ -37,17 +37,12 @@ export function StudyMomentumCard({ momentum, onGoalChange }: StudyMomentumCardP
 
   return (
     <Card padded={false} style={[styles.momentumCard, { borderColor: colors.border }]}>
-      <View style={[styles.momentumTop, { backgroundColor: colors.primarySoft }]}>
+      <View style={styles.momentumTop}>
         <View style={[styles.goalHeading, stackGoalHeading && styles.goalHeadingStacked]}>
           <View style={styles.goalIdentity}>
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={[styles.goalIcon, { backgroundColor: colors.primary }]}>
-              <Ionicons name="flag-outline" size={18} color={colors.onPrimary} aria-hidden />
-            </View>
+            <Ionicons name="flag-outline" size={20} color={colors.primary} aria-hidden />
             <View style={styles.goalCopy}>
-              <Text style={[styles.eyebrow, { color: colors.primary }]}>META SEMANAL</Text>
+              <Text style={[styles.goalLabel, { color: colors.textMuted }]}>Meta semanal</Text>
               <Text style={[styles.goalTitle, { color: colors.text }]}>
                 {momentum.weeklyQuestions} de {momentum.weeklyGoal} questões
               </Text>
@@ -62,10 +57,10 @@ export function StudyMomentumCard({ momentum, onGoalChange }: StudyMomentumCardP
             style={({ pressed }) => [
               styles.adjustButton,
               stackGoalHeading && styles.adjustButtonStacked,
-              { backgroundColor: colors.surface },
               pressed && styles.pressed,
             ]}>
             <Text style={[styles.adjustText, { color: colors.primary }]}>Ajustar</Text>
+            <Ionicons name="chevron-down" size={16} color={colors.primary} />
           </Pressable>
         </View>
 
@@ -112,11 +107,9 @@ export function StudyMomentumCard({ momentum, onGoalChange }: StudyMomentumCardP
         ) : null}
       </View>
 
-      <View style={styles.momentumBottom}>
+      <View style={[styles.momentumBottom, { borderTopColor: colors.border }]}>
         <View style={styles.streakRow}>
-          <View style={[styles.streakIcon, { backgroundColor: colors.warningSoft }]}>
-            <Ionicons name="flame-outline" size={18} color={colors.warning} />
-          </View>
+          <Ionicons name="flame-outline" size={20} color={colors.warning} />
           <View style={styles.streakCopy}>
             <Text style={[styles.streakTitle, { color: colors.text }]}>{streakLabel}</Text>
             <Text style={[styles.streakDescription, { color: colors.textMuted }]}>
@@ -255,31 +248,24 @@ export function RecentStudyCard({ activities, onOpen, onStart }: RecentStudyCard
 }
 
 const styles = StyleSheet.create({
-  momentumCard: { overflow: 'hidden', borderWidth: 1 },
+  momentumCard: { overflow: 'hidden', borderWidth: 1, borderRadius: Radius.md },
   momentumTop: { padding: Spacing.lg, gap: Spacing.md },
   goalHeading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   goalHeadingStacked: { alignItems: 'stretch', flexDirection: 'column' },
   goalIdentity: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  goalIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   goalCopy: { flex: 1, gap: 2 },
-  eyebrow: {
-    fontFamily: Fonts.mono,
+  goalLabel: {
     fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.7,
+    fontWeight: FontWeight.medium,
   },
   goalTitle: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
   adjustButton: {
     minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.sm,
   },
   adjustButtonStacked: { alignSelf: 'flex-start' },
   adjustText: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
@@ -293,15 +279,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   goalOptionText: { fontFamily: Fonts.mono, fontSize: FontSize.small, fontWeight: FontWeight.bold },
-  momentumBottom: { padding: Spacing.lg, gap: Spacing.lg },
-  streakRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  streakIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+  momentumBottom: {
+    padding: Spacing.lg,
+    gap: Spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
+  streakRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   streakCopy: { flex: 1, gap: 2 },
   streakTitle: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
   streakDescription: { fontSize: FontSize.tiny, lineHeight: 16 },

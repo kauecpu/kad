@@ -113,7 +113,6 @@ export default function RankingScreen() {
         showsVerticalScrollIndicator={false}>
         <FeaturedCard
           icon="trophy"
-          eyebrow="PRÉVIA DO RANKING"
           title="Suba no ranking"
           description={`Acerte questões, some pontos e acompanhe sua posição ${periodLabel}.`}
           tone="achievement"

@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import {
   Pressable,
@@ -11,18 +10,14 @@ import {
 } from 'react-native';
 
 import Ionicons from '@/components/ui/app-icon';
-import { KadProgressSignature } from '@/components/ui/kad-progress-signature';
 import { PressFeedback } from '@/components/ui/press-feedback';
-import { cardShadow, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type FeaturedCardTone = 'brand' | 'achievement';
 
-const ACHIEVEMENT_ICON_GRADIENT = ['#6B4300', '#9A6700'] as const;
-
 type FeaturedCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
-  eyebrow: string;
   title: string;
   description?: string;
   accessory?: ReactNode;
@@ -39,13 +34,9 @@ type FeaturedCardProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/**
- * Card de destaque do KAD. Mantém a mesma assinatura visual entre jornadas,
- * enquanto ícone, conteúdo e tom identificam a função de cada tela.
- */
+/** Destaque editorial do KAD com superfície sólida e hierarquia direta. */
 export function FeaturedCard({
   icon,
-  eyebrow,
   title,
   description,
   accessory,
@@ -69,34 +60,25 @@ export function FeaturedCard({
   const soft = achievement ? colors.warningSoft : colors.primarySoft;
   const foreground = strong ? colors.onBrand : colors.text;
   const mutedForeground = strong ? colors.onBrandMuted : colors.textMuted;
-  const detailAccent = strong ? colors.onBrandMuted : accent;
-  const iconGradient = strong
-    ? achievement
-      ? ACHIEVEMENT_ICON_GRADIENT
-      : (['rgba(255, 255, 255, 0.28)', 'rgba(255, 255, 255, 0.12)'] as const)
-    : achievement
-      ? ACHIEVEMENT_ICON_GRADIENT
-      : ([colors.primaryStrong, colors.primary] as const);
   const artworkWidth = fontScale >= 1.25 ? 72 : width < 420 ? 88 : width < 768 ? 108 : 128;
   const showArtwork = Boolean(artwork) && fontScale < 1.5;
 
   const cardContent = (
     <>
       <View style={styles.header}>
-        <LinearGradient
-          colors={iconGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.icon, cardShadow(strong ? colors.brandSurfaceDeep : accent, 1)]}>
-          <View pointerEvents="none" style={styles.iconGleam} />
-          <Ionicons name={icon} size={compact ? 20 : 23} color={colors.onBrand} />
-        </LinearGradient>
+        <View
+          style={[
+            styles.icon,
+            { backgroundColor: strong ? colors.brandTrace : soft },
+          ]}>
+          <Ionicons
+            name={icon}
+            size={compact ? 19 : 21}
+            color={strong ? colors.onBrand : accent}
+          />
+        </View>
 
         <View style={styles.heading}>
-          <View style={styles.eyebrowRow}>
-            <View style={[styles.eyebrowLine, { backgroundColor: detailAccent }]} />
-            <Text style={[styles.eyebrow, { color: detailAccent }]}>{eyebrow}</Text>
-          </View>
           <View style={styles.titleRow}>
             <Text
               style={[
@@ -117,54 +99,43 @@ export function FeaturedCard({
       {children ? <View style={styles.content}>{children}</View> : null}
 
       {actionLabel ? (
-        <View
-          style={[
-            styles.action,
-            {
-              backgroundColor: strong ? colors.onBrand : colors.surface,
-              borderColor: strong ? colors.brandTrace : colors.border,
-            },
-          ]}>
+        <View style={styles.action}>
           <Text
             style={[
               styles.actionText,
-              { color: strong ? colors.brandSurfaceDeep : accent },
+              { color: strong ? colors.onBrand : accent },
             ]}>
             {actionLabel}
           </Text>
-          <View
-            style={[
-              styles.actionArrow,
-              { backgroundColor: strong ? colors.brandSurfaceStrong : accent },
-            ]}>
-            <Ionicons name="arrow-forward" size={15} color={colors.onBrand} />
-          </View>
+          <Ionicons
+            name="arrow-forward"
+            size={17}
+            color={strong ? colors.onBrand : accent}
+          />
         </View>
       ) : null}
     </>
   );
 
   const standardSurface = (
-    <LinearGradient
-      colors={[soft, colors.surface, colors.surface]}
-      locations={[0, 0.58, 1]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.surface, compact && styles.surfaceCompact]}>
-      <View pointerEvents="none" style={[styles.facet, { backgroundColor: accent }]} />
-      <View pointerEvents="none" style={[styles.facetThin, { backgroundColor: accent }]} />
+    <View
+      style={[
+        styles.surface,
+        compact && styles.surfaceCompact,
+        { backgroundColor: colors.surfaceAlt },
+      ]}>
       {cardContent}
-    </LinearGradient>
+    </View>
   );
 
   const strongSurface = (
-    <LinearGradient
-      colors={[colors.brandSurfaceDeep, colors.brandSurfaceStrong]}
-      locations={[0, 1]}
-      start={{ x: 0, y: 1 }}
-      end={{ x: 1, y: 0 }}
-      style={[styles.surface, styles.surfaceStrong, compact && styles.surfaceCompact]}>
-      <KadProgressSignature />
+    <View
+      style={[
+        styles.surface,
+        styles.surfaceStrong,
+        compact && styles.surfaceCompact,
+        { backgroundColor: colors.brandSurfaceStrong },
+      ]}>
       {showArtwork ? (
         <View style={styles.strongLayout}>
           <View style={styles.strongContent}>{cardContent}</View>
@@ -173,15 +144,15 @@ export function FeaturedCard({
       ) : (
         cardContent
       )}
-    </LinearGradient>
+    </View>
   );
 
   const surface = strong ? strongSurface : standardSurface;
 
   const frameStyle: StyleProp<ViewStyle> = [
     styles.frame,
-    { borderColor: strong ? colors.brandTrace : colors.borderStrong },
-    cardShadow(strong ? colors.brandSurfaceDeep : colors.shadow, 2),
+    strong && styles.frameStrong,
+    { borderColor: strong ? 'transparent' : colors.borderStrong },
     disabled && styles.disabled,
     style,
   ];
@@ -220,14 +191,17 @@ export function FeaturedCard({
 const styles = StyleSheet.create({
   frame: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.xl,
+    borderRadius: 16,
     overflow: 'hidden',
   },
+  frameStrong: {
+    borderWidth: 0,
+  },
   surface: {
-    minHeight: 168,
+    minHeight: 148,
     position: 'relative',
     overflow: 'hidden',
-    padding: Spacing.xl,
+    padding: Spacing.lg,
     gap: Spacing.lg,
   },
   surfaceCompact: {
@@ -236,7 +210,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   surfaceStrong: {
-    minHeight: 188,
+    minHeight: 164,
+    padding: Spacing.xl,
   },
   strongLayout: {
     flexDirection: 'row',
@@ -254,68 +229,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
   },
-  facet: {
-    position: 'absolute',
-    width: 62,
-    height: 260,
-    right: 40,
-    top: -62,
-    opacity: 0.055,
-    transform: [{ rotate: '24deg' }],
-  },
-  facetThin: {
-    position: 'absolute',
-    width: 13,
-    height: 252,
-    right: 27,
-    top: -58,
-    opacity: 0.12,
-    transform: [{ rotate: '24deg' }],
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.md,
   },
   icon: {
-    width: 48,
-    height: 48,
+    width: 38,
+    height: 38,
     flexShrink: 0,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  iconGleam: {
-    position: 'absolute',
-    width: 28,
-    height: 76,
-    right: -7,
-    top: -18,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    transform: [{ rotate: '24deg' }],
   },
   heading: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
-  },
-  eyebrowRow: {
-    minHeight: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs + 1,
-  },
-  eyebrowLine: {
-    width: 18,
-    height: 2,
-    borderRadius: Radius.pill,
-  },
-  eyebrow: {
-    flexShrink: 1,
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.8,
+    gap: Spacing.xs,
   },
   titleRow: {
     flexDirection: 'row',
@@ -343,30 +273,18 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   action: {
-    minHeight: 40,
+    minHeight: 44,
     maxWidth: '100%',
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingLeft: Spacing.md,
-    paddingRight: Spacing.xs,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Spacing.sm,
   },
   actionText: {
     flexShrink: 1,
     fontSize: FontSize.small,
     fontWeight: FontWeight.bold,
-  },
-  actionArrow: {
-    width: 30,
-    height: 30,
-    flexShrink: 0,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   disabled: {
     opacity: 0.72,

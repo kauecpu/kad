@@ -112,11 +112,12 @@ test('a rota Explorar continua disponível, mas não aparece no catálogo do dra
   assert.match(source('../app/(tabs)/explorar.tsx'), /export default function ExploreScreen/);
 });
 
-test('a tela Início preserva seus cards fortes e resumos', () => {
+test('a tela Início preserva o destaque forte e achata o resumo diário', () => {
   const home = source('../app/(tabs)/inicio.tsx');
 
   assert.match(home, /<FeaturedCard/);
   assert.match(home, /intensity="strong"/);
-  assert.match(home, /styles\.summaryGrid/);
+  assert.match(home, /styles\.summaryStrip/);
+  assert.doesNotMatch(home, /styles\.summaryCard/);
   assert.match(home, /<StudyMomentumCard/);
 });

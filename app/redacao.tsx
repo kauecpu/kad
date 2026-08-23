@@ -341,7 +341,6 @@ function TopicSelection({
       {!recommendedTopic && !hasActiveDiscovery ? (
         <FeaturedCard
           icon="create-outline"
-          eyebrow="PRÁTICA DE REDAÇÃO"
           title="Sua próxima redação começa aqui"
           description={`Explore ${disclosure.total} ${disclosure.total === 1 ? 'proposta preparada' : 'propostas preparadas'} para praticar do planejamento à revisão.`}
           accessory={<Badge label="Prática guiada" tone="accent" />}
@@ -470,9 +469,8 @@ function FeaturedTopicCard({
   return (
     <FeaturedCard
       icon={(pack?.icon as keyof typeof Ionicons.glyphMap) ?? 'document-text-outline'}
-      eyebrow={`${pack?.name ?? 'CONCURSO'} · ${topic.category}`.toLocaleUpperCase('pt-BR')}
       title={topic.title}
-      description="Uma proposta selecionada para aproximar sua prática da meta atual."
+      description={`${pack?.name ?? 'Concurso'} · ${topic.category}. Uma proposta selecionada para aproximar sua prática da meta atual.`}
       accessory={<Badge label="Recomendado" tone="accent" />}>
       <View style={styles.topicMeta}>
         <Meta icon="speedometer-outline" label={topic.difficulty} />

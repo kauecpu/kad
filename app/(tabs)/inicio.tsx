@@ -24,7 +24,6 @@ import {
   CONTENT_MAX_WIDTH,
   FontSize,
   FontWeight,
-  Fonts,
   Radius,
   Spacing,
 } from '@/constants/theme';
@@ -148,7 +147,6 @@ export function HomeContent() {
                     ? 'refresh-outline'
                     : 'flash-outline'
           }
-          eyebrow={primaryAction.eyebrow}
           title={primaryAction.title}
           description={primaryAction.description}
           motionFeedback
@@ -167,66 +165,60 @@ export function HomeContent() {
         <View
           accessible
           accessibilityLabel="Resumo da preparação"
-          style={[styles.summaryGrid, stackSummary && styles.summaryGridStacked]}>
+          style={[
+            styles.summaryStrip,
+            stackSummary && styles.summaryStripStacked,
+            { borderColor: colors.border },
+          ]}>
           <View
             accessible
             accessibilityLabel={`${dailyQuestionsAnswered} questões respondidas hoje`}
-            style={[
-              styles.summaryCard,
-              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-            ]}>
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={[styles.summaryIcon, { backgroundColor: colors.primarySoft }]}>
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={18}
-                color={colors.primary}
-                aria-hidden={true}
-              />
+            style={styles.summaryItem}>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={20}
+              color={colors.primary}
+              aria-hidden={true}
+            />
+            <View style={styles.summaryCopy}>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>
+                {dailyQuestionsAnswered}
+              </Text>
+              <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Questões hoje</Text>
             </View>
-            <Text style={[styles.summaryValue, { color: colors.text }]}>
-              {dailyQuestionsAnswered}
-            </Text>
-            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Questões hoje</Text>
           </View>
+
+          <View
+            style={[
+              styles.summaryDivider,
+              stackSummary
+                ? styles.summaryDividerHorizontal
+                : styles.summaryDividerVertical,
+              { backgroundColor: colors.border },
+            ]}
+          />
 
           <View
             accessible
             accessibilityLabel={`${studyMomentum.weeklyQuestions} de ${studyMomentum.weeklyGoal} questões da meta semanal${weeklyRemaining > 0 ? `. Faltam ${weeklyRemaining} questões` : '. Meta concluída'}`}
-            style={[
-              styles.summaryCard,
-              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
-            ]}>
-            <View style={styles.summaryHeading}>
+            style={styles.summaryItem}>
+            <Ionicons name="flag-outline" size={20} color={colors.primary} aria-hidden={true} />
+            <View style={styles.summaryCopy}>
               <Text style={[styles.summaryValue, { color: colors.text }]}>
                 {studyMomentum.weeklyQuestions} de {studyMomentum.weeklyGoal}
               </Text>
-              <View
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-                style={[styles.summaryIcon, { backgroundColor: colors.primarySoft }]}>
-                <Ionicons
-                  name="flag-outline"
-                  size={18}
-                  color={colors.primary}
-                  aria-hidden={true}
-                />
-              </View>
-            </View>
-            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Meta semanal</Text>
-            {weeklyRemaining > 0 ? (
-              <Text style={[styles.summaryHint, { color: colors.textMuted }]}>
-                Faltam {weeklyRemaining} questões
+              <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>
+                {weeklyRemaining > 0
+                  ? `Meta semanal · faltam ${weeklyRemaining}`
+                  : 'Meta semanal concluída'}
               </Text>
-            ) : null}
-            <ProgressBar
-              value={studyMomentum.weeklyProgress}
-              color={colors.primary}
-              height={5}
-              label={`Meta semanal: ${studyMomentum.weeklyQuestions} de ${studyMomentum.weeklyGoal} questões`}
-            />
+              <ProgressBar
+                value={studyMomentum.weeklyProgress}
+                color={colors.primary}
+                height={4}
+                label={`Meta semanal: ${studyMomentum.weeklyQuestions} de ${studyMomentum.weeklyGoal} questões`}
+              />
+            </View>
           </View>
         </View>
 
@@ -294,38 +286,33 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxxl,
     gap: Spacing.xl,
   },
-  summaryGrid: { flexDirection: 'row', gap: Spacing.sm },
-  summaryGridStacked: { flexDirection: 'column' },
-  summaryCard: {
-    minWidth: 0,
-    minHeight: 108,
-    flex: 1,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Spacing.md,
-    gap: Spacing.xs,
+  summaryStrip: {
+    flexDirection: 'row',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  summaryHeading: {
+  summaryStripStacked: { flexDirection: 'column' },
+  summaryItem: {
+    minWidth: 0,
+    minHeight: 72,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xs,
   },
-  summaryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  summaryCopy: { minWidth: 0, flex: 1, gap: Spacing.xs },
+  summaryDivider: { flexShrink: 0 },
+  summaryDividerVertical: { width: StyleSheet.hairlineWidth, marginVertical: Spacing.md },
+  summaryDividerHorizontal: { height: StyleSheet.hairlineWidth, width: '100%' },
   summaryValue: {
-    fontFamily: Fonts.mono,
     fontSize: FontSize.heading,
     lineHeight: 22,
     fontWeight: FontWeight.bold,
+    fontVariant: ['tabular-nums'],
   },
   summaryLabel: { fontSize: FontSize.tiny, fontWeight: FontWeight.medium },
-  summaryHint: { fontSize: FontSize.tiny, lineHeight: 16 },
   deadlineAlert: {
     minHeight: 80,
     borderWidth: 1,
