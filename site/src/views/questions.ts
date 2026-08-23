@@ -1,4 +1,4 @@
-import { getCatalog } from '../data/catalog.js';
+import { getCatalog } from '../data/catalog.ts';
 import {
   clamp,
   escapeHtml,
@@ -8,15 +8,20 @@ import {
   questionsPerformance,
   slugify,
   unique,
-} from '../core/utils.js';
-import { badge, button, card, emptyState, icon, progress, section } from '../ui/components.js';
-import { stackHeader } from '../ui/layout.js';
+} from '../core/utils.ts';
+import { badge, button, card, emptyState, icon, progress, section } from '../ui/components.ts';
+import { stackHeader } from '../ui/layout.ts';
+import type { Question, SiteState, UiState, ViewModel } from '../types/domain.ts';
 
-function questionCountLabel(count) {
+type ViewParams = Record<string, string | undefined>;
+type AnswerStatus = 'unanswered' | 'correct' | 'wrong' | 'favorites' | undefined;
+type QuestionUiState = Pick<UiState, 'questionIndex' | 'visitedQuestionIds'>;
+
+function questionCountLabel(count: number): string {
   return `${count} ${count === 1 ? 'questão' : 'questões'}`;
 }
 
-function questionResultCard(question, state) {
+function questionResultCard(question: Question, state: SiteState): string {
   const answer = state.answers[question.id];
   return card(`
     <button class="list-row" type="button" data-action="open-question" data-question-id="${escapeHtml(question.id)}">
@@ -27,7 +32,7 @@ function questionResultCard(question, state) {
     </button>`);
 }
 
-export function questionsIndexView(state) {
+export function questionsIndexView(state: SiteState): ViewModel {
   const { disciplines, questions } = getCatalog();
   const performance = questionsPerformance(state.answers);
   const disciplineCards = disciplines.map((discipline) => {
@@ -74,7 +79,7 @@ export function questionsIndexView(state) {
   };
 }
 
-export function disciplineView(slug, state) {
+export function disciplineView(slug: string, state: SiteState): ViewModel {
   const { disciplines, questions } = getCatalog();
   const discipline = disciplines.find((item) => slugify(item.name) === slug);
   if (!discipline) {
@@ -97,7 +102,7 @@ export function disciplineView(slug, state) {
   };
 }
 
-function applyAnswerStatus(questions, state, status) {
+function applyAnswerStatus(questions: Question[], state: SiteState, status: AnswerStatus | string): Question[] {
   if (status === 'unanswered') return questions.filter((question) => !state.answers[question.id]);
   if (status === 'correct') return questions.filter((question) => state.answers[question.id]?.isCorrect);
   if (status === 'wrong') return questions.filter((question) => state.answers[question.id] && !state.answers[question.id].isCorrect);
@@ -105,11 +110,14 @@ function applyAnswerStatus(questions, state, status) {
   return questions;
 }
 
-export function searchView(state, params = {}) {
+export function searchView(state: SiteState, params: ViewParams = {}): ViewModel {
   const { questions, disciplines } = getCatalog();
   const boards = unique(questions.map((question) => question.board)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const filtered = applyAnswerStatus(filterQuestions(questions, params), state, params.status);
   const hasSearch = Object.values(params).some(Boolean);
+  const serializedParams = new URLSearchParams(
+    Object.entries(params).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
   return {
     title: 'Procurar questões',
     subtitle: 'Combine filtros para montar sua prática',
@@ -122,20 +130,21 @@ export function searchView(state, params = {}) {
         <div class="field"><label class="sr-only" for="question-status">Situação</label><select class="select" id="question-status" name="status"><option value="">Qualquer situação</option><option value="unanswered" ${params.status === 'unanswered' ? 'selected' : ''}>Não respondidas</option><option value="correct" ${params.status === 'correct' ? 'selected' : ''}>Acertadas</option><option value="wrong" ${params.status === 'wrong' ? 'selected' : ''}>Erradas</option></select></div>
         ${button('Buscar', { type: 'submit', iconName: 'Search' })}
       </form>`)}
-      <div class="toolbar"><div><p class="eyebrow">RESULTADOS</p><h2>${questionCountLabel(filtered.length)}</h2></div>${filtered.length ? button('Estudar resultados', { action: 'study-search-results', iconName: 'Play', attrs: `data-search="${escapeHtml(new URLSearchParams(params).toString())}"` }) : ''}</div>
+      <div class="toolbar"><div><p class="eyebrow">RESULTADOS</p><h2>${questionCountLabel(filtered.length)}</h2></div>${filtered.length ? button('Estudar resultados', { action: 'study-search-results', iconName: 'Play', attrs: `data-search="${escapeHtml(serializedParams.toString())}"` }) : ''}</div>
       ${filtered.length ? `<div class="dashboard-main">${filtered.slice(0, 40).map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState(hasSearch ? 'Nenhuma questão encontrada' : 'Seu banco inteiro está pronto', hasSearch ? 'Tente remover um filtro ou usar termos mais amplos.' : 'Use os filtros acima ou comece com todas as questões.', { action: 'study-all-questions', actionLabel: 'Praticar todas' })}
     `,
   };
 }
 
-export function reviewView(type, state) {
+export function reviewView(type: string | undefined, state: SiteState): ViewModel {
   const { questions } = getCatalog();
   const labels = {
     favoritas: ['Questões favoritas', 'Itens que você marcou para rever'],
     erradas: ['Questões erradas', 'Retome o que ainda precisa de atenção'],
     acertadas: ['Questões acertadas', 'Revise os conteúdos já consolidados'],
   };
-  const [title, subtitle] = labels[type] ?? labels.favoritas;
+  const reviewType = type === 'erradas' || type === 'acertadas' ? type : 'favoritas';
+  const [title, subtitle] = labels[reviewType];
   const status = type === 'favoritas' ? 'favorites' : type === 'erradas' ? 'wrong' : 'correct';
   const filtered = applyAnswerStatus(questions, state, status);
   return {
@@ -145,7 +154,7 @@ export function reviewView(type, state) {
   };
 }
 
-export function questionsForSession(params, state) {
+export function questionsForSession(params: ViewParams, state: SiteState): Question[] {
   const { questions, packs } = getCatalog();
   let result = questions;
   if (params.id) result = questions.filter((question) => question.id === params.id);
@@ -167,7 +176,7 @@ export function questionsForSession(params, state) {
   return result;
 }
 
-export function questionSessionView(state, params, ui) {
+export function questionSessionView(state: SiteState, params: ViewParams, ui: QuestionUiState): ViewModel {
   const questions = questionsForSession(params, state);
   const index = clamp(ui.questionIndex ?? 0, 0, Math.max(0, questions.length - 1));
   const question = questions[index];
@@ -234,6 +243,6 @@ export function questionSessionView(state, params, ui) {
   };
 }
 
-export function quickChallengeView(state, ui) {
+export function quickChallengeView(state: SiteState, ui: QuestionUiState): ViewModel {
   return questionSessionView(state, { challenge: '1', limit: '3' }, ui);
 }

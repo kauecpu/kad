@@ -34,6 +34,12 @@ jobs:
       - name: Testar, validar tipos e lint
         run: npm run check
 
+      - name: Instalar dependências do KAD Site
+        run: npm ci --prefix site
+
+      - name: Testar, validar tipos e compilar KAD Site
+        run: npm --prefix site run check
+
       - name: Instalar dependências do painel administrativo
         run: npm ci --prefix admin
 

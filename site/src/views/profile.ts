@@ -1,9 +1,12 @@
-import { getCatalog } from '../data/catalog.js';
-import { escapeHtml, formatPercent, formatTimer, groupPerformance, normalizeText, questionsPerformance } from '../core/utils.js';
-import { avatar, badge, button, card, emptyState, icon, metricRing, passwordField, progress, section, stat } from '../ui/components.js';
-import { stackHeader } from '../ui/layout.js';
+import { getCatalog } from '../data/catalog.ts';
+import { escapeHtml, formatPercent, formatTimer, groupPerformance, normalizeText, questionsPerformance } from '../core/utils.ts';
+import { avatar, badge, button, card, emptyState, icon, metricRing, passwordField, progress, section, stat } from '../ui/components.ts';
+import { stackHeader } from '../ui/layout.ts';
+import type { SiteState, ViewModel } from '../types/domain.ts';
 
-export function essayView(state, params = {}) {
+type ViewParams = Record<string, string | undefined>;
+
+export function essayView(state: SiteState, params: ViewParams = {}): ViewModel {
   const { essayTopics, packs } = getCatalog();
   const topic = essayTopics.find((item) => item.id === params.topic);
   const stage = params.stage ?? (topic ? 'write' : 'topics');
@@ -59,7 +62,7 @@ export function essayView(state, params = {}) {
   };
 }
 
-export function libraryView() {
+export function libraryView(): ViewModel {
   return {
     title: 'Biblioteca',
     subtitle: 'Conteúdo para revisar',
@@ -71,7 +74,7 @@ export function libraryView() {
   };
 }
 
-export function profileView(state) {
+export function profileView(state: SiteState): ViewModel {
   const { questions } = getCatalog();
   const performance = questionsPerformance(state.answers);
   const settings = [
@@ -96,7 +99,7 @@ export function profileView(state) {
   };
 }
 
-export function performanceView(state) {
+export function performanceView(state: SiteState): ViewModel {
   const { questions } = getCatalog();
   const performance = questionsPerformance(state.answers);
   const grouped = groupPerformance(questions, state.answers);
@@ -113,21 +116,21 @@ export function performanceView(state) {
   };
 }
 
-export function profileEditView(state) {
+export function profileEditView(state: SiteState): ViewModel {
   return {
     title: 'Editar perfil',
     content: `${stackHeader('Editar dados', 'Atualize as informações exibidas no KAD')}${card(`<form class="form-stack card--padded" data-form="profile-edit"><div class="form-grid"><div class="field"><label for="profile-name">Nome completo</label><input class="input" id="profile-name" name="name" value="${escapeHtml(state.profile.name)}" required /></div><div class="field"><label for="profile-email">E-mail de acesso</label><input class="input" id="profile-email" name="email" type="email" value="${escapeHtml(state.profile.email)}" ${state.auth.mode === 'authenticated' ? 'readonly' : ''} /></div></div><div class="form-grid"><div class="field"><label for="profile-phone">Telefone</label><input class="input" id="profile-phone" name="phone" value="${escapeHtml(state.profile.phone)}" autocomplete="tel" /></div><div class="field"><label for="profile-city">Cidade</label><input class="input" id="profile-city" name="city" value="${escapeHtml(state.profile.city)}" autocomplete="address-level2" /></div></div><div class="field"><label for="profile-target">Cargo desejado</label><input class="input" id="profile-target" name="targetRole" value="${escapeHtml(state.profile.targetRole)}" /></div><p class="form-message" data-form-message></p>${button('Salvar alterações', { type: 'submit', iconName: 'Save', size: 'lg' })}</form>`)}`,
   };
 }
 
-export function goalView(state) {
+export function goalView(state: SiteState): ViewModel {
   return {
     title: 'Minha meta',
     content: `${stackHeader('Escolha sua meta', 'Personalize recomendações e ritmo semanal')}${card(`<form class="form-stack card--padded" data-form="goal"><div class="field"><label for="goal-target">Cargo, área ou concurso</label><input class="input" id="goal-target" name="targetRole" value="${escapeHtml(state.profile.targetRole)}" placeholder="Ex.: Analista Judiciário" /></div><div class="field"><label for="goal-weekly">Meta semanal</label><select class="select" id="goal-weekly" name="weeklyGoal">${[15, 30, 50, 75, 100].map((value) => `<option value="${value}" ${state.preferences.weeklyGoal === value ? 'selected' : ''}>${value} questões</option>`).join('')}</select></div><p class="form-message" data-form-message></p>${button('Salvar meta', { type: 'submit', iconName: 'Target' })}</form>`)}`,
   };
 }
 
-export function plansView(state, params = {}) {
+export function plansView(state: SiteState, params: ViewParams = {}): ViewModel {
   const plans = [
     { name: 'Básico', price: 'Grátis', period: '', cycle: '', features: ['Questões ilimitadas', 'Correção e gabarito comentado'], featured: false },
     { name: 'Diamond mensal', price: 'R$ 14,99', period: '/mês', cycle: 'monthly', features: ['Tudo do Básico', 'Simulados personalizados', 'Desempenho por disciplina', 'Revisão de erros e favoritas'], featured: false },
@@ -142,21 +145,21 @@ export function plansView(state, params = {}) {
   };
 }
 
-export function feedbackView(state) {
+export function feedbackView(state: SiteState): ViewModel {
   return {
     title: 'Fale com o KAD',
     content: `${stackHeader('Fale com o KAD', 'Ajude a construir uma experiência melhor')}${card(`<form class="form-stack card--padded" data-form="feedback"><div class="field"><label for="feedback-kind">Assunto</label><select class="select" id="feedback-kind" name="kind"><option value="suggestion">Sugestão</option><option value="problem">Problema</option><option value="question">Dúvida</option></select></div><div class="field"><label for="feedback-message">Comentário</label><textarea class="textarea" id="feedback-message" name="message" minlength="3" maxlength="1200" placeholder="Conte o que podemos melhorar" required></textarea><small>Não inclua senhas nem dados sensíveis.</small></div><p class="form-message" data-form-message>${state.feedback.length ? `${state.feedback.length} comentário(s) salvo(s) neste navegador.` : ''}</p>${button('Enviar para o KAD', { type: 'submit', iconName: 'Send' })}</form>`)}`,
   };
 }
 
-export function passwordView(state) {
+export function passwordView(state: SiteState): ViewModel {
   return {
     title: 'Alterar senha',
     content: `${stackHeader('Alterar senha', 'Proteja o acesso à sua conta')}${state.auth.mode !== 'authenticated' ? emptyState('Entre em uma conta para alterar a senha', 'No modo visitante não existe uma senha armazenada.', { route: '/entrar', actionLabel: 'Entrar na conta' }) : card(`<form class="form-stack card--padded" data-form="password-change">${passwordField({ id: 'password-current', label: 'Senha atual', name: 'currentPassword', autocomplete: 'current-password' })}${passwordField({ id: 'password-new', label: 'Nova senha', autocomplete: 'new-password' })}${passwordField({ id: 'password-new-confirm', label: 'Confirmar nova senha', name: 'passwordConfirmation', autocomplete: 'new-password' })}<p class="form-message" data-form-message aria-live="polite"></p>${button('Salvar nova senha', { type: 'submit', iconName: 'KeyRound' })}</form>`)}`,
   };
 }
 
-export function deleteView(state) {
+export function deleteView(state: SiteState): ViewModel {
   return {
     title: state.auth.mode === 'authenticated' ? 'Excluir conta' : 'Apagar dados',
     content: `${stackHeader(state.auth.mode === 'authenticated' ? 'Excluir conta' : 'Apagar dados deste navegador', 'Esta ação não pode ser desfeita')}${card(`<form class="form-stack card--padded" data-form="delete-data"><span class="empty-state__icon">${icon('Trash2')}</span><h2>${state.auth.mode === 'authenticated' ? 'Confirme a exclusão da conta' : 'Remover todo o progresso local?'}</h2><p class="muted">Respostas, favoritos, simulados, redações, comentários e preferências serão removidos deste navegador.${state.auth.mode === 'authenticated' ? ' A exclusão remota dependerá da integração segura do backend.' : ''}</p><div class="field"><label for="delete-confirmation">Digite APAGAR para confirmar</label><input class="input" id="delete-confirmation" name="confirmation" autocomplete="off" required /></div><p class="form-message" data-form-message></p>${button(state.auth.mode === 'authenticated' ? 'Excluir minha conta' : 'Apagar meus dados', { type: 'submit', variant: 'danger', iconName: 'Trash2' })}</form>`)}`,

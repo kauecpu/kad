@@ -17,6 +17,7 @@
   ],
   "exclude": [
     "supabase/functions/**",
-    "admin/**"
+    "admin/**",
+    "site/**"
   ]
 }

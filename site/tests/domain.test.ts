@@ -6,22 +6,22 @@ import {
   LEGACY_STORAGE_KEY,
   recordAnswer,
   storageKeyForOwner,
-} from '../src/core/store.js';
-import { parseRecoveryCallback } from '../src/core/auth-callback.js';
-import { createPasswordSecurity } from '../src/core/password-security.js';
-import { filterQuestions, matchesPack, questionsPerformance } from '../src/core/utils.js';
-import { matchRoute, shouldOpenStudyHome } from '../src/core/router.js';
-import { questionSessionView, questionsIndexView } from '../src/views/questions.js';
-import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.js';
-import { getCatalog } from '../src/data/catalog.js';
+} from '../src/core/store.ts';
+import { parseRecoveryCallback } from '../src/core/auth-callback.ts';
+import { createPasswordSecurity } from '../src/core/password-security.ts';
+import { filterQuestions, matchesPack, questionsPerformance } from '../src/core/utils.ts';
+import { matchRoute, shouldOpenStudyHome } from '../src/core/router.ts';
+import { questionSessionView, questionsIndexView } from '../src/views/questions.ts';
+import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.ts';
+import { getCatalog } from '../src/data/catalog.ts';
+import type { StorageLike } from '../src/types/domain.ts';
 
-function memoryStorage() {
-  const values = new Map();
+function memoryStorage(): StorageLike {
+  const values = new Map<string, string>();
   return {
-    values,
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, value),
-    removeItem: (key) => values.delete(key),
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+    removeItem: (key: string) => { values.delete(key); },
   };
 }
 
@@ -29,6 +29,7 @@ test('estado local registra resposta, atividade e restaura dados persistidos', (
   const storage = memoryStorage();
   const first = createStore(storage);
   const question = getCatalog().questions[0];
+  assert.ok(question);
 
   first.update((draft) => recordAnswer(draft, question, question.correct));
   const restored = createStore(storage).getState();
@@ -47,6 +48,7 @@ test('busca combina palavra-chave, disciplina e pacote sem misturar escopos', ()
   assert.ok(candidates.every((question) => matchesPack(question, pack)));
 
   const question = candidates[0];
+  assert.ok(question);
   assert.deepEqual(
     filterQuestions(candidates, { discipline: question.discipline, keyword: question.board }),
     candidates.filter(
@@ -64,6 +66,7 @@ test('simulado respeita quantidade, recebe respostas e calcula resultado', () =>
   const questions = getCatalog().questions;
   for (const id of session.questionIds.slice(0, 3)) {
     const question = questions.find((item) => item.id === id);
+    assert.ok(question);
     session.answers[id] = question.correct;
   }
   const score = simulationScore(session);
@@ -80,13 +83,14 @@ test('catálogos omitem métricas vazias até existir atividade real', () => {
   assert.doesNotMatch(simulationsView(state).content, /Resumo dos simulados/);
 
   const question = getCatalog().questions[0];
+  assert.ok(question);
   recordAnswer(state, question, question.correct);
   assert.match(questionsIndexView(state).content, /Seu progresso nas questões/);
 });
 
 test('sessão identifica avanço sem resposta como questão pulada', () => {
   const state = createStore(memoryStorage()).getState();
-  const ui = { questionIndex: 0, visitedQuestionIds: new Set() };
+  const ui = { questionIndex: 0, visitedQuestionIds: new Set<string>() };
 
   assert.match(questionSessionView(state, { limit: '2' }, ui).content, /Pular questão/);
   ui.questionIndex = 1;
@@ -110,14 +114,26 @@ test('estado local isola visitante e contas verificadas', () => {
   const scoped = createStore(storage);
   scoped.update((draft) => {
     draft.profile.name = 'Visitante local';
-    draft.essays.guest = { content: 'texto guest' };
+    draft.essays.guest = {
+      topicId: 'guest',
+      content: 'texto guest',
+      elapsedSeconds: 0,
+      status: 'draft',
+      updatedAt: '2026-08-23T00:00:00.000Z',
+    };
   });
 
   scoped.switchOwner('user-a');
   scoped.update((draft) => {
     draft.auth = { mode: 'authenticated', userId: 'user-a' };
     draft.profile.name = 'Conta A';
-    draft.answers.a = { selected: 'A' };
+    draft.answers.a = {
+      questionId: 'a',
+      subject: 'Teste',
+      selected: 'A',
+      isCorrect: true,
+      answeredAt: '2026-08-23T00:00:00.000Z',
+    };
     draft.favorites = ['questao-a'];
   });
   scoped.switchOwner('user-b');
@@ -168,19 +184,23 @@ test('callback web aceita somente PKCE correlacionado na rota e origem esperadas
 });
 
 test('senhas exigem reautenticação ou callback de recuperação validado', async () => {
-  const calls = [];
+  type AuthCall =
+    | ['exchange', string, { flowId: string }]
+    | ['update', { password: string; current_password?: string }]
+    | ['signOut', { scope: 'others' }];
+  const calls: AuthCall[] = [];
   let currentUserId = 'user-a';
   const auth = {
-    exchangeCodeForSession: async (code, options) => {
+    exchangeCodeForSession: async (code: string, options: { flowId: string }) => {
       calls.push(['exchange', code, options]);
       return { data: { session: { user: { id: 'user-a' } } }, error: null };
     },
     getUser: async () => ({ data: { user: { id: currentUserId } } }),
-    updateUser: async (payload) => {
+    updateUser: async (payload: { password: string; current_password?: string }) => {
       calls.push(['update', payload]);
       return { error: null };
     },
-    signOut: async (options) => calls.push(['signOut', options]),
+    signOut: async (options: { scope: 'others' }) => { calls.push(['signOut', options]); },
   };
   const security = createPasswordSecurity(auth);
 
@@ -195,7 +215,9 @@ test('senhas exigem reautenticação ou callback de recuperação validado', asy
   assert.equal(calls.length, 0);
 
   assert.deepEqual(await security.updateAuthenticated('senha-atual', 'nova-senha'), { ok: true });
-  assert.deepEqual(calls.find((call) => call[0] === 'update')[1], {
+  const updateCall = calls.find((call) => call[0] === 'update');
+  assert.ok(updateCall);
+  assert.deepEqual(updateCall[1], {
     password: 'nova-senha',
     current_password: 'senha-atual',
   });

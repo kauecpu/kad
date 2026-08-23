@@ -1,7 +1,7 @@
 # Regras do KAD Site
 
 Este diretório contém exclusivamente a versão web do ambiente de estudos KAD.
-Ela é uma aplicação HTML, CSS e JavaScript construída com Vite, independente do
+Ela é uma aplicação HTML, CSS e TypeScript construída com Vite, independente do
 aplicativo Expo.
 
 ## Escopo e segurança
@@ -29,7 +29,7 @@ aplicativo Expo.
   `robots.txt` e manifesto. Conteúdo privado não deve ser indexado.
 - Respeite `prefers-reduced-motion` e não dependa de animação para transmitir
   estado.
-- Mantenha regras de domínio em módulos JavaScript puros e cobertos por testes.
+- Mantenha regras de domínio em módulos TypeScript puros e cobertos por testes.
 - Execute `npm run check` dentro de `site/` e `npm run check` na raiz antes de
   concluir.
 

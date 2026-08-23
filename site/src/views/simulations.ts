@@ -1,9 +1,16 @@
-import { getCatalog } from '../data/catalog.js';
-import { clamp, escapeHtml, filterQuestions, formatPercent, formatTimer, matchesPack, randomId, shuffle, unique } from '../core/utils.js';
-import { badge, button, card, emptyState, icon, metricRing, progress, section, stat } from '../ui/components.js';
-import { stackHeader } from '../ui/layout.js';
+import { getCatalog } from '../data/catalog.ts';
+import { clamp, escapeHtml, filterQuestions, formatPercent, formatTimer, matchesPack, randomId, shuffle, unique } from '../core/utils.ts';
+import { badge, button, card, emptyState, icon, metricRing, progress, section, stat } from '../ui/components.ts';
+import { stackHeader } from '../ui/layout.ts';
+import type { SiteSimulationConfig, SiteSimulationSession, SiteState, ViewModel } from '../types/domain.ts';
 
-export function createSimulation(config = {}) {
+type ViewParams = Record<string, string | undefined>;
+type SimulationInput = Partial<Omit<SiteSimulationConfig, 'questionCount' | 'durationMinutes'>> & {
+  questionCount?: string | number;
+  durationMinutes?: string | number;
+};
+
+export function createSimulation(config: SimulationInput = {}): SiteSimulationSession | null {
   const { questions, packs } = getCatalog();
   const pack = config.packId ? packs.find((item) => item.id === config.packId) : undefined;
   let candidates = filterQuestions(questions, {
@@ -38,13 +45,13 @@ export function createSimulation(config = {}) {
   };
 }
 
-export function simulationScore(session) {
+export function simulationScore(session: SiteSimulationSession) {
   const { questions } = getCatalog();
   const items = session.questionIds.map((id) => {
     const question = questions.find((candidate) => candidate.id === id);
     const selected = session.answers[id];
     return question ? { question, selected, correct: selected === question.correct } : null;
-  }).filter(Boolean);
+  }).filter((item): item is NonNullable<typeof item> => Boolean(item));
   const answered = items.filter((item) => item.selected).length;
   const correct = items.filter((item) => item.correct).length;
   return {
@@ -58,7 +65,7 @@ export function simulationScore(session) {
   };
 }
 
-export function simulationsView(state) {
+export function simulationsView(state: SiteState): ViewModel {
   const { packs } = getCatalog();
   const current = state.simulations.current;
   const history = state.simulations.history.slice(0, 4);
@@ -94,7 +101,7 @@ export function simulationsView(state) {
   };
 }
 
-export function simulationConfigView(params = {}) {
+export function simulationConfigView(params: ViewParams = {}): ViewModel {
   const { questions, disciplines, packs } = getCatalog();
   const boards = unique(questions.map((question) => question.board)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const selectedPack = packs.find((pack) => pack.id === params.packId);
@@ -126,7 +133,7 @@ export function simulationConfigView(params = {}) {
   };
 }
 
-export function simulationPlayerView(state) {
+export function simulationPlayerView(state: SiteState): ViewModel {
   const session = state.simulations.current;
   if (!session || session.status === 'completed') {
     return { title: 'Simulado', content: `${stackHeader('Simulado')}${emptyState('Nenhum simulado em andamento', 'Configure um novo treino para começar.', { route: '/simulados/configurar', actionLabel: 'Montar simulado' })}` };
@@ -153,7 +160,7 @@ export function simulationPlayerView(state) {
   };
 }
 
-export function simulationResultView(state, requestedId) {
+export function simulationResultView(state: SiteState, requestedId?: string): ViewModel {
   const session = state.simulations.history.find((item) => item.id === requestedId)
     ?? (state.simulations.current?.status === 'completed' ? state.simulations.current : state.simulations.history[0]);
   if (!session) return { title: 'Resultado do simulado', content: `${stackHeader('Resultado')}${emptyState('Resultado não encontrado', 'Conclua um simulado para ver seu relatório.', { route: '/simulados', actionLabel: 'Ver simulados' })}` };

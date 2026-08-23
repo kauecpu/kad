@@ -6,16 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "postbuild": "node scripts/postbuild-seo.mjs",
+    "postbuild": "node scripts/postbuild-seo.ts",
     "preview": "vite preview",
-    "test": "node --no-warnings --test tests/*.test.js",
-    "check": "npm run test && npm run build"
+    "typecheck": "tsc --noEmit",
+    "test": "node --no-warnings --test tests/*.test.ts",
+    "check": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
     "lucide": "^1.33.0"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.2",
     "vite": "^8.2.2"
   }
 }

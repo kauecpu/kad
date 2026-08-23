@@ -1,8 +1,9 @@
-import { getCatalog } from '../data/catalog.js';
-import { escapeHtml, formatCurrency, formatPercent, localDay, questionsPerformance } from '../core/utils.js';
-import { badge, button, card, icon, progress, section, stat } from '../ui/components.js';
+import { getCatalog } from '../data/catalog.ts';
+import { escapeHtml, formatCurrency, formatPercent, localDay, questionsPerformance } from '../core/utils.ts';
+import { badge, button, card, icon, progress, section, stat } from '../ui/components.ts';
+import type { SiteState, ViewModel } from '../types/domain.ts';
 
-export function homeView(state) {
+export function homeView(state: SiteState): ViewModel {
   const catalog = getCatalog();
   const performance = questionsPerformance(state.answers);
   const todayCount = (state.activityByDate[localDay()] ?? []).length;

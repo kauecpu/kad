@@ -1,9 +1,10 @@
-import { localDay } from './utils.js';
+import { localDay } from './utils.ts';
+import type { AlternativeId, Question, SiteState, StorageLike, Store } from '../types/domain.ts';
 
 export const LEGACY_STORAGE_KEY = 'kad-site/state/v1';
 export const STORAGE_KEY_PREFIX = 'kad-site/state/v2';
 
-export const DEFAULT_STATE = Object.freeze({
+export const DEFAULT_STATE: Readonly<SiteState> = Object.freeze({
   version: 1,
   auth: { mode: 'visitor', userId: null },
   profile: {
@@ -33,32 +34,34 @@ export const DEFAULT_STATE = Object.freeze({
   trail: null,
   feedback: [],
   activityByDate: {},
-});
+} satisfies SiteState);
 
-function cloneDefault() {
-  return JSON.parse(JSON.stringify(DEFAULT_STATE));
+function cloneDefault(): SiteState {
+  return structuredClone(DEFAULT_STATE);
 }
 
-function mergeState(candidate) {
+function mergeState(candidate: unknown): SiteState {
   const fallback = cloneDefault();
-  if (!candidate || typeof candidate !== 'object' || candidate.version !== 1) return fallback;
+  if (!candidate || typeof candidate !== 'object' || !('version' in candidate) || candidate.version !== 1) return fallback;
+  const partial = candidate as Partial<SiteState>;
   return {
     ...fallback,
-    ...candidate,
-    auth: { ...fallback.auth, ...candidate.auth },
-    profile: { ...fallback.profile, ...candidate.profile },
-    preferences: { ...fallback.preferences, ...candidate.preferences },
-    subscription: { ...fallback.subscription, ...candidate.subscription },
-    simulations: { ...fallback.simulations, ...candidate.simulations },
+    ...partial,
+    version: 1,
+    auth: { ...fallback.auth, ...partial.auth },
+    profile: { ...fallback.profile, ...partial.profile },
+    preferences: { ...fallback.preferences, ...partial.preferences },
+    subscription: { ...fallback.subscription, ...partial.subscription },
+    simulations: { ...fallback.simulations, ...partial.simulations },
   };
 }
 
-export function storageKeyForOwner(userId) {
+export function storageKeyForOwner(userId: string | null | undefined): string {
   const owner = typeof userId === 'string' && userId.trim() ? `user:${userId.trim()}` : 'guest';
   return `${STORAGE_KEY_PREFIX}/${encodeURIComponent(owner)}`;
 }
 
-function parseStoredState(value) {
+function parseStoredState(value: string | null | undefined): SiteState | null {
   try {
     if (!value) return null;
     const parsed = JSON.parse(value);
@@ -69,7 +72,7 @@ function parseStoredState(value) {
   }
 }
 
-function readOwnerState(storage, userId) {
+function readOwnerState(storage: StorageLike | undefined, userId: string | null): SiteState {
   const state = parseStoredState(storage?.getItem(storageKeyForOwner(userId))) ?? cloneDefault();
   state.auth = typeof userId === 'string' && userId.trim()
     ? { mode: 'authenticated', userId: userId.trim() }
@@ -77,9 +80,10 @@ function readOwnerState(storage, userId) {
   return state;
 }
 
-function migrateLegacyState(storage) {
+function migrateLegacyState(storage?: StorageLike): void {
   try {
-    const legacyValue = storage?.getItem(LEGACY_STORAGE_KEY);
+    if (!storage) return;
+    const legacyValue = storage.getItem(LEGACY_STORAGE_KEY);
     const legacyState = parseStoredState(legacyValue);
     if (!legacyState || !legacyValue) return;
     const destination = storageKeyForOwner(legacyState.auth.userId);
@@ -93,11 +97,14 @@ function migrateLegacyState(storage) {
   }
 }
 
-export function createStore(storage = globalThis.localStorage, initialUserId = null) {
+export function createStore(
+  storage: StorageLike | undefined = globalThis.localStorage,
+  initialUserId: string | null = null,
+): Store {
   migrateLegacyState(storage);
   let ownerId = initialUserId;
   let state = readOwnerState(storage, ownerId);
-  const listeners = new Set();
+  const listeners = new Set<(state: SiteState) => void>();
 
   const persist = () => {
     try {
@@ -112,19 +119,19 @@ export function createStore(storage = globalThis.localStorage, initialUserId = n
   return {
     getState: () => state,
     getOwnerId: () => ownerId,
-    switchOwner(userId) {
+    switchOwner(userId: string | null) {
       ownerId = typeof userId === 'string' && userId.trim() ? userId.trim() : null;
       state = readOwnerState(storage, ownerId);
       notify();
       return state;
     },
-    replace(next) {
+    replace(next: unknown) {
       state = mergeState(next);
       persist();
       notify();
       return state;
     },
-    update(recipe, { silent = false } = {}) {
+    update(recipe: (draft: SiteState) => SiteState | void, { silent = false } = {}) {
       const draft = structuredClone(state);
       const returned = recipe(draft);
       state = mergeState(returned ?? draft);
@@ -132,7 +139,7 @@ export function createStore(storage = globalThis.localStorage, initialUserId = n
       if (!silent) notify();
       return state;
     },
-    subscribe(listener) {
+    subscribe(listener: (state: SiteState) => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
@@ -149,7 +156,7 @@ export function createStore(storage = globalThis.localStorage, initialUserId = n
   };
 }
 
-export function recordAnswer(draft, question, selected) {
+export function recordAnswer(draft: SiteState, question: Question, selected: AlternativeId): void {
   const answeredAt = new Date().toISOString();
   draft.answers[question.id] = {
     questionId: question.id,

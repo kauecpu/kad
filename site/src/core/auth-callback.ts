@@ -1,6 +1,11 @@
 const PKCE_FLOW_ID_PATTERN = /^[a-zA-Z0-9_-]{8,64}$/;
 
-export function parseRecoveryCallback(value, expectedOrigin) {
+export type RecoveryCallback = { code: string; flowId: string };
+
+export function parseRecoveryCallback(
+  value: string,
+  expectedOrigin: string,
+): RecoveryCallback | null {
   try {
     const callback = new URL(value);
     if (callback.origin !== expectedOrigin || callback.pathname !== '/nova-senha') return null;

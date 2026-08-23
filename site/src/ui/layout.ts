@@ -1,5 +1,6 @@
-import { escapeHtml } from '../core/utils.js';
-import { avatar, button, icon } from './components.js';
+import { escapeHtml } from '../core/utils.ts';
+import { avatar, button, icon } from './components.ts';
+import type { SiteState } from '../types/domain.ts';
 
 const mainNavigation = [
   { href: '/inicio', label: 'Início', icon: 'Home' },
@@ -16,16 +17,18 @@ const studyNavigation = [
   { href: '/biblioteca', label: 'Biblioteca', icon: 'Library' },
 ];
 
-function isActive(href, pathname) {
+type NavigationItem = { href: string; label: string; icon: string };
+
+function isActive(href: string, pathname: string): boolean {
   if (href === '/inicio') return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
-function navLink(item, pathname, compact = false) {
+function navLink(item: NavigationItem, pathname: string, compact = false): string {
   const active = isActive(item.href, pathname);
   return `<a href="${item.href}" data-route="${item.href}" class="nav-link ${active ? 'is-active' : ''} ${compact ? 'nav-link--compact' : ''}" ${active ? 'aria-current="page"' : ''}>${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`;
 }
 
-export function publicLayout(content, { simple = false } = {}) {
+export function publicLayout(content: string, { simple = false }: { simple?: boolean } = {}): string {
   return `
     <div class="public-shell ${simple ? 'public-shell--simple' : ''}">
       <header class="public-header">
@@ -41,7 +44,7 @@ export function publicLayout(content, { simple = false } = {}) {
     </div>`;
 }
 
-export function appLayout(content, { pathname, title, subtitle, state }) {
+export function appLayout(content: string, { pathname, title, subtitle, state }: { pathname: string; title: string; subtitle?: string; state: SiteState }): string {
   const profile = state.profile;
   return `
     <div class="app-shell">
@@ -86,6 +89,6 @@ export function appLayout(content, { pathname, title, subtitle, state }) {
     </div>`;
 }
 
-export function stackHeader(title, subtitle = '') {
+export function stackHeader(title: string, subtitle = ''): string {
   return `<header class="stack-header"><button class="icon-button" type="button" data-action="back" aria-label="Voltar">${icon('ArrowLeft')}</button><div><h2>${escapeHtml(title)}</h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div></header>`;
 }

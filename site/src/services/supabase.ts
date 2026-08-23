@@ -1,11 +1,38 @@
-import { createClient } from '@supabase/supabase-js';
-import { parseRecoveryCallback } from '../core/auth-callback.js';
-import { createPasswordSecurity } from '../core/password-security.js';
+import { createClient, type User } from '@supabase/supabase-js';
+import { parseRecoveryCallback } from '../core/auth-callback.ts';
+import { createPasswordSecurity } from '../core/password-security.ts';
+import type {
+  AlternativeId,
+  BillingCycle,
+  Concurso,
+  Question,
+  SiteAnswer,
+  Subscription,
+} from '../types/domain.ts';
+
+type OfflineResult = { ok: false; offline: true; message?: never };
+type FailureResult = { ok: false; message: string; offline?: false };
+type SuccessResult = { ok: true; offline?: false };
+type AuthResult = OfflineResult | FailureResult | (SuccessResult & { user: User });
+type SignUpResult = OfflineResult | FailureResult | (SuccessResult & {
+  user: User | null;
+  requiresConfirmation: boolean;
+  authenticated: boolean;
+});
+type CheckoutResult = OfflineResult | FailureResult | (SuccessResult & { checkoutUrl: string });
+
+export type RemoteStudyData = {
+  answers: Record<string, SiteAnswer>;
+  favorites: string[];
+  savedConcursos: string[];
+};
+
+export type PublishedContent = { questions: Question[]; concursos: Concurso[] };
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim();
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
-function trustedProjectUrl(value) {
+function trustedProjectUrl(value: string): boolean {
   try {
     return new URL(value).protocol === 'https:';
   } catch {
@@ -29,7 +56,7 @@ export const supabase = supabaseConfigured
 
 const passwordSecurity = supabase ? createPasswordSecurity(supabase.auth) : null;
 
-export async function signIn(email, password) {
+export async function signIn(email: string, password: string): Promise<AuthResult> {
   if (!supabase) return { ok: false, offline: true };
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   return error
@@ -37,7 +64,7 @@ export async function signIn(email, password) {
     : { ok: true, user: data.user };
 }
 
-export async function signUp({ name, email, password }) {
+export async function signUp({ name, email, password }: { name: string; email: string; password: string }): Promise<SignUpResult> {
   if (!supabase) return { ok: false, offline: true };
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -49,21 +76,21 @@ export async function signUp({ name, email, password }) {
     : { ok: true, user: data.user, requiresConfirmation: !data.session, authenticated: Boolean(data.session) };
 }
 
-export async function verifyEmailOtp(email, token) {
+export async function verifyEmailOtp(email: string, token: string): Promise<AuthResult> {
   if (!supabase) return { ok: false, offline: true };
   const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
-  return error
+  return error || !data.user
     ? { ok: false, message: 'Código inválido ou expirado. Solicite um novo envio.' }
     : { ok: true, user: data.user };
 }
 
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<User | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
   return error ? null : data.user;
 }
 
-export async function loadRemoteStudyData(userId) {
+export async function loadRemoteStudyData(userId: string): Promise<RemoteStudyData> {
   if (!supabase) return { answers: {}, favorites: [], savedConcursos: [] };
   const [attempts, favorites, concursos] = await Promise.all([
     supabase
@@ -88,7 +115,7 @@ export async function loadRemoteStudyData(userId) {
   };
 }
 
-export async function saveRemoteAnswer(questionId, selected) {
+export async function saveRemoteAnswer(questionId: string, selected: AlternativeId): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.rpc('record_question_attempt', {
     p_question_id: questionId,
@@ -97,7 +124,7 @@ export async function saveRemoteAnswer(questionId, selected) {
   if (error) throw error;
 }
 
-export async function removeRemoteAnswer(userId, questionId) {
+export async function removeRemoteAnswer(userId: string, questionId: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase
     .from('question_attempts')
@@ -107,7 +134,7 @@ export async function removeRemoteAnswer(userId, questionId) {
   if (error) throw error;
 }
 
-export async function setRemoteFavorite(userId, questionId, favorite) {
+export async function setRemoteFavorite(userId: string, questionId: string, favorite: boolean): Promise<void> {
   if (!supabase) return;
   const result = favorite
     ? await supabase.from('question_favorites').upsert({ user_id: userId, question_id: questionId })
@@ -115,7 +142,7 @@ export async function setRemoteFavorite(userId, questionId, favorite) {
   if (result.error) throw result.error;
 }
 
-export async function setRemoteSavedConcurso(userId, concursoId, saved) {
+export async function setRemoteSavedConcurso(userId: string, concursoId: string, saved: boolean): Promise<void> {
   if (!supabase) return;
   const result = saved
     ? await supabase.from('saved_concursos').upsert({ user_id: userId, concurso_id: concursoId })
@@ -123,7 +150,7 @@ export async function setRemoteSavedConcurso(userId, concursoId, saved) {
   if (result.error) throw result.error;
 }
 
-export async function loadRemoteSubscription(userId) {
+export async function loadRemoteSubscription(userId: string): Promise<Subscription | null> {
   if (!supabase || !userId) return null;
   const { data, error } = await supabase
     .from('subscriptions')
@@ -132,17 +159,27 @@ export async function loadRemoteSubscription(userId) {
     .maybeSingle();
   if (error) throw error;
   if (!data) return { plan: 'basic', status: 'inactive', autoRenew: false };
+  const plan: Subscription['plan'] = data.plan === 'diamond' || data.plan === 'circle' ? data.plan : 'basic';
+  const billingCycle: BillingCycle | undefined = ['monthly', 'quarterly', 'annual'].includes(data.billing_cycle)
+    ? data.billing_cycle as BillingCycle
+    : undefined;
+  const provider: Subscription['provider'] = ['mercado_pago', 'apple', 'google'].includes(data.provider)
+    ? data.provider as Subscription['provider']
+    : undefined;
+  const status: Subscription['status'] = ['active', 'inactive', 'past_due', 'canceled', 'expired'].includes(data.status)
+    ? data.status as Subscription['status']
+    : 'inactive';
   return {
-    plan: ['diamond', 'circle'].includes(data.plan) ? data.plan : 'basic',
-    billingCycle: data.billing_cycle ?? undefined,
-    provider: data.provider ?? undefined,
-    status: data.status ?? 'inactive',
+    plan,
+    billingCycle,
+    provider,
+    status,
     renewsAt: data.current_period_end ?? undefined,
     autoRenew: !data.cancel_at_period_end,
   };
 }
 
-function trustedCheckoutUrl(value) {
+function trustedCheckoutUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   try {
     const checkout = new URL(value);
@@ -158,7 +195,7 @@ function trustedCheckoutUrl(value) {
   }
 }
 
-export async function createSubscriptionCheckout(billingCycle) {
+export async function createSubscriptionCheckout(billingCycle: BillingCycle): Promise<CheckoutResult> {
   if (!supabase) return { ok: false, offline: true };
   const { data, error } = await supabase.functions.invoke('create-payment-checkout', {
     body: { plan: 'diamond', billingCycle },
@@ -169,7 +206,7 @@ export async function createSubscriptionCheckout(billingCycle) {
   return { ok: true, checkoutUrl: data.checkoutUrl };
 }
 
-export async function cancelRemoteSubscription() {
+export async function cancelRemoteSubscription(): Promise<OfflineResult | FailureResult | SuccessResult> {
   if (!supabase) return { ok: false, offline: true };
   const { error } = await supabase.functions.invoke('cancel-subscription', { body: {} });
   return error
@@ -177,7 +214,7 @@ export async function cancelRemoteSubscription() {
     : { ok: true };
 }
 
-export async function requestPasswordRecovery(email) {
+export async function requestPasswordRecovery(email: string): Promise<OfflineResult | FailureResult | SuccessResult> {
   if (!supabase) return { ok: false, offline: true };
   const redirectTo = new URL('/nova-senha', globalThis.location.origin).toString();
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
@@ -186,7 +223,7 @@ export async function requestPasswordRecovery(email) {
     : { ok: true };
 }
 
-export async function completePasswordRecoveryCallback(callbackUrl) {
+export async function completePasswordRecoveryCallback(callbackUrl: string): Promise<AuthResult> {
   if (!supabase || !passwordSecurity) return { ok: false, offline: true };
   const callback = parseRecoveryCallback(callbackUrl, globalThis.location.origin);
   if (!callback) return { ok: false, message: 'Este link não é válido ou não foi iniciado neste navegador.' };
@@ -196,7 +233,9 @@ export async function completePasswordRecoveryCallback(callbackUrl) {
     : { ok: false, message: 'Este link expirou ou já foi utilizado.' };
 }
 
-export async function updateRecoveredPassword(password) {
+export async function updateRecoveredPassword(
+  password: string,
+): Promise<OfflineResult | FailureResult | SuccessResult> {
   if (!passwordSecurity) return { ok: false, offline: true };
   const result = await passwordSecurity.updateRecovered(password);
   return result.ok
@@ -206,7 +245,10 @@ export async function updateRecoveredPassword(password) {
       : 'Não foi possível atualizar a senha agora.' };
 }
 
-export async function updateAccountPassword(currentPassword, password) {
+export async function updateAccountPassword(
+  currentPassword: string,
+  password: string,
+): Promise<OfflineResult | FailureResult | SuccessResult> {
   if (!passwordSecurity) return { ok: false, offline: true };
   const result = await passwordSecurity.updateAuthenticated(currentPassword, password);
   if (result.ok) return result;
@@ -215,11 +257,11 @@ export async function updateAccountPassword(currentPassword, password) {
   return { ok: false, message: 'Senha atual incorreta ou sessão expirada.' };
 }
 
-export async function signOut() {
+export async function signOut(): Promise<void> {
   if (supabase) await supabase.auth.signOut();
 }
 
-export async function loadPublishedContent() {
+export async function loadPublishedContent(): Promise<PublishedContent> {
   if (!supabase) return { questions: [], concursos: [] };
   const [questionsResult, concursosResult] = await Promise.all([
     supabase
@@ -243,7 +285,7 @@ export async function loadPublishedContent() {
   ]);
   if (questionsResult.error || concursosResult.error) throw new Error('published-content-unavailable');
   return {
-    questions: questionsResult.data ?? [],
+    questions: (questionsResult.data ?? []) as unknown as Question[],
     concursos: (concursosResult.data ?? []).map((item) => ({
       id: item.id,
       shortName: item.short_name,
@@ -270,12 +312,12 @@ export async function loadPublishedContent() {
       highlights: item.highlights ?? [],
       editalUrl: item.edital_url,
       updatedAt: item.updated_at,
-      contentSource: 'published',
+      contentSource: 'published' as const,
     })),
   };
 }
 
-export async function sendFeedback(payload) {
+export async function sendFeedback(payload: { kind: string; message: string }): Promise<OfflineResult | FailureResult | SuccessResult> {
   if (!supabase) return { ok: false, offline: true };
   const { error } = await supabase.rpc('submit_user_feedback', {
     p_category: payload.kind,
