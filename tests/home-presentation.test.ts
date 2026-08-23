@@ -7,7 +7,7 @@ import {
 } from '../lib/home-presentation.ts';
 
 test('prioriza a escolha do concurso quando o estudante ainda não tem meta', () => {
-  assert.deepEqual(getHomePrimaryAction({ hasGoal: false }), {
+  assert.deepEqual(getHomePrimaryAction({ hasGoal: false, hasWrongAnswers: true }), {
     eyebrow: 'SEU PRIMEIRO PASSO',
     title: 'Escolher meu concurso',
     description: 'Defina sua direção para o KAD organizar sua preparação.',
@@ -15,17 +15,26 @@ test('prioriza a escolha do concurso quando o estudante ainda não tem meta', ()
   });
 });
 
-test('oferece uma nova sessão sem fingir que existe atividade pendente', () => {
-  const action = getHomePrimaryAction({ hasGoal: true });
+test('oferece a revisão do dia quando há erros reais e uma meta definida', () => {
+  const action = getHomePrimaryAction({ hasGoal: true, hasWrongAnswers: true });
 
-  assert.equal(action.title, 'Começar a estudar');
-  assert.equal(action.route, '/questoes');
+  assert.equal(action.title, 'Revisão de hoje');
+  assert.equal(action.route, '/perfil/desempenho/questoes?tipo=wrong');
+  assert.match(action.description, /questões que você errou/i);
+});
+
+test('usa o desafio diário como fallback honesto', () => {
+  const action = getHomePrimaryAction({ hasGoal: true, hasWrongAnswers: false });
+
+  assert.equal(action.title, 'Desafio diário');
+  assert.equal(action.route, '/questoes/desafio');
   assert.doesNotMatch(action.title, /continuar/i);
 });
 
 test('um simulado em andamento supera as demais ações', () => {
   const action = getHomePrimaryAction({
     hasGoal: false,
+    hasWrongAnswers: true,
     simulation: { status: 'paused', answered: 7, total: 20 },
   });
 
@@ -38,6 +47,7 @@ test('um simulado em andamento supera as demais ações', () => {
 test('um simulado concluído direciona para a revisão real', () => {
   const action = getHomePrimaryAction({
     hasGoal: true,
+    hasWrongAnswers: true,
     simulation: { status: 'completed', answered: 10, total: 10 },
   });
 
@@ -47,15 +57,13 @@ test('um simulado concluído direciona para a revisão real', () => {
 });
 
 test('a apresentação da ação principal deriva somente da rota real', () => {
-  assert.deepEqual(getHomePrimaryVisual({ route: '/meta' }), {
-    tone: 'brand',
-  });
-  assert.deepEqual(getHomePrimaryVisual({ route: '/questoes' }), {
-    tone: 'brand',
-  });
-  assert.deepEqual(getHomePrimaryVisual({ route: '/questoes/simulado' }), {
-    tone: 'brand',
-  });
+  assert.deepEqual(getHomePrimaryVisual({ route: '/meta' }), { tone: 'brand' });
+  assert.deepEqual(
+    getHomePrimaryVisual({ route: '/perfil/desempenho/questoes?tipo=wrong' }),
+    { tone: 'brand' }
+  );
+  assert.deepEqual(getHomePrimaryVisual({ route: '/questoes/desafio' }), { tone: 'brand' });
+  assert.deepEqual(getHomePrimaryVisual({ route: '/questoes/simulado' }), { tone: 'brand' });
   assert.deepEqual(getHomePrimaryVisual({ route: '/questoes/simulado/resultado' }), {
     tone: 'achievement',
   });

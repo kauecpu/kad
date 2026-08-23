@@ -8,7 +8,12 @@ export type HomePrimaryAction = {
   eyebrow: string;
   title: string;
   description: string;
-  route: '/meta' | '/questoes' | '/questoes/simulado' | '/questoes/simulado/resultado';
+  route:
+    | '/meta'
+    | '/perfil/desempenho/questoes?tipo=wrong'
+    | '/questoes/desafio'
+    | '/questoes/simulado'
+    | '/questoes/simulado/resultado';
   progress?: number;
 };
 
@@ -22,7 +27,9 @@ export function getHomePrimaryVisual(
   switch (action.route) {
     case '/meta':
       return { tone: 'brand' };
-    case '/questoes':
+    case '/perfil/desempenho/questoes?tipo=wrong':
+      return { tone: 'brand' };
+    case '/questoes/desafio':
       return { tone: 'brand' };
     case '/questoes/simulado':
       return { tone: 'brand' };
@@ -33,9 +40,11 @@ export function getHomePrimaryVisual(
 
 export function getHomePrimaryAction({
   hasGoal,
+  hasWrongAnswers,
   simulation,
 }: {
   hasGoal: boolean;
+  hasWrongAnswers: boolean;
   simulation?: HomeSimulationState;
 }): HomePrimaryAction {
   if (simulation?.status === 'completed') {
@@ -70,10 +79,19 @@ export function getHomePrimaryAction({
     };
   }
 
+  if (hasWrongAnswers) {
+    return {
+      eyebrow: 'REVISÃO DE HOJE',
+      title: 'Revisão de hoje',
+      description: 'Retome as questões que você errou e fixe o conteúdo.',
+      route: '/perfil/desempenho/questoes?tipo=wrong',
+    };
+  }
+
   return {
-    eyebrow: 'PRÓXIMA SESSÃO',
-    title: 'Começar a estudar',
-    description: 'Escolha uma matéria e avance na sua preparação.',
-    route: '/questoes',
+    eyebrow: 'DESAFIO DIÁRIO',
+    title: 'Desafio diário',
+    description: 'Resolva 3 questões em cerca de 5 minutos.',
+    route: '/questoes/desafio',
   };
 }

@@ -1,7 +1,7 @@
 import Ionicons from '@/components/ui/app-icon';
 import { type Href } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -27,7 +27,9 @@ type RecentStudyCardProps = {
 
 export function StudyMomentumCard({ momentum, onGoalChange }: StudyMomentumCardProps) {
   const { colors } = useTheme();
+  const { fontScale, width } = useWindowDimensions();
   const [editingGoal, setEditingGoal] = useState(false);
+  const stackGoalHeading = width < 360 || fontScale >= 1.3;
   const streakLabel =
     momentum.streakDays === 0
       ? 'Comece sua sequência hoje'
@@ -36,15 +38,20 @@ export function StudyMomentumCard({ momentum, onGoalChange }: StudyMomentumCardP
   return (
     <Card padded={false} style={[styles.momentumCard, { borderColor: colors.border }]}>
       <View style={[styles.momentumTop, { backgroundColor: colors.primarySoft }]}>
-        <View style={styles.goalHeading}>
-          <View style={[styles.goalIcon, { backgroundColor: colors.primary }]}>
-            <Ionicons name="flag-outline" size={18} color={colors.onPrimary} />
-          </View>
-          <View style={styles.goalCopy}>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>META SEMANAL</Text>
-            <Text style={[styles.goalTitle, { color: colors.text }]}>
-              {momentum.weeklyQuestions} de {momentum.weeklyGoal} questões
-            </Text>
+        <View style={[styles.goalHeading, stackGoalHeading && styles.goalHeadingStacked]}>
+          <View style={styles.goalIdentity}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={[styles.goalIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="flag-outline" size={18} color={colors.onPrimary} aria-hidden />
+            </View>
+            <View style={styles.goalCopy}>
+              <Text style={[styles.eyebrow, { color: colors.primary }]}>META SEMANAL</Text>
+              <Text style={[styles.goalTitle, { color: colors.text }]}>
+                {momentum.weeklyQuestions} de {momentum.weeklyGoal} questões
+              </Text>
+            </View>
           </View>
           <Pressable
             onPress={() => setEditingGoal((current) => !current)}
@@ -54,6 +61,7 @@ export function StudyMomentumCard({ momentum, onGoalChange }: StudyMomentumCardP
             hitSlop={8}
             style={({ pressed }) => [
               styles.adjustButton,
+              stackGoalHeading && styles.adjustButtonStacked,
               { backgroundColor: colors.surface },
               pressed && styles.pressed,
             ]}>
@@ -157,29 +165,37 @@ export function StudyMomentumCard({ momentum, onGoalChange }: StudyMomentumCardP
 
 export function RecentStudyCard({ activities, onOpen, onStart }: RecentStudyCardProps) {
   const { colors } = useTheme();
+  const { fontScale, width } = useWindowDimensions();
+  const stackEmpty = width < 360 || fontScale >= 1.3;
 
   if (activities.length === 0) {
     return (
-      <Card style={[styles.emptyRecent, { borderColor: colors.border }]}>
+      <Card
+        style={[
+          styles.emptyRecent,
+          stackEmpty && styles.emptyRecentStacked,
+          { borderColor: colors.border },
+        ]}>
         <View style={[styles.emptyIcon, { backgroundColor: colors.primarySoft }]}>
           <Ionicons name="time-outline" size={22} color={colors.primary} />
         </View>
         <View style={styles.emptyCopy}>
           <Text style={[styles.emptyTitle, { color: colors.text }]}>Seu histórico começa aqui</Text>
           <Text style={[styles.emptyDescription, { color: colors.textMuted }]}>
-            Responda uma questão para registrar sua primeira atividade.
+            Faça o desafio diário para registrar sua primeira atividade.
           </Text>
         </View>
         <Pressable
           onPress={onStart}
           accessibilityRole="button"
-          accessibilityLabel="Começar a responder questões"
+          accessibilityLabel="Fazer desafio diário"
           style={({ pressed }) => [
             styles.startButton,
+            stackEmpty && styles.startButtonStacked,
             { backgroundColor: colors.primary },
             pressed && styles.pressed,
           ]}>
-          <Text style={[styles.startText, { color: colors.onPrimary }]}>Começar</Text>
+          <Text style={[styles.startText, { color: colors.onPrimary }]}>Desafio</Text>
         </Pressable>
       </Card>
     );
@@ -219,14 +235,14 @@ export function RecentStudyCard({ activities, onOpen, onStart }: RecentStudyCard
             </View>
             <View style={styles.activityCopy}>
               <View style={styles.activityHeading}>
-                <Text style={[styles.activityTitle, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[styles.activityTitle, { color: colors.text }]}>
                   {activity.title}
                 </Text>
                 <Text style={[styles.activityTime, { color: colors.textSubtle }]}>
                   {formatRecentStudyTime(activity.occurredAt)}
                 </Text>
               </View>
-              <Text style={[styles.activityDescription, { color: colors.textMuted }]} numberOfLines={1}>
+              <Text style={[styles.activityDescription, { color: colors.textMuted }]}>
                 {activity.description}
               </Text>
             </View>
@@ -242,6 +258,8 @@ const styles = StyleSheet.create({
   momentumCard: { overflow: 'hidden', borderWidth: 1 },
   momentumTop: { padding: Spacing.lg, gap: Spacing.md },
   goalHeading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  goalHeadingStacked: { alignItems: 'stretch', flexDirection: 'column' },
+  goalIdentity: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   goalIcon: {
     width: 40,
     height: 40,
@@ -258,16 +276,17 @@ const styles = StyleSheet.create({
   },
   goalTitle: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
   adjustButton: {
-    minHeight: 36,
+    minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.pill,
   },
+  adjustButtonStacked: { alignSelf: 'flex-start' },
   adjustText: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
   goalOptions: { flexDirection: 'row', gap: Spacing.sm },
   goalOption: {
     minWidth: 62,
-    minHeight: 40,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.md,
@@ -315,7 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activityCopy: { flex: 1, gap: 4 },
-  activityHeading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  activityHeading: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: Spacing.sm },
   activityTitle: { flex: 1, fontSize: FontSize.small, fontWeight: FontWeight.semibold },
   activityTime: { fontSize: FontSize.tiny },
   activityDescription: { fontSize: FontSize.tiny, lineHeight: 16 },
@@ -325,6 +344,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
+  emptyRecentStacked: { alignItems: 'flex-start', flexDirection: 'column' },
   emptyIcon: {
     width: 44,
     height: 44,
@@ -336,11 +356,12 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
   emptyDescription: { fontSize: FontSize.tiny, lineHeight: 16 },
   startButton: {
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.md,
   },
+  startButtonStacked: { alignSelf: 'flex-start' },
   startText: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
   pressed: { opacity: 0.68 },
 });

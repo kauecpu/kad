@@ -96,9 +96,9 @@ test('feedback tátil aceita somente ações importantes e usa padrões discreto
   ]);
 });
 
-test('a ação principal e os três atalhos da tela Início usam a resposta reutilizável', () => {
+test('a ação principal e o alerta de prazo usam a resposta reutilizável', () => {
   assert.match(home, /<FeaturedCard[\s\S]*?motionFeedback/);
-  assert.match(home, /PRACTICE_ACTIONS\.map\([\s\S]*?<PressFeedback/);
+  assert.match(home, /<PressFeedback[\s\S]*?styles\.deadlineAlert/);
   assert.doesNotMatch(home, /triggerHaptic/);
 });
 
