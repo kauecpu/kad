@@ -172,6 +172,21 @@ test('ordena respostas e simulados no histórico recente', () => {
   assert.equal(formatRecentStudyTime(momentum.recentActivities[0].occurredAt, now).startsWith('Hoje'), true);
 });
 
+test('limita o histórico recente quando a tela pede um painel mais compacto', () => {
+  const momentum = buildStudyMomentum({
+    answers: {
+      [QUESTIONS[0].id]: answer(0, 16, false),
+      [QUESTIONS[1].id]: answer(1, 15),
+    },
+    simulationHistory: [completedSimulation(15, 2)],
+    questions: QUESTIONS,
+    recentLimit: 2,
+    now,
+  });
+
+  assert.equal(momentum.recentActivities.length, 2);
+});
+
 test('estado vazio não inventa progresso e usa a meta padrão', () => {
   const momentum = buildStudyMomentum({
     answers: {},
@@ -206,5 +221,11 @@ test('tela inicial apresenta ritmo e histórico com controles acessíveis', () =
   assert.match(card, /accessibilityLabel="Ajustar meta semanal"/);
   assert.match(card, /accessibilityRole="radiogroup"/);
   assert.match(card, /Seu histórico começa aqui/);
+  assert.match(card, /Faça o desafio diário para registrar sua primeira atividade/);
+  assert.match(card, /accessibilityLabel="Fazer desafio diário"/);
+  assert.doesNotMatch(card, /numberOfLines=\{1\}/);
+  assert.match(card, /minHeight: 44/);
+  assert.match(card, /stackEmpty/);
+  assert.match(home, /recentLimit: 2/);
   assert.match(provider, /weeklyQuestionGoal: normalizeWeeklyQuestionGoal/);
 });
