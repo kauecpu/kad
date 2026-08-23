@@ -241,7 +241,6 @@ export default function SimulationsScreen() {
                 : 'Conhecer planos com simulados personalizados'
           }
           icon="options"
-          eyebrow="PROVA PERSONALIZADA"
           title="Monte seu simulado"
           description="Escolha conteúdo, quantidade de questões e tempo de prova."
           accessory={(

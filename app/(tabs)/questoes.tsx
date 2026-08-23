@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Card } from '@/components/ui/card';
 import { FeaturedCard } from '@/components/ui/featured-card';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -88,7 +87,7 @@ export default function QuestionsScreen() {
     const disabled = item.total === 0;
 
     return (
-      <Card
+      <Pressable
         onPress={
           disabled
             ? undefined
@@ -98,8 +97,15 @@ export default function QuestionsScreen() {
                   params: { discipline: item.name },
                 })
         }
+        disabled={disabled}
+        accessibilityRole="button"
         accessibilityLabel={`Abrir assuntos de ${item.name}`}
-        style={[styles.card, disabled && { opacity: 0.55 }]}>
+        accessibilityState={{ disabled }}
+        style={({ pressed }) => [
+          styles.card,
+          pressed && { backgroundColor: colors.surfaceAlt },
+          disabled && { opacity: 0.55 },
+        ]}>
         <View style={styles.iconWrapper}>
           <Ionicons name={item.icon} size={20} color={colors.primary} />
         </View>
@@ -122,7 +128,7 @@ export default function QuestionsScreen() {
         </View>
 
         {!disabled ? <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} /> : null}
-      </Card>
+      </Pressable>
     );
   };
 
@@ -136,7 +142,7 @@ export default function QuestionsScreen() {
     const disabled = questions.length === 0;
 
     return (
-      <Card
+      <Pressable
         onPress={
           disabled
             ? undefined
@@ -146,8 +152,15 @@ export default function QuestionsScreen() {
                   params: { id: pack.id },
                 })
         }
+        disabled={disabled}
+        accessibilityRole="button"
         accessibilityLabel={`Estudar questões de ${pack.name}`}
-        style={[styles.card, disabled && { opacity: 0.55 }]}>
+        accessibilityState={{ disabled }}
+        style={({ pressed }) => [
+          styles.card,
+          pressed && { backgroundColor: colors.surfaceAlt },
+          disabled && { opacity: 0.55 },
+        ]}>
         <View style={styles.iconWrapper}>
           <Ionicons
             name={(pack.icon as keyof typeof Ionicons.glyphMap) ?? 'briefcase-outline'}
@@ -171,7 +184,7 @@ export default function QuestionsScreen() {
         </View>
 
         {!disabled ? <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} /> : null}
-      </Card>
+      </Pressable>
     );
   };
 
@@ -179,7 +192,6 @@ export default function QuestionsScreen() {
     <View style={styles.listHeader}>
       <FeaturedCard
         icon="compass-outline"
-        eyebrow="EXPLORAR QUESTÕES"
         title="Escolha como estudar"
         description="Navegue por matéria ou encontre uma questão específica."
         compact>
@@ -190,21 +202,18 @@ export default function QuestionsScreen() {
           accessibilityLabel="Procurar questões"
           style={({ pressed }) => [
             styles.searchEntry,
-            { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+            { backgroundColor: colors.surface, borderColor: colors.border },
             pressed && styles.searchEntryPressed,
           ]}>
           <Ionicons name="search" size={18} color={colors.primary} />
           <Text style={[styles.searchEntryText, { color: colors.textMuted }]}>Procurar questões</Text>
-          <View style={[styles.filterIcon, { backgroundColor: colors.surface }]}>
-            <Ionicons name="options-outline" size={17} color={colors.textSubtle} />
-          </View>
+          <Ionicons name="options-outline" size={17} color={colors.textSubtle} />
         </Pressable>
       </FeaturedCard>
       <View style={styles.sectionHeading}>
         <Text style={[styles.sectionLabel, { color: colors.text }]}>
           {studyMode === 'discipline' ? 'Escolha uma disciplina' : 'Escolha um concurso'}
         </Text>
-        <View style={[styles.sectionMarker, { backgroundColor: colors.primary }]} />
       </View>
     </View>
   );
@@ -244,7 +253,9 @@ export default function QuestionsScreen() {
             : renderConcurso(item.value)
         }
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + Spacing.xxxl }]}
-        ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
+        ItemSeparatorComponent={() => (
+          <View style={[styles.itemSeparator, { backgroundColor: colors.border }]} />
+        )}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={listHeader}
       />
@@ -290,25 +301,20 @@ const styles = StyleSheet.create({
     fontSize: FontSize.body,
     fontWeight: FontWeight.medium,
   },
-  filterIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   sectionLabel: {
     fontSize: FontSize.heading,
     fontWeight: FontWeight.semibold,
   },
-  sectionHeading: { gap: 4, marginBottom: Spacing.sm },
-  sectionMarker: { width: 28, height: 2, borderRadius: Radius.pill },
+  sectionHeading: { marginBottom: Spacing.sm },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
     minHeight: 72,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.md,
   },
+  itemSeparator: { height: StyleSheet.hairlineWidth, marginLeft: Spacing.xs },
   iconWrapper: {
     width: 24,
     height: 40,

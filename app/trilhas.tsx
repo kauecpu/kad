@@ -326,15 +326,6 @@ export default function TrailsScreen() {
 
         <FeaturedCard
           icon={heroTrack?.icon ?? 'navigate-outline'}
-          eyebrow={
-            heroTrack
-              ? heroIsRecommendation
-                ? 'RECOMENDADA PARA SUA META'
-                : heroMetrics.answered > 0
-                  ? 'CONTINUE DE ONDE PAROU'
-                  : 'SUA TRILHA ATUAL'
-              : 'PRIMEIRO PASSO'
-          }
           title={heroTrack?.name ?? 'Escolha sua primeira trilha'}
           description={
             heroTrack

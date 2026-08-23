@@ -1,6 +1,5 @@
 import Ionicons from '@/components/ui/app-icon';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -28,19 +27,6 @@ const PLAN_LABEL: Record<SubscriptionPlan, string> = {
   circle: 'KAD Círculo',
 };
 
-const IDENTITY_COLORS = {
-  background: '#191321',
-  backgroundDeep: '#100C17',
-  surface: '#21192E',
-  foreground: '#FCFAFF',
-  muted: '#C7BDD4',
-  border: 'rgba(255,255,255,0.12)',
-  brand: '#7C3AED',
-  brandSoft: '#A78BFA',
-  status: '#62E6A7',
-  statusSoft: 'rgba(98,230,167,0.10)',
-} as const;
-
 const THEME_OPTIONS: SegmentedOption<ThemePreference>[] = [
   { value: 'system', label: 'Sistema' },
   { value: 'light', label: 'Claro' },
@@ -48,22 +34,19 @@ const THEME_OPTIONS: SegmentedOption<ThemePreference>[] = [
 ];
 
 type DossierSectionProps = {
-  index: string;
   title: string;
   children: ReactNode;
 };
 
-function DossierSection({ index, title, children }: DossierSectionProps) {
+function DossierSection({ title, children }: DossierSectionProps) {
   const { colors } = useTheme();
 
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionIndex, { color: colors.primary }]}>{index}</Text>
         <Text style={[styles.sectionTitle, { color: colors.text }]} accessibilityRole="header">
           {title}
         </Text>
-        <View style={[styles.sectionRule, { backgroundColor: colors.borderStrong }]} />
       </View>
       {children}
     </View>
@@ -233,7 +216,7 @@ export default function PerfilScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
         title="Meu KAD"
-        subtitle="Dossiê do candidato"
+        subtitle="Conta, plano e preferências"
         onBack={() => router.back()}
         backLabel="Voltar"
       />
@@ -249,59 +232,25 @@ export default function PerfilScreen() {
           style={[
             styles.identityCard,
             {
-              backgroundColor: IDENTITY_COLORS.background,
-              borderColor: IDENTITY_COLORS.border,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
             },
           ]}>
-          <LinearGradient
-            pointerEvents="none"
-            colors={[
-              'rgba(124,58,237,0.30)',
-              IDENTITY_COLORS.background,
-              IDENTITY_COLORS.backgroundDeep,
-            ]}
-            locations={[0, 0.48, 1]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View pointerEvents="none" style={styles.identityBrandGlow} />
-          <View pointerEvents="none" style={styles.identityStatusGlow} />
-          <View
-            pointerEvents="none"
-            style={[styles.identityRail, { backgroundColor: IDENTITY_COLORS.brandSoft }]}
-          />
-          <View style={styles.identitySignature}>
-            <View
-              style={[styles.signatureLineWide, { backgroundColor: IDENTITY_COLORS.brandSoft }]}
-            />
-            <View
-              style={[styles.signatureLineNarrow, { backgroundColor: IDENTITY_COLORS.brand }]}
-            />
-          </View>
-
           <View style={styles.identityContent}>
-            <View style={styles.identityOverline}>
-              <View style={styles.identityBrand}>
-                <LinearGradient
-                  colors={[IDENTITY_COLORS.brand, IDENTITY_COLORS.brandSoft]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.identityBrandMark}>
-                  <Text style={styles.identityBrandText}>K/</Text>
-                </LinearGradient>
-                <Text style={[styles.overlineText, { color: IDENTITY_COLORS.muted }]}>
-                  IDENTIDADE KAD
-                </Text>
-              </View>
-              <View style={styles.identityPlanBadge}>
+            <View style={styles.identityHeader}>
+              <Text style={[styles.identityTitle, { color: colors.textMuted }]}>Seu perfil</Text>
+              <View
+                style={[
+                  styles.identityPlanBadge,
+                  { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong },
+                ]}>
                 <Ionicons
-                  name="sparkles-outline"
+                  name="ribbon-outline"
                   size={14}
-                  color={IDENTITY_COLORS.brandSoft}
+                  color={colors.primary}
                   filled={false}
                 />
-                <Text style={styles.identityPlanText}>
+                <Text style={[styles.identityPlanText, { color: colors.primary }]}>
                   {subscription.plan === 'circle'
                     ? 'Círculo'
                     : subscription.plan === 'diamond'
@@ -312,30 +261,20 @@ export default function PerfilScreen() {
             </View>
 
             <View style={styles.identityUser}>
-              <LinearGradient
-                colors={[
-                  IDENTITY_COLORS.status,
-                  IDENTITY_COLORS.brand,
-                  IDENTITY_COLORS.brandSoft,
-                ]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.identityAvatarRing}>
-                <View style={styles.identityAvatarInner}>
-                  <Avatar
-                    name={profile.name}
-                    uri={profile.avatarUri}
-                    size={72}
-                    onEdit={handlePickAvatar}
-                  />
-                </View>
-              </LinearGradient>
+              <View style={[styles.identityAvatar, { borderColor: colors.primary }]}>
+                <Avatar
+                  name={profile.name}
+                  uri={profile.avatarUri}
+                  size={72}
+                  onEdit={handlePickAvatar}
+                />
+              </View>
               <View style={styles.identityCopy}>
-                <Text style={[styles.userName, { color: IDENTITY_COLORS.foreground }]}>
+                <Text style={[styles.userName, { color: colors.text }]}>
                   {profile.name}
                 </Text>
                 {session && profile.username ? (
-                  <Text style={[styles.userHandle, { color: IDENTITY_COLORS.brandSoft }]}>
+                  <Text style={[styles.userHandle, { color: colors.primary }]}>
                     @{profile.username}
                   </Text>
                 ) : null}
@@ -343,11 +282,11 @@ export default function PerfilScreen() {
                   <View
                     style={[
                       styles.identityStatusDot,
-                      { backgroundColor: IDENTITY_COLORS.status },
+                      { backgroundColor: colors.success },
                     ]}
                   />
                   <Text
-                    style={[styles.userDetail, { color: IDENTITY_COLORS.muted }]}
+                    style={[styles.userDetail, { color: colors.textMuted }]}
                     numberOfLines={2}>
                     {session ? profile.email : 'Modo visitante · dados salvos neste aparelho'}
                   </Text>
@@ -359,17 +298,17 @@ export default function PerfilScreen() {
               style={[
                 styles.identityStorageNote,
                 {
-                  backgroundColor: IDENTITY_COLORS.statusSoft,
-                  borderColor: IDENTITY_COLORS.border,
+                  backgroundColor: colors.surfaceAlt,
+                  borderColor: colors.border,
                 },
               ]}>
               <Ionicons
                 name={session ? 'cloud-done-outline' : 'shield-checkmark-outline'}
                 size={16}
-                color={IDENTITY_COLORS.status}
+                color={colors.success}
                 filled={false}
               />
-              <Text style={[styles.identityStorageText, { color: IDENTITY_COLORS.muted }]}>
+              <Text style={[styles.identityStorageText, { color: colors.textMuted }]}>
                 {session
                   ? 'Seu perfil e sua preparação podem acompanhar você em outros aparelhos.'
                   : 'Sua preparação fica salva só aqui. Crie uma conta para não perder nada.'}
@@ -385,42 +324,30 @@ export default function PerfilScreen() {
               accessibilityState={{ disabled: !primaryAction.href }}
               style={({ pressed }) => [
                 styles.primaryAction,
+                { backgroundColor: colors.primary },
                 pressed && styles.pressed,
                 !primaryAction.href && styles.disabled,
               ]}>
-              <LinearGradient
-                colors={[IDENTITY_COLORS.brand, IDENTITY_COLORS.brandSoft]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.primaryActionGradient}>
-                <View pointerEvents="none" style={styles.primaryActionShine} />
-                <View style={styles.primaryActionIcon}>
-                  <Ionicons
-                    name={session ? 'create-outline' : 'cloud-upload-outline'}
-                    size={19}
-                    color={IDENTITY_COLORS.foreground}
-                    filled={false}
-                  />
-                </View>
-                <View style={styles.primaryActionCopy}>
-                  <Text style={styles.primaryActionLabel}>{primaryAction.label}</Text>
-                  <Text style={styles.primaryActionDescription}>{primaryAction.description}</Text>
-                </View>
-                {primaryAction.href ? (
-                  <View style={styles.primaryActionArrow}>
-                    <Ionicons
-                      name="arrow-forward"
-                      size={17}
-                      color={IDENTITY_COLORS.foreground}
-                    />
-                  </View>
-                ) : null}
-              </LinearGradient>
+              <View style={styles.primaryActionIcon}>
+                <Ionicons
+                  name={session ? 'create-outline' : 'cloud-upload-outline'}
+                  size={19}
+                  color="#FFFFFF"
+                  filled={false}
+                />
+              </View>
+              <View style={styles.primaryActionCopy}>
+                <Text style={styles.primaryActionLabel}>{primaryAction.label}</Text>
+                <Text style={styles.primaryActionDescription}>{primaryAction.description}</Text>
+              </View>
+              {primaryAction.href ? (
+                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+              ) : null}
             </Pressable>
           </View>
         </Card>
 
-        <DossierSection index="01" title="Minha preparação">
+        <DossierSection title="Minha preparação">
           <View
             style={[
               styles.preparationPanel,
@@ -439,7 +366,7 @@ export default function PerfilScreen() {
                 <Ionicons name="flag-outline" size={19} color={colors.primary} />
               </View>
               <View style={styles.targetCopy}>
-                <Text style={[styles.metricEyebrow, { color: colors.textMuted }]}>CONCURSO-ALVO</Text>
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Meta de concurso</Text>
                 <Text style={[styles.targetValue, { color: colors.text }]}>
                   {targetRole || 'Escolher minha meta'}
                 </Text>
@@ -459,7 +386,7 @@ export default function PerfilScreen() {
                   pressed && { backgroundColor: colors.surfaceAlt },
                 ]}>
                 <View style={styles.metricTopline}>
-                  <Text style={[styles.metricEyebrow, { color: colors.textMuted }]}>DESEMPENHO</Text>
+                  <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Desempenho</Text>
                   <Ionicons
                     name={canViewStatistics ? 'bar-chart-outline' : 'lock-closed-outline'}
                     size={16}
@@ -481,7 +408,7 @@ export default function PerfilScreen() {
                   pressed && { backgroundColor: colors.surfaceAlt },
                 ]}>
                 <View style={styles.metricTopline}>
-                  <Text style={[styles.metricEyebrow, { color: colors.textMuted }]}>NO RADAR</Text>
+                  <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Concursos salvos</Text>
                   <Ionicons name="bookmark-outline" size={16} color={colors.primary} />
                 </View>
                 <Text style={[styles.metricValue, { color: colors.primary }]}>
@@ -495,7 +422,7 @@ export default function PerfilScreen() {
           </View>
         </DossierSection>
 
-        <DossierSection index="02" title="Plano e acesso">
+        <DossierSection title="Plano e acesso">
           <Card
             style={[
               styles.planCard,
@@ -527,7 +454,7 @@ export default function PerfilScreen() {
           </Card>
         </DossierSection>
 
-        <DossierSection index="03" title="Preferências">
+        <DossierSection title="Preferências">
           <Card
             style={[
               styles.appearanceCard,
@@ -548,7 +475,7 @@ export default function PerfilScreen() {
           </Card>
         </DossierSection>
 
-        <DossierSection index="04" title="Ajude a construir">
+        <DossierSection title="Ajude a construir">
           <Card
             onPress={() => router.push('/perfil/feedback')}
             accessibilityLabel="Enviar feedback para o KAD"
@@ -560,7 +487,7 @@ export default function PerfilScreen() {
               <Ionicons name="chatbubble-ellipses-outline" size={21} color="#FFFFFF" />
             </View>
             <View style={styles.feedbackCopy}>
-              <Text style={[styles.feedbackEyebrow, { color: colors.primary }]}>TESTE FECHADO</Text>
+              <Text style={[styles.feedbackEyebrow, { color: colors.primary }]}>Programa de testes</Text>
               <Text style={[styles.feedbackTitle, { color: colors.text }]}>Fale com o KAD</Text>
               <Text style={[styles.feedbackDescription, { color: colors.textMuted }]}>
                 Envie uma sugestão, dúvida ou problema direto para a equipe.
@@ -570,7 +497,7 @@ export default function PerfilScreen() {
           </Card>
         </DossierSection>
 
-        <DossierSection index="05" title="Conta e privacidade">
+        <DossierSection title="Conta e privacidade">
           <Card padded={false} style={styles.settingsCard}>
             {session ? (
               <>
@@ -644,21 +571,14 @@ const styles = StyleSheet.create({
   },
   section: { gap: Spacing.md },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  sectionIndex: {
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.9,
+    minHeight: 32,
+    justifyContent: 'flex-end',
   },
   sectionTitle: {
     fontSize: FontSize.heading,
     fontWeight: FontWeight.bold,
     letterSpacing: -0.25,
   },
-  sectionRule: { flex: 1, height: StyleSheet.hairlineWidth, marginLeft: Spacing.xs },
   feedbackCard: {
     minHeight: 112,
     flexDirection: 'row',
@@ -675,93 +595,26 @@ const styles = StyleSheet.create({
   },
   feedbackCopy: { flex: 1, gap: 3 },
   feedbackEyebrow: {
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.8,
+    fontSize: FontSize.small,
+    fontWeight: FontWeight.semibold,
   },
   feedbackTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
   feedbackDescription: { fontSize: FontSize.small, lineHeight: 18 },
   identityCard: {
     borderWidth: 1,
-    borderRadius: Radius.xl,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
   },
-  identityBrandGlow: {
-    position: 'absolute',
-    top: -112,
-    right: -76,
-    width: 224,
-    height: 224,
-    borderRadius: Radius.pill,
-    backgroundColor: 'rgba(124,58,237,0.24)',
-  },
-  identityStatusGlow: {
-    position: 'absolute',
-    bottom: -128,
-    left: -82,
-    width: 220,
-    height: 220,
-    borderRadius: Radius.pill,
-    backgroundColor: 'rgba(98,230,167,0.08)',
-  },
-  identityRail: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: 3,
-  },
-  identitySignature: {
-    position: 'absolute',
-    pointerEvents: 'none',
-    top: -18,
-    right: -18,
-    width: 124,
-    height: 96,
-    opacity: 0.2,
-    transform: [{ rotate: '-18deg' }],
-  },
-  signatureLineWide: {
-    position: 'absolute',
-    top: 14,
-    right: 0,
-    width: 118,
-    height: 18,
-    borderRadius: Radius.sm,
-  },
-  signatureLineNarrow: {
-    position: 'absolute',
-    top: 43,
-    right: 8,
-    width: 80,
-    height: 8,
-    borderRadius: Radius.sm,
-  },
-  identityContent: { padding: Spacing.lg + 2, gap: Spacing.lg + 2 },
-  identityOverline: {
+  identityContent: { padding: Spacing.lg, gap: Spacing.lg },
+  identityHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.md,
   },
-  identityBrand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  identityBrandMark: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.md,
-  },
-  identityBrandText: {
-    color: '#FFFFFF',
+  identityTitle: {
     fontSize: FontSize.small,
-    fontWeight: FontWeight.bold,
-    letterSpacing: -0.4,
-  },
-  overlineText: {
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 1.1,
+    fontWeight: FontWeight.semibold,
   },
   identityPlanBadge: {
     flexDirection: 'row',
@@ -772,23 +625,16 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderWidth: 1,
     borderRadius: Radius.pill,
-    borderColor: IDENTITY_COLORS.border,
-    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   identityPlanText: {
-    color: IDENTITY_COLORS.foreground,
     fontSize: FontSize.tiny,
     fontWeight: FontWeight.semibold,
   },
   identityUser: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
-  identityAvatarRing: {
-    padding: 3,
+  identityAvatar: {
+    borderWidth: 2,
     borderRadius: Radius.pill,
-  },
-  identityAvatarInner: {
     padding: 2,
-    borderRadius: Radius.pill,
-    backgroundColor: IDENTITY_COLORS.surface,
   },
   identityCopy: { flex: 1, gap: 3 },
   userName: {
@@ -822,27 +668,13 @@ const styles = StyleSheet.create({
   },
   identityStorageText: { flex: 1, fontSize: FontSize.tiny, lineHeight: 16 },
   primaryAction: {
-    minHeight: 70,
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
-  },
-  primaryActionGradient: {
-    minHeight: 70,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    overflow: 'hidden',
-  },
-  primaryActionShine: {
-    position: 'absolute',
-    top: -32,
-    bottom: -32,
-    left: '22%',
-    width: 54,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    transform: [{ rotate: '18deg' }],
+    borderRadius: Radius.md,
   },
   primaryActionIcon: {
     width: 40,
@@ -854,7 +686,7 @@ const styles = StyleSheet.create({
   },
   primaryActionCopy: { flex: 1, gap: 2 },
   primaryActionLabel: {
-    color: IDENTITY_COLORS.foreground,
+    color: '#FFFFFF',
     fontSize: FontSize.body,
     fontWeight: FontWeight.bold,
   },
@@ -862,14 +694,6 @@ const styles = StyleSheet.create({
     color: 'rgba(252,250,255,0.80)',
     fontSize: FontSize.small,
     lineHeight: 18,
-  },
-  primaryActionArrow: {
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.14)',
   },
   preparationPanel: {
     borderWidth: 1,
@@ -909,11 +733,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.xs,
   },
-  metricEyebrow: {
+  metricLabel: {
     flexShrink: 1,
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.65,
+    fontSize: FontSize.small,
+    fontWeight: FontWeight.semibold,
   },
   metricValue: {
     fontSize: FontSize.display,

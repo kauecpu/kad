@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
-import { FontSize, FontWeight, Fonts, Radius, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { deadlineInfo } from '@/lib/concursos';
 import { formatSalaryRangeShort } from '@/lib/format';
@@ -45,18 +45,6 @@ function ConcursoCardComponent({
           borderColor: saved ? colors.borderStrong : colors.border,
         },
       ]}>
-      <View
-        pointerEvents="none"
-        style={[
-          styles.accentRail,
-          { backgroundColor: saved ? colors.primary : colors.borderStrong },
-        ]}
-      />
-      <View
-        pointerEvents="none"
-        style={[styles.accentSlash, { backgroundColor: colors.primarySoft }]}
-      />
-
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
@@ -66,15 +54,9 @@ function ConcursoCardComponent({
           pressed && styles.cardPressed,
         ]}>
         <View style={styles.identityRow}>
-          <Text style={[styles.marker, { color: colors.primary }]}>{`K/${marker}`}</Text>
-          {index ? (
-            <>
-              <View style={[styles.identityDivider, { backgroundColor: colors.borderStrong }]} />
-              <Text style={[styles.shortName, { color: colors.textSubtle }]}>
-                {concurso.shortName.toUpperCase()}
-              </Text>
-            </>
-          ) : null}
+          <Text style={[styles.marker, { color: colors.textSubtle }]}>
+            {index ? `${marker} · ${concurso.shortName}` : concurso.shortName}
+          </Text>
         </View>
 
         <View style={styles.heading}>
@@ -144,46 +126,21 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     borderWidth: 1,
-    borderRadius: Radius.lg,
-  },
-  accentRail: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: 4,
-    zIndex: 1,
-  },
-  accentSlash: {
-    position: 'absolute',
-    top: -18,
-    right: 18,
-    width: 18,
-    height: 76,
-    opacity: 0.7,
-    transform: [{ rotate: '24deg' }],
+    borderRadius: Radius.md,
   },
   cardMain: {
     gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    paddingLeft: Spacing.lg + 3,
   },
   cardPressed: { opacity: 0.82, transform: [{ scale: 0.992 }] },
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   marker: {
-    fontFamily: Fonts.mono,
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.8,
-  },
-  identityDivider: { width: 18, height: 1 },
-  shortName: {
-    flexShrink: 1,
-    fontFamily: Fonts.mono,
     fontSize: FontSize.tiny,
     fontWeight: FontWeight.semibold,
-    letterSpacing: 0.55,
+    letterSpacing: 0.25,
+    textTransform: 'uppercase',
+    fontVariant: ['tabular-nums'],
   },
   heading: { gap: 3 },
   title: {
@@ -202,7 +159,6 @@ const styles = StyleSheet.create({
   },
   fact: { flex: 1, minWidth: 0, gap: 3 },
   factLabel: {
-    fontFamily: Fonts.mono,
     fontSize: 9,
     fontWeight: FontWeight.bold,
     letterSpacing: 0.65,

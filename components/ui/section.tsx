@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type SectionProps = {
@@ -32,7 +32,6 @@ export function Section({ title, actionLabel, onAction, children }: SectionProps
             hitSlop={8}
             style={({ pressed }) => [
               styles.actionButton,
-              { backgroundColor: colors.primarySoft },
               pressed && styles.pressed,
             ]}>
             <Text style={[styles.action, { color: colors.primary }]}>{actionLabel}</Text>
@@ -60,10 +59,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   actionButton: {
-    minHeight: 34,
+    minHeight: 44,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.sm,
   },
   action: {
     fontSize: FontSize.small,

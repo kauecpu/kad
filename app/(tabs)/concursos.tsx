@@ -29,7 +29,6 @@ import {
   CONTENT_MAX_WIDTH,
   FontSize,
   FontWeight,
-  Fonts,
   Radius,
   Spacing,
 } from '@/constants/theme';
@@ -231,7 +230,6 @@ export default function ConcursosScreen() {
         onPress={() => setGoalMode(true)}
         accessibilityLabel={`Ver concursos para sua meta: ${targetRole}`}
         icon="navigate-outline"
-        eyebrow="FOCO DA META"
         title={targetRole}
         description={`${goalMatches.length} ${goalMatches.length === 1 ? 'oportunidade compatível' : 'oportunidades compatíveis'} com sua direção atual.`}
         actionLabel="Ver oportunidades"
@@ -257,10 +255,6 @@ export default function ConcursosScreen() {
           <View style={styles.titleRow}>
             <DrawerMenuButton onPress={openMenu} />
             <View style={styles.titleGroup}>
-              <View style={styles.eyebrowRow}>
-                <View style={[styles.eyebrowRail, { backgroundColor: colors.primary }]} />
-                <Text style={[styles.eyebrow, { color: colors.primary }]}>KAD / CONCURSOS</Text>
-              </View>
               <Text
                 style={[styles.title, { color: colors.text }]}
                 accessibilityRole="header">
@@ -459,15 +453,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.md,
   },
-  titleGroup: { flex: 1, minWidth: 0, gap: 3 },
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  eyebrowRail: { width: 22, height: 3, transform: [{ skewX: '-24deg' }] },
-  eyebrow: {
-    fontFamily: Fonts.mono,
-    fontSize: FontSize.tiny,
-    fontWeight: FontWeight.bold,
-    letterSpacing: 0.9,
-  },
+  titleGroup: { flex: 1, minWidth: 0 },
   title: {
     fontSize: FontSize.display,
     lineHeight: 34,
@@ -483,7 +469,6 @@ const styles = StyleSheet.create({
   },
   resultSummary: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   resultCount: {
-    fontFamily: Fonts.mono,
     fontSize: FontSize.tiny,
     fontWeight: FontWeight.semibold,
   },

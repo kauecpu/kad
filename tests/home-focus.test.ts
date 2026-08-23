@@ -38,9 +38,10 @@ test('o resumo mostra valores reais, restante semanal e adaptação à fonte', (
   assert.match(home, /\{dailyQuestionsAnswered\}/);
   assert.match(home, /\{studyMomentum\.weeklyQuestions\} de \{studyMomentum\.weeklyGoal\}/);
   assert.match(home, /weeklyRemaining/);
-  assert.match(home, /Faltam \{weeklyRemaining\} questões/);
+  assert.match(home, /faltam \$\{weeklyRemaining\}/);
   assert.match(home, /fontScale >= 1\.3/);
-  assert.match(home, /styles\.summaryGridStacked/);
+  assert.match(home, /styles\.summaryStripStacked/);
+  assert.doesNotMatch(home, /styles\.summaryCard|styles\.summaryIcon/);
 });
 
 test('a home não duplica o catálogo de funções disponível em Explorar e no drawer', () => {
