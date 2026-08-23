@@ -17,10 +17,6 @@ import {
 } from '../lib/haptic-feedback.ts';
 
 const home = readFileSync(new NodeURL('../app/(tabs)/inicio.tsx', import.meta.url), 'utf8');
-const hapticTab = readFileSync(
-  new NodeURL('../components/haptic-tab.tsx', import.meta.url),
-  'utf8'
-);
 const pressFeedback = readFileSync(
   new NodeURL('../components/ui/press-feedback.tsx', import.meta.url),
   'utf8'
@@ -108,7 +104,6 @@ test('a ação principal e os três atalhos da tela Início usam a resposta reut
 
 test('somente o adaptador central acessa expo-haptics', () => {
   assert.match(hapticsAdapter, /from 'expo-haptics'/);
-  assert.doesNotMatch(hapticTab, /expo-haptics|Haptics\./);
   assert.doesNotMatch(segmented, /expo-haptics|Haptics\./);
 });
 

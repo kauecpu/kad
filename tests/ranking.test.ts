@@ -110,23 +110,20 @@ test('classificação ordena por pontos e mantém a posição do usuário atual'
   assert.ok(ranking.every((entry, index) => entry.rank === index + 1));
 });
 
-test('Ranking sai da barra inferior e a rota antiga redireciona', () => {
-  const visibleTabs = Array.from(
+test('Ranking aparece no drawer e a rota antiga redireciona', () => {
+  const registeredRoutes = Array.from(
     tabsLayout.matchAll(/name="(inicio|questoes|concursos|simulados|explorar)"/g),
     (match) => match[1]
   );
 
-  assert.deepEqual(visibleTabs, ['inicio', 'questoes', 'concursos', 'simulados', 'explorar']);
-  assert.doesNotMatch(tabsLayout, /const RankTabIcon/);
-  assert.match(tabsLayout, /name="rank"[\s\S]*?href:\s*null/);
+  assert.deepEqual(registeredRoutes, ['inicio', 'questoes', 'concursos', 'simulados', 'explorar']);
+  assert.doesNotMatch(tabsLayout, /\bTabs\b|tabBar/);
+  assert.match(tabsLayout, /name="rank"/);
   assert.match(rankTab, /<Redirect href=\{APP_ROUTE_ALIASES\.rank\}/);
 });
 
-test('a barra inferior distingue a tab ativa por superfície, ícone e texto', () => {
-  assert.match(tabsLayout, /styles\.tabActiveCapsule/);
-  assert.match(tabsLayout, /backgroundColor: colors\.tabActiveSurface/);
-  assert.match(tabsLayout, /function TabLabel/);
-  assert.match(tabsLayout, /focused \? colors\.tabActive : colors\.tabInactive/);
-  assert.match(tabsLayout, /focused \? FontWeight\.semibold : FontWeight\.medium/);
-  assert.match(tabsLayout, /tabBarLabel: TabLabel/);
+test('o drawer é a única navegação primária visível', () => {
+  assert.match(tabsLayout, /<Drawer/);
+  assert.match(tabsLayout, /KadDrawerContent/);
+  assert.doesNotMatch(tabsLayout, /tabBar|bottom-tabs/);
 });
