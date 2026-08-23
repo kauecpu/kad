@@ -416,15 +416,19 @@ test('o identificador de usuário é normalizado e validado', () => {
 
 test('callbacks de autenticação aceitam somente rotas previstas e códigos PKCE', () => {
   assert.equal(authCallbackKindFromUrl('kad://auth/login?code=abc'), 'confirmation');
-  assert.equal(authCallbackKindFromUrl('kad:///auth/nova-senha?code=abc'), 'recovery');
+  assert.equal(authCallbackKindFromUrl('kad:///auth/nova-senha?code=abc'), null);
   assert.equal(
-    authCallbackKindFromUrl('https://app.kad.com.br/auth/nova-senha?code=abc'),
+    authCallbackKindFromUrl(
+      'https://app.kad.com.br/auth/nova-senha?code=abc',
+      { webOrigin: 'https://app.kad.com.br' }
+    ),
     'recovery'
   );
   assert.equal(authCallbackKindFromUrl('kad://perfil?code=abc'), null);
   assert.deepEqual(authCodeFromUrl('kad://auth/login?code=abc'), {
     callback: 'confirmation',
     code: 'abc',
+    flowId: undefined,
     errorDescription: undefined,
   });
   assert.equal(
@@ -432,9 +436,19 @@ test('callbacks de autenticação aceitam somente rotas previstas e códigos PKC
     undefined
   );
   assert.equal(isAuthCallbackUrl('https://app.kad.com.br/auth/login'), false);
-  assert.equal(isAuthCallbackUrl('https://app.kad.com.br/auth/login?code=abc'), true);
+  assert.equal(isAuthCallbackUrl('https://app.kad.com.br/auth/login?code=abc'), false);
   assert.equal(
-    isAuthCallbackUrl('https://app.kad.com.br/auth/login?error=access_denied'),
+    isAuthCallbackUrl(
+      'https://app.kad.com.br/auth/login?code=abc&sb_flow_id=12345678',
+      { webOrigin: 'https://app.kad.com.br' }
+    ),
+    true
+  );
+  assert.equal(
+    isAuthCallbackUrl(
+      'https://app.kad.com.br/auth/login?error=access_denied',
+      { webOrigin: 'https://app.kad.com.br' }
+    ),
     true
   );
 });
