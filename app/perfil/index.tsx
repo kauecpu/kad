@@ -24,7 +24,7 @@ import type { SubscriptionPlan, ThemePreference } from '@/types';
 
 const PLAN_LABEL: Record<SubscriptionPlan, string> = {
   basic: 'Plano Básico',
-  diamond: 'KAD Diamante',
+  diamond: 'KAD Platina',
   circle: 'KAD Círculo',
 };
 
@@ -305,7 +305,7 @@ export default function PerfilScreen() {
                   {subscription.plan === 'circle'
                     ? 'Círculo'
                     : subscription.plan === 'diamond'
-                      ? 'Diamante'
+                      ? 'Platina'
                       : 'Básico'}
                 </Text>
               </View>
@@ -514,7 +514,7 @@ export default function PerfilScreen() {
                     : 'Questões ilimitadas, sem cobrança e sem prazo'}
                 </Text>
               </View>
-              <Ionicons name="diamond-outline" size={22} color={colors.primary} />
+              <Ionicons name="ribbon-outline" size={22} color={colors.primary} />
             </View>
 
             <Button

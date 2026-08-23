@@ -5,7 +5,12 @@ import { CONCURSOS } from '../data/concursos.ts';
 import { DISCIPLINES } from '../data/disciplines.ts';
 import { CONCURSO_PACKS } from '../data/exam-concursos.ts';
 import { QUESTIONS } from '../data/questions.ts';
-import { BASIC_PLAN_ACCESS, DIAMOND_BENEFITS, DIAMOND_BILLING_OPTIONS } from '../data/user.ts';
+import {
+  BASIC_PLAN_ACCESS,
+  DIAMOND_BENEFITS,
+  PLATINUM_BENEFITS,
+  PLATINUM_BILLING_OPTIONS,
+} from '../data/user.ts';
 import {
   currentDailyUsage,
   recordDailyQuestionUsage,
@@ -492,19 +497,19 @@ test('as rotas de sessão separam visitante, conta autenticada e acesso público
   });
 });
 
-test('o KAD Diamante oferece os três ciclos com desconto progressivo', () => {
-  const monthly = DIAMOND_BILLING_OPTIONS.find((option) => option.id === 'monthly');
-  const diamondQuarterly = DIAMOND_BILLING_OPTIONS.find(
+test('o KAD Platina preserva os três ciclos com desconto progressivo', () => {
+  const monthly = PLATINUM_BILLING_OPTIONS.find((option) => option.id === 'monthly');
+  const platinumQuarterly = PLATINUM_BILLING_OPTIONS.find(
     (option) => option.id === 'quarterly'
   );
-  const annual = DIAMOND_BILLING_OPTIONS.find((option) => option.id === 'annual');
+  const annual = PLATINUM_BILLING_OPTIONS.find((option) => option.id === 'annual');
 
   assert.deepEqual(
     { price: monthly?.price, durationDays: monthly?.durationDays },
     { price: 14.99, durationDays: 30 }
   );
   assert.deepEqual(
-    { price: diamondQuarterly?.price, durationDays: diamondQuarterly?.durationDays },
+    { price: platinumQuarterly?.price, durationDays: platinumQuarterly?.durationDays },
     { price: 39.99, durationDays: 90 }
   );
   assert.deepEqual(
@@ -521,11 +526,12 @@ test('o Plano Básico comunica somente prática ilimitada e correção', () => {
   assert.ok(BASIC_PLAN_ACCESS.every((feature) => feature.included));
 });
 
-test('o KAD Diamante descreve apenas recursos premium já disponíveis', () => {
-  assert.ok(DIAMOND_BENEFITS.length >= 6);
-  assert.ok(DIAMOND_BENEFITS.some((benefit) => benefit.includes('Simulados personalizados')));
-  assert.ok(DIAMOND_BENEFITS.some((benefit) => benefit.includes('Desempenho geral')));
-  assert.ok(DIAMOND_BENEFITS.some((benefit) => benefit.includes('questões erradas')));
+test('KAD Platina e KAD Diamante compartilham temporariamente os mesmos benefícios', () => {
+  assert.deepEqual(DIAMOND_BENEFITS, PLATINUM_BENEFITS);
+  assert.ok(PLATINUM_BENEFITS.length >= 6);
+  assert.ok(PLATINUM_BENEFITS.some((benefit) => benefit.includes('Simulados personalizados')));
+  assert.ok(PLATINUM_BENEFITS.some((benefit) => benefit.includes('Desempenho geral')));
+  assert.ok(PLATINUM_BENEFITS.some((benefit) => benefit.includes('questões erradas')));
 });
 
 test('concursos compatíveis com a meta do perfil são recomendados', () => {

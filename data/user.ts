@@ -17,7 +17,7 @@ export const BASIC_PLAN_ACCESS = [
   { label: 'Correção e gabarito comentado', included: true },
 ];
 
-export const DIAMOND_BILLING_OPTIONS = [
+export const PLATINUM_BILLING_OPTIONS = [
   {
     id: 'monthly' as const,
     name: 'Mensal',
@@ -46,11 +46,14 @@ export const DIAMOND_BILLING_OPTIONS = [
   },
 ];
 
-export const DIAMOND_BENEFITS = [
+export const PLATINUM_BENEFITS = [
   'Tudo o que está no Plano Básico',
   'Simulados personalizados e cronometrados',
   'Simulados por concurso e área de estudo',
   'Desempenho geral e por disciplina',
   'Revisão de questões erradas, corretas e favoritas',
   'Indicadores de acerto durante a prática',
-];
+] as const;
+
+/** Benefícios temporariamente compartilhados até a diferenciação do KAD Diamante. */
+export const DIAMOND_BENEFITS = PLATINUM_BENEFITS;
