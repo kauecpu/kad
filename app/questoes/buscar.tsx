@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { MultiSelectSheet } from '@/components/ui/multi-select-sheet';
 import { SearchField } from '@/components/ui/search-field';
-import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { StackHeader } from '@/components/ui/stack-header';
 import {
   CONTENT_MAX_WIDTH,
@@ -16,28 +15,31 @@ import {
   FontWeight,
   Radius,
   Spacing,
-  Typography,
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { toggleValue } from '@/lib/questions';
 import {
   countSearchFilters,
   searchOptionsForQuestions,
   searchQuestions,
-  topicsForDisciplines,
+  subjectsForDisciplines,
+  topicsForSelection,
 } from '@/lib/search';
 import { useApp } from '@/providers/app-provider';
 import { useSearch } from '@/providers/search-provider';
 import { useQuestions } from '@/providers/questions-provider';
-import type { AnsweredFilter, ResultFilter } from '@/types';
+import type { AnsweredFilter, EducationLevel, ResultFilter } from '@/types';
 
-type Mode = 'basic' | 'advanced';
-type SheetKey = 'disciplines' | 'topics' | 'boards' | 'roles' | 'institutions';
-
-const MODE_OPTIONS: SegmentedOption<Mode>[] = [
-  { value: 'basic', label: 'Básicos' },
-  { value: 'advanced', label: 'Avançados' },
-];
+type SheetKey =
+  | 'disciplines'
+  | 'subjects'
+  | 'topics'
+  | 'boards'
+  | 'institutions'
+  | 'concursos'
+  | 'roles'
+  | 'years'
+  | 'levels'
+  | 'difficulties';
 
 const ANSWERED_OPTIONS: { value: AnsweredFilter; label: string }[] = [
   { value: 'all', label: 'Todas' },
@@ -60,16 +62,19 @@ export default function SearchScreen() {
   const { questions } = useQuestions();
   const searchOptions = useMemo(() => searchOptionsForQuestions(questions), [questions]);
 
-  const [mode, setMode] = useState<Mode>('basic');
   const [sheet, setSheet] = useState<SheetKey | null>(null);
 
   const matchCount = useMemo(
     () => searchQuestions(search, answers, questions).length,
     [answers, questions, search],
   );
-  const availableTopics = useMemo(
-    () => topicsForDisciplines(search.disciplines, questions),
+  const availableSubjects = useMemo(
+    () => subjectsForDisciplines(search.disciplines, questions),
     [questions, search.disciplines]
+  );
+  const availableTopics = useMemo(
+    () => topicsForSelection(search.disciplines, search.subjects, questions),
+    [questions, search.disciplines, search.subjects]
   );
   const activeCount = countSearchFilters(search);
 
@@ -82,9 +87,26 @@ export default function SearchScreen() {
       options: searchOptions.disciplines,
       selected: search.disciplines,
       onChange: (v) => {
-        const allowedTopics = topicsForDisciplines(v, questions);
+        const allowedSubjects = subjectsForDisciplines(v, questions);
+        const nextSubjects = search.subjects.filter((subject) =>
+          allowedSubjects.includes(subject)
+        );
+        const allowedTopics = topicsForSelection(v, nextSubjects, questions);
         update({
           disciplines: v,
+          subjects: nextSubjects,
+          topics: search.topics.filter((topic) => allowedTopics.includes(topic)),
+        });
+      },
+    },
+    subjects: {
+      title: 'Matéria',
+      options: availableSubjects,
+      selected: search.subjects,
+      onChange: (v) => {
+        const allowedTopics = topicsForSelection(search.disciplines, v, questions);
+        update({
+          subjects: v,
           topics: search.topics.filter((topic) => allowedTopics.includes(topic)),
         });
       },
@@ -108,10 +130,34 @@ export default function SearchScreen() {
       onChange: (v) => update({ roles: v }),
     },
     institutions: {
-      title: 'Concurso / órgão',
+      title: 'Instituição',
       options: searchOptions.institutions,
       selected: search.institutions,
       onChange: (v) => update({ institutions: v }),
+    },
+    concursos: {
+      title: 'Concurso',
+      options: searchOptions.concursos,
+      selected: search.concursos,
+      onChange: (v) => update({ concursos: v }),
+    },
+    years: {
+      title: 'Ano',
+      options: searchOptions.years.map(String),
+      selected: search.years.map(String),
+      onChange: (v) => update({ years: v.map(Number) }),
+    },
+    levels: {
+      title: 'Escolaridade',
+      options: searchOptions.levels,
+      selected: search.levels,
+      onChange: (v) => update({ levels: v as EducationLevel[] }),
+    },
+    difficulties: {
+      title: 'Dificuldade',
+      options: searchOptions.difficulties,
+      selected: search.difficulties,
+      onChange: (v) => update({ difficulties: v }),
     },
   };
 
@@ -148,7 +194,12 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <StackHeader title="Procurar questões" onBack={() => router.back()} center />
+      <StackHeader
+        title="Procurar questões"
+        subtitle="Encontre exatamente o que estudar"
+        onBack={() => router.back()}
+        center
+      />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: Spacing.xxxl }]}
@@ -160,78 +211,63 @@ export default function SearchScreen() {
           placeholder="Buscar por palavra-chave"
         />
 
-        <Segmented options={MODE_OPTIONS} value={mode} onChange={setMode} />
+        <FilterSection title="Conteúdo" description="Defina o que você quer estudar.">
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}>
+            {renderFilterRow('disciplines')}
+            {renderFilterRow('subjects')}
+            {renderFilterRow('topics', true)}
+          </View>
+        </FilterSection>
 
-        {mode === 'basic' ? (
-          <>
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              {renderFilterRow('disciplines')}
-              {renderFilterRow('topics')}
-              {renderFilterRow('boards')}
-              {renderFilterRow('roles', true)}
+        <FilterSection title="Prova" description="Refine pela origem e pelo perfil da questão.">
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}>
+            {renderFilterRow('boards')}
+            {renderFilterRow('institutions')}
+            {renderFilterRow('concursos')}
+            {renderFilterRow('roles')}
+            {renderFilterRow('years')}
+            {renderFilterRow('levels')}
+            {renderFilterRow('difficulties', true)}
+          </View>
+        </FilterSection>
+
+        <FilterSection title="Seu histórico" description="Use suas tentativas anteriores na busca.">
+          <FilterGroup label="Situação">
+            <View style={styles.chips}>
+              {ANSWERED_OPTIONS.map((option) => (
+                <Chip
+                  key={option.value}
+                  label={option.label}
+                  selected={search.answered === option.value}
+                  onPress={() => update({ answered: option.value })}
+                />
+              ))}
             </View>
+          </FilterGroup>
 
-            <FilterGroup label="Ano" count={search.years.length}>
+          {canViewStatistics ? (
+            <FilterGroup label="Desempenho">
               <View style={styles.chips}>
-                {searchOptions.years.map((year) => (
-                  <Chip
-                    key={year}
-                    label={String(year)}
-                    selected={search.years.includes(year)}
-                    onPress={() => update({ years: toggleValue(search.years, year) })}
-                  />
-                ))}
-              </View>
-            </FilterGroup>
-          </>
-        ) : (
-          <>
-            <FilterGroup label="Situação">
-              <View style={styles.chips}>
-                {ANSWERED_OPTIONS.map((option) => (
+                {RESULT_OPTIONS.map((option) => (
                   <Chip
                     key={option.value}
                     label={option.label}
-                    selected={search.answered === option.value}
-                    onPress={() => update({ answered: option.value })}
+                    selected={search.result === option.value}
+                    onPress={() => update({ result: option.value })}
                   />
                 ))}
               </View>
             </FilterGroup>
-
-            {canViewStatistics ? (
-              <FilterGroup label="Desempenho">
-                <View style={styles.chips}>
-                  {RESULT_OPTIONS.map((option) => (
-                    <Chip
-                      key={option.value}
-                      label={option.label}
-                      selected={search.result === option.value}
-                      onPress={() => update({ result: option.value })}
-                    />
-                  ))}
-                </View>
-              </FilterGroup>
-            ) : null}
-
-            <FilterGroup label="Dificuldade" count={search.difficulties.length}>
-              <View style={styles.chips}>
-                {searchOptions.difficulties.map((level) => (
-                  <Chip
-                    key={level}
-                    label={level}
-                    selected={search.difficulties.includes(level)}
-                    onPress={() => update({ difficulties: toggleValue(search.difficulties, level) })}
-                  />
-                ))}
-              </View>
-            </FilterGroup>
-
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              {renderFilterRow('institutions', true)}
-            </View>
-          </>
-        )}
+          ) : null}
+        </FilterSection>
 
         {activeCount > 0 ? (
           <Button
@@ -273,26 +309,43 @@ export default function SearchScreen() {
   );
 }
 
+function FilterSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]} accessibilityRole="header">
+          {title}
+        </Text>
+        <Text style={[styles.sectionDescription, { color: colors.textMuted }]}>
+          {description}
+        </Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
 function FilterGroup({
   label,
-  count,
   children,
 }: {
   label: string;
-  count?: number;
   children: React.ReactNode;
 }) {
   const { colors } = useTheme();
   return (
     <View style={styles.group}>
-      <View style={styles.groupHeader}>
-        <Text style={[styles.groupLabel, { color: colors.textSubtle }]}>{label.toUpperCase()}</Text>
-        {count && count > 0 ? (
-          <View style={[styles.countPill, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.countText, { color: colors.onPrimary }]}>{count}</Text>
-          </View>
-        ) : null}
-      </View>
+      <Text style={[styles.groupLabel, { color: colors.text }]}>{label}</Text>
       {children}
     </View>
   );
@@ -316,6 +369,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   filterRow: {
+    minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
@@ -326,6 +380,7 @@ const styles = StyleSheet.create({
   },
   filterText: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   filterLabel: {
@@ -335,16 +390,26 @@ const styles = StyleSheet.create({
   filterSummary: {
     fontSize: FontSize.small,
   },
+  section: {
+    gap: Spacing.md,
+  },
+  sectionHeader: {
+    gap: 3,
+  },
+  sectionTitle: {
+    fontSize: FontSize.heading,
+    fontWeight: FontWeight.bold,
+  },
+  sectionDescription: {
+    fontSize: FontSize.small,
+    lineHeight: 18,
+  },
   group: {
     gap: Spacing.sm + 2,
   },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
   groupLabel: {
-    ...Typography.overline,
+    fontSize: FontSize.body,
+    fontWeight: FontWeight.semibold,
   },
   chips: {
     flexDirection: 'row',

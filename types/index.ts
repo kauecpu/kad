@@ -23,12 +23,15 @@ export type ResultFilter = 'all' | 'correct' | 'wrong';
 export type QuestionSearch = {
   keyword: string;
   disciplines: string[];
+  subjects: string[];
   topics: string[];
   boards: string[];
   roles: string[];
   years: number[];
   difficulties: string[];
   institutions: string[];
+  concursos: string[];
+  levels: EducationLevel[];
   answered: AnsweredFilter;
   result: ResultFilter;
 };
