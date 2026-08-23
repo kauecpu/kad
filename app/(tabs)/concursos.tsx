@@ -21,6 +21,7 @@ import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FeedbackToast } from '@/components/ui/feedback-toast';
 import { FeaturedCard } from '@/components/ui/featured-card';
+import { DrawerMenuButton } from '@/components/ui/drawer-menu-button';
 import { MultiSelectSheet } from '@/components/ui/multi-select-sheet';
 import { SearchField } from '@/components/ui/search-field';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
@@ -33,6 +34,7 @@ import {
   Spacing,
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import {
   EMPTY_CONCURSO_FILTERS,
   filterByStatus,
@@ -85,6 +87,7 @@ export default function ConcursosScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const { profile, savedConcursos, toggleSavedConcurso } = useApp();
   const { concursos, loading } = useConcursos();
   const [query, setQuery] = useState('');
@@ -252,6 +255,7 @@ export default function ConcursosScreen() {
         ]}>
         <View style={styles.headerInner}>
           <View style={styles.titleRow}>
+            <DrawerMenuButton onPress={openMenu} />
             <View style={styles.titleGroup}>
               <View style={styles.eyebrowRow}>
                 <View style={[styles.eyebrowRail, { backgroundColor: colors.primary }]} />

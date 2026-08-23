@@ -10,6 +10,7 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { Section } from '@/components/ui/section';
 import { CONTENT_MAX_WIDTH, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import {
   APP_FEATURE_GROUPS,
   exploreColumnCount,
@@ -20,6 +21,7 @@ import { useApp } from '@/providers/app-provider';
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const { colors } = useTheme();
   const { profile } = useApp();
   const { fontScale } = useWindowDimensions();
@@ -35,6 +37,7 @@ export default function ExploreScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
+        onMenu={openMenu}
         title="Explorar"
         subtitle="Tudo que você pode fazer no KAD"
         right={

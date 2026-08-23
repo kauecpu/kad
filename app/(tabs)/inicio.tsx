@@ -33,6 +33,7 @@ import {
 } from '@/constants/theme';
 import { QUESTIONS } from '@/data/questions';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { deadlineInfo, recommendConcursosForGoal, sortConcursos } from '@/lib/concursos';
 import { formatSalaryShort } from '@/lib/format';
 import { getHomePrimaryAction, getHomePrimaryVisual } from '@/lib/home-presentation';
@@ -96,6 +97,7 @@ export function HomeContent() {
   const { colors } = useTheme();
   const { fontScale, width } = useWindowDimensions();
   const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const {
     profile,
     isPremium,
@@ -158,6 +160,7 @@ export function HomeContent() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
+        onMenu={openMenu}
         title={`Olá, ${firstName}`}
         subtitle={targetRole ? `Central KAD · ${targetRole}` : 'Sua central de preparação'}
         right={
