@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createContext,
   useCallback,
@@ -12,12 +11,20 @@ import {
 
 import { createSimulationSession } from '@/lib/simulations';
 import {
+  LEGACY_SIMULATION_HISTORY_KEY,
+  LEGACY_SIMULATION_STORAGE_KEY,
+  SIMULATION_HISTORY_KEY_PREFIX,
+  SIMULATION_STORAGE_KEY_PREFIX,
+} from '@/lib/local-user-data-keys';
+import { protectedStorage } from '@/lib/protected-storage';
+import {
   deleteRemoteSimulationSessions,
   loadRemoteSimulationSessions,
   saveRemoteSimulationSession,
 } from '@/lib/remote-user-sync';
 import {
   mergeSimulationSessions,
+  isSimulationSession,
   parseStoredSimulation,
   parseStoredSimulationHistory,
   touchSimulationSession,
@@ -26,11 +33,20 @@ import { useAuth } from '@/providers/auth-provider';
 import { useQuestions } from '@/providers/questions-provider';
 import type { AlternativeId, SimulationConfig, SimulationSession } from '@/types';
 
-const LEGACY_STORAGE_KEY = '@kad/simulation-session/v1';
-const LEGACY_HISTORY_STORAGE_KEY = '@kad/simulation-history/v1';
-const STORAGE_KEY_PREFIX = '@kad/simulation-session/v2';
-const HISTORY_STORAGE_KEY_PREFIX = '@kad/simulation-history/v2';
+const LEGACY_STORAGE_KEY = LEGACY_SIMULATION_STORAGE_KEY;
+const LEGACY_HISTORY_STORAGE_KEY = LEGACY_SIMULATION_HISTORY_KEY;
+const STORAGE_KEY_PREFIX = SIMULATION_STORAGE_KEY_PREFIX;
+const HISTORY_STORAGE_KEY_PREFIX = SIMULATION_HISTORY_KEY_PREFIX;
 const HISTORY_LIMIT = 20;
+
+function isStoredSimulationHistory(value: string) {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.every(isSimulationSession);
+  } catch {
+    return false;
+  }
+}
 
 type SimulationContextValue = {
   hydrated: boolean;
@@ -76,10 +92,30 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
 
     const isGuest = ownerId === 'guest';
     Promise.all([
-      AsyncStorage.getItem(storageKey),
-      AsyncStorage.getItem(historyStorageKey),
-      isGuest ? AsyncStorage.getItem(LEGACY_STORAGE_KEY) : Promise.resolve(null),
-      isGuest ? AsyncStorage.getItem(LEGACY_HISTORY_STORAGE_KEY) : Promise.resolve(null),
+      protectedStorage.getItem(
+        storageKey,
+        ownerId,
+        (value) => parseStoredSimulation(value) !== null
+      ),
+      protectedStorage.getItem(
+        historyStorageKey,
+        ownerId,
+        isStoredSimulationHistory
+      ),
+      isGuest
+        ? protectedStorage.getItem(
+            LEGACY_STORAGE_KEY,
+            ownerId,
+            (value) => parseStoredSimulation(value) !== null
+          )
+        : Promise.resolve(null),
+      isGuest
+        ? protectedStorage.getItem(
+            LEGACY_HISTORY_STORAGE_KEY,
+            ownerId,
+            isStoredSimulationHistory
+          )
+        : Promise.resolve(null),
       !isGuest
         ? loadRemoteSimulationSessions(ownerId).catch(() => [])
         : Promise.resolve([]),
@@ -113,16 +149,16 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated || !storageKey) return;
     if (session) {
-      AsyncStorage.setItem(storageKey, JSON.stringify(session)).catch(() => {});
+      protectedStorage.setItem(storageKey, ownerId, JSON.stringify(session)).catch(() => {});
     } else {
-      AsyncStorage.removeItem(storageKey).catch(() => {});
+      protectedStorage.removeItem(storageKey).catch(() => {});
     }
-  }, [hydrated, session, storageKey]);
+  }, [hydrated, ownerId, session, storageKey]);
 
   useEffect(() => {
     if (!hydrated || !historyStorageKey) return;
-    AsyncStorage.setItem(historyStorageKey, JSON.stringify(history)).catch(() => {});
-  }, [history, historyStorageKey, hydrated]);
+    protectedStorage.setItem(historyStorageKey, ownerId, JSON.stringify(history)).catch(() => {});
+  }, [history, historyStorageKey, hydrated, ownerId]);
 
   useEffect(() => {
     if (!hydrated || !authSession?.user.id || !sessionRef.current) return;
@@ -240,13 +276,16 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   }, [authSession?.user.id]);
 
   const clearSimulationData = useCallback(async () => {
+    setHydratedStorageKey(null);
     setSession(null);
     setHistory([]);
     const keys = [storageKey, historyStorageKey].filter((key): key is string => Boolean(key));
     if (ownerId === 'guest') {
       keys.push(LEGACY_STORAGE_KEY, LEGACY_HISTORY_STORAGE_KEY);
     }
-    if (keys.length > 0) await AsyncStorage.multiRemove(keys);
+    if (keys.length > 0) {
+      await Promise.all(keys.map((key) => protectedStorage.removeItem(key)));
+    }
     if (authSession?.user.id) {
       await deleteRemoteSimulationSessions(authSession.user.id).catch(() => {});
     }
