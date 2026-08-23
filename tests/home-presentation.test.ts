@@ -48,19 +48,15 @@ test('um simulado concluído direciona para a revisão real', () => {
 
 test('a apresentação da ação principal deriva somente da rota real', () => {
   assert.deepEqual(getHomePrimaryVisual({ route: '/meta' }), {
-    mascot: 'goal',
     tone: 'brand',
   });
   assert.deepEqual(getHomePrimaryVisual({ route: '/questoes' }), {
-    mascot: 'practice',
     tone: 'brand',
   });
   assert.deepEqual(getHomePrimaryVisual({ route: '/questoes/simulado' }), {
-    mascot: 'simulation',
     tone: 'brand',
   });
   assert.deepEqual(getHomePrimaryVisual({ route: '/questoes/simulado/resultado' }), {
-    mascot: 'simulation',
     tone: 'achievement',
   });
 });

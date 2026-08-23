@@ -13,7 +13,6 @@ export type HomePrimaryAction = {
 };
 
 export type HomePrimaryVisual = {
-  mascot: 'goal' | 'practice' | 'simulation';
   tone: 'brand' | 'achievement';
 };
 
@@ -22,13 +21,13 @@ export function getHomePrimaryVisual(
 ): HomePrimaryVisual {
   switch (action.route) {
     case '/meta':
-      return { mascot: 'goal', tone: 'brand' };
+      return { tone: 'brand' };
     case '/questoes':
-      return { mascot: 'practice', tone: 'brand' };
+      return { tone: 'brand' };
     case '/questoes/simulado':
-      return { mascot: 'simulation', tone: 'brand' };
+      return { tone: 'brand' };
     case '/questoes/simulado/resultado':
-      return { mascot: 'simulation', tone: 'achievement' };
+      return { tone: 'achievement' };
   }
 }
 
