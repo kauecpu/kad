@@ -7,6 +7,7 @@ import {
   type ImageStyle,
   type StyleProp,
 } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { type KadMascotVariant } from '@/constants/mascots';
 
@@ -35,11 +36,12 @@ export function KadMascot({
   style,
 }: KadMascotProps) {
   const progress = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     progress.stopAnimation();
 
-    if (!active) {
+    if (!active || reduceMotion) {
       progress.setValue(0);
       return;
     }
@@ -64,7 +66,7 @@ export function KadMascot({
 
     animation.start();
     return () => animation.stop();
-  }, [active, motion, progress]);
+  }, [active, motion, progress, reduceMotion]);
 
   const translateY = progress.interpolate({
     inputRange: [0, 1],

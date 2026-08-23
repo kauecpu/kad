@@ -6,6 +6,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -13,6 +14,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KadMascot, type KadMascotVariant } from '@/components/kad-mascot';
@@ -20,6 +22,11 @@ import { Button } from '@/components/ui/button';
 import { getOnboardingSlideAccessibilityLabel } from '@/constants/mascots';
 import { FontSize, FontWeight, Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  ONBOARDING_START_OPTIONS,
+  type OnboardingStartDestination,
+  type OnboardingStartOption,
+} from '@/lib/onboarding-destinations';
 import { hasCompletedOnboarding, markOnboardingComplete } from '@/lib/onboarding';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -28,7 +35,7 @@ type OnboardingSlide = {
   eyebrow: string;
   title: string;
   description: string;
-  detail: string;
+  detail?: string;
   icon: keyof typeof Ionicons.glyphMap;
   mascot: KadMascotVariant;
 };
@@ -37,40 +44,35 @@ const SLIDES: OnboardingSlide[] = [
   {
     id: 'welcome',
     eyebrow: 'BOAS-VINDAS',
-    title: 'Seu estudo, com direção',
-    description:
-      'O KAD reúne o que você precisa para estudar sem se perder entre materiais e oportunidades.',
-    detail: 'Questões, concursos e simulados em um só lugar.',
+    title: 'Tudo para sua preparação',
+    description: 'Pratique, simule e acompanhe concursos sem se perder entre materiais.',
+    detail: 'Seu estudo organizado em um só lugar.',
     icon: 'compass-outline',
     mascot: 'welcome',
   },
   {
     id: 'questions',
     eyebrow: 'PRÁTICA',
-    title: 'Aprenda resolvendo',
-    description:
-      'Escolha uma disciplina, pratique por assunto e acompanhe sua evolução a cada sessão.',
-    detail: 'Seu histórico ajuda a mostrar onde vale insistir.',
+    title: 'Resolva e evolua',
+    description: 'Pratique por disciplina e assunto. Seu histórico mostra onde insistir.',
+    detail: 'Cada sessão ajuda a medir seu progresso.',
     icon: 'reader-outline',
     mascot: 'practice',
   },
   {
     id: 'simulations',
     eyebrow: 'PREPARAÇÃO',
-    title: 'Simule o dia da prova',
-    description:
-      'Monte simulados, controle o tempo e revise cada resposta quando terminar.',
-    detail: 'Treine ritmo, foco e tomada de decisão.',
+    title: 'Treine como na prova',
+    description: 'Monte simulados, controle o tempo e revise suas respostas.',
+    detail: 'Ganhe ritmo antes do dia da prova.',
     icon: 'stopwatch-outline',
     mascot: 'simulation',
   },
   {
-    id: 'goal',
-    eyebrow: 'SEU CAMINHO',
-    title: 'Sua meta guia o KAD',
-    description:
-      'Salve concursos e escolha seu objetivo para receber recomendações mais úteis para você.',
-    detail: 'Você pode ajustar sua meta quando quiser.',
+    id: 'start',
+    eyebrow: 'SEU PRIMEIRO PASSO',
+    title: 'Por onde você quer começar?',
+    description: 'Escolha sua primeira atividade. As outras continuam disponíveis no menu.',
     icon: 'flag-outline',
     mascot: 'goal',
   },
@@ -79,24 +81,85 @@ const SLIDES: OnboardingSlide[] = [
 const LAST_SLIDE_INDEX = SLIDES.length - 1;
 const MAX_CONTENT_WIDTH = 520;
 
+type StartOptionProps = {
+  option: OnboardingStartOption;
+  disabled: boolean;
+  loading: boolean;
+  onPress: () => void;
+};
+
+function StartOption({ option, disabled, loading, onPress }: StartOptionProps) {
+  const { colors } = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={option.label}
+      accessibilityHint={option.accessibilityHint}
+      accessibilityState={{ disabled, busy: loading }}
+      style={({ pressed }) => [
+        styles.startOption,
+        {
+          backgroundColor: pressed ? colors.primarySoft : colors.surface,
+          borderColor: pressed ? colors.primary : colors.border,
+          opacity: disabled && !loading ? 0.52 : 1,
+        },
+      ]}>
+      <View
+        style={[styles.startOptionIcon, { backgroundColor: colors.primarySoft }]}
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants">
+        <Ionicons
+          name={option.icon as keyof typeof Ionicons.glyphMap}
+          size={21}
+          color={colors.primary}
+        />
+      </View>
+      <Text style={[styles.startOptionLabel, { color: colors.text }]}>{option.label}</Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : (
+        <View
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants">
+          <Ionicons name="arrow-forward" size={20} color={colors.textMuted} />
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 type OnboardingContentProps = {
   previewMode?: boolean;
 };
 
 export function OnboardingContent({ previewMode = false }: OnboardingContentProps) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
   const router = useRouter();
   const { isGuest, session } = useAuth();
   const listRef = useRef<FlatList<OnboardingSlide>>(null);
+  const navigationLockedRef = useRef(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pageWidth, setPageWidth] = useState(Math.min(windowWidth, MAX_CONTENT_WIDTH));
+  const [pageHeight, setPageHeight] = useState(Math.max(1, windowHeight));
   const [checking, setChecking] = useState(true);
-  const [finishing, setFinishing] = useState(false);
+  const [finishingDestination, setFinishingDestination] =
+    useState<OnboardingStartDestination>();
   const isPreview = previewMode;
   const isLastSlide = currentIndex === LAST_SLIDE_INDEX;
-  const mascotSize = Math.max(150, Math.min(pageWidth * 0.53, windowHeight * 0.29, 230));
+  const finishing = finishingDestination !== undefined;
+  const mascotSize = Math.max(146, Math.min(pageWidth * 0.48, windowHeight * 0.25, 210));
+  const choiceMascotSize = Math.max(
+    104,
+    Math.min(pageWidth * 0.34, windowHeight * 0.18, 148)
+  );
 
   useEffect(() => {
     let active = true;
@@ -134,22 +197,31 @@ export function OnboardingContent({ previewMode = false }: OnboardingContentProp
     listRef.current?.scrollToOffset({ offset: currentIndex * pageWidth, animated: false });
   }, [currentIndex, pageWidth]);
 
-  const finishOnboarding = useCallback(async () => {
-    if (finishing) return;
-    setFinishing(true);
-    if (!isPreview && session) await markOnboardingComplete(session.user.id);
-    router.replace('/inicio');
-  }, [finishing, isPreview, router, session]);
+  const finishOnboarding = useCallback(
+    async (destination: OnboardingStartDestination) => {
+      if (navigationLockedRef.current) return;
+
+      navigationLockedRef.current = true;
+      setFinishingDestination(destination);
+
+      if (!isPreview && session) {
+        await markOnboardingComplete(session.user.id);
+      }
+
+      router.replace(destination);
+    },
+    [isPreview, router, session]
+  );
 
   const goForward = () => {
-    if (isLastSlide) {
-      void finishOnboarding();
-      return;
-    }
+    if (isLastSlide || finishing) return;
 
     const nextIndex = currentIndex + 1;
     setCurrentIndex(nextIndex);
-    listRef.current?.scrollToOffset({ offset: nextIndex * pageWidth, animated: true });
+    listRef.current?.scrollToOffset({
+      offset: nextIndex * pageWidth,
+      animated: !reduceMotion,
+    });
   };
 
   const handleScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -167,19 +239,15 @@ export function OnboardingContent({ previewMode = false }: OnboardingContentProp
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View
-        style={[styles.backgroundOrbTop, { backgroundColor: colors.primarySoft }]}
-      />
-      <View
-        style={[styles.backgroundOrbBottom, { backgroundColor: colors.surfaceAlt }]}
-      />
+      <View style={[styles.backgroundOrbTop, { backgroundColor: colors.primarySoft }]} />
+      <View style={[styles.backgroundOrbBottom, { backgroundColor: colors.surfaceAlt }]} />
 
       <View
         style={[
           styles.shell,
           {
-            paddingTop: insets.top + Spacing.md,
-            paddingBottom: insets.bottom + Spacing.lg,
+            paddingTop: insets.top + Spacing.sm,
+            paddingBottom: insets.bottom + Spacing.md,
           },
         ]}
         onLayout={(event) => {
@@ -187,20 +255,59 @@ export function OnboardingContent({ previewMode = false }: OnboardingContentProp
           if (nextWidth > 0 && Math.abs(nextWidth - pageWidth) > 1) setPageWidth(nextWidth);
         }}>
         <View style={styles.topBar}>
-          <Image
-            source={require('../assets/images/kad-logo-v4.png')}
-            resizeMode="contain"
-            accessibilityLabel="KAD Concursos"
-            style={styles.logo}
-          />
+          <View
+            style={styles.logoFrame}
+            accessibilityRole="image"
+            accessibilityLabel="KAD Concursos">
+            <Image
+              source={require('../assets/images/kad-logo-v4.png')}
+              resizeMode="stretch"
+              accessible={false}
+              style={styles.logo}
+            />
+            {isDark ? (
+              <>
+                <View
+                  style={styles.darkWordmarkClip}
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants">
+                  <Image
+                    source={require('../assets/images/kad-logo-v4.png')}
+                    resizeMode="stretch"
+                    tintColor={colors.text}
+                    accessible={false}
+                    style={styles.darkWordmark}
+                  />
+                </View>
+                <View
+                  style={styles.darkAccentClip}
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants">
+                  <Image
+                    source={require('../assets/images/kad-logo-v4.png')}
+                    resizeMode="stretch"
+                    accessible={false}
+                    style={styles.darkAccent}
+                  />
+                </View>
+              </>
+            ) : null}
+          </View>
           {!isLastSlide ? (
             <Pressable
-              onPress={() => void finishOnboarding()}
+              onPress={() => void finishOnboarding('/inicio')}
               disabled={finishing}
               accessibilityRole="button"
               accessibilityLabel="Pular apresentação"
+              accessibilityState={{ disabled: finishing, busy: finishing }}
               hitSlop={10}
-              style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
+              style={({ pressed }) => [
+                styles.skipButton,
+                pressed && styles.pressed,
+                finishing && styles.disabled,
+              ]}>
               <Text style={[styles.skipText, { color: colors.textMuted }]}>Pular</Text>
             </Pressable>
           ) : (
@@ -214,56 +321,110 @@ export function OnboardingContent({ previewMode = false }: OnboardingContentProp
           keyExtractor={(item) => item.id}
           horizontal
           pagingEnabled
+          scrollEnabled={!finishing}
           bounces={false}
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={handleScrollEnd}
+          onLayout={(event) => {
+            const nextHeight = event.nativeEvent.layout.height;
+            if (nextHeight > 0 && Math.abs(nextHeight - pageHeight) > 1) {
+              setPageHeight(nextHeight);
+            }
+          }}
           getItemLayout={(_, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
-          renderItem={({ item, index }) => (
-            <View
-              accessible
-              aria-hidden={currentIndex !== index}
-              accessibilityElementsHidden={currentIndex !== index}
-              importantForAccessibility={currentIndex === index ? 'yes' : 'no-hide-descendants'}
-              accessibilityLabel={getOnboardingSlideAccessibilityLabel({
-                index,
-                total: SLIDES.length,
-                title: item.title,
-                description: item.description,
-                mascot: item.mascot,
-              })}
-              style={[styles.slide, { width: pageWidth }]}>
-              <View style={styles.visualArea}>
-                <View
-                  style={[styles.mascotGlow, { backgroundColor: colors.primarySoft }]}
-                />
-                <KadMascot
-                  size={mascotSize}
-                  active={currentIndex === index}
-                  motion={index === LAST_SLIDE_INDEX ? 'celebrate' : 'float'}
-                  variant={item.mascot}
-                />
-                <View
-                  style={[
-                    styles.iconBadge,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
-                  ]}>
-                  <Ionicons name={item.icon} size={21} color={colors.primary} />
-                </View>
-              </View>
+          renderItem={({ item, index }) => {
+            const isChoiceSlide = index === LAST_SLIDE_INDEX;
 
-              <View style={styles.copy}>
-                <Text style={[styles.eyebrow, { color: colors.primary }]}>{item.eyebrow}</Text>
-                <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
-                <Text style={[styles.description, { color: colors.textMuted }]}>
-                  {item.description}
-                </Text>
-                <View style={[styles.detail, { backgroundColor: colors.surfaceAlt }]}>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-                  <Text style={[styles.detailText, { color: colors.textMuted }]}>{item.detail}</Text>
+            return (
+              <ScrollView
+                style={[styles.slide, { width: pageWidth, height: pageHeight }]}
+                contentContainerStyle={[
+                  styles.slideContent,
+                  isChoiceSlide && styles.choiceSlideContent,
+                ]}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                nestedScrollEnabled
+                accessible={!isChoiceSlide}
+                aria-hidden={currentIndex !== index}
+                accessibilityElementsHidden={currentIndex !== index}
+                importantForAccessibility={currentIndex === index ? 'yes' : 'no-hide-descendants'}
+                accessibilityLabel={
+                  isChoiceSlide
+                    ? undefined
+                    : getOnboardingSlideAccessibilityLabel({
+                        index,
+                        total: SLIDES.length,
+                        title: item.title,
+                        description: item.description,
+                        mascot: item.mascot,
+                      })
+                }>
+                <View style={[styles.visualArea, isChoiceSlide && styles.choiceVisualArea]}>
+                  <View
+                    style={[
+                      styles.mascotGlow,
+                      isChoiceSlide && styles.choiceMascotGlow,
+                      { backgroundColor: colors.primarySoft },
+                    ]}
+                  />
+                  <KadMascot
+                    size={isChoiceSlide ? choiceMascotSize : mascotSize}
+                    active={currentIndex === index}
+                    motion={isChoiceSlide ? 'celebrate' : 'float'}
+                    variant={item.mascot}
+                  />
+                  <View
+                    style={[
+                      styles.iconBadge,
+                      isChoiceSlide && styles.choiceIconBadge,
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                    ]}
+                    accessible={false}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants">
+                    <Ionicons name={item.icon} size={20} color={colors.primary} />
+                  </View>
                 </View>
-              </View>
-            </View>
-          )}
+
+                <View style={styles.copy}>
+                  <Text style={[styles.eyebrow, { color: colors.primary }]}>{item.eyebrow}</Text>
+                  <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.description, { color: colors.textMuted }]}>
+                    {item.description}
+                  </Text>
+
+                  {isChoiceSlide ? (
+                    <View style={styles.startOptions}>
+                      {ONBOARDING_START_OPTIONS.map((option) => (
+                        <StartOption
+                          key={option.id}
+                          option={option}
+                          disabled={finishing}
+                          loading={finishingDestination === option.route}
+                          onPress={() => void finishOnboarding(option.route)}
+                        />
+                      ))}
+                    </View>
+                  ) : item.detail ? (
+                    <View style={[styles.detail, { backgroundColor: colors.surfaceAlt }]}>
+                      <View
+                        accessible={false}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants">
+                        <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                      </View>
+                      <Text style={[styles.detailText, { color: colors.textMuted }]}>
+                        {item.detail}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </ScrollView>
+            );
+          }}
         />
 
         <View style={styles.footer}>
@@ -283,16 +444,23 @@ export function OnboardingContent({ previewMode = false }: OnboardingContentProp
               />
             ))}
           </View>
-          <Button
-            label={isLastSlide ? (finishing ? 'Abrindo o KAD...' : 'Começar a estudar') : 'Continuar'}
-            icon={isLastSlide ? 'sparkles-outline' : 'arrow-forward'}
-            size="lg"
-            fullWidth
-            disabled={finishing}
-            onPress={goForward}
-          />
+          {!isLastSlide ? (
+            <Button
+              label="Continuar"
+              icon="arrow-forward"
+              iconMotion="forward"
+              size="lg"
+              fullWidth
+              disabled={finishing}
+              onPress={goForward}
+            />
+          ) : null}
           <Text style={[styles.gestureHint, { color: colors.textSubtle }]}>
-            {isLastSlide ? 'Tudo pronto. Vamos começar?' : 'Arraste para o lado ou toque em Continuar'}
+            {isLastSlide
+              ? finishing
+                ? 'Preparando sua primeira atividade...'
+                : 'Escolha uma opção para abrir o KAD'
+              : 'Arraste para o lado ou toque em Continuar'}
           </Text>
         </View>
       </View>
@@ -341,24 +509,61 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   topBar: {
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: Spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  logoFrame: {
+    width: 136,
+    height: 48,
+    position: 'relative',
+  },
   logo: {
-    width: 116,
-    height: 40,
+    position: 'absolute',
+    left: 10,
+    width: 115,
+    height: 49,
+  },
+  darkWordmarkClip: {
+    position: 'absolute',
+    left: 56,
+    top: 12,
+    width: 65,
+    height: 23,
+    overflow: 'hidden',
+  },
+  darkWordmark: {
+    position: 'absolute',
+    left: -46,
+    top: -12,
+    width: 115,
+    height: 49,
+  },
+  darkAccentClip: {
+    position: 'absolute',
+    left: 87,
+    top: 27,
+    width: 6,
+    height: 6,
+    overflow: 'hidden',
+  },
+  darkAccent: {
+    position: 'absolute',
+    left: -77,
+    top: -27,
+    width: 115,
+    height: 49,
   },
   skipButton: {
-    minWidth: 56,
-    minHeight: 44,
+    minWidth: 64,
+    minHeight: 48,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
   skipPlaceholder: {
-    width: 56,
+    width: 64,
   },
   skipText: {
     fontSize: FontSize.body,
@@ -366,23 +571,38 @@ const styles = StyleSheet.create({
   },
   slide: {
     flex: 1,
+  },
+  slideContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
     gap: Spacing.lg,
   },
+  choiceSlideContent: {
+    justifyContent: 'flex-start',
+    gap: Spacing.md,
+  },
   visualArea: {
-    minHeight: 170,
+    minHeight: 164,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  choiceVisualArea: {
+    minHeight: 116,
   },
   mascotGlow: {
     position: 'absolute',
     pointerEvents: 'none',
-    width: 208,
-    height: 208,
-    borderRadius: 104,
+    width: 196,
+    height: 196,
+    borderRadius: 98,
     opacity: 0.78,
+  },
+  choiceMascotGlow: {
+    width: 132,
+    height: 132,
+    borderRadius: 66,
   },
   iconBadge: {
     position: 'absolute',
@@ -394,6 +614,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  choiceIconBadge: {
+    right: '25%',
+    bottom: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   copy: {
     alignItems: 'center',
@@ -418,7 +645,7 @@ const styles = StyleSheet.create({
   },
   detail: {
     maxWidth: 400,
-    minHeight: 46,
+    minHeight: 48,
     marginTop: Spacing.sm,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
@@ -433,6 +660,36 @@ const styles = StyleSheet.create({
     fontSize: FontSize.small,
     lineHeight: 18,
     fontWeight: FontWeight.medium,
+  },
+  startOptions: {
+    width: '100%',
+    maxWidth: 420,
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  startOption: {
+    width: '100%',
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+  },
+  startOptionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startOptionLabel: {
+    flex: 1,
+    fontSize: FontSize.body,
+    lineHeight: 21,
+    fontWeight: FontWeight.semibold,
   },
   footer: {
     paddingHorizontal: Spacing.xl,
@@ -457,5 +714,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.6,
+  },
+  disabled: {
+    opacity: 0.52,
   },
 });
