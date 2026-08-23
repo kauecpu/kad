@@ -6,7 +6,6 @@ import { URL as NodeURL } from 'node:url';
 import {
   APP_FEATURES,
   APP_FEATURE_GROUPS,
-  APP_PRIMARY_TABS,
   APP_ROUTE_ALIASES,
   exploreColumnCount,
   featuresForGroup,
@@ -25,16 +24,6 @@ test('o catálogo oferece todas as funções aprovadas na ordem de descoberta', 
     APP_FEATURE_GROUPS.map(({ id }) => id),
     ['practice', 'progress', 'other', 'account']
   );
-});
-
-test('a navegação primária mantém cinco destinos na ordem aprovada', () => {
-  assert.deepEqual(APP_PRIMARY_TABS, [
-    { name: 'inicio', title: 'Início' },
-    { name: 'questoes', title: 'Questões' },
-    { name: 'concursos', title: 'Concursos' },
-    { name: 'simulados', title: 'Simulados' },
-    { name: 'explorar', title: 'Explorar' },
-  ]);
 });
 
 test('o endereço antigo de Rank resolve para a tela canônica de Ranking', () => {

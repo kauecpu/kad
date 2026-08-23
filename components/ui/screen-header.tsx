@@ -5,12 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { DrawerMenuButton } from '@/components/ui/drawer-menu-button';
 
 type ScreenHeaderProps = {
   title: string;
   subtitle?: string;
   right?: ReactNode;
   onBack?: () => void;
+  onMenu?: () => void;
   backLabel?: string;
   /** Conteúdo fixo abaixo do título, como busca e filtros. */
   children?: ReactNode;
@@ -22,6 +24,7 @@ export function ScreenHeader({
   subtitle,
   right,
   onBack,
+  onMenu,
   backLabel = 'Voltar ao Início',
   children,
 }: ScreenHeaderProps) {
@@ -52,6 +55,8 @@ export function ScreenHeader({
               ]}>
               <Ionicons name="arrow-back" size={20} color={colors.text} />
             </Pressable>
+          ) : onMenu ? (
+            <DrawerMenuButton onPress={onMenu} />
           ) : null}
           <View style={styles.titleGroup}>
             <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
@@ -90,8 +95,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: 48,
+    height: 48,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',

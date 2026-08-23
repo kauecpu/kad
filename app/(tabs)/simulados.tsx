@@ -13,6 +13,7 @@ import { Section } from '@/components/ui/section';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { findStudyPackForConcurso } from '@/lib/concursos';
 import { formatPercent } from '@/lib/format';
 import {
@@ -47,6 +48,7 @@ export default function SimulationsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const { canUseSimulations, profile, savedConcursos, subscriptionLoading } = useApp();
   const { concursos } = useConcursos();
   const { session, history } = useSimulation();
@@ -170,6 +172,7 @@ export default function SimulationsScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
+        onMenu={openMenu}
         title="Simulados"
         subtitle="Monte provas, controle o tempo e acompanhe sua evolução"
       />

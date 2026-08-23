@@ -1,5 +1,7 @@
 export type AppFeatureGroupId = 'practice' | 'progress' | 'other' | 'account';
 
+export type AppDrawerGroupId = 'main' | 'progress' | 'study' | 'account';
+
 export type AppFeatureId =
   | 'questions'
   | 'contests'
@@ -11,6 +13,7 @@ export type AppFeatureId =
   | 'profile';
 
 export type AppFeatureIcon =
+  | 'home-outline'
   | 'book-outline'
   | 'briefcase-outline'
   | 'timer-outline'
@@ -37,14 +40,6 @@ export type AppFeature = {
   icon: AppFeatureIcon;
   presentation: 'card' | 'row';
 };
-
-export const APP_PRIMARY_TABS = [
-  { name: 'inicio', title: 'Início' },
-  { name: 'questoes', title: 'Questões' },
-  { name: 'concursos', title: 'Concursos' },
-  { name: 'simulados', title: 'Simulados' },
-  { name: 'explorar', title: 'Explorar' },
-] as const;
 
 export const APP_ROUTE_ALIASES = {
   rank: '/ranking',
@@ -131,6 +126,64 @@ export const APP_FEATURES = [
     presentation: 'row',
   },
 ] as const satisfies ReadonlyArray<AppFeature>;
+
+export type AppDrawerHref = '/inicio' | AppFeature['href'];
+
+export type AppDrawerItem = {
+  id: 'home' | AppFeatureId;
+  group: AppDrawerGroupId;
+  title: string;
+  href: AppDrawerHref;
+  icon: AppFeatureIcon;
+};
+
+export const APP_DRAWER_GROUPS = [
+  { id: 'main', title: 'Principal' },
+  { id: 'progress', title: 'Acompanhar' },
+  { id: 'study', title: 'Outras formas de estudar' },
+  { id: 'account', title: 'Conta' },
+] as const satisfies ReadonlyArray<{ id: AppDrawerGroupId; title: string }>;
+
+const DRAWER_GROUP_BY_FEATURE = {
+  practice: 'main',
+  progress: 'progress',
+  other: 'study',
+  account: 'account',
+} as const satisfies Record<AppFeatureGroupId, AppDrawerGroupId>;
+
+export const APP_DRAWER_ITEMS: ReadonlyArray<AppDrawerItem> = [
+  {
+    id: 'home',
+    group: 'main',
+    title: 'Início',
+    href: '/inicio',
+    icon: 'home-outline',
+  },
+  ...APP_FEATURES.map((feature) => ({
+    id: feature.id,
+    group: DRAWER_GROUP_BY_FEATURE[feature.group],
+    title: feature.title,
+    href: feature.href,
+    icon: feature.icon,
+  })),
+];
+
+export function drawerItemsForGroup(group: AppDrawerGroupId): ReadonlyArray<AppDrawerItem> {
+  return APP_DRAWER_ITEMS.filter((item) => item.group === group);
+}
+
+export function drawerWidth(viewportWidth: number): number {
+  return Math.min(Math.round(viewportWidth * 84) / 100, 336);
+}
+
+function canonicalDrawerPath(pathname: string): string {
+  return pathname === '/rank' ? APP_ROUTE_ALIASES.rank : pathname;
+}
+
+export function isDrawerRouteActive(pathname: string, href: AppDrawerHref): boolean {
+  const canonicalPath = canonicalDrawerPath(pathname);
+  return canonicalPath === href || canonicalPath.startsWith(`${href}/`);
+}
 
 export function featuresForGroup(group: AppFeatureGroupId): ReadonlyArray<AppFeature> {
   return APP_FEATURES.filter((feature) => feature.group === group);

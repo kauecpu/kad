@@ -13,6 +13,7 @@ import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/cons
 import { DISCIPLINES } from '@/data/disciplines';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { formatPercent } from '@/lib/format';
 import { useApp } from '@/providers/app-provider';
 import { useQuestions } from '@/providers/questions-provider';
@@ -43,6 +44,7 @@ export default function QuestionsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const {
     answers,
     canViewStatistics,
@@ -210,6 +212,7 @@ export default function QuestionsScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScreenHeader
+        onMenu={openMenu}
         title="Questões"
         right={(
           <Pressable

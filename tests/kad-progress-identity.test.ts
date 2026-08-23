@@ -4,7 +4,10 @@ import test from 'node:test';
 import { URL as NodeURL } from 'node:url';
 
 const themeSource = readFileSync(new NodeURL('../constants/theme.ts', import.meta.url), 'utf8');
-const tabsLayout = readFileSync(new NodeURL('../app/(tabs)/_layout.tsx', import.meta.url), 'utf8');
+const drawerContent = readFileSync(
+  new NodeURL('../components/kad-drawer-content.tsx', import.meta.url),
+  'utf8'
+);
 const featuredCard = readFileSync(
   new NodeURL('../components/ui/featured-card.tsx', import.meta.url),
   'utf8'
@@ -111,17 +114,15 @@ test('a assinatura de progresso é puramente decorativa', () => {
   assert.match(progressSignature, /colors\.brandTrace/);
 });
 
-test('a cápsula ativa reaproveita a única animação curta do ícone', () => {
-  assert.match(tabsLayout, /styles\.tabActiveCapsule/);
-  assert.match(tabsLayout, /backgroundColor: colors\.tabActiveSurface/);
-  assert.match(tabsLayout, /opacity: active/);
-  assert.equal(tabsLayout.match(/new Animated\.Value/g)?.length, 1);
-  assert.doesNotMatch(tabsLayout, /setTimeout|Animated\.loop/);
+test('a cápsula ativa do drawer combina superfície, ícone e texto', () => {
+  assert.match(drawerContent, /active && \{ backgroundColor: colors\.primarySoft \}/);
+  assert.match(drawerContent, /color=\{active \? colors\.primary : colors\.textMuted\}/);
+  assert.match(drawerContent, /fontWeight: active \? FontWeight\.semibold : FontWeight\.medium/);
+  assert.match(drawerContent, /accessibilityState=\{\{ selected: active \}\}/);
 });
 
-test('a navegação ativa chega ao estado final quando o movimento é reduzido', () => {
-  assert.match(tabsLayout, /useReducedMotion\(\)/);
-  assert.match(tabsLayout, /resolveMotionDuration\('icon', reduceMotion\)/);
+test('o estado ativo é imediato e não adiciona animação incompatível com movimento reduzido', () => {
+  assert.doesNotMatch(drawerContent, /Animated|withTiming|setTimeout/);
 });
 
 test('texto ampliado recebe prioridade sobre a arte decorativa', () => {
