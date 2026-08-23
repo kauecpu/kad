@@ -26,7 +26,7 @@ type MultiSelectSheetProps = {
   selectionMode?: 'multiple' | 'single';
 };
 
-/** Modal com busca e seleção, reutilizado por disciplina, assunto, banca e cargo. */
+/** Modal pesquisável para selecionar qualquer dimensão textual da busca. */
 export function MultiSelectSheet({
   visible,
   title,
