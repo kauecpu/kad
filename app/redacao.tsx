@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@/components/ui/app-icon';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -28,6 +27,8 @@ import { ESSAY_TOPICS, type EssayTopic } from '@/data/essay-topics';
 import { useTheme } from '@/hooks/use-theme';
 import { essayTopicDisclosure, filterEssayTopics } from '@/lib/essay-discovery';
 import { loadRemoteEssay, saveRemoteEssay } from '@/lib/remote-user-sync';
+import { ESSAY_DRAFT_PREFIX } from '@/lib/local-user-data-keys';
+import { protectedStorage } from '@/lib/protected-storage';
 import { recommendPackForGoal } from '@/lib/simulations';
 import { newestEssay, nextSyncTimestamp, parseStoredEssay } from '@/lib/user-sync';
 import { useApp } from '@/providers/app-provider';
@@ -36,7 +37,7 @@ import type { EssayDocument } from '@/types';
 
 type EssayStage = 'topics' | 'editor' | 'submitted';
 
-const DRAFT_PREFIX = '@kad/essay-draft/';
+const DRAFT_PREFIX = ESSAY_DRAFT_PREFIX;
 
 function formatTimer(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -104,9 +105,17 @@ export default function EssayScreen() {
     setDraftLoaded(false);
     const draftKey = `${DRAFT_PREFIX}${draftOwnerId}/${selectedTopic.id}`;
     Promise.all([
-      AsyncStorage.getItem(draftKey),
+      protectedStorage.getItem(
+        draftKey,
+        draftOwnerId,
+        (value) => parseStoredEssay(value, selectedTopic.id) !== null
+      ),
       draftOwnerId === 'guest'
-        ? AsyncStorage.getItem(`${DRAFT_PREFIX}${selectedTopic.id}`)
+        ? protectedStorage.getItem(
+            `${DRAFT_PREFIX}${selectedTopic.id}`,
+            draftOwnerId,
+            (value) => parseStoredEssay(value, selectedTopic.id) !== null
+          )
         : Promise.resolve(null),
       userId ? loadRemoteEssay(userId, selectedTopic.id).catch(() => null) : Promise.resolve(null),
     ])
@@ -143,8 +152,9 @@ export default function EssayScreen() {
         submittedAt,
         updatedAt: draftUpdatedAt,
       };
-      AsyncStorage.setItem(
+      protectedStorage.setItem(
         `${DRAFT_PREFIX}${draftOwnerId}/${selectedTopic.id}`,
+        draftOwnerId,
         JSON.stringify(document)
       ).catch(() => {});
     }, 350);

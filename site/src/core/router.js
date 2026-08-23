@@ -48,7 +48,14 @@ export function matchRoute(pattern, pathname) {
   for (let index = 0; index < patternParts.length; index += 1) {
     const expected = patternParts[index];
     const actual = pathParts[index];
-    if (expected.startsWith(':')) params[expected.slice(1)] = decodeURIComponent(actual);
+    if (expected.startsWith(':')) {
+      try {
+        params[expected.slice(1)] = decodeURIComponent(actual);
+      } catch (error) {
+        if (error instanceof URIError) return null;
+        throw error;
+      }
+    }
     else if (expected !== actual) return null;
   }
   return params;

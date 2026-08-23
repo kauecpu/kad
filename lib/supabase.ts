@@ -131,8 +131,13 @@ const secureSessionStorage = {
 
     const legacy = await AsyncStorage.getItem(key);
     if (legacy !== null) {
-      await writeSecureValue(key, legacy);
-      await AsyncStorage.removeItem(key);
+      try {
+        await writeSecureValue(key, legacy);
+        const verified = await readSecureValue(key);
+        if (verified === legacy) await AsyncStorage.removeItem(key);
+      } catch {
+        // O valor antigo permanece até uma próxima migração bem-sucedida.
+      }
     }
     return legacy;
   },
@@ -159,6 +164,7 @@ export const supabase =
           persistSession: true,
           detectSessionInUrl: false,
           flowType: 'pkce',
+          experimental: { appendPkceFlowIdToRedirects: true },
           lock: processLock,
         },
       })

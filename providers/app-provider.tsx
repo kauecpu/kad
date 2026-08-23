@@ -20,6 +20,13 @@ import {
 } from '@/lib/access-rules';
 import { sanitizeLegacyGuestProfile } from '@/lib/profile';
 import {
+  APP_STORAGE_KEY_PREFIX,
+  LEGACY_APP_STORAGE_KEY,
+  THEME_STORAGE_KEY,
+} from '@/lib/local-user-data-keys';
+import { eraseLocalUserData } from '@/lib/local-user-data';
+import { protectedStorage } from '@/lib/protected-storage';
+import {
   DEFAULT_WEEKLY_QUESTION_GOAL,
   mergeQuestionActivityCounts,
   normalizeWeeklyQuestionGoal,
@@ -69,9 +76,8 @@ import type {
   UserProfile,
 } from '@/types';
 
-const LEGACY_STORAGE_KEY = '@kad/app-state/v1';
-const STORAGE_KEY_PREFIX = '@kad/app-state/v2';
-const THEME_STORAGE_KEY = '@kad/theme-preference/v1';
+const LEGACY_STORAGE_KEY = LEGACY_APP_STORAGE_KEY;
+const STORAGE_KEY_PREFIX = APP_STORAGE_KEY_PREFIX;
 
 type PersistedState = {
   profile: UserProfile;
@@ -90,6 +96,37 @@ type AppDataState = Omit<AppState, 'themePreference'>;
 type StoredState = Omit<Partial<PersistedState>, 'profile'> & {
   profile?: Partial<UserProfile>;
 };
+
+function isStoredState(value: string) {
+  try {
+    const parsed = JSON.parse(value) as StoredState;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+    if (parsed.profile !== undefined && (!parsed.profile || typeof parsed.profile !== 'object')) {
+      return false;
+    }
+    if (parsed.answers !== undefined && (!parsed.answers || typeof parsed.answers !== 'object' || Array.isArray(parsed.answers))) {
+      return false;
+    }
+    if (parsed.favoriteQuestionIds !== undefined && !Array.isArray(parsed.favoriteQuestionIds)) {
+      return false;
+    }
+    if (parsed.savedConcursos !== undefined && !Array.isArray(parsed.savedConcursos)) return false;
+    if (parsed.questionActivityByDate !== undefined && (
+      !parsed.questionActivityByDate ||
+      typeof parsed.questionActivityByDate !== 'object' ||
+      Array.isArray(parsed.questionActivityByDate)
+    )) return false;
+    if (parsed.weeklyQuestionGoal !== undefined && typeof parsed.weeklyQuestionGoal !== 'number') {
+      return false;
+    }
+    if (parsed.themePreference !== undefined && !isThemePreference(parsed.themePreference)) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const INITIAL_STATE: AppState = {
   profile: DEFAULT_PROFILE,
@@ -340,8 +377,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const fallbackKey = userId ? null : LEGACY_STORAGE_KEY;
 
     Promise.all([
-      AsyncStorage.getItem(storageKey),
-      fallbackKey ? AsyncStorage.getItem(fallbackKey) : Promise.resolve(null),
+      protectedStorage.getItem(storageKey, ownerId, isStoredState),
+      fallbackKey
+        ? protectedStorage.getItem(fallbackKey, ownerId, isStoredState)
+        : Promise.resolve(null),
       AsyncStorage.getItem(THEME_STORAGE_KEY),
     ])
       .then(([scopedRaw, legacyRaw, storedTheme]) => {
@@ -416,7 +455,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       Boolean(userId)
     );
-    AsyncStorage.setItem(storageKey, JSON.stringify(storedState)).catch(() => {
+    protectedStorage.setItem(storageKey, ownerId, JSON.stringify(storedState)).catch(() => {
       // Escrita falhou: o estado continua válido em memória nesta sessão.
     });
   }, [
@@ -428,6 +467,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     state.weeklyQuestionGoal,
     state.savedConcursos,
     hydrated,
+    ownerId,
     storageKey,
     userId,
   ]);
@@ -690,17 +730,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state.savedConcursos, userId]);
 
   const deleteAccount = useCallback(async () => {
+    setHydratedStorageKey(null);
     setState({ ...INITIAL_STATE });
     setThemeResetVersion((current) => current + 1);
-    try {
-      const removals = [AsyncStorage.removeItem(THEME_STORAGE_KEY)];
-      if (storageKey) removals.push(AsyncStorage.removeItem(storageKey));
-      if (!userId) removals.push(AsyncStorage.removeItem(LEGACY_STORAGE_KEY));
-      await Promise.all(removals);
-    } catch {
-      // Nada a fazer: os dados locais já foram redefinidos em memória.
-    }
-  }, [storageKey, userId]);
+    await eraseLocalUserData(ownerId);
+  }, [ownerId]);
 
   const performance = useMemo(() => computePerformance(state.answers), [state.answers]);
   const isPremium = subscriptionHasVerifiedAccess({

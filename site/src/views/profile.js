@@ -152,7 +152,7 @@ export function feedbackView(state) {
 export function passwordView(state) {
   return {
     title: 'Alterar senha',
-    content: `${stackHeader('Alterar senha', 'Proteja o acesso à sua conta')}${state.auth.mode !== 'authenticated' ? emptyState('Entre em uma conta para alterar a senha', 'No modo visitante não existe uma senha armazenada.', { route: '/entrar', actionLabel: 'Entrar na conta' }) : card(`<form class="form-stack card--padded" data-form="password-change">${passwordField({ id: 'password-new', label: 'Nova senha', autocomplete: 'new-password' })}${passwordField({ id: 'password-new-confirm', label: 'Confirmar nova senha', name: 'passwordConfirmation', autocomplete: 'new-password' })}<p class="form-message" data-form-message></p>${button('Salvar nova senha', { type: 'submit', iconName: 'KeyRound' })}</form>`)}`,
+    content: `${stackHeader('Alterar senha', 'Proteja o acesso à sua conta')}${state.auth.mode !== 'authenticated' ? emptyState('Entre em uma conta para alterar a senha', 'No modo visitante não existe uma senha armazenada.', { route: '/entrar', actionLabel: 'Entrar na conta' }) : card(`<form class="form-stack card--padded" data-form="password-change">${passwordField({ id: 'password-current', label: 'Senha atual', name: 'currentPassword', autocomplete: 'current-password' })}${passwordField({ id: 'password-new', label: 'Nova senha', autocomplete: 'new-password' })}${passwordField({ id: 'password-new-confirm', label: 'Confirmar nova senha', name: 'passwordConfirmation', autocomplete: 'new-password' })}<p class="form-message" data-form-message aria-live="polite"></p>${button('Salvar nova senha', { type: 'submit', iconName: 'KeyRound' })}</form>`)}`,
   };
 }
 

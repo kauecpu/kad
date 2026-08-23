@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { parseRecoveryCallback } from '../core/auth-callback.js';
+import { createPasswordSecurity } from '../core/password-security.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim();
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
@@ -18,10 +20,14 @@ export const supabase = supabaseConfigured
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
+        flowType: 'pkce',
+        experimental: { appendPkceFlowIdToRedirects: true },
       },
     })
   : null;
+
+const passwordSecurity = supabase ? createPasswordSecurity(supabase.auth) : null;
 
 export async function signIn(email, password) {
   if (!supabase) return { ok: false, offline: true };
@@ -40,7 +46,7 @@ export async function signUp({ name, email, password }) {
   });
   return error
     ? { ok: false, message: 'Não foi possível criar a conta agora.' }
-    : { ok: true, user: data.user, requiresConfirmation: !data.session };
+    : { ok: true, user: data.user, requiresConfirmation: !data.session, authenticated: Boolean(data.session) };
 }
 
 export async function verifyEmailOtp(email, token) {
@@ -180,12 +186,33 @@ export async function requestPasswordRecovery(email) {
     : { ok: true };
 }
 
-export async function updatePassword(password) {
-  if (!supabase) return { ok: false, offline: true };
-  const { error } = await supabase.auth.updateUser({ password });
-  return error
-    ? { ok: false, message: 'Não foi possível atualizar a senha agora.' }
-    : { ok: true };
+export async function completePasswordRecoveryCallback(callbackUrl) {
+  if (!supabase || !passwordSecurity) return { ok: false, offline: true };
+  const callback = parseRecoveryCallback(callbackUrl, globalThis.location.origin);
+  if (!callback) return { ok: false, message: 'Este link não é válido ou não foi iniciado neste navegador.' };
+  const session = await passwordSecurity.completeRecovery(callback);
+  return session
+    ? { ok: true, user: session.user }
+    : { ok: false, message: 'Este link expirou ou já foi utilizado.' };
+}
+
+export async function updateRecoveredPassword(password) {
+  if (!passwordSecurity) return { ok: false, offline: true };
+  const result = await passwordSecurity.updateRecovered(password);
+  return result.ok
+    ? result
+    : { ok: false, message: result.reason === 'recovery-not-validated'
+      ? 'Valide um novo link de recuperação antes de alterar a senha.'
+      : 'Não foi possível atualizar a senha agora.' };
+}
+
+export async function updateAccountPassword(currentPassword, password) {
+  if (!passwordSecurity) return { ok: false, offline: true };
+  const result = await passwordSecurity.updateAuthenticated(currentPassword, password);
+  if (result.ok) return result;
+  if (result.reason === 'current-password-required') return { ok: false, message: 'Informe sua senha atual.' };
+  if (result.reason === 'session-required') return { ok: false, message: 'Entre novamente para alterar sua senha.' };
+  return { ok: false, message: 'Senha atual incorreta ou sessão expirada.' };
 }
 
 export async function signOut() {
