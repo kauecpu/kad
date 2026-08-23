@@ -61,10 +61,17 @@ test('o KAD Círculo não é oferecido para novas assinaturas', () => {
   assert.doesNotMatch(plans, /subscribeTo\('circle'/);
 });
 
-test('o plano Diamante usa somente a identidade visual atual do KAD', () => {
-  assert.match(plans, /kad-icon-v4\.png/);
-  assert.doesNotMatch(plans, /kad-symbol-v3\.png/);
-  assert.doesNotMatch(plans, /name="diamond"/);
+test('os planos premium usam cards minimalistas e preservam o checkout existente no Platina', () => {
+  assert.match(plans, /name="KAD Platina"/);
+  assert.match(plans, /name="KAD Diamante"/);
+  assert.match(plans, /benefits=\{PLATINUM_BENEFITS\}/);
+  assert.match(plans, /benefits=\{DIAMOND_BENEFITS\}/);
+  assert.match(plans, /styles\.premiumCard/);
+  assert.match(plans, /width >= 760 && fontScale < 1\.3/);
+  assert.doesNotMatch(plans, /styles\.diamondGlow|styles\.diamondFacet/);
+  assert.match(plans, /onSubscribe=\{\(\) => subscribeTo\('diamond', platinumCycle\)\}/);
+  assert.match(plans, /name="KAD Diamante"[\s\S]*?available=\{false\}/);
+  assert.equal(plans.match(/subscribeTo\('diamond'/g)?.length, 1);
 });
 
 test('o Plano Básico permite responder questões sem limite diário', () => {
