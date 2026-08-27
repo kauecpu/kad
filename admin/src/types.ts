@@ -96,8 +96,13 @@ export type AdminQuestion = {
   statement: string;
   alternatives: { id: AlternativeId; text: string }[];
   correct: AlternativeId;
-  explanation: string;
-  difficulty: 'Fácil' | 'Média' | 'Difícil';
+  explanation?: string;
+  explanationOrigin?: ExplanationOrigin;
+  explanationReviewStatus?: ExplanationReviewStatus;
+  explanationProvider?: string;
+  explanationModel?: string;
+  explanationPromptVersion?: string;
+  difficulty?: 'Fácil' | 'Média' | 'Difícil';
   publicationStatus: PublicationStatus;
   publishedAt?: string;
   sourceProvider?: string;
@@ -109,6 +114,8 @@ export type AdminQuestion = {
 };
 
 export type EditorialImportKind = 'concurso' | 'question';
+export type ExplanationOrigin = 'official' | 'editorial' | 'ai';
+export type ExplanationReviewStatus = 'draft' | 'reviewed';
 export type ImportBatchStatus = 'staging' | 'imported' | 'import_partial' | 'rolled_back' | 'rollback_partial';
 export type ImportItemStatus = 'ready' | 'invalid' | 'duplicate' | 'imported' | 'skipped' | 'failed' | 'rolled_back' | 'rollback_blocked';
 export type ImportDecision = 'import' | 'upsert' | 'skip';
@@ -132,16 +139,25 @@ export type EditorialQuestionImportData = {
   institution: string;
   concurso: string;
   level: EducationLevel;
-  difficulty: 'Fácil' | 'Média' | 'Difícil';
+  difficulty?: 'Fácil' | 'Média' | 'Difícil';
   statement: string;
   alternatives: { id: AlternativeId; text: string }[];
   correct: AlternativeId;
-  explanation: string;
+  explanation?: string | EditorialExplanation;
   publicationStatus: 'draft';
 };
 
+export type EditorialExplanation = {
+  text: string;
+  origin: ExplanationOrigin;
+  reviewStatus: ExplanationReviewStatus;
+  provider?: string;
+  model?: string;
+  promptVersion?: string;
+};
+
 export type EditorialImportRecord = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   kind: EditorialImportKind;
   source: EditorialImportSource;
   data: (Record<string, unknown> & { id: string }) | EditorialQuestionImportData;

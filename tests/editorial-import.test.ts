@@ -4,6 +4,7 @@ import test from 'node:test';
 import { URL as NodeURL } from 'node:url';
 
 import { parseEditorialImport } from '../admin/src/lib/editorial-import.ts';
+import { importQuestionsLocally } from '../admin/src/lib/editorial-question-record.ts';
 import type { EditorialImportRecord } from '../admin/src/types.ts';
 
 const importsPage = readFileSync(
@@ -19,6 +20,11 @@ const fixtureText = readFileSync(
   'utf8',
 ).trim();
 const validQuestion = JSON.parse(fixtureText) as EditorialImportRecord;
+const fixtureV2Text = readFileSync(
+  new NodeURL('../contracts/editorial-question-v2.fixture.jsonl', import.meta.url),
+  'utf8',
+).trim();
+const validQuestionV2 = JSON.parse(fixtureV2Text) as EditorialImportRecord;
 
 function secondQuestion(): EditorialImportRecord {
   return {
@@ -32,7 +38,7 @@ function secondQuestion(): EditorialImportRecord {
   };
 }
 
-test('parser aceita a fixture compartilhada em JSONL e uma lista JSON', () => {
+test('parser aceita contratos v1 e v2 em JSONL e uma lista JSON', () => {
   const jsonl = parseEditorialImport(`${fixtureText}\n${JSON.stringify(secondQuestion())}`);
   assert.equal(jsonl.records.length, 2);
   assert.deepEqual(jsonl.issues, []);
@@ -40,12 +46,16 @@ test('parser aceita a fixture compartilhada em JSONL e uma lista JSON', () => {
   const list = parseEditorialImport(JSON.stringify([validQuestion]));
   assert.equal(list.records.length, 1);
   assert.deepEqual(list.issues, []);
+
+  const v2 = parseEditorialImport(fixtureV2Text);
+  assert.equal(v2.records.length, 1);
+  assert.deepEqual(v2.issues, []);
 });
 
 test('parser recusa origem insegura, fingerprint ausente e versão desconhecida', () => {
   const result = parseEditorialImport(JSON.stringify({
     ...validQuestion,
-    schemaVersion: 2,
+    schemaVersion: 3,
     source: { ...validQuestion.source, url: 'http://example.com/q/1', fingerprint: undefined },
   }));
   const messages = result.issues.map((issue) => issue.message).join(' ');
@@ -68,6 +78,44 @@ test('parser recusa campos ausentes, questão anulada e publicação automática
   assert.match(messages, /explanation/);
   assert.match(messages, /correct/);
   assert.match(messages, /publicationStatus/);
+});
+
+test('contrato v2 aceita ausência de explicação e valida metadados de IA', () => {
+  const withoutExplanation = parseEditorialImport(fixtureV2Text);
+  assert.deepEqual(withoutExplanation.issues, []);
+
+  const withAiExplanation = structuredClone(validQuestionV2);
+  (withAiExplanation.data as Record<string, unknown>).explanation = {
+    text: 'A alternativa B decorre da regra indicada no enunciado.',
+    origin: 'ai',
+    reviewStatus: 'draft',
+  };
+  const invalid = parseEditorialImport(JSON.stringify(withAiExplanation));
+  assert.match(invalid.issues.map((issue) => issue.message).join(' '), /provider/);
+  assert.match(invalid.issues.map((issue) => issue.message).join(' '), /model/);
+  assert.match(invalid.issues.map((issue) => issue.message).join(' '), /promptVersion/);
+
+  (withAiExplanation.data as Record<string, unknown>).explanation = {
+    ...((withAiExplanation.data as Record<string, unknown>).explanation as object),
+    provider: 'openai',
+    model: 'modelo-teste',
+    promptVersion: 'explanation-v1',
+  };
+  assert.deepEqual(parseEditorialImport(JSON.stringify(withAiExplanation)).issues, []);
+});
+
+test('reimportação usa o id estável e preserva explicação existente', () => {
+  const first = importQuestionsLocally([validQuestion]);
+  assert.equal(first.created, 1);
+  assert.equal(first.catalog.size, 1);
+  const second = importQuestionsLocally([validQuestionV2], first.catalog);
+  assert.equal(second.created, 0);
+  assert.equal(second.updated, 1);
+  assert.equal(second.catalog.size, 1);
+  assert.equal(
+    second.catalog.get(String(validQuestion.data.id))?.explanation,
+    (validQuestion.data as { explanation: string }).explanation,
+  );
 });
 
 test('parser recusa alternativas fora da sequência A até E', () => {

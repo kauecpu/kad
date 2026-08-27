@@ -146,7 +146,7 @@ function QuestionCardComponent({
         />
       ) : (
         <View style={styles.answeredArea}>
-          <Animated.View
+          {question.explanation ? <Animated.View
             entering={FadeIn.duration(MOTION_DURATION.reaction).reduceMotion(ReduceMotion.System)}
             accessibilityRole="alert"
             accessibilityLiveRegion="polite"
@@ -158,10 +158,12 @@ function QuestionCardComponent({
             />
             <Text style={[styles.resultText, { color: resultTone.foreground }]}>
               {isCorrect
-                ? 'Resposta correta. Gabarito comentado abaixo.'
+                ? question.explanation
+                  ? 'Resposta correta. Gabarito comentado abaixo.'
+                  : 'Resposta correta.'
                 : `Resposta incorreta. O gabarito é a alternativa ${question.correct}.`}
             </Text>
-          </Animated.View>
+          </Animated.View> : null}
 
           <QuestionCommunityStat question={question} />
 

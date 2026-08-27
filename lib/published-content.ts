@@ -76,8 +76,7 @@ export function mapPublishedQuestion(value: unknown): Question | null {
     !isNonEmptyString(value.statement) ||
     !alternatives ||
     !ALTERNATIVE_IDS.includes(value.correct as AlternativeId) ||
-    !alternatives.some((item) => item.id === value.correct) ||
-    !isNonEmptyString(value.explanation)
+    !alternatives.some((item) => item.id === value.correct)
   ) {
     return null;
   }
@@ -97,7 +96,7 @@ export function mapPublishedQuestion(value: unknown): Question | null {
     statement: value.statement,
     alternatives,
     correct: value.correct as AlternativeId,
-    explanation: value.explanation,
+    explanation: optionalString(value.explanation),
   };
 }
 

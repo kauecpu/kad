@@ -6,7 +6,8 @@ Painel web separado do aplicativo Expo. Ele usa o mesmo Supabase, mas possui bui
 
 1. O painel reutiliza automaticamente `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` do `.env` da raiz. Se preferir, substitua-as em `admin/.env.local` usando os nomes de `.env.example`.
 2. Aplique as migrations da raiz em ordem, incluindo `202608020004_admin_foundation.sql`,
-   `202608020005_editorial_concursos.sql` e `202608090001_editorial_import_pipeline.sql`.
+   `202608020005_editorial_concursos.sql`, `202608090001_editorial_import_pipeline.sql` e
+   `202608270001_editorial_question_import_v2.sql`.
 3. Vincule o UUID do primeiro administrador pela seção SQL do Supabase:
 
 ```sql
@@ -44,7 +45,9 @@ publicado ou alterado posteriormente.
 ## Banco de questões
 
 Questões recebidas pelo mesmo contrato entram como rascunhos e podem ser revisadas no módulo
-**Banco de questões** antes da publicação.
+**Banco de questões** antes da publicação. Contratos v1 e v2 são aceitos; no v2, uma questão pode
+ser revisada e publicada sem explicação. Se houver comentário, sua origem e revisão ficam
+registradas. Reimportar a mesma questão sem comentário não apaga um comentário existente.
 
 ## Segurança
 
