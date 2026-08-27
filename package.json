@@ -14,6 +14,7 @@
     "admin": "npm --prefix admin run dev",
     "admin:preview": "npm --prefix admin run dev:preview",
     "admin:build": "npm --prefix admin run build",
+    "editorial:validate-package": "node --no-warnings --experimental-strip-types scripts/validate-editorial-package.ts",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "node --no-warnings --test tests/*.test.ts",

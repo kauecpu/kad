@@ -161,7 +161,7 @@ export function SimulationReviewCard({
 
       <QuestionCommunityStat question={question} />
 
-      <View
+      {question.explanation ? <View
         style={[
           styles.explanation,
           { backgroundColor: colors.surfaceSunken, borderColor: colors.border },
@@ -170,7 +170,7 @@ export function SimulationReviewCard({
         <Text style={[styles.explanationText, { color: colors.textMuted }]}>
           {question.explanation}
         </Text>
-      </View>
+      </View> : null}
     </View>
   );
 }

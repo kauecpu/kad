@@ -6,7 +6,7 @@ export type ImportParseResult = {
   issues: ImportParseIssue[];
 };
 
-const MAX_RECORDS = 500;
+const MAX_RECORDS = 5_000;
 const QUESTION_TEXT_FIELDS = [
   'discipline', 'subject', 'topic', 'board', 'role', 'institution', 'concurso',
 ] as const;
@@ -30,7 +30,46 @@ function isHttpsUrl(value: unknown): value is string {
   }
 }
 
-function validateQuestionData(data: Record<string, unknown>, line: number): ImportParseIssue[] {
+function validateExplanation(
+  data: Record<string, unknown>,
+  schemaVersion: 1 | 2,
+  line: number,
+): ImportParseIssue[] {
+  const explanation = data.explanation;
+  if (schemaVersion === 1) {
+    return hasText(explanation, 10)
+      ? []
+      : [{ line, message: 'data.explanation deve ter ao menos 10 caracteres no contrato v1.' }];
+  }
+  if (explanation === undefined || explanation === null) return [];
+  if (!isObject(explanation)) {
+    return [{ line, message: 'data.explanation deve ser um objeto no contrato v2.' }];
+  }
+  const issues: ImportParseIssue[] = [];
+  if (!hasText(explanation.text, 10)) {
+    issues.push({ line, message: 'data.explanation.text deve ter ao menos 10 caracteres.' });
+  }
+  if (!['official', 'editorial', 'ai'].includes(String(explanation.origin))) {
+    issues.push({ line, message: 'data.explanation.origin é inválida.' });
+  }
+  if (!['draft', 'reviewed'].includes(String(explanation.reviewStatus))) {
+    issues.push({ line, message: 'data.explanation.reviewStatus é inválido.' });
+  }
+  if (explanation.origin === 'ai') {
+    for (const field of ['provider', 'model', 'promptVersion'] as const) {
+      if (!hasText(explanation[field], 1)) {
+        issues.push({ line, message: `data.explanation.${field} é obrigatório para conteúdo de IA.` });
+      }
+    }
+  }
+  return issues;
+}
+
+function validateQuestionData(
+  data: Record<string, unknown>,
+  schemaVersion: 1 | 2,
+  line: number,
+): ImportParseIssue[] {
   const issues: ImportParseIssue[] = [];
   for (const field of QUESTION_TEXT_FIELDS) {
     if (!hasText(data[field])) issues.push({ line, message: `data.${field} é obrigatório.` });
@@ -41,11 +80,11 @@ function validateQuestionData(data: Record<string, unknown>, line: number): Impo
   if (!['Fundamental', 'Médio', 'Superior'].includes(String(data.level))) {
     issues.push({ line, message: 'data.level é inválido.' });
   }
-  if (!['Fácil', 'Média', 'Difícil'].includes(String(data.difficulty))) {
+  if (data.difficulty !== undefined && !['Fácil', 'Média', 'Difícil'].includes(String(data.difficulty))) {
     issues.push({ line, message: 'data.difficulty é inválida.' });
   }
   if (!hasText(data.statement, 10)) issues.push({ line, message: 'data.statement deve ter ao menos 10 caracteres.' });
-  if (!hasText(data.explanation, 10)) issues.push({ line, message: 'data.explanation deve ter ao menos 10 caracteres.' });
+  issues.push(...validateExplanation(data, schemaVersion, line));
   if (data.publicationStatus !== 'draft') {
     issues.push({ line, message: 'data.publicationStatus deve ser draft; a importação nunca publica automaticamente.' });
   }
@@ -79,9 +118,14 @@ function validateQuestionData(data: Record<string, unknown>, line: number): Impo
 function validateRecord(value: unknown, line: number): ImportParseIssue[] {
   const issues: ImportParseIssue[] = [];
   if (!isObject(value)) return [{ line, message: 'O registro deve ser um objeto JSON.' }];
-  if (value.schemaVersion !== 1) issues.push({ line, message: 'schemaVersion deve ser 1.' });
+  if (value.schemaVersion !== 1 && value.schemaVersion !== 2) {
+    issues.push({ line, message: 'schemaVersion deve ser 1 ou 2.' });
+  }
   if (value.kind !== 'concurso' && value.kind !== 'question') {
     issues.push({ line, message: 'kind deve ser concurso ou question.' });
+  }
+  if (value.schemaVersion === 2 && value.kind !== 'question') {
+    issues.push({ line, message: 'O contrato v2 aceita somente registros de questão.' });
   }
   if (!isObject(value.source)) {
     issues.push({ line, message: 'source é obrigatório.' });
@@ -104,8 +148,8 @@ function validateRecord(value: unknown, line: number): ImportParseIssue[] {
   }
   if (!isObject(value.data) || typeof value.data.id !== 'string' || !/^[a-z0-9][a-z0-9-]{2,119}$/.test(value.data.id)) {
     issues.push({ line, message: 'data.id é obrigatório e deve ser um slug.' });
-  } else if (value.kind === 'question') {
-    issues.push(...validateQuestionData(value.data, line));
+  } else if (value.kind === 'question' && (value.schemaVersion === 1 || value.schemaVersion === 2)) {
+    issues.push(...validateQuestionData(value.data, value.schemaVersion, line));
   }
   return issues;
 }

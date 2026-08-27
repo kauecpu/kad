@@ -37,6 +37,10 @@ test('questões publicadas são validadas antes de entrar no aplicativo', () => 
   assert.equal(mapPublishedQuestion({ ...validQuestion, correct: 'E' }), null);
   assert.equal(mapPublishedQuestion({ ...validQuestion, alternatives: [] }), null);
   assert.deepEqual(mapPublishedQuestions([validQuestion, { id: 'incompleta' }]), [validQuestion]);
+  assert.deepEqual(
+    mapPublishedQuestion({ ...validQuestion, explanation: null }),
+    { ...validQuestion, explanation: undefined },
+  );
 });
 
 test('concursos publicados exigem fonte oficial HTTPS e dados completos', () => {

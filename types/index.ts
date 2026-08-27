@@ -99,8 +99,8 @@ export type Question = {
   statement: string;
   alternatives: Alternative[];
   correct: AlternativeId;
-  /** Gabarito comentado exibido logo após a resposta. */
-  explanation: string;
+  /** Gabarito comentado exibido logo após a resposta, quando disponível. */
+  explanation?: string;
 };
 
 export type QuestionFilters = {

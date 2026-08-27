@@ -25,6 +25,7 @@ test('resultado evita repetir o estado e mantém metadados legíveis', () => {
 
 test('gabarito usa uma única superfície e tentativa secundária clara', () => {
   assert.match(questionCard, /styles\.explanationCard/);
+  assert.match(questionCard, /question\.explanation \? <Animated\.View/);
   assert.match(questionCard, /label="Tentar novamente"/);
   assert.match(questionCard, /variant="secondary"/);
 });

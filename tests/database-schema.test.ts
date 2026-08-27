@@ -43,6 +43,11 @@ const editorialImportMigration = readFileSync(
   'utf8'
 );
 
+const editorialImportV2Migration = readFileSync(
+  new NodeURL('../supabase/migrations/202608270001_editorial_question_import_v2.sql', import.meta.url),
+  'utf8'
+);
+
 const paymentsMigration = readFileSync(
   new NodeURL('../supabase/migrations/202608110001_payments_subscriptions.sql', import.meta.url),
   'utf8'
@@ -515,6 +520,23 @@ test('histórico remoto de pagamentos possui espelhos locais auditáveis', () =>
   );
   assert.match(duplicateHardeningMirror, /20260812024756_harden_payment_subscriptions\.sql/);
   assert.match(duplicateHardeningMirror, /116abfe9ccfd113c23a3bd400ca02c7b/);
+});
+
+test('contrato editorial v2 aceita explicação opcional e preserva comentário na reimportação', () => {
+  assert.match(editorialImportV2Migration, /alter column explanation drop not null/);
+  assert.match(editorialImportV2Migration, /alter column difficulty drop not null/);
+  assert.match(editorialImportV2Migration, /schemaVersion deve ser 1 ou 2/);
+  assert.match(editorialImportV2Migration, /between 1 and 5000/);
+  assert.match(editorialImportV2Migration, /\{data,difficulty\}[\s\S]*to_jsonb\('Média'::text\)/);
+  assert.match(editorialImportV2Migration, /Difficulty is required before publication/);
+  assert.match(
+    editorialImportV2Migration,
+    /select explanation, explanation_origin, explanation_review_status/,
+  );
+  assert.match(
+    editorialImportV2Migration,
+    /Explicação de IA exige provider, model e promptVersion/,
+  );
 });
 
 test('reconciliação remove privilégios destrutivos e corrige índices de FKs', () => {
