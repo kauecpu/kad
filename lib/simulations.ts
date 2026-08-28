@@ -99,7 +99,7 @@ export function simulationCandidates(
     if (config.years.length > 0 && !config.years.includes(question.year)) return false;
     if (
       config.difficulties.length > 0 &&
-      !config.difficulties.includes(question.difficulty)
+      (!question.difficulty || !config.difficulties.includes(question.difficulty))
     ) {
       return false;
     }

@@ -73,7 +73,7 @@ export function localRankingScore({
   const correctRecords = records.filter((answer) => answer.isCorrect);
   const points = correctRecords.reduce((total, answer) => {
     const question = questionById.get(answer.questionId);
-    return total + (question ? RANKING_POINTS[question.difficulty] : 0);
+    return total + (question?.difficulty ? RANKING_POINTS[question.difficulty] : 0);
   }, 0);
 
   return {

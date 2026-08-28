@@ -32,7 +32,7 @@ export function SimulationQuestionCard({
       <View style={styles.headerRow}>
         <View style={styles.badges}>
           <Badge label={question.subject} tone="primary" />
-          <Badge label={question.difficulty} tone="neutral" />
+          {question.difficulty ? <Badge label={question.difficulty} tone="neutral" /> : null}
         </View>
         <QuestionFavoriteButton questionId={question.id} />
       </View>
