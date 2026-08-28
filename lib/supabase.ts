@@ -3,11 +3,22 @@ import { createClient, processLock } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import 'react-native-url-polyfill/auto';
 import { Platform } from 'react-native';
+import { resolvePublicSupabaseConfig } from '@/contracts/deployment-environment';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
-const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+const publicSupabaseConfig = resolvePublicSupabaseConfig({
+  environment: process.env.EXPO_PUBLIC_KAD_ENV,
+  url: process.env.EXPO_PUBLIC_SUPABASE_URL,
+  publishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+});
+const supabaseUrl = publicSupabaseConfig.ok ? publicSupabaseConfig.value.url : undefined;
+const supabasePublishableKey = publicSupabaseConfig.ok
+  ? publicSupabaseConfig.value.publishableKey
+  : undefined;
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey);
+export const isSupabaseConfigured = publicSupabaseConfig.ok;
+export const supabaseConfigurationError = publicSupabaseConfig.ok
+  ? null
+  : publicSupabaseConfig.reason;
 
 const secureStoreOptions: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,

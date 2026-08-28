@@ -4,7 +4,7 @@ Painel web separado do aplicativo Expo. Ele usa o mesmo Supabase, mas possui bui
 
 ## Executar
 
-1. O painel reutiliza automaticamente `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` do `.env` da raiz. Se preferir, substitua-as em `admin/.env.local` usando os nomes de `.env.example`.
+1. Crie `.env.staging.local` e `.env.production.local` na raiz a partir dos exemplos. Esses arquivos guardam apenas a chave publicável e ficam fora do Git.
 2. Aplique as migrations da raiz em ordem, incluindo `202608020004_admin_foundation.sql`,
    `202608020005_editorial_concursos.sql`, `202608090001_editorial_import_pipeline.sql` e
    `202608270001_editorial_question_import_v2.sql`.
@@ -15,7 +15,8 @@ insert into private.admin_users (user_id, role)
 values ('UUID_DO_USUARIO', 'owner');
 ```
 
-4. Execute `npm run dev` dentro desta pasta.
+4. Na raiz, execute `npm run admin:staging`. Produção só deve ser aberta com
+   `npm run admin:production` quando houver uma ação explicitamente aprovada.
 
 Para revisar apenas a interface vazia, execute `npm run dev:preview`. Esse modo não consulta
 dados reais, não simula métricas ou concursos e só funciona no servidor de desenvolvimento.
