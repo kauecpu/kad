@@ -56,7 +56,7 @@ export default function PerformanceScreen() {
                   value={performance.total > 0 ? formatPercent(performance.accuracy) : '--'}
                   animatedValue={performance.total > 0 ? performance.accuracy : undefined}
                   valueSuffix="%"
-                  tone="success"
+                  tone="insight"
                 />
               </View>
               <View style={styles.statsRow}>
@@ -106,7 +106,11 @@ export default function PerformanceScreen() {
 
             <Section title="Por matéria">
               {performance.bySubject.length > 0 ? (
-                <Card style={styles.subjectCard}>
+                <Card
+                  style={[
+                    styles.subjectCard,
+                    { borderColor: colors.insight, backgroundColor: colors.insightSoft },
+                  ]}>
                   {visibleSubjects.map((subject) => (
                     <View key={subject.subject} style={styles.subjectRow}>
                       <View style={styles.subjectHeader}>
@@ -119,13 +123,8 @@ export default function PerformanceScreen() {
                       </View>
                       <ProgressBar
                         value={subject.accuracy}
-                        color={
-                          subject.accuracy >= 70
-                            ? colors.success
-                            : subject.accuracy >= 40
-                              ? colors.warning
-                              : colors.danger
-                        }
+                        color={colors.insight}
+                        trackColor={colors.surfaceSunken}
                         label={`Acerto em ${subject.subject}`}
                       />
                     </View>
@@ -141,20 +140,22 @@ export default function PerformanceScreen() {
                         { borderTopColor: colors.border },
                         pressed && styles.pressed,
                       ]}>
-                      <Text style={[styles.seeMoreText, { color: colors.primary }]}>
+                      <Text style={[styles.seeMoreText, { color: colors.insight }]}>
                         {showAllSubjects ? 'Ver menos' : `Ver mais ${hiddenSubjects} matérias`}
                       </Text>
                       <Ionicons
                         name={showAllSubjects ? 'chevron-up' : 'chevron-down'}
                         size={16}
-                        color={colors.primary}
+                        color={colors.insight}
                       />
                     </Pressable>
                   ) : null}
                 </Card>
               ) : (
                 <Card style={styles.emptyCard}>
-                  <Ionicons name="bar-chart-outline" size={22} color={colors.textSubtle} />
+                  <View style={[styles.emptyIcon, { backgroundColor: colors.insightSoft }]}>
+                    <Ionicons name="bar-chart-outline" size={22} color={colors.insight} />
+                  </View>
                   <Text style={[styles.emptyText, { color: colors.textMuted }]}>
                     Responda questões para acompanhar seu desempenho por matéria.
                   </Text>
@@ -212,6 +213,13 @@ const styles = StyleSheet.create({
   },
   seeMoreText: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
   emptyCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  emptyIcon: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
   emptyText: { flex: 1, fontSize: FontSize.small, lineHeight: 20 },
   lockedCard: {
     alignItems: 'center',

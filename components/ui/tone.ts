@@ -1,6 +1,13 @@
 import type { ThemeColors } from '@/constants/theme';
 
-export type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'accent';
+export type Tone =
+  | 'neutral'
+  | 'primary'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'accent'
+  | 'insight';
 
 /** Par de cores (fundo suave + texto) para cada tom semântico. */
 export function toneColors(colors: ThemeColors, tone: Tone): { background: string; foreground: string } {
@@ -15,6 +22,8 @@ export function toneColors(colors: ThemeColors, tone: Tone): { background: strin
       return { background: colors.dangerSoft, foreground: colors.danger };
     case 'accent':
       return { background: colors.accentSoft, foreground: colors.accent };
+    case 'insight':
+      return { background: colors.insightSoft, foreground: colors.insight };
     case 'neutral':
     default:
       return { background: colors.surfaceAlt, foreground: colors.textMuted };
