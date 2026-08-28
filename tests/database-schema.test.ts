@@ -559,6 +559,16 @@ test('publicação editorial exige prévia, evidência oficial, ambiente correto
   assert.match(controlledPublicationMigration, /revoke all on table private\.question_publication_events/);
 });
 
+test('ações editoriais dividem seleções maiores que o limite da prévia', () => {
+  const questionsPage = readFileSync(
+    new NodeURL('../admin/src/pages/questions-page.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.match(questionsPage, /MAX_PUBLICATION_BATCH = 500/);
+  assert.match(questionsPage, /splitIntoBatches\(\[\.\.\.selected\], MAX_PUBLICATION_BATCH\)/);
+  assert.match(questionsPage, /for \(const batch of previewBatches\)/);
+});
+
 test('reconciliação remove privilégios destrutivos e corrige índices de FKs', () => {
   const reconciliationName = migrationNames.find((name) =>
     name.endsWith('_reconcile_remote_schema.sql')
