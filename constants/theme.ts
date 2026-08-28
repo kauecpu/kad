@@ -123,6 +123,7 @@ export const Radius = {
 } as const;
 
 export const FontSize = {
+  metric: 52,
   display: 30,
   title: 24,
   heading: 18,

@@ -19,6 +19,7 @@ const rootLayout = source('../app/_layout.tsx');
 const progressBar = source('../components/ui/progress-bar.tsx');
 const animatedCounter = source('../components/ui/animated-counter.tsx');
 const statCard = source('../components/ui/stat-card.tsx');
+const metricOverview = source('../components/ui/metric-overview.tsx');
 const simulationResult = source('../app/questoes/simulado/resultado.tsx');
 const performance = source('../app/perfil/desempenho.tsx');
 const modalMotion = source('../hooks/use-modal-transition.ts');
@@ -94,9 +95,11 @@ test('contadores preservam o número real para acessibilidade e não animam na m
 test('pontuação e desempenho usam o contador reutilizável sem mudar os dados', () => {
   assert.match(statCard, /AnimatedCounter/);
   assert.match(simulationResult, /<AnimatedCounter[\s\S]*?value=\{Math\.round\(score\.accuracy\)\}/);
-  assert.match(performance, /animatedValue=\{performance\.total\}/);
-  assert.match(performance, /animatedValue=\{performance\.correct\}/);
-  assert.match(performance, /animatedValue=\{performance\.wrong\}/);
+  assert.match(metricOverview, /<AnimatedCounter[\s\S]*?value=\{value\}/);
+  assert.match(performance, /value=\{performance\.accuracy\}/);
+  assert.match(performance, /value: performance\.total/);
+  assert.match(performance, /value: performance\.correct/);
+  assert.match(performance, /value: performance\.wrong/);
 });
 
 test('modais compartilham uma transição cancelável e não atrasam onClose', () => {

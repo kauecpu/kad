@@ -1,17 +1,17 @@
 import Ionicons from '@/components/ui/app-icon';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ListRow } from '@/components/ui/list-row';
+import { MetricOverview } from '@/components/ui/metric-overview';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Section } from '@/components/ui/section';
 import { StackHeader } from '@/components/ui/stack-header';
-import { StatCard } from '@/components/ui/stat-card';
-import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatPercent } from '@/lib/format';
 import { useApp } from '@/providers/app-provider';
@@ -20,7 +20,7 @@ export default function PerformanceScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { performance, canViewStatistics, favoriteQuestionIds } = useApp();
+  const { performance, canViewStatistics, favoriteQuestionIds, subscriptionLoading } = useApp();
   const [showAllSubjects, setShowAllSubjects] = useState(false);
 
   const subjectPreviewSize = 3;
@@ -39,43 +39,46 @@ export default function PerformanceScreen() {
           { paddingBottom: insets.bottom + Spacing.xxxl },
         ]}
         showsVerticalScrollIndicator={false}>
-        {canViewStatistics ? (
+        {subscriptionLoading ? (
+          <Card style={styles.stateCard}>
+            <ActivityIndicator color={colors.insight} accessibilityLabel="Carregando desempenho" />
+            <Text accessibilityRole="header" style={[styles.stateTitle, { color: colors.text }]}>
+              Carregando seu desempenho
+            </Text>
+            <Text style={[styles.stateText, { color: colors.textMuted }]}>
+              Aguarde enquanto confirmamos seu plano.
+            </Text>
+          </Card>
+        ) : canViewStatistics && performance.total > 0 ? (
           <>
-            <Section title="Visão geral">
-              <View style={styles.statsRow}>
-                <StatCard
-                  icon="reader-outline"
-                  label="Questões respondidas"
-                  value={String(performance.total)}
-                  animatedValue={performance.total}
-                  tone="primary"
-                />
-                <StatCard
-                  icon="checkmark-done-outline"
-                  label="Taxa de acerto"
-                  value={performance.total > 0 ? formatPercent(performance.accuracy) : '--'}
-                  animatedValue={performance.total > 0 ? performance.accuracy : undefined}
-                  valueSuffix="%"
-                  tone="insight"
-                />
-              </View>
-              <View style={styles.statsRow}>
-                <StatCard
-                  icon="thumbs-up-outline"
-                  label="Acertos"
-                  value={String(performance.correct)}
-                  animatedValue={performance.correct}
-                  tone="success"
-                />
-                <StatCard
-                  icon="thumbs-down-outline"
-                  label="Erros"
-                  value={String(performance.wrong)}
-                  animatedValue={performance.wrong}
-                  tone="danger"
-                />
-              </View>
-            </Section>
+            <MetricOverview
+              label="Taxa de acerto"
+              value={performance.accuracy}
+              valueSuffix="%"
+              description={`${performance.correct} de ${performance.total} respostas corretas`}
+              progressValue={performance.accuracy}
+              progressLabel="Taxa geral de acerto"
+              items={[
+                {
+                  label: 'Respondidas',
+                  value: performance.total,
+                  icon: 'reader-outline',
+                  tone: 'primary',
+                },
+                {
+                  label: 'Acertos',
+                  value: performance.correct,
+                  icon: 'checkmark-circle-outline',
+                  tone: 'success',
+                },
+                {
+                  label: 'Erros',
+                  value: performance.wrong,
+                  icon: 'close-circle-outline',
+                  tone: 'danger',
+                },
+              ]}
+            />
 
             <Section title="Revisar questões">
               <Card padded={false} style={styles.reviewCard}>
@@ -106,11 +109,7 @@ export default function PerformanceScreen() {
 
             <Section title="Por matéria">
               {performance.bySubject.length > 0 ? (
-                <Card
-                  style={[
-                    styles.subjectCard,
-                    { borderColor: colors.insight, backgroundColor: colors.insightSoft },
-                  ]}>
+                <Card style={styles.subjectCard}>
                   {visibleSubjects.map((subject) => (
                     <View key={subject.subject} style={styles.subjectRow}>
                       <View style={styles.subjectHeader}>
@@ -163,6 +162,23 @@ export default function PerformanceScreen() {
               )}
             </Section>
           </>
+        ) : canViewStatistics ? (
+          <Card style={styles.emptyStateCard}>
+            <View style={[styles.emptyStateIcon, { backgroundColor: colors.insightSoft }]}>
+              <Ionicons name="analytics-outline" size={28} color={colors.insight} />
+            </View>
+            <Text accessibilityRole="header" style={[styles.stateTitle, { color: colors.text }]}>
+              Seu desempenho começa aqui
+            </Text>
+            <Text style={[styles.stateText, { color: colors.textMuted }]}>
+              Responda uma questão para ver acertos, erros e evolução por matéria.
+            </Text>
+            <Button
+              label="Responder questões"
+              icon="reader-outline"
+              onPress={() => router.push('/questoes')}
+            />
+          </Card>
         ) : (
           <Card style={styles.lockedCard}>
             <Ionicons name="lock-closed-outline" size={24} color={colors.primary} />
@@ -191,7 +207,6 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     gap: Spacing.xl,
   },
-  statsRow: { flexDirection: 'row', gap: Spacing.md },
   reviewCard: { overflow: 'hidden' },
   subjectCard: { gap: Spacing.lg },
   subjectRow: { gap: Spacing.sm },
@@ -208,6 +223,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+    minHeight: 44,
     paddingTop: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
@@ -221,6 +237,30 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   emptyText: { flex: 1, fontSize: FontSize.small, lineHeight: 20 },
+  stateCard: {
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xxl,
+  },
+  emptyStateCard: {
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.xxl,
+  },
+  emptyStateIcon: {
+    width: 64,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.lg,
+  },
+  stateTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold, textAlign: 'center' },
+  stateText: {
+    maxWidth: 380,
+    fontSize: FontSize.body,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
   lockedCard: {
     alignItems: 'center',
     gap: Spacing.md,
