@@ -35,6 +35,8 @@ export function applyQuestionImport(
     explanationPromptVersion:
       explanation?.promptVersion ?? existing?.explanationPromptVersion,
     publicationStatus: existing?.publicationStatus ?? 'draft',
+    publicationBlockers: existing?.publicationBlockers ?? [],
+    hasOfficialAnswerEvidence: existing?.hasOfficialAnswerEvidence ?? false,
     sourceProvider: record.source.provider,
     sourceExternalId: record.source.externalId,
     sourceUrl: record.source.url,

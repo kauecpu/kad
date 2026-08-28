@@ -539,6 +539,26 @@ test('contrato editorial v2 aceita explicação opcional e preserva comentário 
   );
 });
 
+test('publicação editorial exige prévia, evidência oficial, ambiente correto e histórico', () => {
+  const controlledPublicationMigration = readFileSync(
+    new NodeURL('../supabase/migrations/20260828220803_controlled_question_publication.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(controlledPublicationMigration, /create table if not exists private\.question_answer_evidence/);
+  assert.match(controlledPublicationMigration, /create table if not exists private\.question_publication_events/);
+  assert.match(controlledPublicationMigration, /official_matched/);
+  assert.match(controlledPublicationMigration, /private\.question_publication_blockers/);
+  assert.match(controlledPublicationMigration, /admin_preview_question_publication/);
+  assert.match(controlledPublicationMigration, /admin_apply_question_publication/);
+  assert.match(controlledPublicationMigration, /p_preview_fingerprint/);
+  assert.match(controlledPublicationMigration, /p_expected_project_ref/);
+  assert.match(controlledPublicationMigration, /order by id[\s\S]*for update/);
+  assert.match(controlledPublicationMigration, /publication_status = 'published'/);
+  assert.match(controlledPublicationMigration, /next_status/);
+  assert.match(controlledPublicationMigration, /'withdrawn'/);
+  assert.match(controlledPublicationMigration, /revoke all on table private\.question_publication_events/);
+});
+
 test('reconciliação remove privilégios destrutivos e corrige índices de FKs', () => {
   const reconciliationName = migrationNames.find((name) =>
     name.endsWith('_reconcile_remote_schema.sql')

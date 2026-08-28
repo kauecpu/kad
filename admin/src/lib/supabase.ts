@@ -15,6 +15,12 @@ export const isPreviewMode =
   import.meta.env.DEV && import.meta.env.VITE_ADMIN_PREVIEW === 'true';
 
 export const hasSupabaseConfig = publicSupabaseConfig.ok;
+export const adminSupabaseProjectRef = publicSupabaseConfig.ok
+  ? publicSupabaseConfig.value.projectRef
+  : null;
+export const adminKadEnvironment = publicSupabaseConfig.ok
+  ? publicSupabaseConfig.value.environment
+  : null;
 
 export const supabase = hasSupabaseConfig
   && supabaseUrl

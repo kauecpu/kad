@@ -82,3 +82,15 @@ nome definitivo e backups diários, mantendo esta homologação separada.
 A proteção contra senhas vazadas também precisa ser ativada manualmente na produção
 quando o recurso estiver disponível no plano contratado. Essa pendência não altera
 a separação dos ambientes, mas deve ser resolvida antes do lançamento público.
+
+## Publicação controlada de questões
+
+O painel trabalha com rascunho, aprovada e publicada. Selecione um lote e gere a
+prévia para ver cada alteração e cada impedimento. A confirmação é recusada se o
+ambiente não corresponder ao projeto, se o conteúdo mudar depois da prévia ou se
+faltar evidência oficial, classificação, alternativa válida ou origem.
+
+Aprovação, publicação, retirada e invalidação de aprovação ficam no histórico
+privado. Retirar uma questão apenas a arquiva; o registro não é apagado. O fluxo
+foi testado na homologação com uma amostra de 10 questões, sem publicar nada na
+produção nesta etapa.
