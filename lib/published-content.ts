@@ -60,6 +60,9 @@ export function mapPublishedQuestion(value: unknown): Question | null {
   if (!isObject(value)) return null;
   const alternatives = mapAlternatives(value.alternatives);
   const year = numberFrom(value.year);
+  const difficulty = value.difficulty === undefined || value.difficulty === null
+    ? undefined
+    : value.difficulty;
   if (
     !isNonEmptyString(value.id) ||
     !isNonEmptyString(value.discipline) ||
@@ -72,7 +75,7 @@ export function mapPublishedQuestion(value: unknown): Question | null {
     !isNonEmptyString(value.institution) ||
     !isNonEmptyString(value.concurso) ||
     !EDUCATION_LEVELS.includes(value.level as EducationLevel) ||
-    !DIFFICULTIES.includes(value.difficulty as Difficulty) ||
+    (difficulty !== undefined && !DIFFICULTIES.includes(difficulty as Difficulty)) ||
     !isNonEmptyString(value.statement) ||
     !alternatives ||
     !ALTERNATIVE_IDS.includes(value.correct as AlternativeId) ||
@@ -92,7 +95,7 @@ export function mapPublishedQuestion(value: unknown): Question | null {
     institution: value.institution,
     concurso: value.concurso,
     level: value.level as EducationLevel,
-    difficulty: value.difficulty as Difficulty,
+    ...(difficulty === undefined ? {} : { difficulty: difficulty as Difficulty }),
     statement: value.statement,
     alternatives,
     correct: value.correct as AlternativeId,

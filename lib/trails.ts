@@ -1,4 +1,4 @@
-import type { Question } from '../types/index.ts';
+import type { Difficulty, Question } from '../types/index.ts';
 
 export type TrailLevel = {
   number: number;
@@ -62,7 +62,7 @@ const LEVELS = [
   },
 ] as const;
 
-const difficultyOrder: Record<Question['difficulty'], number> = {
+const difficultyOrder: Record<Difficulty, number> = {
   Fácil: 0,
   Média: 1,
   Difícil: 2,
@@ -82,7 +82,8 @@ export function questionsForDisciplines(
 export function createTrailLevels(questions: Question[]): TrailLevel[] {
   const ordered = [...questions].sort(
     (a, b) =>
-      difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty] ||
+      (a.difficulty ? difficultyOrder[a.difficulty] : Number.POSITIVE_INFINITY) -
+        (b.difficulty ? difficultyOrder[b.difficulty] : Number.POSITIVE_INFINITY) ||
       a.discipline.localeCompare(b.discipline, 'pt-BR') ||
       a.topic.localeCompare(b.topic, 'pt-BR') ||
       a.id.localeCompare(b.id)

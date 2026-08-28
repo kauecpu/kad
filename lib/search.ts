@@ -121,7 +121,10 @@ export function searchQuestions(
     if (search.boards.length > 0 && !search.boards.includes(question.board)) return false;
     if (search.roles.length > 0 && !search.roles.includes(question.role)) return false;
     if (search.years.length > 0 && !search.years.includes(question.year)) return false;
-    if (search.difficulties.length > 0 && !search.difficulties.includes(question.difficulty)) return false;
+    if (
+      search.difficulties.length > 0 &&
+      (!question.difficulty || !search.difficulties.includes(question.difficulty))
+    ) return false;
     if (search.institutions.length > 0 && !search.institutions.includes(question.institution)) return false;
     if (search.concursos.length > 0 && !search.concursos.includes(question.concurso)) return false;
     if (search.levels.length > 0 && !search.levels.includes(question.level)) return false;
@@ -143,7 +146,7 @@ export function searchQuestions(
         question.concurso,
         question.role,
         question.level,
-        question.difficulty,
+        question.difficulty ?? '',
         question.year,
       ]
         .join(' ');

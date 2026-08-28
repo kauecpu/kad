@@ -95,7 +95,8 @@ export type Question = {
   /** Nome do concurso ao qual a questão pertence. */
   concurso: string;
   level: EducationLevel;
-  difficulty: Difficulty;
+  /** Dificuldade editorial, opcional quando ainda não foi informada. */
+  difficulty?: Difficulty;
   statement: string;
   alternatives: Alternative[];
   correct: AlternativeId;

@@ -85,6 +85,7 @@ test('filtro por concurso considera somente questões pertencentes ao pacote', (
   });
 
   assert.equal(score.correct, 1);
+  assert.ok(included.difficulty);
   assert.equal(score.points, RANKING_POINTS[included.difficulty]);
 });
 

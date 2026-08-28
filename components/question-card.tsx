@@ -87,7 +87,9 @@ function QuestionCardComponent({
       <View style={styles.headerRow}>
         <View style={styles.badgeGroup}>
           <Badge label={question.subject} tone="primary" />
-          <Badge label={question.difficulty} tone={DIFFICULTY_TONE[question.difficulty]} />
+          {question.difficulty ? (
+            <Badge label={question.difficulty} tone={DIFFICULTY_TONE[question.difficulty]} />
+          ) : null}
         </View>
         <QuestionFavoriteButton questionId={question.id} />
       </View>

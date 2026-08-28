@@ -103,3 +103,10 @@ test('o lote inicial publica somente o acervo esperado e não contém segredos',
   visit(records);
   assert.doesNotMatch(Array.from(keys).join(' '), /service_role|secret|password|token/i);
 });
+
+test('aceita questão publicada sem dificuldade', () => {
+  const question = mapPublishedQuestion({ ...validQuestion, difficulty: undefined });
+
+  assert.ok(question);
+  assert.equal(question.difficulty, undefined);
+});
