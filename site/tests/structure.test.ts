@@ -79,6 +79,12 @@ test('apresentação pública usa somente imagens existentes e não inventa mét
   assert.doesNotMatch(view, /82%|\+12 questões|acerto esta semana|ritmo de hoje/);
 });
 
+test('ranking e trilhas toleram questões sem dificuldade', async () => {
+  const explore = await source('src/views/explore.ts');
+  assert.match(explore, /question\?\.difficulty/);
+  assert.match(explore, /left\.difficulty \?/);
+});
+
 test('layout web usa autenticação dividida, resumos compactos e comentários legíveis', async () => {
   const [publicView, questionsView, styles] = await Promise.all([
     source('src/views/public.ts'),

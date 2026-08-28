@@ -105,7 +105,7 @@ function localRankingScore(state: SiteState, questions: Question[], period: Rank
   const points = records.reduce((sum, answer) => {
     if (!answer.isCorrect) return sum;
     const question = questions.find((item) => item.id === answer.questionId);
-    return sum + (question ? { Fácil: 1, Média: 2, Difícil: 3 }[question.difficulty] : 1);
+    return sum + (question?.difficulty ? { Fácil: 1, Média: 2, Difícil: 3 }[question.difficulty] : 1);
   }, 0);
   const correct = records.filter((answer) => answer.isCorrect).length;
   return { points, correct, accuracy: records.length ? (correct / records.length) * 100 : 0 };
@@ -144,7 +144,10 @@ export function rankingView(state: SiteState, params: ViewParams = {}): ViewMode
 }
 
 function trailChunks(questions: Question[]): Question[][] {
-  const sorted = [...questions].sort((left, right) => ({ Fácil: 0, Média: 1, Difícil: 2 }[left.difficulty] - ({ Fácil: 0, Média: 1, Difícil: 2 }[right.difficulty])));
+  const sorted = [...questions].sort((left, right) =>
+    (left.difficulty ? { Fácil: 0, Média: 1, Difícil: 2 }[left.difficulty] : Number.POSITIVE_INFINITY) -
+    (right.difficulty ? { Fácil: 0, Média: 1, Difícil: 2 }[right.difficulty] : Number.POSITIVE_INFINITY)
+  );
   const active = Math.min(10, sorted.length);
   const chunks: Question[][] = Array.from({ length: 10 }, () => []);
   sorted.forEach((question, index) => chunks[Math.min(active - 1, Math.floor((index * active) / sorted.length))].push(question));
