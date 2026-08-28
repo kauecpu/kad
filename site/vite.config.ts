@@ -1,4 +1,5 @@
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   appType: 'spa',
@@ -11,5 +12,10 @@ export default defineConfig({
   build: {
     target: 'baseline-widely-available',
     sourcemap: true,
+  },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('..', import.meta.url)),
+    },
   },
 });

@@ -1,4 +1,5 @@
 import { createClient, type User } from '@supabase/supabase-js';
+import { resolvePublicSupabaseConfig } from '@/contracts/deployment-environment.ts';
 import { parseRecoveryCallback } from '../core/auth-callback.ts';
 import { createPasswordSecurity } from '../core/password-security.ts';
 import type {
@@ -29,21 +30,20 @@ export type RemoteStudyData = {
 
 export type PublishedContent = { questions: Question[]; concursos: Concurso[] };
 
-const url = import.meta.env.VITE_SUPABASE_URL?.trim();
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+const publicSupabaseConfig = resolvePublicSupabaseConfig({
+  environment: import.meta.env.VITE_KAD_ENV,
+  url: import.meta.env.VITE_SUPABASE_URL,
+  publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+});
+const url = publicSupabaseConfig.ok ? publicSupabaseConfig.value.url : undefined;
+const publishableKey = publicSupabaseConfig.ok
+  ? publicSupabaseConfig.value.publishableKey
+  : undefined;
 
-function trustedProjectUrl(value: string): boolean {
-  try {
-    return new URL(value).protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
+export const supabaseConfigured = publicSupabaseConfig.ok;
 
-export const supabaseConfigured = Boolean(url && anonKey && trustedProjectUrl(url));
-
-export const supabase = supabaseConfigured
-  ? createClient(url, anonKey, {
+export const supabase = url && publishableKey
+  ? createClient(url, publishableKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,

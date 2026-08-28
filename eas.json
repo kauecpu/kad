@@ -1,0 +1,22 @@
+{
+  "cli": {
+    "version": ">= 16.17.0"
+  },
+  "build": {
+    "staging": {
+      "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_KAD_ENV": "staging",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://npaoyezfwmgauirrlyog.supabase.co"
+      }
+    },
+    "production": {
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_KAD_ENV": "production",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tknxtwwwoqwbzddplzzg.supabase.co"
+      }
+    }
+  }
+}

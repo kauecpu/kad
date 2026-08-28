@@ -36,6 +36,8 @@ yarn-error.*
 .env
 .env.*
 !.env.example
+!.env.staging.example
+!.env.production.example
 .env*.local
 
 # typescript
@@ -46,3 +48,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Supabase CLI local state
+supabase/.temp/

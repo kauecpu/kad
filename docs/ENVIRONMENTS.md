@@ -1,58 +1,84 @@
 # Ambientes do KAD
 
-Este documento define o uso pretendido dos ambientes Supabase. Ele não contém
-segredos, chaves, senhas ou dados pessoais.
+Esta configuração é temporária e evita custo durante o MVP. Os dois projetos
+Supabase permanecem independentes; nenhum dado é copiado automaticamente entre
+eles.
 
-## Situação atual
+## Mapa atual
 
-| Papel | Projeto | Project ref | Finalidade atual | Branch autorizada |
-| --- | --- | --- | --- | --- |
-| Validação descartável | `kad-reconciliation` | `txqnvkovdstikgziczyk` | Testar migrations e permissões sem dados reais; pode ser recriado | `codex/reconcile-supabase-schema` |
-| Desenvolvimento protegido / pré-produção | `kad-dev` | `tknxtwwwoqwbzddplzzg` | Schema reconciliado em 15/08/2026; contém dados reais e exige plano e aprovação para novas mudanças | `main`, após PR aprovado |
-| Homologação | Não provisionado | Não existe | Validar uma release candidata com dados sintéticos | futura branch de release baseada em `main` |
-| Produção | Não provisionado | Não existe | Atender usuários reais após os critérios de lançamento | somente tag/release originada de `main` |
+| Papel | Projeto no Supabase | Project ref | Dados permitidos |
+| --- | --- | --- | --- |
+| Homologação | `kad-prod` | `npaoyezfwmgauirrlyog` | Somente contas e dados descartáveis |
+| Produção atual | `kad-dev` | `tknxtwwwoqwbzddplzzg` | Dados reais existentes |
 
-`kad-reconciliation` é exclusivamente um banco de teste. Ele não é um segundo
-banco funcional do aplicativo e não deve receber dados reais.
+O nome `kad-prod` ficou reservado no Supabase antes de o limite de dois projetos
+gratuitos ser identificado. Enquanto o plano permanecer Free, ele funciona
+exclusivamente como homologação. O papel efetivo é definido pelo project ref e
+pelas travas do código, não pelo nome exibido no painel.
 
-`kad-dev` acumula hoje funções de desenvolvimento e pré-produção. Enquanto
-homologação e produção não forem provisionadas, ele deve ser tratado como
-ambiente protegido porque já contém dados reais.
+`kad-dev` não foi renomeado, esvaziado nem reutilizado para testes. Ele continua
+como ambiente real legado porque já contém usuários, conteúdo e histórico. O
+backup lógico confirmado antes desta separação está fora do Git em:
 
-A reconciliação de 15 de agosto de 2026 foi uma exceção aprovada antes do merge
-para corrigir o drift já existente. As migrations e os bundles correspondentes
-estão na branch `codex/reconcile-supabase-schema` e precisam entrar em `main`
-antes de qualquer nova publicação.
+`C:\Users\igord\Downloads\KAD-archives\pr51-20260827-203141\supabase\kad-dev-20260827.sql`
 
-## Promoção
+## Uso local
 
-1. Toda alteração nasce em branch `codex/*`, com migration e testes versionados.
-2. A migration é aplicada primeiro no projeto descartável e validada com perfis
-   anônimo, autenticado, administrativo e `service_role`.
-3. O Pull Request precisa passar por `npm run check` e revisão humana.
-4. Depois do merge em `main`, a mesma migration versionada pode ser promovida ao
-   ambiente seguinte. Não se copia schema manualmente pelo painel.
-5. Edge Functions só podem ser publicadas quando o bundle publicado corresponder
-   a um commit identificável em `main`.
-6. Produção só pode receber o artefato já aprovado em homologação. Hoje essa
-   promoção permanece bloqueada porque homologação e produção não existem.
+1. Copie `.env.staging.example` para `.env.staging.local` e informe a chave
+   publicável do projeto de homologação.
+2. Copie `.env.production.example` para `.env.production.local` e informe a chave
+   publicável da produção atual.
+3. Nunca adicione esses arquivos ao Git.
 
-## Autoridade e segredos
+Comandos principais:
 
-- Apenas o responsável pelo projeto e mantenedores explicitamente autorizados
-  podem alterar banco, histórico de migrations ou Edge Functions.
-- Segredos de funções ficam no painel/secret store do Supabase do respectivo
-  ambiente.
-- Segredos de automação ficam em GitHub Actions Secrets/Environments.
-- Segredos locais ficam somente em arquivos ignorados pelo Git.
-- Valores de `service_role`, tokens, senhas, cookies e conteúdo de `.env` nunca
-  entram em commits, logs, testes, documentação ou Pull Requests.
+| Ação | Homologação | Produção |
+| --- | --- | --- |
+| Abrir aplicativo | `npm run start:staging` | `npm run start:production` |
+| Abrir aplicativo web | `npm run web:staging` | `npm run web:production` |
+| Gerar app web | `npm run build:staging` | `npm run build:production` |
+| Abrir site | `npm run site:staging` | `npm run site:production` |
+| Gerar site | `npm run site:build:staging` | `npm run site:build:production` |
+| Abrir administração | `npm run admin:staging` | `npm run admin:production` |
 
-## Controles antes de lançamento
+Cada comando deriva o endereço do arquivo canônico
+`contracts/deployment-environment.ts`, aceita apenas chave `sb_publishable_`
+e consulta o projeto antes de iniciar. Um projeto não pode ser usado no perfil do
+outro.
 
-- Provisionar homologação e produção como projetos separados.
-- Configurar proteção e aprovadores no GitHub Environment de produção.
-- Ativar proteção contra senhas vazadas no Auth do Supabase.
-- Registrar responsáveis e um procedimento de recuperação por ambiente.
-- Confirmar que cada Edge Function publicada possui commit, hash e versão no
-  relatório de reconciliação.
+## Builds EAS
+
+`eas.json` possui perfis separados `staging` e `production`. A chave publicável
+deve ser cadastrada no ambiente EAS correspondente com o nome
+`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; ela não fica no repositório. A URL e o
+papel já estão fixados no perfil.
+
+## Banco e promoção
+
+1. Toda mudança de banco nasce como migration versionada.
+2. A migration entra primeiro na homologação.
+3. Login, leitura, escrita e RLS são testados somente com dados descartáveis.
+4. O Pull Request passa por `npm run check` e revisão humana.
+5. A mesma migration pode ser aplicada à produção somente após aprovação e novo
+   backup manual.
+6. As 707 questões não fazem parte desta configuração e não são copiadas.
+
+Auth, Storage, tabelas, usuários e Edge Functions são próprios de cada projeto.
+Segredos de funções ficam no painel do respectivo ambiente. O app, o site e o
+painel administrativo recebem somente chaves publicáveis.
+
+As Edge Functions de pagamento continuam somente na produção. Elas não devem ser
+publicadas na homologação até existirem credenciais de teste próprias do provedor;
+credenciais reais nunca podem ser reutilizadas nesse ambiente. Login, leitura,
+gravação e RLS já foram validados na homologação com uma conta descartável, removida
+ao fim do teste.
+
+## Limitação conhecida
+
+O plano Free não oferece backup automático e limita a conta a dois projetos
+ativos. Antes de escalar, o recomendado é migrar a produção para um projeto com
+nome definitivo e backups diários, mantendo esta homologação separada.
+
+A proteção contra senhas vazadas também precisa ser ativada manualmente na produção
+quando o recurso estiver disponível no plano contratado. Essa pendência não altera
+a separação dos ambientes, mas deve ser resolvida antes do lançamento público.

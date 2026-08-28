@@ -54,7 +54,8 @@ test('rotas privadas são excluídas de indexação no robots', async () => {
 
 test('integrações web reutilizam RPCs seguras e apenas a chave pública', async () => {
   const service = await source('src/services/supabase.ts');
-  assert.match(service, /VITE_SUPABASE_ANON_KEY/);
+  assert.match(service, /VITE_SUPABASE_PUBLISHABLE_KEY/);
+  assert.match(service, /VITE_KAD_ENV/);
   assert.match(service, /rpc\('record_question_attempt'/);
   assert.match(service, /rpc\('submit_user_feedback'/);
   assert.match(service, /create-payment-checkout/);
