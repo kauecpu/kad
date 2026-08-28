@@ -42,6 +42,9 @@ const light = {
   accent: '#6D28D9',
   accentSoft: '#F3EEFF',
 
+  insight: '#0F766E',
+  insightSoft: '#E6F7F5',
+
   tabActive: '#7657F6',
   tabInactive: '#6B7787',
   tabActiveSurface: '#F3EEFF',
@@ -85,6 +88,9 @@ const dark: ThemeColors = {
 
   accent: '#A78BFA',
   accentSoft: '#251F3D',
+
+  insight: '#2DD4BF',
+  insightSoft: '#10302C',
 
   tabActive: '#A78BFA',
   tabInactive: '#8D9AA8',
