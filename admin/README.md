@@ -50,6 +50,11 @@ Questões recebidas pelo mesmo contrato entram como rascunhos e podem ser revisa
 ser revisada e publicada sem explicação. Se houver comentário, sua origem e revisão ficam
 registradas. Reimportar a mesma questão sem comentário não apaga um comentário existente.
 
+Selecione questões e use **Aprovar**, **Publicar** ou **Retirar**. Toda ação abre uma prévia
+individual com os impedimentos encontrados. Publicação exige `content.publish`; retirada arquiva
+sem apagar. Se o conteúdo for editado depois da aprovação, a aprovação é invalidada e precisa ser
+feita novamente.
+
 ## Segurança
 
 - O navegador utiliza somente a chave publicável.

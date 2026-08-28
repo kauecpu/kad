@@ -104,13 +104,45 @@ export type AdminQuestion = {
   explanationPromptVersion?: string;
   difficulty?: 'Fácil' | 'Média' | 'Difícil';
   publicationStatus: PublicationStatus;
+  editorialApprovedAt?: string;
+  editorialApprovedBy?: string;
   publishedAt?: string;
+  publishedBy?: string;
+  withdrawnAt?: string;
+  withdrawnBy?: string;
+  publicationBlockers: string[];
+  hasOfficialAnswerEvidence: boolean;
   sourceProvider?: string;
   sourceExternalId?: string;
   sourceUrl?: string;
   sourceCollectedAt?: string;
   importBatchId?: string;
   updatedAt: string;
+};
+
+export type QuestionPublicationAction = 'approve' | 'publish' | 'withdraw';
+
+export type QuestionPublicationPreviewItem = {
+  id: string;
+  currentStatus?: PublicationStatus;
+  targetStatus: PublicationStatus;
+  blockers: string[];
+  canApply: boolean;
+};
+
+export type QuestionPublicationPreview = {
+  action: QuestionPublicationAction;
+  requestedCount: number;
+  eligibleCount: number;
+  blockedCount: number;
+  previewFingerprint: string;
+  items: QuestionPublicationPreviewItem[];
+};
+
+export type QuestionPublicationResult = {
+  action: QuestionPublicationAction;
+  appliedCount: number;
+  blockedCount: number;
 };
 
 export type EditorialImportKind = 'concurso' | 'question';
