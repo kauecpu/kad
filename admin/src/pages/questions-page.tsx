@@ -35,12 +35,23 @@ const ACTION_LABEL: Record<QuestionPublicationAction, string> = {
   approve: 'aprovação', publish: 'publicação', withdraw: 'retirada',
 };
 
+const MAX_PUBLICATION_BATCH = 500;
+
+function splitIntoBatches<T>(items: T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    batches.push(items.slice(index, index + size));
+  }
+  return batches;
+}
+
 export function QuestionsPage() {
   const { access, isPreview } = useAuth();
   const [questions, setQuestions] = useState<AdminQuestion[]>([]);
   const [editing, setEditing] = useState<AdminQuestion | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<QuestionPublicationPreview | null>(null);
+  const [previewBatches, setPreviewBatches] = useState<QuestionPublicationPreview[]>([]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | PublicationStatus>('all');
   const [loading, setLoading] = useState(!isPreview);
@@ -104,31 +115,56 @@ export function QuestionsPage() {
     setBusy(true);
     setError(null);
     try {
-      setPreview(await previewQuestionPublication([...selected], action));
+      const batches = [] as QuestionPublicationPreview[];
+      for (const ids of splitIntoBatches([...selected], MAX_PUBLICATION_BATCH)) {
+        batches.push(await previewQuestionPublication(ids, action));
+      }
+      const first = batches[0];
+      setPreviewBatches(batches);
+      setPreview({
+        action,
+        requestedCount: batches.reduce((total, batch) => total + batch.requestedCount, 0),
+        eligibleCount: batches.reduce((total, batch) => total + batch.eligibleCount, 0),
+        blockedCount: batches.reduce((total, batch) => total + batch.blockedCount, 0),
+        previewFingerprint: batches.map((batch) => batch.previewFingerprint).join('|'),
+        items: batches.flatMap((batch) => batch.items),
+      });
+      if (!first) throw new Error('Nenhum lote selecionado.');
     } catch {
       setError('Não foi possível preparar a prévia. Atualize a página e tente novamente.');
+      setPreview(null);
+      setPreviewBatches([]);
     } finally {
       setBusy(false);
     }
   };
 
   const applyPreview = async () => {
-    if (!preview?.eligibleCount) return;
+    if (!preview?.eligibleCount || !previewBatches.length) return;
     setBusy(true);
     setError(null);
     try {
-      const result = await applyQuestionPublication(
-        preview.items.map((item) => item.id),
-        preview.action,
-        preview.previewFingerprint,
-      );
-      setNotice(`${result.appliedCount} questão(ões) concluída(s); ${result.blockedCount} permaneceram sem alteração.`);
+      let appliedCount = 0;
+      let blockedCount = 0;
+      for (const batch of previewBatches) {
+        if (!batch.eligibleCount) continue;
+        const result = await applyQuestionPublication(
+          batch.items.map((item) => item.id),
+          batch.action,
+          batch.previewFingerprint,
+        );
+        appliedCount += result.appliedCount;
+        blockedCount += result.blockedCount;
+      }
+      setNotice(`${appliedCount} questão(ões) concluída(s); ${blockedCount} permaneceram sem alteração.`);
       setPreview(null);
+      setPreviewBatches([]);
       setSelected(new Set());
       await refresh();
     } catch {
       setError('A prévia expirou ou o ambiente não confere. Gere uma nova prévia.');
       setPreview(null);
+      setPreviewBatches([]);
     } finally {
       setBusy(false);
     }
@@ -159,7 +195,7 @@ export function QuestionsPage() {
       {loading ? <div className="content-empty">Carregando questões…</div> : filtered.length === 0 ? <div className="content-empty"><BookOpenCheck size={28}/><strong>Nenhuma questão encontrada</strong><span>Envie um lote em Importações ou ajuste os filtros.</span></div> : <div className="editorial-table-shell"><table className="editorial-table question-publication-table"><thead><tr><th><input type="checkbox" checked={allFilteredSelected} onChange={toggleFiltered} aria-label="Selecionar questões visíveis"/></th><th>Questão</th><th>Banca / ano</th><th>Validação</th><th>Publicação</th><th/></tr></thead><tbody>{filtered.map((question) => <tr key={question.id} className={selected.has(question.id) ? 'row-selected' : undefined}><td><input type="checkbox" checked={selected.has(question.id)} onChange={() => toggleSelected(question.id)} aria-label={`Selecionar ${question.id}`}/></td><td><div className="question-cell"><strong>{question.discipline} · {question.subject}</strong><span>{question.topic}</span><small>{question.statement}</small></div></td><td>{question.board} · {question.year}</td><td>{question.publicationBlockers.length ? <span className="validation-summary validation-summary--blocked">{question.publicationBlockers.length} impedimento(s)</span> : <span className="validation-summary validation-summary--ready"><CheckCircle2 size={13}/> Pronta</span>}</td><td><span className={`publication-pill publication-pill--${question.publicationStatus}`}>{PUBLICATION_LABEL[question.publicationStatus]}</span></td><td><div className="row-actions"><button type="button" onClick={() => setEditing(structuredClone(question))} disabled={!canWrite} aria-label={`Editar ${question.id}`}><FilePenLine size={17}/></button></div></td></tr>)}</tbody></table></div>}
     </section>
     {editing ? <QuestionEditor question={editing} onClose={() => setEditing(null)} onSave={save}/> : null}
-    {preview ? <PublicationPreviewDialog preview={preview} busy={busy} onClose={() => setPreview(null)} onApply={applyPreview}/> : null}
+    {preview ? <PublicationPreviewDialog preview={preview} busy={busy} onClose={() => { setPreview(null); setPreviewBatches([]); }} onApply={applyPreview}/> : null}
   </div>;
 }
 
