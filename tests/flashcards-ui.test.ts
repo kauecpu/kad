@@ -13,6 +13,8 @@ test('rota Flashcards existe e oferece criação e revisão', () => {
   assert.match(source, /Revisar agora/);
   assert.match(source, /Errei/);
   assert.match(source, /Fácil/);
+  assert.match(source, /Arquivados/);
+  assert.match(source, /Restaurar/);
 });
 
 test('catálogo e drawer exibem Flashcards como função própria', () => {
