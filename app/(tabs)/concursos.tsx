@@ -236,7 +236,7 @@ export default function ConcursosScreen() {
         actionLabel="Ver oportunidades"
         intensity="strong"
         visual="faceted"
-        artwork={<KadCardArtwork />}
+        artwork={<KadCardArtwork variant="diamond" />}
         compact
       />
     </View>

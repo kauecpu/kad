@@ -246,7 +246,7 @@ export default function SimulationsScreen() {
           description="Escolha conteúdo, quantidade de questões e tempo de prova."
           intensity="strong"
           visual="faceted"
-          artwork={<KadCardArtwork />}
+          artwork={<KadCardArtwork variant="ribbon" />}
           accessory={(
             <Badge
               label={

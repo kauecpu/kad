@@ -346,7 +346,7 @@ function TopicSelection({
           description={`Explore ${disclosure.total} ${disclosure.total === 1 ? 'proposta preparada' : 'propostas preparadas'} para praticar do planejamento à revisão.`}
           intensity="strong"
           visual="faceted"
-          artwork={<KadCardArtwork />}
+          artwork={<KadCardArtwork variant="signal" />}
           accessory={<Badge label="Prática guiada" tone="accent" />}
         />
       ) : null}
@@ -477,7 +477,7 @@ function FeaturedTopicCard({
       description={`${pack?.name ?? 'Concurso'} · ${topic.category}. Uma proposta selecionada para aproximar sua prática da meta atual.`}
       intensity="strong"
       visual="faceted"
-      artwork={<KadCardArtwork />}
+      artwork={<KadCardArtwork variant="signal" />}
       accessory={<Badge label="Recomendado" tone="accent" />}>
       <View style={styles.topicMeta}>
         <Meta icon="speedometer-outline" label={topic.difficulty} />

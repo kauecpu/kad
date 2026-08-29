@@ -197,7 +197,7 @@ export default function QuestionsScreen() {
         description="Navegue por matéria ou encontre uma questão específica."
         intensity="strong"
         visual="faceted"
-        artwork={<KadCardArtwork />}
+        artwork={<KadCardArtwork variant="wave" />}
         compact>
         <Segmented options={STUDY_OPTIONS} value={studyMode} onChange={setStudyMode} />
         <Pressable

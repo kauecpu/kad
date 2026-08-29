@@ -98,7 +98,7 @@ test('os demais destaques usam a mesma família sem substituir o cartão de perf
 test('o destaque principal usa a assinatura facetada em cada jornada', () => {
   for (const screen of [home, questions, concursos, simulations, trails, essays]) {
     assert.match(screen, /visual="faceted"/);
-    assert.match(screen, /artwork=\{<KadCardArtwork \/>\}/);
+    assert.match(screen, /artwork=\{<KadCardArtwork variant="/);
   }
   assert.match(ranking, /tone="achievement"/);
   assert.doesNotMatch(ranking, /visual="faceted"/);

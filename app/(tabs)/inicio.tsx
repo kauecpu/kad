@@ -137,7 +137,7 @@ export function HomeContent() {
           accessibilityLabel={`${primaryAction.title}. ${primaryAction.description}`}
           intensity="strong"
           visual="faceted"
-          artwork={<KadCardArtwork />}
+          artwork={<KadCardArtwork variant="stack" />}
           tone={primaryVisual.tone}
           icon={
             primaryAction.route === '/meta'

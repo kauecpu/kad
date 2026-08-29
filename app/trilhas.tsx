@@ -337,7 +337,7 @@ export default function TrailsScreen() {
           }
           intensity="strong"
           visual="faceted"
-          artwork={<KadCardArtwork />}
+          artwork={<KadCardArtwork variant="layers" />}
         >
           <View style={[styles.heroFooter, isDesktop && styles.heroFooterDesktop]}>
             {heroTrack ? (

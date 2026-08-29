@@ -39,3 +39,4 @@ Resumo para telas em que uma métrica responde à pergunta principal e as demais
 - `brandTrace` para linhas e transparências discretas.
 
 A arte nunca carrega informação, não recebe toque e fica fora da árvore de acessibilidade. Use no máximo um destaque facetado por tela. Cards de lista, métricas e estados semânticos permanecem neutros.
+`KadCardArtwork` oferece variações geométricas (`stack`, `wave`, `diamond`, `ribbon`, `layers` e `signal`); cada tela escolhe uma composição própria sem transformar a arte em ícone funcional.
