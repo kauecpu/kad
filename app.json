@@ -9,12 +9,14 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.kad.app",
       "supportsTablet": true,
       "config": {
         "usesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.kad.app",
       "adaptiveIcon": {
         "backgroundColor": "#7027E8",
         "foregroundImage": "./assets/images/kad-icon-v4.png"
@@ -47,7 +49,8 @@
             "backgroundColor": "#FFFFFF"
           }
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true,
