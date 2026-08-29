@@ -617,6 +617,12 @@ function setPublicAuthMode(dialog: HTMLDialogElement, requestedMode?: string): v
 document.addEventListener('click', async (event) => {
   const source = event.target instanceof Element ? event.target : null;
   if (!source) return;
+  const skipLink = source.closest<HTMLAnchorElement>('.skip-link');
+  if (skipLink) {
+    event.preventDefault();
+    document.querySelector<HTMLElement>(skipLink.hash)?.focus();
+    return;
+  }
   const routeElement = source.closest<HTMLElement>('[data-route]');
   if (routeElement && (!(routeElement instanceof HTMLButtonElement) || !routeElement.disabled)) {
     const routeTarget = routeElement.dataset.route;

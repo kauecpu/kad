@@ -54,6 +54,7 @@ export function publicLayout(content: string, { simple = false, dark = false }: 
 
 export function appLayout(content: string, { pathname, title, subtitle, state }: { pathname: string; title: string; subtitle?: string; state: SiteState }): string {
   const profile = state.profile;
+  const dark = document.documentElement.dataset.theme === 'dark';
   return `
     <div class="app-shell">
       <aside class="sidebar" id="main-navigation">
@@ -84,7 +85,7 @@ export function appLayout(content: string, { pathname, title, subtitle, state }:
           <div class="topbar__title"><h1>${escapeHtml(title)}</h1>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div>
           <div class="topbar__actions">
             <button class="desktop-search" type="button" data-route="/questoes/buscar">${icon('Search')}<span>Buscar questões</span><kbd>Ctrl K</kbd></button>
-            <button class="icon-button" type="button" data-action="toggle-theme" aria-label="Alternar tema">${icon('Sun')}</button>
+            <button class="icon-button" type="button" data-action="toggle-theme" aria-label="Ativar tema ${dark ? 'claro' : 'escuro'}" aria-pressed="${dark}">${icon(dark ? 'Moon' : 'Sun')}</button>
             <button class="avatar-button" type="button" data-route="/perfil" aria-label="Abrir perfil">${avatar(profile.name, 'sm')}</button>
           </div>
         </header>

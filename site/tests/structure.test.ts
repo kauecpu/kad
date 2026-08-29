@@ -179,3 +179,29 @@ test('página pública usa navegação por seções, tema e acesso em janela', a
   assert.match(styles, /\.public-section-nav a\.is-active/);
   assert.match(styles, /\.public-auth-dialog::backdrop/);
 });
+
+test('início interno adota composição editorial com navegação lateral preservada', async () => {
+  const [home, layout, styles, metadata, main] = await Promise.all([
+    source('src/views/home.ts'),
+    source('src/ui/layout.ts'),
+    source('src/styles/app.css'),
+    source('src/services/metadata.ts'),
+    source('src/main.ts'),
+  ]);
+
+  assert.match(layout, /<aside class="sidebar"/);
+  assert.match(layout, /<main id="conteudo" class="page-content"/);
+  assert.match(layout, /aria-label="Ativar tema \$\{dark \? 'claro' : 'escuro'\}"/);
+  assert.match(home, /class="home-intro"/);
+  assert.match(home, /class="home-action-list"/);
+  assert.match(home, /class="home-workspace"/);
+  assert.match(home, /<aside class="home-workspace__aside"/);
+  assert.doesNotMatch(home, /class="hero-card"/);
+  assert.doesNotMatch(home, /class="action-grid"/);
+  assert.match(styles, /\.home-workspace \{[^}]+grid-template-columns:/);
+  assert.match(styles, /\.home-action-row \{[^}]+border-bottom:/);
+  assert.match(styles, /@media \(max-width: 680px\)[\s\S]+\.home-workspace__aside \{ grid-template-columns: 1fr; \}/);
+  assert.match(metadata, /indexable = false/);
+  assert.match(main, /source\.closest<HTMLAnchorElement>\('\.skip-link'\)/);
+  assert.match(main, /document\.querySelector<HTMLElement>\(skipLink\.hash\)\?\.focus\(\)/);
+});
