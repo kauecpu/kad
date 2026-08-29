@@ -94,7 +94,7 @@ test('layout web usa autenticação dividida, resumos compactos e comentários l
   assert.match(publicView, /auth-page auth-page--split/);
   assert.match(publicView, /auth-story__slides/);
   assert.match(publicView, /auth-card auth-card--portal/);
-  assert.match(questionsView, /summary-grid summary-grid--strip/);
+  assert.match(questionsView, /home-metrics page-metrics/);
   assert.match(questionsView, /discipline-card__copy/);
   assert.match(questionsView, /<textarea class="textarea"[^>]+rows="3"/);
   assert.match(styles, /\.comment-form \.button \{ width: 100%; \}/);
@@ -139,7 +139,9 @@ test('melhorias de interface preservam semântica, privacidade e linguagem de pr
   ]);
 
   assert.match(components, /data-action="toggle-password"/);
-  assert.match(publicView, /continuar como visitante/i);
+  assert.match(publicView, /data-public-auth-visitor/);
+  assert.match(publicView, /action: 'continue-visitor'/);
+  assert.match(publicView, /Acessar como visitante/);
   assert.doesNotMatch(publicView, /Supabase ainda não estiver configurado/);
   assert.match(layout, /stack-header[\s\S]+<h2>/);
   assert.doesNotMatch(layout, /stack-header[\s\S]+<h1>/);
@@ -149,4 +151,104 @@ test('melhorias de interface preservam semântica, privacidade e linguagem de pr
   assert.doesNotMatch(simulationsView, /versão web|Frontend|Treino fiel ao app/);
   assert.match(styles, /--text-subtle: #5f6c7d/);
   assert.match(styles, /scroll-padding-bottom/);
+});
+
+test('página pública usa navegação por seções, tema e acesso em janela', async () => {
+  const [publicView, layout, main, styles] = await Promise.all([
+    source('src/views/public.ts'),
+    source('src/ui/layout.ts'),
+    source('src/main.ts'),
+    source('src/styles/app.css'),
+  ]);
+
+  for (const target of ['kad-about', 'kad-how', 'kad-tools', 'kad-contests', 'kad-plans', 'kad-faq']) {
+    assert.match(layout, new RegExp(`data-public-section-target="${target}"`));
+    assert.match(publicView, new RegExp(`id="${target}"`));
+  }
+  assert.match(layout, />Dúvidas<\/a>/);
+  assert.match(layout, /className: 'public-header__login'/);
+  assert.doesNotMatch(layout, /button\('Entrar',[\s\S]+iconName: 'LogIn'/);
+  assert.match(publicView, /data-public-auth-dialog/);
+  assert.match(publicView, /data-public-auth-form="login"/);
+  assert.match(publicView, /data-public-auth-form="signup"/);
+  assert.match(publicView, /data-public-auth-visitor/);
+  assert.match(layout, /data-action="toggle-theme"/);
+  assert.match(main, /setupWelcomeNavigation/);
+  assert.match(main, /visitorAccess\.hidden = mode !== 'login'/);
+  assert.match(main, /aria-current', 'location'/);
+  assert.match(styles, /\.public-section-nav a\.is-active/);
+  assert.match(styles, /\.public-auth-dialog::backdrop/);
+});
+
+test('início interno adota composição editorial com navegação lateral preservada', async () => {
+  const [home, layout, styles, metadata, main] = await Promise.all([
+    source('src/views/home.ts'),
+    source('src/ui/layout.ts'),
+    source('src/styles/app.css'),
+    source('src/services/metadata.ts'),
+    source('src/main.ts'),
+  ]);
+
+  assert.match(layout, /<aside class="sidebar"/);
+  assert.match(layout, /<main id="conteudo" class="page-content"/);
+  assert.match(layout, /aria-label="Ativar tema \$\{dark \? 'claro' : 'escuro'\}"/);
+  assert.match(home, /class="home-intro"/);
+  assert.match(home, /class="home-action-list"/);
+  assert.match(home, /class="home-workspace"/);
+  assert.match(home, /<aside class="home-workspace__aside"/);
+  assert.doesNotMatch(home, /class="hero-card"/);
+  assert.doesNotMatch(home, /class="action-grid"/);
+  assert.match(styles, /\.home-workspace \{[^}]+grid-template-columns:/);
+  assert.match(styles, /\.home-action-row \{[^}]+border-bottom:/);
+  assert.match(styles, /@media \(max-width: 680px\)[\s\S]+\.home-workspace__aside \{ grid-template-columns: 1fr; \}/);
+  assert.match(metadata, /indexable = false/);
+  assert.match(main, /source\.closest<HTMLAnchorElement>\('\.skip-link'\)/);
+  assert.match(main, /document\.querySelector<HTMLElement>\(skipLink\.hash\)\?\.focus\(\)/);
+});
+
+test('áreas internas compartilham padrão editorial sem perder estruturas específicas', async () => {
+  const [components, questions, simulations, explore, profile, styles] = await Promise.all([
+    source('src/ui/components.ts'),
+    source('src/views/questions.ts'),
+    source('src/views/simulations.ts'),
+    source('src/views/explore.ts'),
+    source('src/views/profile.ts'),
+    source('src/styles/app.css'),
+  ]);
+  const internalViews = `${questions}${simulations}${explore}${profile}`;
+
+  assert.match(components, /export function workspaceHero/);
+  for (const view of [questions, simulations, explore, profile]) assert.match(view, /workspaceHero\(/);
+  assert.doesNotMatch(internalViews, /hero-card/);
+  assert.match(questions, /class="filter-bar filter-panel"/);
+  assert.match(explore, /filter-panel--contest/);
+  assert.match(profile, /filter-panel--short/);
+  assert.doesNotMatch(questions, /class="sr-only" for="question-(keyword|discipline|board|status)"/);
+  assert.doesNotMatch(explore, /class="sr-only" for="contest-(q|status|region)"/);
+  assert.match(profile, /class="form-page"/);
+  assert.match(styles, /\.app-shell \.card \{[^}]+box-shadow: none/);
+  assert.match(styles, /\.workspace-hero \{[^}]+border-top: 3px solid var\(--primary\)/);
+  assert.match(styles, /\.result-list \{[^}]+border-block:/);
+});
+
+test('build do site inclui o adaptador e o fallback exigidos pela hospedagem', async () => {
+  const [packageJson, viteConfig, worker, wranglerConfig, hostingConfig, seoScript] = await Promise.all([
+    source('package.json'),
+    source('vite.config.ts'),
+    source('server/index.ts'),
+    source('wrangler.jsonc'),
+    source('.openai/hosting.json'),
+    source('scripts/postbuild-seo.ts'),
+  ]);
+
+  assert.match(packageJson, /@openai\/sites-vite-plugin/);
+  assert.match(packageJson, /@cloudflare\/vite-plugin/);
+  assert.match(viteConfig, /plugins: \[sites\(\), cloudflare\(/);
+  assert.match(viteConfig, /viteEnvironment: \{ name: 'server' \}/);
+  assert.match(worker, /env\.ASSETS\.fetch/);
+  assert.match(worker, /new URL\('\/'/);
+  assert.match(wranglerConfig, /"binding": "ASSETS"/);
+  assert.match(wranglerConfig, /"not_found_handling": "single-page-application"/);
+  assert.match(seoScript, /dist\/client\/index\.html/);
+  assert.match(hostingConfig, /"project_id": "appgprj_[a-f0-9]+"/);
 });

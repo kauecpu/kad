@@ -9,7 +9,7 @@ import {
   slugify,
   unique,
 } from '../core/utils.ts';
-import { badge, button, card, emptyState, icon, progress, section } from '../ui/components.ts';
+import { badge, button, card, emptyState, icon, progress, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
 import type { Question, SiteState, UiState, ViewModel } from '../types/domain.ts';
 
@@ -23,13 +23,12 @@ function questionCountLabel(count: number): string {
 
 function questionResultCard(question: Question, state: SiteState): string {
   const answer = state.answers[question.id];
-  return card(`
-    <button class="list-row" type="button" data-action="open-question" data-question-id="${escapeHtml(question.id)}">
+  return `<button class="list-row result-row" type="button" data-action="open-question" data-question-id="${escapeHtml(question.id)}">
       <span class="list-row__icon">${icon(answer ? (answer.isCorrect ? 'CheckCircle2' : 'XCircle') : 'BookOpen')}</span>
       <span class="list-row__copy"><strong>${escapeHtml(question.topic)}</strong><span>${escapeHtml(question.discipline)} · ${escapeHtml(question.board)} · ${question.year}</span></span>
       ${answer ? badge(answer.isCorrect ? 'Acertada' : 'Errada', answer.isCorrect ? 'success' : 'danger') : badge(question.difficulty)}
       ${icon('ChevronRight')}
-    </button>`);
+    </button>`;
 }
 
 export function questionsIndexView(state: SiteState): ViewModel {
@@ -45,29 +44,25 @@ export function questionsIndexView(state: SiteState): ViewModel {
     </button>`;
   }).join('');
   const progressSummary = performance.total ? `
-      <div class="summary-grid summary-grid--strip" aria-label="Seu progresso nas questões">
-        ${card(`<div class="card--padded"><strong>${performance.total}</strong><p class="muted">respondidas</p></div>`)}
-        ${card(`<div class="card--padded"><strong>${formatPercent(performance.accuracy)}</strong><p class="muted">taxa de acerto</p></div>`)}
-        ${card(`<div class="card--padded"><strong>${performance.correct}</strong><p class="muted">acertadas</p></div>`)}
-        ${card(`<div class="card--padded"><strong>${state.favorites.length}</strong><p class="muted">favoritas</p></div>`)}
-      </div>` : '';
+      <section class="home-metrics page-metrics" aria-label="Seu progresso nas questões">
+        ${stat(String(performance.total), 'Respondidas', 'BookOpen')}
+        ${stat(formatPercent(performance.accuracy), 'Taxa de acerto', 'TrendingUp', 'success')}
+        ${stat(String(performance.correct), 'Acertadas', 'CheckCircle2', 'success')}
+        ${stat(String(state.favorites.length), 'Favoritas', 'Bookmark', 'warning')}
+      </section>` : '';
 
   return {
     title: 'Questões',
     subtitle: `${questions.length} questões disponíveis para praticar`,
     content: `
-      ${card(`
-        <div class="hero-card__content">
-          <p class="eyebrow">EXPLORAR QUESTÕES</p>
-          <h2>Escolha como estudar.</h2>
-          <p>Filtre o banco inteiro, avance por disciplina ou pratique um concurso específico.</p>
-          <div class="welcome__actions">
-            ${button('Procurar questões', { route: '/questoes/buscar', iconName: 'Search' })}
-            ${button('Desafio rápido', { route: '/questoes/desafio', variant: 'secondary', iconName: 'Zap' })}
-          </div>
-        </div>
-        <div class="hero-card__art"><img src="/assets/kad-mascot-practice.png" alt="" width="300" height="300" /></div>
-      `, 'hero-card hero-card--task')}
+      ${workspaceHero({
+        id: 'questions-overview',
+        eyebrow: 'EXPLORAR QUESTÕES',
+        title: 'Escolha como estudar.',
+        description: 'Filtre o banco inteiro, avance por disciplina ou pratique um concurso específico.',
+        actions: `${button('Procurar questões', { route: '/questoes/buscar', iconName: 'Search' })}${button('Desafio rápido', { route: '/questoes/desafio', variant: 'secondary', iconName: 'Zap' })}`,
+        imageSrc: '/assets/kad-mascot-practice.png',
+      })}
       ${section('Estudar por disciplina', `<div class="discipline-grid">${disciplineCards}</div>`, { eyebrow: 'BANCO DE QUESTÕES' })}
       ${progressSummary}
       ${section('Revisar', `<div class="action-grid">
@@ -97,7 +92,7 @@ export function disciplineView(slug: string, state: SiteState): ViewModel {
     content: `
       ${stackHeader(discipline.name, questionCountLabel(available.length))}
       ${card(`<div class="detail-panel"><div><p class="eyebrow">SESSÃO GERAL</p><h2>Praticar todos os assuntos</h2></div><p class="muted">Misture as questões disponíveis desta disciplina em uma única sessão.</p>${button('Começar sessão', { route: `/questoes/sessao?discipline=${encodeURIComponent(discipline.name)}`, iconName: 'Play' })}</div>`)}
-      ${section('Escolha um assunto', card(`<div class="list">${topicRows}</div>`))}
+      ${section('Escolha um assunto', `<div class="result-list">${topicRows}</div>`)}
     `,
   };
 }
@@ -123,15 +118,15 @@ export function searchView(state: SiteState, params: ViewParams = {}): ViewModel
     subtitle: 'Combine filtros para montar sua prática',
     content: `
       ${stackHeader('Procurar questões', 'Use um ou mais filtros')}
-      ${card(`<form class="filter-bar card--padded" data-form="question-search">
-        <div class="field"><label class="sr-only" for="question-keyword">Palavra-chave</label><input class="input" id="question-keyword" name="keyword" value="${escapeHtml(params.keyword ?? '')}" placeholder="Enunciado, assunto, banca ou cargo" /></div>
-        <div class="field"><label class="sr-only" for="question-discipline">Disciplina</label><select class="select" id="question-discipline" name="discipline"><option value="">Todas as disciplinas</option>${disciplines.map((item) => `<option value="${escapeHtml(item.name)}" ${params.discipline === item.name ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
-        <div class="field"><label class="sr-only" for="question-board">Banca</label><select class="select" id="question-board" name="board"><option value="">Todas as bancas</option>${boards.map((item) => `<option value="${escapeHtml(item)}" ${params.board === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')}</select></div>
-        <div class="field"><label class="sr-only" for="question-status">Situação</label><select class="select" id="question-status" name="status"><option value="">Qualquer situação</option><option value="unanswered" ${params.status === 'unanswered' ? 'selected' : ''}>Não respondidas</option><option value="correct" ${params.status === 'correct' ? 'selected' : ''}>Acertadas</option><option value="wrong" ${params.status === 'wrong' ? 'selected' : ''}>Erradas</option></select></div>
+      <form class="filter-bar filter-panel" data-form="question-search">
+        <div class="field"><label for="question-keyword">Palavra-chave</label><input class="input" id="question-keyword" name="keyword" value="${escapeHtml(params.keyword ?? '')}" placeholder="Enunciado, assunto, banca ou cargo" /></div>
+        <div class="field"><label for="question-discipline">Disciplina</label><select class="select" id="question-discipline" name="discipline"><option value="">Todas as disciplinas</option>${disciplines.map((item) => `<option value="${escapeHtml(item.name)}" ${params.discipline === item.name ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
+        <div class="field"><label for="question-board">Banca</label><select class="select" id="question-board" name="board"><option value="">Todas as bancas</option>${boards.map((item) => `<option value="${escapeHtml(item)}" ${params.board === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')}</select></div>
+        <div class="field"><label for="question-status">Situação</label><select class="select" id="question-status" name="status"><option value="">Qualquer situação</option><option value="unanswered" ${params.status === 'unanswered' ? 'selected' : ''}>Não respondidas</option><option value="correct" ${params.status === 'correct' ? 'selected' : ''}>Acertadas</option><option value="wrong" ${params.status === 'wrong' ? 'selected' : ''}>Erradas</option></select></div>
         ${button('Buscar', { type: 'submit', iconName: 'Search' })}
-      </form>`)}
+      </form>
       <div class="toolbar"><div><p class="eyebrow">RESULTADOS</p><h2>${questionCountLabel(filtered.length)}</h2></div>${filtered.length ? button('Estudar resultados', { action: 'study-search-results', iconName: 'Play', attrs: `data-search="${escapeHtml(serializedParams.toString())}"` }) : ''}</div>
-      ${filtered.length ? `<div class="dashboard-main">${filtered.slice(0, 40).map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState(hasSearch ? 'Nenhuma questão encontrada' : 'Seu banco inteiro está pronto', hasSearch ? 'Tente remover um filtro ou usar termos mais amplos.' : 'Use os filtros acima ou comece com todas as questões.', { action: 'study-all-questions', actionLabel: 'Praticar todas' })}
+      ${filtered.length ? `<div class="dashboard-main result-list">${filtered.slice(0, 40).map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState(hasSearch ? 'Nenhuma questão encontrada' : 'Seu banco inteiro está pronto', hasSearch ? 'Tente remover um filtro ou usar termos mais amplos.' : 'Use os filtros acima ou comece com todas as questões.', { action: 'study-all-questions', actionLabel: 'Praticar todas' })}
     `,
   };
 }
@@ -150,7 +145,7 @@ export function reviewView(type: string | undefined, state: SiteState): ViewMode
   return {
     title,
     subtitle,
-    content: `${stackHeader(title, questionCountLabel(filtered.length))}${filtered.length ? `<div class="dashboard-main">${filtered.map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState('Nada para revisar agora', 'Continue praticando e volte quando houver questões nesta lista.', { route: '/questoes', actionLabel: 'Praticar questões' })}`,
+    content: `${stackHeader(title, questionCountLabel(filtered.length))}${filtered.length ? `<div class="dashboard-main result-list">${filtered.map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState('Nada para revisar agora', 'Continue praticando e volte quando houver questões nesta lista.', { route: '/questoes', actionLabel: 'Praticar questões' })}`,
   };
 }
 

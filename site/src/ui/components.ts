@@ -82,6 +82,27 @@ export function section(title: string, content: string, { eyebrow = '', action =
     </section>`;
 }
 
+export type WorkspaceHeroOptions = {
+  id: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  actions?: string;
+  imageSrc?: string;
+};
+
+export function workspaceHero({ id, eyebrow, title, description, actions = '', imageSrc = '' }: WorkspaceHeroOptions): string {
+  return `<section class="workspace-hero" aria-labelledby="${escapeHtml(id)}">
+    <div class="workspace-hero__copy">
+      <p class="eyebrow">${escapeHtml(eyebrow)}</p>
+      <h2 id="${escapeHtml(id)}">${escapeHtml(title)}</h2>
+      <p>${escapeHtml(description)}</p>
+      ${actions ? `<div class="workspace-hero__actions">${actions}</div>` : ''}
+    </div>
+    ${imageSrc ? `<figure class="workspace-hero__visual" aria-hidden="true"><span class="workspace-hero__orbit"></span><img src="${escapeHtml(imageSrc)}" alt="" width="240" height="240" /></figure>` : ''}
+  </section>`;
+}
+
 export function stat(value: string, label: string, iconName: string, tone = 'primary'): string {
   return `<div class="stat"><span class="stat__icon stat__icon--${escapeHtml(tone)}">${icon(iconName)}</span><div><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div></div>`;
 }
