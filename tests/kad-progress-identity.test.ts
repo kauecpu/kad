@@ -141,8 +141,9 @@ test('o estado ativo é imediato e não adiciona animação incompatível com mo
 
 test('texto ampliado recebe prioridade sobre a arte decorativa', () => {
   assert.match(featuredCard, /const \{ fontScale, width \} = useWindowDimensions\(\)/);
-  assert.match(featuredCard, /fontScale < 1\.5/);
-  assert.match(featuredCard, /fontScale >= 1\.25 \? 72/);
+  assert.match(featuredCard, /fontScale < 1\.75/);
+  assert.match(featuredCard, /fontScale >= 1\.5 \? 92/);
   assert.match(featuredCard, /maxWidth: '100%'/);
   assert.match(featuredCard, /actionText:[\s\S]*?flexShrink: 1/);
 });
+
