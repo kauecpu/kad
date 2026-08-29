@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { FeaturedCard } from '@/components/ui/featured-card';
+import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SearchField } from '@/components/ui/search-field';
 import { Section } from '@/components/ui/section';
@@ -26,6 +27,7 @@ import { StackHeader } from '@/components/ui/stack-header';
 import type { Tone } from '@/components/ui/tone';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
+import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { questionsForPack, recommendPackForGoal } from '@/lib/simulations';
 import {
@@ -42,7 +44,7 @@ import { createTrailLevels, questionsForDisciplines, type TrailLevel } from '@/l
 import { useApp } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { useQuestions } from '@/providers/questions-provider';
-import type { AnswerRecord, ConcursoPack, Question } from '@/types';
+import type { AnswerRecord, Question } from '@/types';
 
 type TrailTrack = {
   id: string;
@@ -60,17 +62,38 @@ const MODE_OPTIONS: SegmentedOption<TrailMode>[] = [
   { value: 'discipline', label: 'Por disciplina' },
 ];
 
-function questionsForTrack(track: TrailTrack, questions: Question[], packs: ConcursoPack[]) {
+const CONCURSO_TRACKS: TrailTrack[] = CONCURSO_PACKS.map((pack) => ({
+  id: pack.id,
+  name: pack.name,
+  subtitle: pack.subtitle ?? `${pack.disciplines.length} disciplinas`,
+  icon: pack.icon as keyof typeof Ionicons.glyphMap,
+  color: pack.color,
+  disciplines: pack.disciplines,
+  packId: pack.id,
+  kind: pack.kind,
+}));
+
+const DISCIPLINE_TRACKS: TrailTrack[] = DISCIPLINES.map((discipline) => ({
+  id: discipline.name,
+  name: discipline.name,
+  subtitle: `${discipline.topics.length} assuntos`,
+  icon: discipline.icon as keyof typeof Ionicons.glyphMap,
+  color: discipline.color,
+  disciplines: [discipline.name],
+  kind: 'discipline',
+}));
+
+function questionsForTrack(track: TrailTrack, questions: Question[]) {
   const pack = track.packId
-    ? packs.find((item) => item.id === track.packId)
+    ? CONCURSO_PACKS.find((item) => item.id === track.packId)
     : undefined;
   return pack
     ? questionsForPack(pack, questions)
     : questionsForDisciplines(questions, track.disciplines);
 }
 
-function availableLevelsForTrack(track: TrailTrack, questions: Question[], packs: ConcursoPack[]): TrailLevel[] {
-  return createTrailLevels(questionsForTrack(track, questions, packs)).filter(
+function availableLevelsForTrack(track: TrailTrack, questions: Question[]): TrailLevel[] {
+  return createTrailLevels(questionsForTrack(track, questions)).filter(
     (level) => level.questions.length > 0,
   );
 }
@@ -109,52 +132,24 @@ export default function TrailsScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const { session, isGuest } = useAuth();
   const { answers, profile } = useApp();
-  const { questions, packs, source } = useQuestions();
-  const concursoTracks = useMemo<TrailTrack[]>(() => packs.map((pack) => ({
-    id: pack.id,
-    name: pack.name,
-    subtitle: pack.subtitle ?? `${pack.disciplines.length} disciplinas`,
-    icon: pack.icon as keyof typeof Ionicons.glyphMap,
-    color: pack.color,
-    disciplines: pack.disciplines,
-    packId: pack.id,
-    kind: pack.kind,
-  })), [packs]);
-  const disciplineTracks = useMemo<TrailTrack[]>(() => {
-    const names = source === 'demo'
-      ? DISCIPLINES.map((discipline) => discipline.name)
-      : Array.from(new Set(questions.map((question) => question.discipline))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    return names.map((name) => {
-      const definition = DISCIPLINES.find((discipline) => discipline.name === name);
-      const topics = new Set(questions.filter((question) => question.discipline === name).map((question) => question.topic));
-      return {
-        id: name,
-        name,
-        subtitle: `${topics.size || definition?.topics.length || 0} assuntos`,
-        icon: (definition?.icon ?? 'book-outline') as keyof typeof Ionicons.glyphMap,
-        color: definition?.color ?? '#6D28D9',
-        disciplines: [name],
-        kind: 'discipline' as const,
-      };
-    });
-  }, [questions, source]);
+  const { questions } = useQuestions();
   const trailCatalog = useMemo<TrailCatalog>(() => ({
     concurso: Object.fromEntries(
-      concursoTracks.map((track) => [
+      CONCURSO_TRACKS.map((track) => [
         track.id,
-        availableLevelsForTrack(track, questions, packs).map((level) => level.number),
+        availableLevelsForTrack(track, questions).map((level) => level.number),
       ]),
     ),
     discipline: Object.fromEntries(
-      disciplineTracks.map((track) => [
+      DISCIPLINE_TRACKS.map((track) => [
         track.id,
-        availableLevelsForTrack(track, questions, packs).map((level) => level.number),
+        availableLevelsForTrack(track, questions).map((level) => level.number),
       ]),
     ),
-  }), [concursoTracks, disciplineTracks, packs, questions]);
+  }), [questions]);
   const recommendedPack = useMemo(
-    () => recommendPackForGoal(packs, profile.targetRole),
-    [packs, profile.targetRole]
+    () => recommendPackForGoal(CONCURSO_PACKS, profile.targetRole),
+    [profile.targetRole]
   );
   const ownerId = session?.user.id ?? (isGuest ? 'guest' : null);
   const storageKey = ownerId ? trailSelectionStorageKey(ownerId) : null;
@@ -219,25 +214,25 @@ export default function TrailsScreen() {
     ).catch(() => undefined);
   }, [hydratedStorageKey, mode, selectedLevel, selectedTrackId, storageKey]);
 
-  const tracks = mode === 'concurso' ? concursoTracks : disciplineTracks;
+  const tracks = mode === 'concurso' ? CONCURSO_TRACKS : DISCIPLINE_TRACKS;
   const track = tracks.find((item) => item.id === selectedTrackId);
   const visibleTracks = useMemo(
     () => filterTrailTracks(tracks, searchQuery),
     [searchQuery, tracks]
   );
   const levels = useMemo(
-    () => (track ? availableLevelsForTrack(track, questions, packs) : []),
-    [packs, questions, track],
+    () => (track ? availableLevelsForTrack(track, questions) : []),
+    [questions, track],
   );
   const activeLevel = levels.find((level) => level.number === selectedLevel) ?? levels[0];
   const currentMetrics = useMemo(() => trailMetrics(levels, answers), [answers, levels]);
   const recommendedTrack = recommendedPack
-    ? concursoTracks.find((item) => item.id === recommendedPack.id)
+    ? CONCURSO_TRACKS.find((item) => item.id === recommendedPack.id)
     : undefined;
   const heroTrack = recommendedTrack ?? track;
   const heroLevels = useMemo(
-    () => (heroTrack ? availableLevelsForTrack(heroTrack, questions, packs) : []),
-    [heroTrack, packs, questions]
+    () => (heroTrack ? availableLevelsForTrack(heroTrack, questions) : []),
+    [heroTrack, questions]
   );
   const heroMetrics = useMemo(() => trailMetrics(heroLevels, answers), [answers, heroLevels]);
   const heroResumeLevel =
@@ -339,7 +334,11 @@ export default function TrailsScreen() {
                 ? `Esta trilha combina com sua meta de ${profile.targetRole}.`
                 : `${heroMetrics.total} ${heroMetrics.total === 1 ? 'questão disponível' : 'questões disponíveis'} em ${heroLevels.length} ${heroLevels.length === 1 ? 'nível' : 'níveis'}.`
               : 'Escolha um concurso, uma área ou uma disciplina para começar.'
-          }>
+          }
+          intensity="strong"
+          visual="faceted"
+          artwork={<KadCardArtwork variant="layers" />}
+        >
           <View style={[styles.heroFooter, isDesktop && styles.heroFooterDesktop]}>
             {heroTrack ? (
               <View style={styles.heroMetrics}>
@@ -718,3 +717,4 @@ const styles = StyleSheet.create({
   tipDescription: { fontSize: FontSize.small, lineHeight: 19 },
   pressed: { opacity: 0.7 },
 });
+

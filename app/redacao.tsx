@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { FeaturedCard } from '@/components/ui/featured-card';
+import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { SearchField } from '@/components/ui/search-field';
 import { Section } from '@/components/ui/section';
 import { StackHeader } from '@/components/ui/stack-header';
@@ -343,6 +344,9 @@ function TopicSelection({
           icon="create-outline"
           title="Sua próxima redação começa aqui"
           description={`Explore ${disclosure.total} ${disclosure.total === 1 ? 'proposta preparada' : 'propostas preparadas'} para praticar do planejamento à revisão.`}
+          intensity="strong"
+          visual="faceted"
+          artwork={<KadCardArtwork variant="signal" />}
           accessory={<Badge label="Prática guiada" tone="accent" />}
         />
       ) : null}
@@ -471,6 +475,9 @@ function FeaturedTopicCard({
       icon={(pack?.icon as keyof typeof Ionicons.glyphMap) ?? 'document-text-outline'}
       title={topic.title}
       description={`${pack?.name ?? 'Concurso'} · ${topic.category}. Uma proposta selecionada para aproximar sua prática da meta atual.`}
+      intensity="strong"
+      visual="faceted"
+      artwork={<KadCardArtwork variant="signal" />}
       accessory={<Badge label="Recomendado" tone="accent" />}>
       <View style={styles.topicMeta}>
         <Meta icon="speedometer-outline" label={topic.difficulty} />
@@ -951,3 +958,4 @@ const styles = StyleSheet.create({
   criterionStatus: { fontSize: FontSize.tiny },
   pressed: { opacity: 0.7 },
 });
+

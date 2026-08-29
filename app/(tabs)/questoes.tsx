@@ -5,15 +5,16 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FeaturedCard } from '@/components/ui/featured-card';
+import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
+import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { formatPercent } from '@/lib/format';
-import { questionsForPack } from '@/lib/simulations';
 import { useApp } from '@/providers/app-provider';
 import { useQuestions } from '@/providers/questions-provider';
 import type { ConcursoPack } from '@/types';
@@ -49,40 +50,36 @@ export default function QuestionsScreen() {
     canViewStatistics,
     performance,
   } = useApp();
-  const { questions: availableQuestions, packs, source } = useQuestions();
+  const { questions: availableQuestions } = useQuestions();
   const [studyMode, setStudyMode] = useState<StudyMode>('discipline');
 
   const disciplines = useMemo<DisciplineStat[]>(() => {
-    const names = source === 'demo'
-      ? DISCIPLINES.map((discipline) => discipline.name)
-      : Array.from(new Set(availableQuestions.map((question) => question.discipline))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    return names.map((name) => {
-      const discipline = DISCIPLINES.find((item) => item.name === name);
-      const questions = availableQuestions.filter((q) => q.discipline === name);
+    return DISCIPLINES.map((discipline) => {
+      const questions = availableQuestions.filter((q) => q.discipline === discipline.name);
       const answered = questions.filter((q) => answers[q.id]);
       const correct = answered.filter((q) => answers[q.id]?.isCorrect).length;
-      const topicsWithQuestions = (discipline?.topics ?? Array.from(new Set(questions.map((q) => q.topic)))).filter((topic) =>
+      const topicsWithQuestions = discipline.topics.filter((topic) =>
         questions.some((q) => q.topic === topic)
       ).length;
 
       return {
-        name,
-        icon: (discipline?.icon as keyof typeof Ionicons.glyphMap) ?? 'help-circle-outline',
-        color: discipline?.color ?? '#6D28D9',
+        name: discipline.name,
+        icon: (discipline.icon as keyof typeof Ionicons.glyphMap) ?? 'help-circle-outline',
+        color: discipline.color,
         topicsWithQuestions,
         total: questions.length,
         answered: answered.length,
         correct,
       };
     });
-  }, [answers, availableQuestions, source]);
+  }, [answers, availableQuestions]);
 
   const studyItems = useMemo<StudyItem[]>(
     () =>
       studyMode === 'discipline'
         ? disciplines.map((value) => ({ kind: 'discipline' as const, value }))
-        : packs.map((value) => ({ kind: 'concurso' as const, value })),
-    [disciplines, packs, studyMode]
+        : CONCURSO_PACKS.map((value) => ({ kind: 'concurso' as const, value })),
+    [disciplines, studyMode]
   );
 
   const renderDiscipline = ({ item }: { item: DisciplineStat }) => {
@@ -137,7 +134,9 @@ export default function QuestionsScreen() {
   };
 
   const renderConcurso = (pack: ConcursoPack) => {
-    const questions = questionsForPack(pack, availableQuestions);
+    const questions = availableQuestions.filter((question) =>
+      pack.disciplines.includes(question.discipline)
+    );
     const answered = questions.filter((question) => answers[question.id]);
     const correct = answered.filter((question) => answers[question.id]?.isCorrect).length;
     const accuracy = answered.length > 0 ? (correct / answered.length) * 100 : 0;
@@ -196,6 +195,9 @@ export default function QuestionsScreen() {
         icon="compass-outline"
         title="Escolha como estudar"
         description="Navegue por matéria ou encontre uma questão específica."
+        intensity="strong"
+        visual="faceted"
+        artwork={<KadCardArtwork variant="wave" />}
         compact>
         <Segmented options={STUDY_OPTIONS} value={studyMode} onChange={setStudyMode} />
         <Pressable
@@ -337,3 +339,4 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
 });
+
