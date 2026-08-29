@@ -1,4 +1,3 @@
-import { DISCIPLINES } from '../data/disciplines.ts';
 import { QUESTIONS } from '../data/questions.ts';
 import { normalizeSearchText } from './text.ts';
 import type { AnswerRecord, EducationLevel, Question, QuestionSearch } from '@/types';
@@ -31,9 +30,7 @@ export function searchOptionsForQuestions(questions: Question[]) {
   const levelOrder: EducationLevel[] = ['Fundamental', 'Médio', 'Superior'];
 
   return {
-    disciplines: DISCIPLINES.map((discipline) => discipline.name).filter((name) =>
-      availableDisciplines.has(name)
-    ),
+    disciplines: Array.from(availableDisciplines).sort(byPt),
     subjects: unique(questions.map((question) => question.subject)).sort(byPt),
     topics: unique(questions.map((question) => question.topic)).sort(byPt),
     boards: unique(questions.map((question) => question.board)).sort(byPt),

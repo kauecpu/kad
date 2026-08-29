@@ -16,7 +16,6 @@ import { FeaturedCard } from '@/components/ui/featured-card';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { StackHeader } from '@/components/ui/stack-header';
 import { cardShadow, CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
-import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { RANKING_PARTICIPANTS, type RankingPeriod } from '@/data/ranking';
 import { useTheme } from '@/hooks/use-theme';
 import { buildRanking, localRankingScore, type RankingEntry } from '@/lib/ranking';
@@ -47,23 +46,23 @@ export default function RankingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { answers, profile } = useApp();
-  const { questions } = useQuestions();
+  const { questions, packs } = useQuestions();
   const [period, setPeriod] = useState<RankingPeriod>('today');
   const [packId, setPackId] = useState('all');
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [rulesExpanded, setRulesExpanded] = useState(false);
   const isDesktop = width >= 760;
-  const selectedPack = CONCURSO_PACKS.find((pack) => pack.id === packId);
+  const selectedPack = packs.find((pack) => pack.id === packId);
 
   const localScore = useMemo(
     () => localRankingScore({
       answers,
       questions,
-      packs: CONCURSO_PACKS,
+      packs,
       period,
       packId,
     }),
-    [answers, packId, period, questions],
+    [answers, packId, packs, period, questions],
   );
 
   const ranking = useMemo(() => buildRanking({
@@ -183,7 +182,7 @@ export default function RankingScreen() {
             </View>
             <View style={styles.filterOptions}>
               <Chip label="Todos" selected={packId === 'all'} onPress={() => setPackId('all')} />
-              {CONCURSO_PACKS.map((pack) => (
+              {packs.map((pack) => (
                 <Chip
                   key={pack.id}
                   label={pack.name}

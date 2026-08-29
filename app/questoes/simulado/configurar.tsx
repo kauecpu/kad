@@ -1,6 +1,6 @@
 import Ionicons from '@/components/ui/app-icon';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,8 +10,6 @@ import { Chip } from '@/components/ui/chip';
 import { MultiSelectSheet } from '@/components/ui/multi-select-sheet';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
-import { DISCIPLINES } from '@/data/disciplines';
-import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import {
   DEFAULT_SIMULATION_CONFIG,
@@ -39,10 +37,10 @@ export default function ConfigureSimulationScreen() {
   const { packId } = useLocalSearchParams<{ packId?: string }>();
   const { canUseSimulations, subscriptionLoading } = useApp();
   const { session, startSimulation } = useSimulation();
-  const { questions } = useQuestions();
+  const { questions, packs } = useQuestions();
 
-  const initialPack = CONCURSO_PACKS.some((item) => item.id === packId) ? packId : undefined;
-  const initialPackData = CONCURSO_PACKS.find((item) => item.id === initialPack);
+  const initialPack = packs.some((item) => item.id === packId) ? packId : undefined;
+  const initialPackData = packs.find((item) => item.id === initialPack);
   const initialQuestionTotal = initialPackData
     ? questionsForPack(initialPackData, questions).length
     : 0;
@@ -57,14 +55,18 @@ export default function ConfigureSimulationScreen() {
   const [sheet, setSheet] = useState<SheetKey | null>(null);
 
   const candidates = useMemo(
-    () => simulationCandidates(config, questions),
-    [config, questions],
+    () => simulationCandidates(config, questions, packs),
+    [config, packs, questions],
   );
   const availableTopics = useMemo(
     () => topicsForDisciplines(config.disciplines, questions),
     [config.disciplines, questions]
   );
-  const pack = CONCURSO_PACKS.find((item) => item.id === config.packId);
+  const pack = packs.find((item) => item.id === config.packId);
+  useEffect(() => {
+    if (!packId || config.packId || !initialPackData) return;
+    setConfig((current) => ({ ...current, packId: initialPackData.id }));
+  }, [config.packId, initialPackData, packId]);
   const questionCountOptions = useMemo(() => {
     if (candidates.length === 0) return [];
     return Array.from(
@@ -114,17 +116,17 @@ export default function ConfigureSimulationScreen() {
     ? {
         pack: {
           title: 'Concurso ou área',
-          options: ['Todos os concursos e áreas', ...CONCURSO_PACKS.map((item) => item.name)],
+          options: ['Todos os concursos e áreas', ...packs.map((item) => item.name)],
           selected: [pack?.name ?? 'Todos os concursos e áreas'],
           onChange: (selected: string[]) => {
-            const selectedPack = CONCURSO_PACKS.find((item) => item.name === selected[0]);
+            const selectedPack = packs.find((item) => item.name === selected[0]);
             update({ packId: selectedPack?.id });
           },
           single: true,
         },
         disciplines: {
           title: 'Disciplina',
-          options: DISCIPLINES.map((item) => item.name),
+          options: unique(questions.map((item) => item.discipline)),
           selected: config.disciplines,
           onChange: (selected: string[]) => {
             const allowedTopics = topicsForDisciplines(selected, questions);

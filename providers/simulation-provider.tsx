@@ -67,7 +67,7 @@ const SimulationContext = createContext<SimulationContextValue | null>(null);
 
 export function SimulationProvider({ children }: { children: ReactNode }) {
   const { session: authSession, isLoading: authLoading } = useAuth();
-  const { questions } = useQuestions();
+  const { questions, packs } = useQuestions();
   const [session, setSession] = useState<SimulationSession | null>(null);
   const [history, setHistory] = useState<SimulationSession[]>([]);
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
@@ -185,7 +185,7 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   }, [hydrated, session]);
 
   const startSimulation = useCallback((config: SimulationConfig) => {
-    const next = createSimulationSession(config, questions);
+    const next = createSimulationSession(config, questions, packs);
     if (next) {
       setSession((current) => {
         if (

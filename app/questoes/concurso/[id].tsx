@@ -12,7 +12,6 @@ import { Section } from '@/components/ui/section';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
-import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { formatPercent } from '@/lib/format';
 import { questionsForPack } from '@/lib/simulations';
@@ -26,10 +25,10 @@ export default function ConcursoStudyScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { answers, canViewStatistics } = useApp();
-  const { questions: availableQuestions } = useQuestions();
+  const { questions: availableQuestions, packs } = useQuestions();
   const [query, setQuery] = useState('');
 
-  const pack = CONCURSO_PACKS.find((item) => item.id === id);
+  const pack = packs.find((item) => item.id === id);
   const questions = useMemo(
     () => (pack ? questionsForPack(pack, availableQuestions) : []),
     [availableQuestions, pack],
@@ -113,7 +112,7 @@ export default function ConcursoStudyScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <StackHeader
         title={pack.name}
-        subtitle={`${questions.length} ${questions.length === 1 ? 'questão' : 'questões'} · ${disciplines.length} ${disciplines.length === 1 ? 'matéria' : 'matérias'}`}
+        subtitle={`${questions.length} ${questions.length === 1 ? 'questão' : 'questões'} · ${disciplines.length} ${disciplines.length === 1 ? 'matéria' : 'matérias'}${pack.metadataMissing ? ' · metadados pendentes' : ''}`}
         leadingIcon={pack.icon as keyof typeof Ionicons.glyphMap}
         leadingIconColor={pack.color}
         onBack={() => router.back()}
@@ -125,6 +124,14 @@ export default function ConcursoStudyScreen() {
           { paddingBottom: insets.bottom + Spacing.xxxl },
         ]}
         showsVerticalScrollIndicator={false}>
+        {pack.metadataMissing ? (
+          <View style={[styles.metadataNotice, { backgroundColor: colors.warningSoft, borderColor: colors.warning }]}>
+            <Ionicons name="information-circle-outline" size={19} color={colors.warning} />
+            <Text style={[styles.metadataNoticeText, { color: colors.textMuted }]}>
+              Questões disponíveis. Edital, vagas e demais dados do concurso ainda não foram cadastrados.
+            </Text>
+          </View>
+        ) : null}
         <Card
           onPress={() => start()}
           accessibilityLabel={`Resolver todas as questões de ${pack.name}`}
@@ -229,6 +236,15 @@ export default function ConcursoStudyScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  metadataNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: Spacing.md,
+  },
+  metadataNoticeText: { flex: 1, fontSize: FontSize.small, lineHeight: 19 },
   content: {
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,

@@ -24,6 +24,7 @@ function includesAny(value: string, terms: string[] = []): boolean {
 
 /** Confirma que a questão pertence ao concurso ou à área representada pelo pacote. */
 export function questionMatchesPack(question: Question, pack: ConcursoPack): boolean {
+  if (pack.questionIds) return pack.questionIds.includes(question.id);
   const { institutions = [], concursos = [], roles = [] } = pack.questionScope;
   const hasScope = institutions.length + concursos.length + roles.length > 0;
   if (!hasScope) return false;
@@ -81,9 +82,10 @@ export const DEFAULT_SIMULATION_CONFIG: SimulationConfig = {
 export function simulationCandidates(
   config: SimulationConfig,
   questions: Question[] = QUESTIONS,
+  packs: ConcursoPack[] = CONCURSO_PACKS,
 ): Question[] {
   const pack = config.packId
-    ? CONCURSO_PACKS.find((item) => item.id === config.packId)
+    ? packs.find((item) => item.id === config.packId)
     : undefined;
 
   return questions.filter((question) => {
@@ -119,8 +121,9 @@ function shuffled<T>(values: T[]): T[] {
 export function createSimulationSession(
   config: SimulationConfig,
   availableQuestions: Question[] = QUESTIONS,
+  packs: ConcursoPack[] = CONCURSO_PACKS,
 ): SimulationSession | null {
-  const candidates = simulationCandidates(config, availableQuestions);
+  const candidates = simulationCandidates(config, availableQuestions, packs);
   if (candidates.length === 0) return null;
 
   const orderedQuestions = config.shuffleQuestions ? shuffled(candidates) : candidates;

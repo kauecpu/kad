@@ -30,20 +30,23 @@ export default function TopicListScreen() {
   const { questions: availableQuestions } = useQuestions();
 
   const definition = DISCIPLINES.find((d) => d.name === discipline);
+  const disciplineQuestions = useMemo(
+    () => availableQuestions.filter((question) => question.discipline === discipline),
+    [availableQuestions, discipline],
+  );
 
   const topics = useMemo<TopicStat[]>(() => {
-    if (!definition) return [];
-    return definition.topics.map((topic) => {
-      const questions = availableQuestions.filter(
-        (q) => q.discipline === definition.name && q.topic === topic
-      );
+    const topicNames = Array.from(new Set(disciplineQuestions.map((question) => question.topic)))
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    return topicNames.map((topic) => {
+      const questions = disciplineQuestions.filter((q) => q.topic === topic);
       const answered = questions.filter((q) => answers[q.id]);
       const correct = answered.filter((q) => answers[q.id]?.isCorrect).length;
       return { topic, total: questions.length, answered: answered.length, correct };
     });
-  }, [answers, availableQuestions, definition]);
+  }, [answers, disciplineQuestions]);
 
-  if (!definition) {
+  if (!discipline || disciplineQuestions.length === 0) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
         <StackHeader title="Assuntos" onBack={() => router.back()} />
@@ -71,7 +74,7 @@ export default function TopicListScreen() {
             : () =>
                 router.push({
                   pathname: '/questoes/[discipline]/[topic]',
-                  params: { discipline: definition.name, topic: item.topic },
+                  params: { discipline, topic: item.topic },
                 })
         }
         accessibilityLabel={`Estudar ${item.topic}`}
@@ -108,10 +111,10 @@ export default function TopicListScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <StackHeader
-        title={definition.name}
-        subtitle={`${definition.topics.length} assuntos · ${totalQuestions} ${totalQuestions === 1 ? 'questão' : 'questões'}`}
-        leadingIcon={definition.icon as keyof typeof Ionicons.glyphMap}
-        leadingIconColor={definition.color}
+        title={discipline}
+        subtitle={`${topics.length} assuntos · ${totalQuestions} ${totalQuestions === 1 ? 'questão' : 'questões'}`}
+        leadingIcon={(definition?.icon ?? 'book-outline') as keyof typeof Ionicons.glyphMap}
+        leadingIconColor={definition?.color ?? colors.primary}
         onBack={() => router.back()}
       />
 
@@ -130,11 +133,11 @@ export default function TopicListScreen() {
                   ? () =>
                       router.push({
                         pathname: '/questoes/[discipline]/[topic]',
-                        params: { discipline: definition.name, topic: 'geral' },
+                        params: { discipline, topic: 'geral' },
                       })
                   : undefined
               }
-              accessibilityLabel={`Resolver todas as questões de ${definition.name}`}
+              accessibilityLabel={`Resolver todas as questões de ${discipline}`}
               style={[
                 styles.generalCard,
                 { borderColor: colors.borderStrong },
@@ -142,7 +145,7 @@ export default function TopicListScreen() {
               ]}>
               <Ionicons name="layers-outline" size={21} color={colors.primary} />
               <View style={styles.generalText}>
-                <Text style={[styles.generalTitle, { color: colors.text }]}>Todas de {definition.name}</Text>
+                <Text style={[styles.generalTitle, { color: colors.text }]}>Todas de {discipline}</Text>
                 <Text style={[styles.generalDescription, { color: colors.textMuted }]}>Misture todos os assuntos desta disciplina.</Text>
               </View>
               <Text style={[styles.generalCount, { color: colors.primary }]}>{totalQuestions}</Text>

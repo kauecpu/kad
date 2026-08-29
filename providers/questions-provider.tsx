@@ -11,8 +11,9 @@ import {
 
 import { QUESTIONS } from '@/data/questions';
 import { mapPublishedQuestions } from '@/lib/published-content';
+import { buildQuestionPacks } from '@/lib/question-catalog';
 import { supabase } from '@/lib/supabase';
-import type { Question } from '@/types';
+import type { ConcursoPack, Question } from '@/types';
 
 const CACHE_KEY = '@kad/published-questions/v1';
 
@@ -23,6 +24,7 @@ type QuestionsContextValue = {
   loading: boolean;
   error: string | null;
   source: PublishedContentSource;
+  packs: ConcursoPack[];
   refresh: () => Promise<void>;
 };
 
@@ -93,7 +95,14 @@ export function QuestionsProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ questions, loading, error, source, refresh }),
+    () => ({
+      questions,
+      loading,
+      error,
+      source,
+      packs: buildQuestionPacks(questions, source),
+      refresh,
+    }),
     [error, loading, questions, refresh, source],
   );
 

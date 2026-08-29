@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, Spacing } from '@/constants/theme';
-import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { findStudyPackForConcurso, sortConcursos } from '@/lib/concursos';
 import { questionsForPack, recommendPackForGoal } from '@/lib/simulations';
@@ -16,7 +15,7 @@ import { normalizeSearchText } from '@/lib/text';
 import { useApp } from '@/providers/app-provider';
 import { useConcursos } from '@/providers/concursos-provider';
 import { useQuestions } from '@/providers/questions-provider';
-import type { AnswerRecord, Concurso, Question } from '@/types';
+import type { AnswerRecord, Concurso, ConcursoPack, Question } from '@/types';
 
 const CHALLENGE_SIZE = 3;
 
@@ -25,36 +24,27 @@ function buildChallenge(
   focusedConcurso: Concurso | undefined,
   answers: Record<string, AnswerRecord>,
   questions: Question[],
+  packs: ConcursoPack[],
 ): Question[] {
   const goal = normalizeSearchText(targetRole ?? '');
   const exactMatches = goal
     ? questions.filter((question) => normalizeSearchText(question.role) === goal)
     : [];
   const concursoPack = focusedConcurso
-    ? findStudyPackForConcurso(focusedConcurso, CONCURSO_PACKS)
+    ? findStudyPackForConcurso(focusedConcurso, packs)
     : undefined;
-  const goalPack = !focusedConcurso ? recommendPackForGoal(CONCURSO_PACKS, targetRole) : undefined;
+  const goalPack = !focusedConcurso ? recommendPackForGoal(packs, targetRole) : undefined;
   const packQuestions = concursoPack
     ? questionsForPack(concursoPack, questions)
     : goalPack
       ? questionsForPack(goalPack, questions)
       : [];
-  const activePack = concursoPack ?? goalPack;
-  const broaderPackQuestions = activePack
-    ? questions.filter((question) => activePack.disciplines.includes(question.discipline))
-    : [];
-  const expandedPackQuestions = [
-    ...packQuestions,
-    ...broaderPackQuestions.filter(
-      (question) => !packQuestions.some((item) => item.id === question.id)
-    ),
-  ];
   const pool = focusedConcurso
-    ? expandedPackQuestions
+    ? packQuestions
     : exactMatches.length >= CHALLENGE_SIZE
       ? exactMatches
-      : expandedPackQuestions.length >= CHALLENGE_SIZE
-        ? expandedPackQuestions
+      : packQuestions.length >= CHALLENGE_SIZE
+        ? packQuestions
         : questions;
 
   return [...pool]
@@ -74,7 +64,7 @@ export default function QuickChallengeScreen() {
     resetQuestion,
   } = useApp();
   const { concursos } = useConcursos();
-  const { questions: availableQuestions } = useQuestions();
+  const { questions: availableQuestions, packs } = useQuestions();
   const focusedConcurso = sortConcursos(
     concursos.filter(
       (concurso) =>
@@ -83,7 +73,7 @@ export default function QuickChallengeScreen() {
     'deadline'
   )[0];
   const [questions] = useState(() =>
-    buildChallenge(profile.targetRole, focusedConcurso, answers, availableQuestions)
+    buildChallenge(profile.targetRole, focusedConcurso, answers, availableQuestions, packs)
   );
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);

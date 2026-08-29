@@ -10,10 +10,10 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
-import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { formatPercent } from '@/lib/format';
+import { questionsForPack } from '@/lib/simulations';
 import { useApp } from '@/providers/app-provider';
 import { useQuestions } from '@/providers/questions-provider';
 import type { ConcursoPack } from '@/types';
@@ -49,36 +49,40 @@ export default function QuestionsScreen() {
     canViewStatistics,
     performance,
   } = useApp();
-  const { questions: availableQuestions } = useQuestions();
+  const { questions: availableQuestions, packs, source } = useQuestions();
   const [studyMode, setStudyMode] = useState<StudyMode>('discipline');
 
   const disciplines = useMemo<DisciplineStat[]>(() => {
-    return DISCIPLINES.map((discipline) => {
-      const questions = availableQuestions.filter((q) => q.discipline === discipline.name);
+    const names = source === 'demo'
+      ? DISCIPLINES.map((discipline) => discipline.name)
+      : Array.from(new Set(availableQuestions.map((question) => question.discipline))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    return names.map((name) => {
+      const discipline = DISCIPLINES.find((item) => item.name === name);
+      const questions = availableQuestions.filter((q) => q.discipline === name);
       const answered = questions.filter((q) => answers[q.id]);
       const correct = answered.filter((q) => answers[q.id]?.isCorrect).length;
-      const topicsWithQuestions = discipline.topics.filter((topic) =>
+      const topicsWithQuestions = (discipline?.topics ?? Array.from(new Set(questions.map((q) => q.topic)))).filter((topic) =>
         questions.some((q) => q.topic === topic)
       ).length;
 
       return {
-        name: discipline.name,
-        icon: (discipline.icon as keyof typeof Ionicons.glyphMap) ?? 'help-circle-outline',
-        color: discipline.color,
+        name,
+        icon: (discipline?.icon as keyof typeof Ionicons.glyphMap) ?? 'help-circle-outline',
+        color: discipline?.color ?? '#6D28D9',
         topicsWithQuestions,
         total: questions.length,
         answered: answered.length,
         correct,
       };
     });
-  }, [answers, availableQuestions]);
+  }, [answers, availableQuestions, source]);
 
   const studyItems = useMemo<StudyItem[]>(
     () =>
       studyMode === 'discipline'
         ? disciplines.map((value) => ({ kind: 'discipline' as const, value }))
-        : CONCURSO_PACKS.map((value) => ({ kind: 'concurso' as const, value })),
-    [disciplines, studyMode]
+        : packs.map((value) => ({ kind: 'concurso' as const, value })),
+    [disciplines, packs, studyMode]
   );
 
   const renderDiscipline = ({ item }: { item: DisciplineStat }) => {
@@ -133,9 +137,7 @@ export default function QuestionsScreen() {
   };
 
   const renderConcurso = (pack: ConcursoPack) => {
-    const questions = availableQuestions.filter((question) =>
-      pack.disciplines.includes(question.discipline)
-    );
+    const questions = questionsForPack(pack, availableQuestions);
     const answered = questions.filter((question) => answers[question.id]);
     const correct = answered.filter((question) => answers[question.id]?.isCorrect).length;
     const accuracy = answered.length > 0 ? (correct / answered.length) * 100 : 0;

@@ -9,7 +9,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, Spacing } from '@/constants/theme';
-import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { questionsForPack } from '@/lib/simulations';
 import { useApp } from '@/providers/app-provider';
@@ -25,11 +24,11 @@ export default function ConcursoQuestionPlayerScreen() {
     topic?: string;
   }>();
   const { answers, answerQuestion, resetQuestion } = useApp();
-  const { questions: availableQuestions } = useQuestions();
+  const { questions: availableQuestions, packs } = useQuestions();
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
-  const pack = CONCURSO_PACKS.find((item) => item.id === id);
+  const pack = packs.find((item) => item.id === id);
   const questions = useMemo(() => {
     const packQuestions = pack ? questionsForPack(pack, availableQuestions) : [];
     return packQuestions.filter(
