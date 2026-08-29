@@ -41,10 +41,11 @@ export function publicLayout(content: string, { simple = false, dark = false }: 
           <a href="#kad-tools" data-public-section-target="kad-tools">Ferramentas</a>
           <a href="#kad-contests" data-public-section-target="kad-contests">Concursos</a>
           <a href="#kad-plans" data-public-section-target="kad-plans">Planos</a>
+          <a href="#kad-faq" data-public-section-target="kad-faq">Dúvidas</a>
         </nav>` : ''}
         <div class="public-header__actions">
           ${button(dark ? 'Escuro' : 'Claro', { action: 'toggle-theme', variant: 'ghost', iconName: dark ? 'Moon' : 'Sun', className: 'icon-label-button', attrs: `aria-label="Ativar tema ${dark ? 'claro' : 'escuro'}" aria-pressed="${dark}"` })}
-          ${!simple ? button('Entrar', { action: 'open-public-auth', variant: 'secondary', iconName: 'LogIn', attrs: 'data-auth-mode="login"' }) : ''}
+          ${!simple ? button('Entrar', { action: 'open-public-auth', variant: 'secondary', className: 'public-header__login', attrs: 'data-auth-mode="login"' }) : ''}
         </div>
       </header>
       <main id="conteudo" class="public-main" tabindex="-1">${content}</main>

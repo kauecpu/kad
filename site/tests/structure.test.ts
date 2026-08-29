@@ -159,10 +159,13 @@ test('página pública usa navegação por seções, tema e acesso em janela', a
     source('src/styles/app.css'),
   ]);
 
-  for (const target of ['kad-about', 'kad-how', 'kad-tools', 'kad-contests', 'kad-plans']) {
+  for (const target of ['kad-about', 'kad-how', 'kad-tools', 'kad-contests', 'kad-plans', 'kad-faq']) {
     assert.match(layout, new RegExp(`data-public-section-target="${target}"`));
     assert.match(publicView, new RegExp(`id="${target}"`));
   }
+  assert.match(layout, />Dúvidas<\/a>/);
+  assert.match(layout, /className: 'public-header__login'/);
+  assert.doesNotMatch(layout, /button\('Entrar',[\s\S]+iconName: 'LogIn'/);
   assert.match(publicView, /data-public-auth-dialog/);
   assert.match(publicView, /data-public-auth-form="login"/);
   assert.match(publicView, /data-public-auth-form="signup"/);

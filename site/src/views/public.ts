@@ -162,7 +162,7 @@ export function welcomeView(): ViewModel {
         </div>
       </section>
 
-      <section class="landing-section landing-faq" aria-labelledby="kad-faq-title">
+      <section class="landing-section landing-faq" id="kad-faq" aria-labelledby="kad-faq-title">
         <div class="landing-section__inner">
           <div class="landing-section__heading"><p class="eyebrow">DÚVIDAS</p><h2 id="kad-faq-title">Antes de começar.</h2></div>
           <div class="landing-faq__list">
