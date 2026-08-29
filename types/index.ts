@@ -103,6 +103,48 @@ export type Question = {
   explanation?: string;
 };
 
+export type FlashcardState = 'new' | 'learning' | 'review' | 'suspended';
+export type FlashcardRating = 'again' | 'hard' | 'good' | 'easy';
+
+export type FlashcardDeck = {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  color?: string;
+  cardCount: number;
+  archivedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Flashcard = {
+  id: string;
+  userId: string;
+  deckId: string;
+  front: string;
+  back: string;
+  tags: string[];
+  state: FlashcardState;
+  repetitions: number;
+  intervalDays: number;
+  easeFactor: number;
+  dueAt: string;
+  archivedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FlashcardReview = {
+  id: string;
+  userId: string;
+  cardId: string;
+  rating: FlashcardRating;
+  reviewedAt: string;
+  previousDueAt: string;
+  nextDueAt: string;
+};
+
 export type QuestionFilters = {
   subjects: string[];
   boards: string[];

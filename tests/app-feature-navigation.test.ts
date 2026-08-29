@@ -18,7 +18,7 @@ function source(path: string) {
 test('o catálogo oferece todas as funções aprovadas na ordem de descoberta', () => {
   assert.deepEqual(
     APP_FEATURES.map(({ id }) => id),
-    ['questions', 'contests', 'simulations', 'ranking', 'trails', 'essay', 'library', 'profile']
+    ['questions', 'contests', 'simulations', 'ranking', 'trails', 'essay', 'library', 'flashcards', 'profile']
   );
   assert.deepEqual(
     APP_FEATURE_GROUPS.map(({ id }) => id),
@@ -31,8 +31,8 @@ test('o endereço antigo de Rank resolve para a tela canônica de Ranking', () =
 });
 
 test('cada função possui uma rota canônica e pertence a um único grupo', () => {
-  assert.equal(new Set(APP_FEATURES.map(({ id }) => id)).size, 8);
-  assert.equal(new Set(APP_FEATURES.map(({ href }) => href)).size, 8);
+  assert.equal(new Set(APP_FEATURES.map(({ id }) => id)).size, 9);
+  assert.equal(new Set(APP_FEATURES.map(({ href }) => href)).size, 9);
 
   for (const feature of APP_FEATURES) {
     assert.ok(feature.title.length > 0);
