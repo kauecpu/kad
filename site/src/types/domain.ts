@@ -5,7 +5,13 @@ import type {
   ConcursoPack,
   Discipline,
   EssayDocument,
+  Flashcard,
+  FlashcardDeck,
+  FlashcardRating,
+  FlashcardReview,
   Question,
+  SimulationConfig,
+  SimulationSession,
   Subscription,
   ThemePreference,
 } from '@/types';
@@ -19,7 +25,13 @@ export type {
   ConcursoPack,
   Discipline,
   EssayDocument,
+  Flashcard,
+  FlashcardDeck,
+  FlashcardRating,
+  FlashcardReview,
   Question,
+  SimulationConfig,
+  SimulationSession,
   Subscription,
   ThemePreference,
   EssayTopic,
@@ -38,9 +50,20 @@ export type SiteAnswer = {
 
 export type SiteComment = {
   id: string;
+  userId: string;
   author: string;
   text: string;
   createdAt: string;
+  updatedAt?: string;
+  likes: number;
+  likedByMe: boolean;
+  isOwn: boolean;
+  synced: boolean;
+};
+
+export type SiteCommunityAccuracy = {
+  accuracy: number;
+  totalAnswers: number;
 };
 
 export type SiteFeedback = {
@@ -52,28 +75,8 @@ export type SiteFeedback = {
   synced: boolean;
 };
 
-export type SiteSimulationConfig = {
-  packId: string;
-  discipline: string;
-  board: string;
-  difficulty: string;
-  questionCount: number;
-  durationMinutes: number;
-  shuffleQuestions: boolean;
-};
-
-export type SiteSimulationSession = {
-  id: string;
-  status: 'active' | 'paused' | 'completed';
-  config: SiteSimulationConfig;
-  questionIds: string[];
-  answers: Record<string, AlternativeId>;
-  currentIndex: number;
-  remainingSeconds: number;
-  createdAt: string;
-  updatedAt: string;
-  completedAt?: string;
-};
+export type SiteSimulationConfig = SimulationConfig;
+export type SiteSimulationSession = SimulationSession;
 
 export type SiteState = {
   version: 1;
@@ -82,6 +85,7 @@ export type SiteState = {
     name: string;
     email: string;
     username: string;
+    avatarUri?: string;
     phone: string;
     city: string;
     targetRole: string;
@@ -96,8 +100,14 @@ export type SiteState = {
   favorites: string[];
   savedConcursos: string[];
   comments: Record<string, SiteComment[]>;
+  communityAccuracy: Record<string, SiteCommunityAccuracy>;
   simulations: { current: SiteSimulationSession | null; history: SiteSimulationSession[] };
   essays: Record<string, EssayDocument>;
+  flashcards: {
+    decks: FlashcardDeck[];
+    cards: Flashcard[];
+    reviews: FlashcardReview[];
+  };
   trail: unknown | null;
   feedback: SiteFeedback[];
   activityByDate: Record<string, string[]>;
@@ -142,6 +152,9 @@ export type UiState = {
   authStoryTimer: ReturnType<typeof setInterval> | null;
   authStoryPaused: boolean;
   authStoryInteractionPaused: boolean;
+  flashcardRevealId: string | null;
+  essaySyncTimer: ReturnType<typeof setTimeout> | null;
+  simulationSyncTimer: ReturnType<typeof setTimeout> | null;
 };
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;

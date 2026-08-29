@@ -60,7 +60,34 @@ test('integrações web reutilizam RPCs seguras e apenas a chave pública', asyn
   assert.match(service, /rpc\('submit_user_feedback'/);
   assert.match(service, /create-payment-checkout/);
   assert.match(service, /mercadopago\.com\.br/);
+  assert.match(service, /from\('flashcard_decks'\)/);
+  assert.match(service, /from\('flashcards'\)/);
+  assert.match(service, /from\('flashcard_reviews'\)/);
+  assert.match(service, /rpc\('sync_essay_document'/);
+  assert.match(service, /rpc\('sync_simulation_session'/);
+  assert.match(service, /from\('question_comments'\)/);
+  assert.match(service, /delete-account/);
   assert.doesNotMatch(service, /service_role|SUPABASE_SERVICE/);
+});
+
+test('site expõe flashcards e sincronização de estudo sem importar o aplicativo', async () => {
+  const [view, layout, main, flashcards, worker] = await Promise.all([
+    source('src/views/flashcards.ts'),
+    source('src/ui/layout.ts'),
+    source('src/main.ts'),
+    source('src/core/flashcards.ts'),
+    source('server/index.ts'),
+  ]);
+
+  assert.match(layout, /href: '\/flashcards'/);
+  assert.match(main, /pathname === '\/flashcards\/revisar'/);
+  assert.match(main, /hydrateAuthenticatedUser/);
+  assert.match(view, /class="flashcard-workspace"/);
+  assert.match(view, /data-action="rate-flashcard"/);
+  assert.match(flashcards, /export function scheduleReview/);
+  assert.doesNotMatch(`${view}${main}${flashcards}`, /react-native|expo-router/);
+  assert.match(worker, /\/api\/public-config/);
+  assert.match(worker, /SUPABASE_PUBLISHABLE_KEY/);
 });
 
 test('apresentação pública usa somente imagens existentes e não inventa métricas pessoais', async () => {

@@ -2,13 +2,22 @@ import { getCatalog } from '../data/catalog.ts';
 import { clamp, escapeHtml, filterQuestions, formatPercent, formatTimer, matchesPack, randomId, shuffle, unique } from '../core/utils.ts';
 import { badge, button, card, emptyState, icon, metricRing, progress, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
-import type { SiteSimulationConfig, SiteSimulationSession, SiteState, ViewModel } from '../types/domain.ts';
+import type { SiteSimulationSession, SiteState, ViewModel } from '../types/domain.ts';
 
 type ViewParams = Record<string, string | undefined>;
-type SimulationInput = Partial<Omit<SiteSimulationConfig, 'questionCount' | 'durationMinutes'>> & {
+type SimulationInput = {
+  packId?: string;
+  discipline?: string;
+  board?: string;
+  difficulty?: string;
+  shuffleQuestions?: boolean;
   questionCount?: string | number;
   durationMinutes?: string | number;
 };
+
+function questionIds(session: SiteSimulationSession): string[] {
+  return session.questions.map((question) => question.questionId);
+}
 
 export function createSimulation(config: SimulationInput = {}): SiteSimulationSession | null {
   const { questions, packs } = getCatalog();
@@ -28,15 +37,21 @@ export function createSimulation(config: SimulationInput = {}): SiteSimulationSe
     id: randomId('simulado'),
     status: 'active',
     config: {
-      packId: pack?.id ?? '',
-      discipline: config.discipline ?? '',
-      board: config.board ?? '',
-      difficulty: config.difficulty ?? '',
+      packId: pack?.id,
+      disciplines: config.discipline ? [config.discipline] : [],
+      topics: [],
+      boards: config.board ? [config.board] : [],
+      years: [],
+      difficulties: config.difficulty ? [config.difficulty as 'Fácil' | 'Média' | 'Difícil'] : [],
       questionCount: selected.length,
       durationMinutes: Math.max(5, Number(config.durationMinutes) || 20),
       shuffleQuestions: config.shuffleQuestions !== false,
+      shuffleAlternatives: false,
     },
-    questionIds: selected.map((question) => question.id),
+    questions: selected.map((question) => ({
+      questionId: question.id,
+      alternativeOrder: question.alternatives.map((alternative) => alternative.id),
+    })),
     answers: {},
     currentIndex: 0,
     remainingSeconds: Math.max(5, Number(config.durationMinutes) || 20) * 60,
@@ -47,7 +62,7 @@ export function createSimulation(config: SimulationInput = {}): SiteSimulationSe
 
 export function simulationScore(session: SiteSimulationSession) {
   const { questions } = getCatalog();
-  const items = session.questionIds.map((id) => {
+  const items = questionIds(session).map((id) => {
     const question = questions.find((candidate) => candidate.id === id);
     const selected = session.answers[id];
     return question ? { question, selected, correct: selected === question.correct } : null;
@@ -87,7 +102,7 @@ export function simulationsView(state: SiteState): ViewModel {
             id: 'simulation-overview',
             eyebrow: 'SIMULADO EM ANDAMENTO',
             title: 'Seu treino está esperando.',
-            description: `${Object.keys(current.answers).length} de ${current.questionIds.length} questões respondidas · ${formatTimer(current.remainingSeconds)} restantes.`,
+            description: `${Object.keys(current.answers).length} de ${current.questions.length} questões respondidas · ${formatTimer(current.remainingSeconds)} restantes.`,
             actions: button(current.status === 'paused' ? 'Retomar simulado' : 'Continuar simulado', { route: '/simulados/em-andamento', iconName: 'Play' }),
             imageSrc: '/assets/kad-mascot-simulation.png',
           })
@@ -149,22 +164,24 @@ export function simulationPlayerView(state: SiteState): ViewModel {
     return { title: 'Simulado', content: `${stackHeader('Simulado')}${emptyState('Nenhum simulado em andamento', 'Configure um novo treino para começar.', { route: '/simulados/configurar', actionLabel: 'Montar simulado' })}` };
   }
   const { questions } = getCatalog();
-  const index = clamp(session.currentIndex, 0, session.questionIds.length - 1);
-  const question = questions.find((item) => item.id === session.questionIds[index]);
+  const ids = questionIds(session);
+  const index = clamp(session.currentIndex, 0, ids.length - 1);
+  const sessionQuestion = session.questions[index];
+  const question = questions.find((item) => item.id === sessionQuestion?.questionId);
   if (!question) return { title: 'Simulado', content: emptyState('Questão indisponível', 'O catálogo foi atualizado. Inicie um novo simulado.', { action: 'discard-simulation', actionLabel: 'Descartar simulado' }) };
   const selected = session.answers[question.id];
   const answered = Object.keys(session.answers).length;
-  const options = question.alternatives.map((alternative) => `<button class="option ${selected === alternative.id ? 'is-selected' : ''}" type="button" data-action="answer-simulation" data-question-id="${escapeHtml(question.id)}" data-alternative="${escapeHtml(alternative.id)}"><span class="option__letter">${escapeHtml(alternative.id)}</span><span>${escapeHtml(alternative.text)}</span></button>`).join('');
-  const map = session.questionIds.map((id, mapIndex) => `<button type="button" data-action="go-simulation-question" data-index="${mapIndex}" class="${mapIndex === index ? 'is-active' : ''} ${session.answers[id] ? 'is-answered' : ''}">${mapIndex + 1}</button>`).join('');
+  const options = sessionQuestion.alternativeOrder.map((alternativeId) => question.alternatives.find((alternative) => alternative.id === alternativeId)).filter((alternative): alternative is NonNullable<typeof alternative> => Boolean(alternative)).map((alternative) => `<button class="option ${selected === alternative.id ? 'is-selected' : ''}" type="button" data-action="answer-simulation" data-question-id="${escapeHtml(question.id)}" data-alternative="${escapeHtml(alternative.id)}"><span class="option__letter">${escapeHtml(alternative.id)}</span><span>${escapeHtml(alternative.text)}</span></button>`).join('');
+  const map = ids.map((id, mapIndex) => `<button type="button" data-action="go-simulation-question" data-index="${mapIndex}" class="${mapIndex === index ? 'is-active' : ''} ${session.answers[id] ? 'is-answered' : ''}">${mapIndex + 1}</button>`).join('');
   return {
     title: 'Simulado em andamento',
-    subtitle: `${answered} de ${session.questionIds.length} respondidas`,
+    subtitle: `${answered} de ${session.questions.length} respondidas`,
     content: `
-      ${stackHeader('Simulado em andamento', `${answered} de ${session.questionIds.length} respondidas`)}
+      ${stackHeader('Simulado em andamento', `${answered} de ${session.questions.length} respondidas`)}
       <div class="toolbar">${badge(formatTimer(session.remainingSeconds), session.remainingSeconds < 300 ? 'danger' : 'accent', 'Clock3')}<div class="toolbar__group">${button(session.status === 'paused' ? 'Retomar' : 'Pausar', { action: session.status === 'paused' ? 'resume-simulation' : 'pause-simulation', variant: 'secondary', iconName: session.status === 'paused' ? 'Play' : 'Pause', size: 'sm' })}${button('Finalizar', { action: 'finish-simulation', variant: 'danger', size: 'sm' })}</div></div>
-      ${progress(((index + 1) / session.questionIds.length) * 100, `Questão ${index + 1} de ${session.questionIds.length}`)}
+      ${progress(((index + 1) / session.questions.length) * 100, `Questão ${index + 1} de ${session.questions.length}`)}
       <div class="study-layout">
-        ${card(`<div class="question-meta">${badge(question.board)}${badge(String(question.year))}${badge(question.difficulty, 'accent')}</div><p class="question-statement">${escapeHtml(question.statement)}</p><div class="options">${options}</div><div class="study-controls">${button('Anterior', { action: 'previous-simulation-question', variant: 'secondary', iconName: 'ArrowLeft', disabled: index === 0 })}${index === session.questionIds.length - 1 ? button('Revisar e finalizar', { action: 'finish-simulation', iconName: 'CheckCircle2' }) : button('Próxima', { action: 'next-simulation-question', iconName: 'ChevronRight' })}</div>`, 'question-card')}
+        ${card(`<div class="question-meta">${badge(question.board)}${badge(String(question.year))}${badge(question.difficulty, 'accent')}</div><p class="question-statement">${escapeHtml(question.statement)}</p><div class="options">${options}</div><div class="study-controls">${button('Anterior', { action: 'previous-simulation-question', variant: 'secondary', iconName: 'ArrowLeft', disabled: index === 0 })}${index === session.questions.length - 1 ? button('Revisar e finalizar', { action: 'finish-simulation', iconName: 'CheckCircle2' }) : button('Próxima', { action: 'next-simulation-question', iconName: 'ChevronRight' })}</div>`, 'question-card')}
         <aside class="study-side">${card(`<p class="eyebrow">NAVEGAÇÃO</p><h3>Mapa da prova</h3><div class="question-map">${map}</div><p class="muted">Você pode voltar a qualquer questão antes de finalizar.</p>`, 'detail-panel')}</aside>
       </div>`,
   };

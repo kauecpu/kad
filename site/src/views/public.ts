@@ -335,6 +335,7 @@ export function recoveryView(kind: RecoveryViewKind = 'request', params: Record<
         `}
         <p class="form-message" data-form-message></p>
         ${button(isNewPassword ? 'Salvar nova senha' : isConfirmation ? 'Confirmar código' : 'Enviar instruções', { type: 'submit', size: 'lg', className: 'full-width' })}
+        ${isConfirmation ? button('Reenviar código', { action: 'resend-confirmation', variant: 'ghost', className: 'full-width' }) : ''}
       </form>
       <p class="auth-footer"><a href="/entrar" data-route="/entrar">Voltar para entrar</a></p>
     `, 'auth-card')}</section>`,

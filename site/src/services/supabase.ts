@@ -1,12 +1,21 @@
-import { createClient, type User } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { resolvePublicSupabaseConfig } from '@/contracts/deployment-environment.ts';
 import { parseRecoveryCallback } from '../core/auth-callback.ts';
+import { isEssayDocument, isSimulationSession } from '../core/user-sync.ts';
 import { createPasswordSecurity } from '../core/password-security.ts';
+import { mapPublishedConcursos, mapPublishedQuestions } from './published-content.ts';
 import type {
   AlternativeId,
   BillingCycle,
   Concurso,
+  EssayDocument,
+  Flashcard,
+  FlashcardDeck,
+  FlashcardReview,
   Question,
+  SiteComment,
+  SiteCommunityAccuracy,
+  SiteSimulationSession,
   SiteAnswer,
   Subscription,
 } from '../types/domain.ts';
@@ -30,20 +39,28 @@ export type RemoteStudyData = {
 
 export type PublishedContent = { questions: Question[]; concursos: Concurso[] };
 
-const publicSupabaseConfig = resolvePublicSupabaseConfig({
-  environment: import.meta.env.VITE_KAD_ENV,
-  url: import.meta.env.VITE_SUPABASE_URL,
-  publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-});
-const url = publicSupabaseConfig.ok ? publicSupabaseConfig.value.url : undefined;
-const publishableKey = publicSupabaseConfig.ok
-  ? publicSupabaseConfig.value.publishableKey
-  : undefined;
+export type RemoteProfile = {
+  name: string;
+  username: string;
+  phone: string;
+  city: string;
+  targetRole: string;
+  avatarUri?: string;
+};
 
-export const supabaseConfigured = publicSupabaseConfig.ok;
+export type RemoteFlashcards = {
+  decks: FlashcardDeck[];
+  cards: Flashcard[];
+  reviews: FlashcardReview[];
+};
 
-export const supabase = url && publishableKey
-  ? createClient(url, publishableKey, {
+let supabase: SupabaseClient | null = null;
+let passwordSecurity: ReturnType<typeof createPasswordSecurity> | null = null;
+let initialization: Promise<boolean> | null = null;
+export let supabaseConfigured = false;
+
+function createBrowserClient(url: string, publishableKey: string): SupabaseClient {
+  return createClient(url, publishableKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -51,22 +68,62 @@ export const supabase = url && publishableKey
         flowType: 'pkce',
         experimental: { appendPkceFlowIdToRedirects: true },
       },
-    })
-  : null;
+    });
+}
 
-const passwordSecurity = supabase ? createPasswordSecurity(supabase.auth) : null;
+export function initializeSupabase(): Promise<boolean> {
+  if (initialization) return initialization;
+  initialization = (async () => {
+    let resolved = resolvePublicSupabaseConfig({
+      environment: import.meta.env.VITE_KAD_ENV,
+      url: import.meta.env.VITE_SUPABASE_URL,
+      publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    });
+    if (!resolved.ok && typeof globalThis.fetch === 'function') {
+      try {
+        const response = await globalThis.fetch('/api/public-config', {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        });
+        if (response.ok) {
+          const runtime = await response.json() as Record<string, unknown>;
+          resolved = resolvePublicSupabaseConfig({
+            environment: typeof runtime.environment === 'string' ? runtime.environment : undefined,
+            url: typeof runtime.url === 'string' ? runtime.url : undefined,
+            publishableKey: typeof runtime.publishableKey === 'string' ? runtime.publishableKey : undefined,
+          });
+        }
+      } catch {
+        // O catálogo local continua disponível quando a configuração hospedada não responde.
+      }
+    }
+    if (!resolved.ok) return false;
+    supabase = createBrowserClient(resolved.value.url, resolved.value.publishableKey);
+    passwordSecurity = createPasswordSecurity(supabase.auth);
+    supabaseConfigured = true;
+    return true;
+  })();
+  return initialization;
+}
+
+async function client(): Promise<SupabaseClient | null> {
+  await initializeSupabase();
+  return supabase;
+}
 
 export async function signIn(email: string, password: string): Promise<AuthResult> {
-  if (!supabase) return { ok: false, offline: true };
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  const { data, error } = await remote.auth.signInWithPassword({ email, password });
   return error
     ? { ok: false, message: 'Não foi possível entrar. Confira seus dados e tente novamente.' }
     : { ok: true, user: data.user };
 }
 
 export async function signUp({ name, email, password }: { name: string; email: string; password: string }): Promise<SignUpResult> {
-  if (!supabase) return { ok: false, offline: true };
-  const { data, error } = await supabase.auth.signUp({
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  const { data, error } = await remote.auth.signUp({
     email,
     password,
     options: { data: { full_name: name } },
@@ -77,28 +134,40 @@ export async function signUp({ name, email, password }: { name: string; email: s
 }
 
 export async function verifyEmailOtp(email: string, token: string): Promise<AuthResult> {
-  if (!supabase) return { ok: false, offline: true };
-  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  const { data, error } = await remote.auth.verifyOtp({ email, token, type: 'signup' });
   return error || !data.user
     ? { ok: false, message: 'Código inválido ou expirado. Solicite um novo envio.' }
     : { ok: true, user: data.user };
 }
 
+export async function resendEmailConfirmation(email: string): Promise<OfflineResult | FailureResult | SuccessResult> {
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  const { error } = await remote.auth.resend({ type: 'signup', email });
+  return error
+    ? { ok: false, message: 'Não foi possível reenviar o código agora.' }
+    : { ok: true };
+}
+
 export async function getCurrentUser(): Promise<User | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
+  const remote = await client();
+  if (!remote) return null;
+  const { data, error } = await remote.auth.getUser();
   return error ? null : data.user;
 }
 
 export async function loadRemoteStudyData(userId: string): Promise<RemoteStudyData> {
-  if (!supabase) return { answers: {}, favorites: [], savedConcursos: [] };
+  const remote = await client();
+  if (!remote) return { answers: {}, favorites: [], savedConcursos: [] };
   const [attempts, favorites, concursos] = await Promise.all([
-    supabase
+    remote
       .from('question_attempts')
       .select('question_id, subject, selected, is_correct, answered_at')
       .eq('user_id', userId),
-    supabase.from('question_favorites').select('question_id').eq('user_id', userId),
-    supabase.from('saved_concursos').select('concurso_id').eq('user_id', userId),
+    remote.from('question_favorites').select('question_id').eq('user_id', userId),
+    remote.from('saved_concursos').select('concurso_id').eq('user_id', userId),
   ]);
   const error = attempts.error ?? favorites.error ?? concursos.error;
   if (error) throw error;
@@ -116,8 +185,9 @@ export async function loadRemoteStudyData(userId: string): Promise<RemoteStudyDa
 }
 
 export async function saveRemoteAnswer(questionId: string, selected: AlternativeId): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.rpc('record_question_attempt', {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.rpc('record_question_attempt', {
     p_question_id: questionId,
     p_selected: selected,
   });
@@ -125,8 +195,9 @@ export async function saveRemoteAnswer(questionId: string, selected: Alternative
 }
 
 export async function removeRemoteAnswer(userId: string, questionId: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote
     .from('question_attempts')
     .delete()
     .eq('user_id', userId)
@@ -135,24 +206,27 @@ export async function removeRemoteAnswer(userId: string, questionId: string): Pr
 }
 
 export async function setRemoteFavorite(userId: string, questionId: string, favorite: boolean): Promise<void> {
-  if (!supabase) return;
+  const remote = await client();
+  if (!remote) return;
   const result = favorite
-    ? await supabase.from('question_favorites').upsert({ user_id: userId, question_id: questionId })
-    : await supabase.from('question_favorites').delete().eq('user_id', userId).eq('question_id', questionId);
+    ? await remote.from('question_favorites').upsert({ user_id: userId, question_id: questionId })
+    : await remote.from('question_favorites').delete().eq('user_id', userId).eq('question_id', questionId);
   if (result.error) throw result.error;
 }
 
 export async function setRemoteSavedConcurso(userId: string, concursoId: string, saved: boolean): Promise<void> {
-  if (!supabase) return;
+  const remote = await client();
+  if (!remote) return;
   const result = saved
-    ? await supabase.from('saved_concursos').upsert({ user_id: userId, concurso_id: concursoId })
-    : await supabase.from('saved_concursos').delete().eq('user_id', userId).eq('concurso_id', concursoId);
+    ? await remote.from('saved_concursos').upsert({ user_id: userId, concurso_id: concursoId })
+    : await remote.from('saved_concursos').delete().eq('user_id', userId).eq('concurso_id', concursoId);
   if (result.error) throw result.error;
 }
 
 export async function loadRemoteSubscription(userId: string): Promise<Subscription | null> {
-  if (!supabase || !userId) return null;
-  const { data, error } = await supabase
+  const remote = await client();
+  if (!remote || !userId) return null;
+  const { data, error } = await remote
     .from('subscriptions')
     .select('plan, billing_cycle, provider, status, current_period_end, cancel_at_period_end')
     .eq('user_id', userId)
@@ -196,8 +270,9 @@ function trustedCheckoutUrl(value: unknown): value is string {
 }
 
 export async function createSubscriptionCheckout(billingCycle: BillingCycle): Promise<CheckoutResult> {
-  if (!supabase) return { ok: false, offline: true };
-  const { data, error } = await supabase.functions.invoke('create-payment-checkout', {
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  const { data, error } = await remote.functions.invoke('create-payment-checkout', {
     body: { plan: 'diamond', billingCycle },
   });
   if (error || !trustedCheckoutUrl(data?.checkoutUrl)) {
@@ -207,35 +282,41 @@ export async function createSubscriptionCheckout(billingCycle: BillingCycle): Pr
 }
 
 export async function cancelRemoteSubscription(): Promise<OfflineResult | FailureResult | SuccessResult> {
-  if (!supabase) return { ok: false, offline: true };
-  const { error } = await supabase.functions.invoke('cancel-subscription', { body: {} });
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  const { error } = await remote.functions.invoke('cancel-subscription', { body: {} });
   return error
     ? { ok: false, message: 'Não foi possível cancelar a renovação agora.' }
     : { ok: true };
 }
 
 export async function requestPasswordRecovery(email: string): Promise<OfflineResult | FailureResult | SuccessResult> {
-  if (!supabase) return { ok: false, offline: true };
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
   const redirectTo = new URL('/nova-senha', globalThis.location.origin).toString();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  const { error } = await remote.auth.resetPasswordForEmail(email, { redirectTo });
   return error
     ? { ok: false, message: 'Não foi possível enviar as instruções agora.' }
     : { ok: true };
 }
 
 export async function completePasswordRecoveryCallback(callbackUrl: string): Promise<AuthResult> {
-  if (!supabase || !passwordSecurity) return { ok: false, offline: true };
+  await initializeSupabase();
+  if (!passwordSecurity) return { ok: false, offline: true };
   const callback = parseRecoveryCallback(callbackUrl, globalThis.location.origin);
   if (!callback) return { ok: false, message: 'Este link não é válido ou não foi iniciado neste navegador.' };
   const session = await passwordSecurity.completeRecovery(callback);
-  return session
-    ? { ok: true, user: session.user }
-    : { ok: false, message: 'Este link expirou ou já foi utilizado.' };
+  if (!session) return { ok: false, message: 'Este link expirou ou já foi utilizado.' };
+  const user = await getCurrentUser();
+  return user
+    ? { ok: true, user }
+    : { ok: false, message: 'Não foi possível confirmar a conta recuperada.' };
 }
 
 export async function updateRecoveredPassword(
   password: string,
 ): Promise<OfflineResult | FailureResult | SuccessResult> {
+  await initializeSupabase();
   if (!passwordSecurity) return { ok: false, offline: true };
   const result = await passwordSecurity.updateRecovered(password);
   return result.ok
@@ -249,6 +330,7 @@ export async function updateAccountPassword(
   currentPassword: string,
   password: string,
 ): Promise<OfflineResult | FailureResult | SuccessResult> {
+  await initializeSupabase();
   if (!passwordSecurity) return { ok: false, offline: true };
   const result = await passwordSecurity.updateAuthenticated(currentPassword, password);
   if (result.ok) return result;
@@ -258,13 +340,383 @@ export async function updateAccountPassword(
 }
 
 export async function signOut(): Promise<void> {
-  if (supabase) await supabase.auth.signOut();
+  const remote = await client();
+  if (remote) await remote.auth.signOut();
+}
+
+function avatarUrl(remote: SupabaseClient, path?: string | null, version?: string | null): string | undefined {
+  if (!path) return undefined;
+  const { data } = remote.storage.from('profile-avatars').getPublicUrl(path);
+  return version ? `${data.publicUrl}?v=${encodeURIComponent(version)}` : data.publicUrl;
+}
+
+export async function loadRemoteProfile(userId: string): Promise<RemoteProfile | null> {
+  const remote = await client();
+  if (!remote) return null;
+  const { data, error } = await remote
+    .from('profiles')
+    .select('name, username, phone, city, target_role, avatar_path, updated_at')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    name: data.name ?? '',
+    username: data.username ?? '',
+    phone: data.phone ?? '',
+    city: data.city ?? '',
+    targetRole: data.target_role ?? '',
+    avatarUri: avatarUrl(remote, data.avatar_path, data.updated_at),
+  };
+}
+
+export async function saveRemoteProfile(
+  userId: string,
+  profile: Pick<RemoteProfile, 'name' | 'phone' | 'city' | 'targetRole'>,
+): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.from('profiles').upsert({
+    id: userId,
+    name: profile.name,
+    phone: profile.phone || null,
+    city: profile.city || null,
+    target_role: profile.targetRole || null,
+  });
+  if (error) throw error;
+}
+
+export async function uploadRemoteAvatar(userId: string, file: File): Promise<string> {
+  const remote = await client();
+  if (!remote) throw new Error('Conexão com a conta indisponível.');
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  if (!allowedTypes.has(file.type)) throw new Error('Use uma imagem JPG, PNG ou WebP.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('A imagem pode ter no máximo 5 MB.');
+  const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+  const path = `${userId}/avatar.${extension}`;
+  const current = await remote.from('profiles').select('avatar_path').eq('id', userId).maybeSingle();
+  if (current.error) throw current.error;
+  const upload = await remote.storage.from('profile-avatars').upload(path, file, {
+    contentType: file.type,
+    cacheControl: '3600',
+    upsert: true,
+  });
+  if (upload.error) throw upload.error;
+  const profile = await remote.from('profiles').update({ avatar_path: path }).eq('id', userId).select('updated_at').single();
+  if (profile.error) throw profile.error;
+  if (current.data?.avatar_path && current.data.avatar_path !== path) {
+    await remote.storage.from('profile-avatars').remove([current.data.avatar_path]).catch(() => undefined);
+  }
+  return avatarUrl(remote, path, profile.data.updated_at) ?? '';
+}
+
+export async function loadRemoteEssayDocuments(userId: string): Promise<EssayDocument[]> {
+  const remote = await client();
+  if (!remote) return [];
+  const { data, error } = await remote
+    .from('essay_documents')
+    .select('topic_id, content, elapsed_seconds, status, submitted_at, updated_at')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    topicId: row.topic_id,
+    content: row.content,
+    elapsedSeconds: row.elapsed_seconds,
+    status: row.status,
+    submittedAt: row.submitted_at ?? undefined,
+    updatedAt: row.updated_at,
+  })).filter(isEssayDocument);
+}
+
+export async function saveRemoteEssay(userId: string, document: EssayDocument): Promise<void> {
+  const remote = await client();
+  if (!remote || !isEssayDocument(document)) return;
+  const { error } = await remote.rpc('sync_essay_document', {
+    p_user_id: userId,
+    p_topic_id: document.topicId,
+    p_content: document.content,
+    p_elapsed_seconds: document.elapsedSeconds,
+    p_status: document.status,
+    p_submitted_at: document.status === 'submitted' ? document.submittedAt ?? document.updatedAt : null,
+    p_updated_at: document.updatedAt,
+  });
+  if (error) throw error;
+}
+
+export async function loadRemoteSimulationSessions(userId: string): Promise<SiteSimulationSession[]> {
+  const remote = await client();
+  if (!remote) return [];
+  const { data, error } = await remote
+    .from('simulation_sessions')
+    .select('payload, updated_at')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? [])
+    .map((row) => ({ ...(row.payload as SiteSimulationSession), updatedAt: row.updated_at }))
+    .filter(isSimulationSession);
+}
+
+export async function saveRemoteSimulationSession(userId: string, session: SiteSimulationSession): Promise<void> {
+  const remote = await client();
+  if (!remote || !isSimulationSession(session)) return;
+  const payload = { ...session, updatedAt: session.updatedAt ?? new Date().toISOString() };
+  const { error } = await remote.rpc('sync_simulation_session', {
+    p_user_id: userId,
+    p_session_id: session.id,
+    p_status: session.status,
+    p_payload: payload,
+    p_created_at: session.createdAt,
+    p_completed_at: session.status === 'completed' ? session.completedAt : null,
+    p_updated_at: payload.updatedAt,
+  });
+  if (error) throw error;
+}
+
+export async function deleteRemoteSimulationSession(userId: string, sessionId: string): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.from('simulation_sessions').delete().eq('user_id', userId).eq('session_id', sessionId);
+  if (error) throw error;
+}
+
+function deckRow(deck: FlashcardDeck) {
+  return {
+    id: deck.id,
+    user_id: deck.userId,
+    name: deck.name,
+    description: deck.description ?? null,
+    color: deck.color ?? null,
+    archived_at: deck.archivedAt ?? null,
+    created_at: deck.createdAt,
+    updated_at: deck.updatedAt,
+  };
+}
+
+function cardRow(card: Flashcard) {
+  return {
+    id: card.id,
+    user_id: card.userId,
+    deck_id: card.deckId,
+    front: card.front,
+    back: card.back,
+    tags: card.tags,
+    state: card.state,
+    repetitions: card.repetitions,
+    interval_days: card.intervalDays,
+    ease_factor: card.easeFactor,
+    due_at: card.dueAt,
+    archived_at: card.archivedAt ?? null,
+    created_at: card.createdAt,
+    updated_at: card.updatedAt,
+  };
+}
+
+function reviewRow(review: FlashcardReview) {
+  return {
+    id: review.id,
+    user_id: review.userId,
+    card_id: review.cardId,
+    rating: review.rating,
+    reviewed_at: review.reviewedAt,
+    previous_due_at: review.previousDueAt,
+    next_due_at: review.nextDueAt,
+    created_at: review.reviewedAt,
+  };
+}
+
+export async function loadRemoteFlashcards(userId: string): Promise<RemoteFlashcards> {
+  const remote = await client();
+  if (!remote) return { decks: [], cards: [], reviews: [] };
+  const [decksResult, cardsResult, reviewsResult] = await Promise.all([
+    remote.from('flashcard_decks').select('*').eq('user_id', userId),
+    remote.from('flashcards').select('*').eq('user_id', userId),
+    remote.from('flashcard_reviews').select('*').eq('user_id', userId),
+  ]);
+  const error = decksResult.error ?? cardsResult.error ?? reviewsResult.error;
+  if (error) throw error;
+  const cards = (cardsResult.data ?? []).map((row) => ({
+    id: String(row.id),
+    userId: String(row.user_id),
+    deckId: String(row.deck_id),
+    front: String(row.front),
+    back: String(row.back),
+    tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
+    state: row.state as Flashcard['state'],
+    repetitions: Number(row.repetitions),
+    intervalDays: Number(row.interval_days),
+    easeFactor: Number(row.ease_factor),
+    dueAt: String(row.due_at),
+    archivedAt: typeof row.archived_at === 'string' ? row.archived_at : undefined,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  }));
+  return {
+    decks: (decksResult.data ?? []).map((row) => ({
+      id: String(row.id),
+      userId: String(row.user_id),
+      name: String(row.name),
+      description: typeof row.description === 'string' ? row.description : undefined,
+      color: typeof row.color === 'string' ? row.color : undefined,
+      cardCount: cards.filter((card) => card.deckId === row.id && !card.archivedAt).length,
+      archivedAt: typeof row.archived_at === 'string' ? row.archived_at : undefined,
+      createdAt: String(row.created_at),
+      updatedAt: String(row.updated_at),
+    })),
+    cards,
+    reviews: (reviewsResult.data ?? []).map((row) => ({
+      id: String(row.id),
+      userId: String(row.user_id),
+      cardId: String(row.card_id),
+      rating: row.rating as FlashcardReview['rating'],
+      reviewedAt: String(row.reviewed_at),
+      previousDueAt: String(row.previous_due_at),
+      nextDueAt: String(row.next_due_at),
+    })),
+  };
+}
+
+export async function saveRemoteDeck(deck: FlashcardDeck): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.from('flashcard_decks').upsert(deckRow(deck));
+  if (error) throw error;
+}
+
+export async function saveRemoteCard(card: Flashcard): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.from('flashcards').upsert(cardRow(card));
+  if (error) throw error;
+}
+
+export async function saveRemoteReview(review: FlashcardReview): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.from('flashcard_reviews').upsert(reviewRow(review), {
+    onConflict: 'user_id,id',
+    ignoreDuplicates: true,
+  });
+  if (error) throw error;
+}
+
+export async function removeRemoteDeck(userId: string, deckId: string): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.from('flashcard_decks').delete().eq('user_id', userId).eq('id', deckId);
+  if (error) throw error;
+}
+
+export async function removeRemoteCard(userId: string, cardId: string): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.from('flashcards').delete().eq('user_id', userId).eq('id', cardId);
+  if (error) throw error;
+}
+
+export async function loadQuestionComments(questionId: string, userId: string): Promise<SiteComment[]> {
+  const remote = await client();
+  if (!remote) return [];
+  const comments = await remote
+    .from('question_comments')
+    .select('id, user_id, author_name, text, likes_count, created_at, updated_at')
+    .eq('question_id', questionId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (comments.error) throw comments.error;
+  if (!comments.data?.length) return [];
+  const likes = await remote.from('comment_likes').select('comment_id').eq('user_id', userId)
+    .in('comment_id', comments.data.map((comment) => comment.id));
+  if (likes.error) throw likes.error;
+  const likedIds = new Set((likes.data ?? []).map((item) => item.comment_id));
+  return comments.data.map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    author: row.author_name,
+    text: row.text,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at !== row.created_at ? row.updated_at : undefined,
+    likes: row.likes_count,
+    likedByMe: likedIds.has(row.id),
+    isOwn: row.user_id === userId,
+    synced: true,
+  }));
+}
+
+export async function createQuestionComment(
+  questionId: string,
+  userId: string,
+  author: string,
+  text: string,
+): Promise<SiteComment> {
+  const remote = await client();
+  if (!remote) throw new Error('Conexão indisponível.');
+  const { data, error } = await remote.from('question_comments')
+    .insert({ question_id: questionId, user_id: userId, author_name: author, text })
+    .select('id, user_id, author_name, text, likes_count, created_at, updated_at')
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    userId: data.user_id,
+    author: data.author_name,
+    text: data.text,
+    createdAt: data.created_at,
+    likes: data.likes_count,
+    likedByMe: false,
+    isOwn: true,
+    synced: true,
+  };
+}
+
+export async function deleteQuestionComment(commentId: string, userId: string): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.from('question_comments').delete().eq('id', commentId).eq('user_id', userId);
+  if (error) throw error;
+}
+
+export async function updateQuestionComment(commentId: string, userId: string, text: string): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const { error } = await remote.from('question_comments').update({ text }).eq('id', commentId).eq('user_id', userId);
+  if (error) throw error;
+}
+
+export async function setQuestionCommentLiked(commentId: string, userId: string, liked: boolean): Promise<void> {
+  const remote = await client();
+  if (!remote) return;
+  const result = liked
+    ? await remote.from('comment_likes').upsert({ comment_id: commentId, user_id: userId })
+    : await remote.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', userId);
+  if (result.error) throw result.error;
+}
+
+export async function loadQuestionCommunityAccuracy(questionId: string): Promise<SiteCommunityAccuracy | null> {
+  const remote = await client();
+  if (!remote) return null;
+  const { data, error } = await remote.rpc('question_community_accuracy', { p_question_ids: [questionId] });
+  if (error) throw error;
+  const row = data?.[0];
+  return row ? { accuracy: Number(row.accuracy), totalAnswers: Number(row.total_answers) } : null;
+}
+
+export async function deleteRemoteAccount(currentPassword: string): Promise<OfflineResult | FailureResult | SuccessResult> {
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  const { error } = await remote.functions.invoke('delete-account', { body: { currentPassword } });
+  return error
+    ? { ok: false, message: 'Não foi possível excluir a conta. Confira sua senha e tente novamente.' }
+    : { ok: true };
 }
 
 export async function loadPublishedContent(): Promise<PublishedContent> {
-  if (!supabase) return { questions: [], concursos: [] };
+  const remote = await client();
+  if (!remote) return { questions: [], concursos: [] };
   const [questionsResult, concursosResult] = await Promise.all([
-    supabase
+    remote
       .from('questions')
       .select(`
         id, discipline, subject, topic, board, year, role, institution, concurso,
@@ -272,7 +724,7 @@ export async function loadPublishedContent(): Promise<PublishedContent> {
       `)
       .eq('publication_status', 'published')
       .order('updated_at', { ascending: false }),
-    supabase
+    remote
       .from('concursos')
       .select(`
         id, short_name, icon, icon_color, organ, title, board, state, city, region, levels,
@@ -285,41 +737,15 @@ export async function loadPublishedContent(): Promise<PublishedContent> {
   ]);
   if (questionsResult.error || concursosResult.error) throw new Error('published-content-unavailable');
   return {
-    questions: (questionsResult.data ?? []) as unknown as Question[],
-    concursos: (concursosResult.data ?? []).map((item) => ({
-      id: item.id,
-      shortName: item.short_name,
-      icon: item.icon,
-      iconColor: item.icon_color,
-      organ: item.organ,
-      title: item.title,
-      board: item.board,
-      state: item.state,
-      city: item.city,
-      region: item.region,
-      levels: item.levels ?? [],
-      vacancies: item.vacancies,
-      salaryMin: item.salary_min,
-      salaryMax: item.salary_max,
-      registrationStart: item.registration_start,
-      registrationEnd: item.registration_end,
-      examDate: item.exam_date,
-      fee: item.fee,
-      status: item.status,
-      roles: (item.concurso_roles ?? [])
-        .sort((left, right) => left.sort_order - right.sort_order)
-        .map(({ name, vacancies, salary, level }) => ({ name, vacancies, salary, level })),
-      highlights: item.highlights ?? [],
-      editalUrl: item.edital_url,
-      updatedAt: item.updated_at,
-      contentSource: 'published' as const,
-    })),
+    questions: mapPublishedQuestions(questionsResult.data),
+    concursos: mapPublishedConcursos(concursosResult.data),
   };
 }
 
 export async function sendFeedback(payload: { kind: string; message: string }): Promise<OfflineResult | FailureResult | SuccessResult> {
-  if (!supabase) return { ok: false, offline: true };
-  const { error } = await supabase.rpc('submit_user_feedback', {
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  const { error } = await remote.rpc('submit_user_feedback', {
     p_category: payload.kind,
     p_message: payload.message,
     p_source_screen: 'profile/feedback',

@@ -107,8 +107,8 @@ export function stat(value: string, label: string, iconName: string, tone = 'pri
   return `<div class="stat"><span class="stat__icon stat__icon--${escapeHtml(tone)}">${icon(iconName)}</span><div><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div></div>`;
 }
 
-export function avatar(name: string, size = 'md'): string {
-  return `<span class="avatar avatar--${escapeHtml(size)}" aria-hidden="true">${escapeHtml(initials(name))}</span>`;
+export function avatar(name: string, size = 'md', imageUrl = ''): string {
+  return `<span class="avatar avatar--${escapeHtml(size)}" aria-hidden="true">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" />` : escapeHtml(initials(name))}</span>`;
 }
 
 export function emptyState(title: string, description: string, { actionLabel, action, route, iconName = 'Info' }: { actionLabel?: string; action?: string; route?: string; iconName?: string } = {}): string {

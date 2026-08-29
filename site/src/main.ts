@@ -3,7 +3,19 @@ import './styles/app.css';
 
 import { getCatalog, replacePublishedCatalog } from './data/catalog.ts';
 import { back, currentRoute, matchRoute, navigate, shouldOpenStudyHome, subscribeRouter } from './core/router.ts';
+import {
+  archiveCard as archiveFlashcard,
+  archiveDeck as archiveFlashcardDeck,
+  createCard,
+  createDeck,
+  mergeFlashcardStates,
+  restoreCard as restoreFlashcard,
+  restoreDeck as restoreFlashcardDeck,
+  scheduleReview,
+  withDeckCounts,
+} from './core/flashcards.ts';
 import { recordAnswer, store } from './core/store.ts';
+import { mergeEssayDocuments, mergeSimulationSessions, nextSyncTimestamp, touchSimulationSession } from './core/user-sync.ts';
 import { randomId } from './core/utils.ts';
 import { hydrateIcons } from './ui/icons.ts';
 import { appLayout, publicLayout } from './ui/layout.ts';
@@ -12,13 +24,33 @@ import { updateMetadata } from './services/metadata.ts';
 import {
   cancelRemoteSubscription,
   completePasswordRecoveryCallback,
+  createQuestionComment,
   createSubscriptionCheckout,
+  deleteRemoteSimulationSession,
+  deleteQuestionComment,
+  deleteRemoteAccount,
   getCurrentUser,
+  initializeSupabase,
   loadPublishedContent,
+  loadQuestionComments,
+  loadQuestionCommunityAccuracy,
+  loadRemoteEssayDocuments,
+  loadRemoteFlashcards,
+  loadRemoteProfile,
+  loadRemoteSimulationSessions,
   loadRemoteStudyData,
   loadRemoteSubscription,
+  removeRemoteCard,
+  removeRemoteDeck,
   removeRemoteAnswer,
   requestPasswordRecovery,
+  resendEmailConfirmation,
+  saveRemoteCard,
+  saveRemoteDeck,
+  saveRemoteEssay,
+  saveRemoteProfile,
+  saveRemoteReview,
+  saveRemoteSimulationSession,
   sendFeedback,
   signIn,
   signOut,
@@ -26,9 +58,12 @@ import {
   saveRemoteAnswer,
   setRemoteFavorite,
   setRemoteSavedConcurso,
+  setQuestionCommentLiked,
   supabaseConfigured,
   updateAccountPassword,
+  updateQuestionComment,
   updateRecoveredPassword,
+  uploadRemoteAvatar,
   verifyEmailOtp,
 } from './services/supabase.ts';
 import { authView, legalView, onboardingView, recoveryView, welcomeView } from './views/public.ts';
@@ -61,9 +96,16 @@ import {
   profileEditView,
   profileView,
 } from './views/profile.ts';
+import {
+  flashcardDeckEditorView,
+  flashcardEditorView,
+  flashcardReviewView,
+  flashcardsView,
+} from './views/flashcards.ts';
 import type {
   AlternativeId,
   BillingCycle,
+  FlashcardRating,
   Route,
   SiteState,
   UiState,
@@ -73,6 +115,8 @@ import type {
 const AUTH_STORY_INTERVAL = 6500;
 let welcomeNavigationCleanup: (() => void) | null = null;
 let publicAuthTrigger: HTMLElement | null = null;
+const loadedCommunityKeys = new Set<string>();
+const loadingCommunityKeys = new Set<string>();
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -98,6 +142,9 @@ const ui: UiState = {
   authStoryTimer: null,
   authStoryPaused: false,
   authStoryInteractionPaused: false,
+  flashcardRevealId: null,
+  essaySyncTimer: null,
+  simulationSyncTimer: null,
 };
 
 function applyTheme(state: SiteState = store.getState()): void {
@@ -118,6 +165,51 @@ function toast(message: string): void {
   announcer.textContent = message;
   if (ui.toastTimer !== null) clearTimeout(ui.toastTimer);
   ui.toastTimer = setTimeout(() => element.remove(), 3600);
+}
+
+async function hydrateAuthenticatedUser(user: { id: string; email?: string | null; user_metadata?: { full_name?: string } }): Promise<void> {
+  store.switchOwner(user.id);
+  const [remote, subscription, profile, essays, simulations, flashcards] = await Promise.all([
+    loadRemoteStudyData(user.id).catch(() => null),
+    loadRemoteSubscription(user.id).catch(() => null),
+    loadRemoteProfile(user.id).catch(() => null),
+    loadRemoteEssayDocuments(user.id).catch(() => []),
+    loadRemoteSimulationSessions(user.id).catch(() => []),
+    loadRemoteFlashcards(user.id).catch(() => ({ decks: [], cards: [], reviews: [] })),
+  ]);
+  if (store.getOwnerId() !== user.id) return;
+  const local = store.getState();
+  const mergedSimulations = mergeSimulationSessions(
+    local.simulations.current ? [local.simulations.current, ...local.simulations.history] : local.simulations.history,
+    simulations,
+  );
+  const mergedEssays = mergeEssayDocuments(local.essays, essays);
+  const mergedFlashcards = mergeFlashcardStates(local.flashcards, flashcards);
+  store.update((draft) => {
+    draft.auth = { mode: 'authenticated', userId: user.id };
+    draft.preferences.hasStarted = true;
+    draft.profile.email = user.email ?? draft.profile.email;
+    draft.profile.name = user.user_metadata?.full_name ?? draft.profile.name;
+    if (profile) draft.profile = { ...draft.profile, ...profile, email: user.email ?? draft.profile.email };
+    if (remote) {
+      draft.answers = remote.answers;
+      draft.favorites = remote.favorites;
+      draft.savedConcursos = remote.savedConcursos;
+    }
+    if (subscription) draft.subscription = subscription;
+    draft.essays = mergedEssays;
+    draft.simulations = mergedSimulations;
+    draft.flashcards = mergedFlashcards;
+  });
+  const synced = store.getState();
+  void Promise.all([
+    ...Object.values(synced.essays).map((document) => saveRemoteEssay(user.id, document)),
+    ...(synced.simulations.current ? [saveRemoteSimulationSession(user.id, synced.simulations.current)] : []),
+    ...synced.simulations.history.map((session) => saveRemoteSimulationSession(user.id, session)),
+    ...synced.flashcards.decks.map(saveRemoteDeck),
+    ...synced.flashcards.cards.map(saveRemoteCard),
+    ...synced.flashcards.reviews.map(saveRemoteReview),
+  ]).catch(() => {});
 }
 
 function notFoundView(): ViewModel {
@@ -158,6 +250,12 @@ function resolveView(route: Route, state: SiteState): ViewModel {
   if (pathname === '/trilhas') return trailsView(state, params);
   if (pathname === '/redacao') return essayView(state, params);
   if (pathname === '/biblioteca') return libraryView();
+  if (pathname === '/flashcards') return flashcardsView(state, params);
+  if (pathname === '/flashcards/revisar') return flashcardReviewView(state, ui);
+  const flashcard = matchRoute('/flashcards/cartao/:id', pathname);
+  if (flashcard) return flashcardEditorView(state, flashcard.id);
+  const flashcardDeck = matchRoute('/flashcards/baralho/:id', pathname);
+  if (flashcardDeck) return flashcardDeckEditorView(state, flashcardDeck.id);
   if (pathname === '/perfil') return profileView(state);
   if (pathname === '/perfil/desempenho') return performanceView(state);
   if (pathname === '/perfil/editar') return profileEditView(state);
@@ -177,6 +275,26 @@ function stopPageTimers() {
   ui.essayTimer = null;
   ui.authStoryTimer = null;
   ui.authStoryInteractionPaused = false;
+}
+
+function queueEssaySync(document: SiteState['essays'][string]): void {
+  const userId = store.getState().auth.userId;
+  if (!userId) return;
+  if (ui.essaySyncTimer !== null) clearTimeout(ui.essaySyncTimer);
+  ui.essaySyncTimer = setTimeout(() => {
+    ui.essaySyncTimer = null;
+    void saveRemoteEssay(userId, document).catch(() => {});
+  }, 700);
+}
+
+function queueSimulationSync(session = store.getState().simulations.current): void {
+  const userId = store.getState().auth.userId;
+  if (!userId || !session) return;
+  if (ui.simulationSyncTimer !== null) clearTimeout(ui.simulationSyncTimer);
+  ui.simulationSyncTimer = setTimeout(() => {
+    ui.simulationSyncTimer = null;
+    void saveRemoteSimulationSession(userId, session).catch(() => {});
+  }, 700);
 }
 
 function showAuthStory(index: number, { announce = false }: { announce?: boolean } = {}): void {
@@ -239,9 +357,12 @@ function startPageTimers(route: Route, state: SiteState): void {
         const session = draft.simulations.current;
         if (!session || session.status !== 'active') return;
         session.remainingSeconds = Math.max(0, session.remainingSeconds - 1);
-        session.updatedAt = new Date().toISOString();
+        if (session.remainingSeconds % 10 === 0 || session.remainingSeconds === 0) {
+          session.updatedAt = nextSyncTimestamp(session.updatedAt);
+        }
         if (session.remainingSeconds === 0) completeSimulation(draft);
       });
+      if ((store.getState().simulations.current?.remainingSeconds ?? 1) % 10 === 0) queueSimulationSync();
       if (store.getState().simulations.current?.status === 'completed') navigate('/simulados/resultado', { replace: true });
     }, 1000);
   }
@@ -257,6 +378,7 @@ function startPageTimers(route: Route, state: SiteState): void {
           essay.elapsedSeconds = elapsed;
           essay.updatedAt = new Date().toISOString();
           draft.essays[topicId] = essay;
+          queueEssaySync(essay);
         }, { silent: true });
       }
       if (timer) {
@@ -334,6 +456,29 @@ function setupWelcomeNavigation(route: Route): void {
   };
 }
 
+function hydrateQuestionCommunity(): void {
+  const state = store.getState();
+  const element = document.querySelector<HTMLElement>('[data-community-question-id]');
+  const questionId = element?.dataset.communityQuestionId;
+  const userId = state.auth.userId;
+  if (!questionId || !userId) return;
+  const key = `${userId}:${questionId}`;
+  if (loadedCommunityKeys.has(key) || loadingCommunityKeys.has(key)) return;
+  loadingCommunityKeys.add(key);
+  void Promise.all([
+    loadQuestionComments(questionId, userId),
+    loadQuestionCommunityAccuracy(questionId),
+  ]).then(([comments, accuracy]) => {
+    loadedCommunityKeys.add(key);
+    store.update((draft) => {
+      draft.comments[questionId] = comments;
+      if (accuracy) draft.communityAccuracy[questionId] = accuracy;
+    });
+  }).catch(() => {
+    loadedCommunityKeys.add(key);
+  }).finally(() => loadingCommunityKeys.delete(key));
+}
+
 function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void {
   welcomeNavigationCleanup?.();
   welcomeNavigationCleanup = null;
@@ -371,6 +516,7 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
   document.body.classList.remove('nav-open');
   startPageTimers(route, state);
   setupWelcomeNavigation(route);
+  hydrateQuestionCommunity();
   maybeConfirmCheckout(route, state);
   if (routeChanged) document.querySelector<HTMLElement>('#conteudo')?.focus({ preventScroll: true });
 }
@@ -378,6 +524,7 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
 function persistEssayBuffer(): void {
   if (!ui.essayBuffer) return;
   const { topicId, content } = ui.essayBuffer;
+  let saved: SiteState['essays'][string] | null = null;
   store.update((draft) => {
     const current = draft.essays[topicId] ?? { elapsedSeconds: 0 };
     draft.essays[topicId] = {
@@ -386,7 +533,9 @@ function persistEssayBuffer(): void {
       status: 'draft',
       updatedAt: new Date().toISOString(),
     };
+    saved = structuredClone(draft.essays[topicId]);
   }, { silent: true });
+  if (saved) queueEssaySync(saved);
   ui.essayBuffer = null;
 }
 
@@ -395,7 +544,7 @@ function completeSimulation(draft: SiteState): void {
   if (!session) return;
   session.status = 'completed';
   session.completedAt = session.completedAt ?? new Date().toISOString();
-  session.updatedAt = new Date().toISOString();
+  session.updatedAt = nextSyncTimestamp(session.updatedAt);
   const history = draft.simulations.history.filter((item) => item.id !== session.id);
   draft.simulations.history = [structuredClone(session), ...history].slice(0, 20);
 }
@@ -424,13 +573,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
     updateFormMessage(form, 'Entrando...');
     const result = await signIn(values.email, values.password);
     if (result.ok) {
-      store.switchOwner(result.user.id);
-      store.update((draft) => {
-        draft.auth = { mode: 'authenticated', userId: result.user.id };
-        draft.preferences.hasStarted = true;
-        draft.profile.email = result.user.email ?? values.email;
-        draft.profile.name = result.user.user_metadata?.full_name ?? draft.profile.name;
-      });
+      await hydrateAuthenticatedUser(result.user);
       navigate('/inicio', { replace: true });
     } else if (result.offline) updateFormMessage(form, 'O acesso à conta não está disponível neste ambiente. Você ainda pode continuar como visitante.', 'error');
     else updateFormMessage(form, result.message, 'error');
@@ -455,6 +598,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
           draft.auth = { mode: 'authenticated', userId: user.id };
           draft.preferences.hasStarted = true;
         });
+        await hydrateAuthenticatedUser(user);
       }
       navigate(result.requiresConfirmation ? `/confirmar-email?email=${encodeURIComponent(values.email)}` : '/onboarding', { replace: true });
     } else if (result.offline) updateFormMessage(form, 'A criação de conta não está disponível neste ambiente. Você ainda pode continuar como visitante.', 'error');
@@ -471,12 +615,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
   if (formName === 'confirmation') {
     const result = await verifyEmailOtp(values.email, values.code);
     if (result.ok) {
-      store.switchOwner(result.user.id);
-      store.update((draft) => {
-        draft.auth = { mode: 'authenticated', userId: result.user?.id ?? null };
-        draft.preferences.hasStarted = true;
-        draft.profile.email = result.user?.email ?? values.email;
-      });
+      await hydrateAuthenticatedUser(result.user);
       navigate('/onboarding', { replace: true });
     } else updateFormMessage(form, result.offline ? 'A confirmação de conta não está disponível neste ambiente.' : result.message, 'error');
     return;
@@ -503,6 +642,12 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       draft.preferences.weeklyGoal = Number(values.weeklyGoal) || 30;
       draft.preferences.hasStarted = true;
     });
+    const nextState = store.getState();
+    if (nextState.auth.userId) {
+      void saveRemoteProfile(nextState.auth.userId, nextState.profile).catch(() => {
+        toast('Meta salva neste navegador; a sincronização será tentada novamente depois.');
+      });
+    }
     toast('Meta atualizada.');
     navigate('/inicio', { replace: formName === 'onboarding' });
     return;
@@ -517,12 +662,23 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
   if (formName === 'question-comment') {
     const questionId = form.dataset.questionId;
     if (!questionId) return;
-    store.update((draft) => {
-      const current = draft.comments[questionId] ?? [];
-      current.push({ id: randomId('comment'), author: draft.profile.name, text: values.comment.trim(), createdAt: new Date().toISOString() });
-      draft.comments[questionId] = current.slice(-20);
-    });
-    toast('Comentário adicionado neste navegador.');
+    const state = store.getState();
+    if (!state.auth.userId) return;
+    updateFormMessage(form, 'Enviando...');
+    try {
+      const comment = await createQuestionComment(
+        questionId,
+        state.auth.userId,
+        state.profile.name,
+        values.comment.trim(),
+      );
+      store.update((draft) => {
+        draft.comments[questionId] = [comment, ...(draft.comments[questionId] ?? []).filter((item) => item.id !== comment.id)];
+      });
+      toast('Comentário publicado.');
+    } catch {
+      updateFormMessage(form, 'Não foi possível publicar o comentário agora.', 'error');
+    }
     return;
   }
 
@@ -537,6 +693,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       return;
     }
     store.update((draft) => { draft.simulations.current = session; });
+    queueSimulationSync(session);
     navigate('/simulados/em-andamento');
     return;
   }
@@ -555,12 +712,109 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
     return;
   }
 
-  if (formName === 'profile-edit') {
+  if (formName === 'flashcard-filter') {
+    const query = new URLSearchParams(Object.entries(values).filter(([, value]) => value && value !== 'all'));
+    navigate(`/flashcards${query.size ? `?${query}` : ''}`);
+    return;
+  }
+
+  if (formName === 'flashcard-deck') {
+    const state = store.getState();
+    const ownerId = state.auth.userId ?? 'guest';
+    const duplicate = state.flashcards.decks.find((deck) => !deck.archivedAt
+      && deck.name.trim().toLocaleLowerCase('pt-BR') === values.name.trim().toLocaleLowerCase('pt-BR'));
+    if (duplicate) {
+      updateFormMessage(form, 'Já existe um baralho ativo com esse nome.', 'error');
+      return;
+    }
+    const deck = createDeck({ userId: ownerId, name: values.name, description: values.description, color: values.color });
+    store.update((draft) => { draft.flashcards = withDeckCounts({ ...draft.flashcards, decks: [...draft.flashcards.decks, deck] }); });
+    if (state.auth.userId) void saveRemoteDeck(deck).catch(() => {});
+    form.reset();
+    toast('Baralho criado.');
+    return;
+  }
+
+  if (formName === 'flashcard-card') {
+    const state = store.getState();
+    const ownerId = state.auth.userId ?? 'guest';
+    try {
+      const cardItem = createCard({
+        userId: ownerId,
+        deckId: values.deckId,
+        front: values.front,
+        back: values.back,
+        tags: values.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      });
+      store.update((draft) => { draft.flashcards = withDeckCounts({ ...draft.flashcards, cards: [...draft.flashcards.cards, cardItem] }); });
+      if (state.auth.userId) void saveRemoteCard(cardItem).catch(() => {});
+      form.reset();
+      toast('Flashcard criado.');
+    } catch (error) {
+      updateFormMessage(form, error instanceof Error ? error.message : 'Não foi possível criar o cartão.', 'error');
+    }
+    return;
+  }
+
+  if (formName === 'flashcard-card-edit') {
+    const cardId = form.dataset.cardId;
+    if (!cardId) return;
+    let changed = null as SiteState['flashcards']['cards'][number] | null;
     store.update((draft) => {
-      draft.profile = { ...draft.profile, ...values };
+      draft.flashcards.cards = draft.flashcards.cards.map((cardItem) => {
+        if (cardItem.id !== cardId) return cardItem;
+        changed = {
+          ...cardItem,
+          deckId: values.deckId,
+          front: values.front.trim(),
+          back: values.back.trim(),
+          tags: values.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+          updatedAt: new Date().toISOString(),
+        };
+        return changed;
+      });
+      draft.flashcards = withDeckCounts(draft.flashcards);
     });
-    updateFormMessage(form, 'Dados salvos neste navegador.', 'success');
-    toast('Perfil atualizado.');
+    if (changed && store.getState().auth.userId) void saveRemoteCard(changed).catch(() => {});
+    toast('Flashcard atualizado.');
+    navigate('/flashcards');
+    return;
+  }
+
+  if (formName === 'flashcard-deck-edit') {
+    const deckId = form.dataset.deckId;
+    if (!deckId) return;
+    let changed = null as SiteState['flashcards']['decks'][number] | null;
+    store.update((draft) => {
+      draft.flashcards.decks = draft.flashcards.decks.map((deck) => {
+        if (deck.id !== deckId) return deck;
+        changed = { ...deck, name: values.name.trim(), description: values.description.trim() || undefined, color: values.color, updatedAt: new Date().toISOString() };
+        return changed;
+      });
+    });
+    if (changed && store.getState().auth.userId) void saveRemoteDeck(changed).catch(() => {});
+    toast('Baralho atualizado.');
+    navigate('/flashcards');
+    return;
+  }
+
+  if (formName === 'profile-edit') {
+    updateFormMessage(form, 'Salvando...');
+    const state = store.getState();
+    const nextProfile = { ...state.profile, ...values };
+    try {
+      if (state.auth.userId) {
+        await saveRemoteProfile(state.auth.userId, nextProfile);
+        const avatarInput = form.elements.namedItem('avatar');
+        const avatarFile = avatarInput instanceof HTMLInputElement ? avatarInput.files?.[0] : undefined;
+        if (avatarFile) nextProfile.avatarUri = await uploadRemoteAvatar(state.auth.userId, avatarFile);
+      }
+      store.update((draft) => { draft.profile = nextProfile; });
+      updateFormMessage(form, state.auth.userId ? 'Perfil sincronizado com sua conta.' : 'Dados salvos neste navegador.', 'success');
+      toast('Perfil atualizado.');
+    } catch (error) {
+      updateFormMessage(form, error instanceof Error ? error.message : 'Não foi possível salvar o perfil agora.', 'error');
+    }
     return;
   }
 
@@ -580,8 +834,17 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       updateFormMessage(form, 'Digite APAGAR exatamente como indicado.', 'error');
       return;
     }
+    const state = store.getState();
+    if (state.auth.userId) {
+      updateFormMessage(form, 'Excluindo sua conta...');
+      const result = await deleteRemoteAccount(values.currentPassword);
+      if (!result.ok) {
+        updateFormMessage(form, result.offline ? 'A conexão com a conta não está disponível.' : result.message, 'error');
+        return;
+      }
+    }
     store.reset();
-    toast('Os dados locais foram apagados.');
+    toast(state.auth.userId ? 'Sua conta foi excluída.' : 'Os dados locais foram apagados.');
     navigate('/', { replace: true });
   }
 }
@@ -596,6 +859,10 @@ function isAlternativeId(value?: string): value is AlternativeId {
 
 function isBillingCycle(value?: string): value is BillingCycle {
   return value === 'monthly' || value === 'quarterly' || value === 'annual';
+}
+
+function isFlashcardRating(value?: string): value is FlashcardRating {
+  return value === 'again' || value === 'hard' || value === 'good' || value === 'easy';
 }
 
 function setPublicAuthMode(dialog: HTMLDialogElement, requestedMode?: string): void {
@@ -714,6 +981,15 @@ document.addEventListener('click', async (event) => {
     navigate('/inicio');
     return;
   }
+  if (action === 'resend-confirmation') {
+    const form = target.closest<HTMLFormElement>('form');
+    const email = form?.elements.namedItem('email');
+    if (!(form instanceof HTMLFormElement) || !(email instanceof HTMLInputElement) || !email.value) return;
+    updateFormMessage(form, 'Reenviando...');
+    const result = await resendEmailConfirmation(email.value);
+    updateFormMessage(form, result.ok ? 'Novo código enviado. Confira seu e-mail.' : result.offline ? 'A conexão com a conta não está disponível.' : result.message, result.ok ? 'success' : 'error');
+    return;
+  }
   if (action === 'open-question') {
     if (target.dataset.questionId) navigate(`/questoes/sessao?id=${encodeURIComponent(target.dataset.questionId)}`);
     return;
@@ -746,6 +1022,63 @@ document.addEventListener('click', async (event) => {
     if (state.auth.userId) setRemoteFavorite(state.auth.userId, id, favorite).catch(() => {});
     return;
   }
+  if (action === 'like-comment') {
+    const commentId = target.dataset.commentId;
+    if (!commentId || !state.auth.userId) return;
+    const questionId = Object.keys(state.comments).find((id) => state.comments[id].some((comment) => comment.id === commentId));
+    const comment = questionId ? state.comments[questionId].find((item) => item.id === commentId) : undefined;
+    if (!questionId || !comment) return;
+    const liked = !comment.likedByMe;
+    store.update((draft) => {
+      const current = draft.comments[questionId]?.find((item) => item.id === commentId);
+      if (!current) return;
+      current.likedByMe = liked;
+      current.likes = Math.max(0, current.likes + (liked ? 1 : -1));
+    });
+    void setQuestionCommentLiked(commentId, state.auth.userId, liked).catch(() => {
+      store.update((draft) => {
+        const current = draft.comments[questionId]?.find((item) => item.id === commentId);
+        if (!current) return;
+        current.likedByMe = !liked;
+        current.likes = Math.max(0, current.likes + (liked ? -1 : 1));
+      });
+    });
+    return;
+  }
+  if (action === 'edit-comment') {
+    const commentId = target.dataset.commentId;
+    if (!commentId || !state.auth.userId) return;
+    const questionId = Object.keys(state.comments).find((id) => state.comments[id].some((comment) => comment.id === commentId));
+    const comment = questionId ? state.comments[questionId].find((item) => item.id === commentId) : undefined;
+    if (!questionId || !comment?.isOwn) return;
+    const text = globalThis.prompt('Editar comentário', comment.text)?.trim();
+    if (!text || text === comment.text) return;
+    try {
+      await updateQuestionComment(commentId, state.auth.userId, text);
+      store.update((draft) => {
+        const current = draft.comments[questionId]?.find((item) => item.id === commentId);
+        if (current) { current.text = text; current.updatedAt = new Date().toISOString(); }
+      });
+      toast('Comentário atualizado.');
+    } catch {
+      toast('Não foi possível atualizar o comentário.');
+    }
+    return;
+  }
+  if (action === 'delete-comment') {
+    const commentId = target.dataset.commentId;
+    if (!commentId || !state.auth.userId || !globalThis.confirm('Excluir este comentário?')) return;
+    const questionId = Object.keys(state.comments).find((id) => state.comments[id].some((comment) => comment.id === commentId));
+    if (!questionId) return;
+    try {
+      await deleteQuestionComment(commentId, state.auth.userId);
+      store.update((draft) => { draft.comments[questionId] = (draft.comments[questionId] ?? []).filter((item) => item.id !== commentId); });
+      toast('Comentário excluído.');
+    } catch {
+      toast('Não foi possível excluir o comentário.');
+    }
+    return;
+  }
   if (action === 'go-question') { ui.questionIndex = Number(target.dataset.index); render(); return; }
   if (action === 'previous-question') { ui.questionIndex = Math.max(0, ui.questionIndex - 1); render(); return; }
   if (action === 'next-question') { ui.questionIndex += 1; render(); return; }
@@ -753,6 +1086,7 @@ document.addEventListener('click', async (event) => {
     const session = createSimulation({ questionCount: 5, durationMinutes: 10 });
     if (!session) return;
     store.update((draft) => { draft.simulations.current = session; });
+    queueSimulationSync(session);
     navigate('/simulados/em-andamento');
     return;
   }
@@ -764,12 +1098,18 @@ document.addEventListener('click', async (event) => {
       const session = draft.simulations.current;
       if (!session || session.status === 'completed') return;
       session.answers[questionId] = selected;
-      session.updatedAt = new Date().toISOString();
+      session.updatedAt = nextSyncTimestamp(session.updatedAt);
     });
+    queueSimulationSync();
     return;
   }
   if (action === 'go-simulation-question') {
-    store.update((draft) => { if (draft.simulations.current) draft.simulations.current.currentIndex = Number(target.dataset.index); });
+    store.update((draft) => {
+      if (!draft.simulations.current) return;
+      draft.simulations.current.currentIndex = Number(target.dataset.index);
+      draft.simulations.current.updatedAt = nextSyncTimestamp(draft.simulations.current.updatedAt);
+    });
+    queueSimulationSync();
     return;
   }
   if (action === 'previous-simulation-question' || action === 'next-simulation-question') {
@@ -777,26 +1117,119 @@ document.addEventListener('click', async (event) => {
       const session = draft.simulations.current;
       if (!session) return;
       const delta = action === 'next-simulation-question' ? 1 : -1;
-      session.currentIndex = Math.max(0, Math.min(session.questionIds.length - 1, session.currentIndex + delta));
+      session.currentIndex = Math.max(0, Math.min(session.questions.length - 1, session.currentIndex + delta));
+      session.updatedAt = nextSyncTimestamp(session.updatedAt);
     });
+    queueSimulationSync();
     return;
   }
   if (action === 'pause-simulation' || action === 'resume-simulation') {
-    store.update((draft) => { if (draft.simulations.current) draft.simulations.current.status = action === 'pause-simulation' ? 'paused' : 'active'; });
+    store.update((draft) => {
+      if (!draft.simulations.current) return;
+      draft.simulations.current = touchSimulationSession({
+        ...draft.simulations.current,
+        status: action === 'pause-simulation' ? 'paused' : 'active',
+      });
+    });
+    queueSimulationSync();
     return;
   }
   if (action === 'finish-simulation') {
     store.update((draft) => completeSimulation(draft));
+    queueSimulationSync();
     navigate('/simulados/resultado');
     return;
   }
   if (action === 'discard-simulation') {
+    const sessionId = state.simulations.current?.id;
     store.update((draft) => { draft.simulations.current = null; });
+    if (state.auth.userId && sessionId) void deleteRemoteSimulationSession(state.auth.userId, sessionId).catch(() => {});
     navigate('/simulados');
     return;
   }
   if (action === 'open-simulation-result') {
     if (target.dataset.simulationId) navigate(`/simulados/resultado?id=${encodeURIComponent(target.dataset.simulationId)}`);
+    return;
+  }
+  if (action === 'focus-new-flashcard' || action === 'focus-new-deck') {
+    const id = action === 'focus-new-flashcard' ? 'new-flashcard-card' : 'new-flashcard-deck';
+    const form = document.getElementById(id);
+    const details = form?.closest('details');
+    if (details) details.open = true;
+    form?.querySelector<HTMLElement>('input, textarea, select')?.focus();
+    form?.scrollIntoView({ behavior: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    return;
+  }
+  if (action === 'reveal-flashcard') {
+    ui.flashcardRevealId = target.dataset.cardId ?? null;
+    render();
+    return;
+  }
+  if (action === 'rate-flashcard') {
+    const cardId = target.dataset.cardId;
+    const rating = target.dataset.rating;
+    if (!cardId || !isFlashcardRating(rating)) return;
+    const cardItem = state.flashcards.cards.find((item) => item.id === cardId);
+    if (!cardItem) return;
+    const result = scheduleReview(cardItem, rating);
+    store.update((draft) => {
+      draft.flashcards.cards = draft.flashcards.cards.map((item) => item.id === cardId ? result.card : item);
+      if (!draft.flashcards.reviews.some((item) => item.id === result.review.id)) draft.flashcards.reviews.push(result.review);
+    });
+    if (state.auth.userId) void Promise.all([saveRemoteCard(result.card), saveRemoteReview(result.review)]).catch(() => {});
+    ui.flashcardRevealId = null;
+    announcer.textContent = 'Revisão registrada. Próximo cartão.';
+    render();
+    return;
+  }
+  if (action === 'archive-flashcard' || action === 'restore-flashcard') {
+    const cardId = target.dataset.cardId;
+    if (!cardId) return;
+    store.update((draft) => {
+      draft.flashcards = action === 'archive-flashcard'
+        ? archiveFlashcard(draft.flashcards, cardId)
+        : restoreFlashcard(draft.flashcards, cardId);
+    });
+    const changed = store.getState().flashcards.cards.find((item) => item.id === cardId);
+    if (state.auth.userId && changed) void saveRemoteCard(changed).catch(() => {});
+    return;
+  }
+  if (action === 'archive-deck' || action === 'restore-deck') {
+    const deckId = target.dataset.deckId;
+    if (!deckId) return;
+    store.update((draft) => {
+      draft.flashcards = action === 'archive-deck'
+        ? archiveFlashcardDeck(draft.flashcards, deckId)
+        : restoreFlashcardDeck(draft.flashcards, deckId);
+    });
+    const next = store.getState().flashcards;
+    const changedDeck = next.decks.find((item) => item.id === deckId);
+    const changedCards = next.cards.filter((item) => item.deckId === deckId);
+    if (state.auth.userId && changedDeck) void Promise.all([saveRemoteDeck(changedDeck), ...changedCards.map(saveRemoteCard)]).catch(() => {});
+    return;
+  }
+  if (action === 'delete-flashcard') {
+    const cardId = target.dataset.cardId;
+    if (!cardId || !globalThis.confirm('Excluir este flashcard?')) return;
+    store.update((draft) => {
+      draft.flashcards = withDeckCounts({ ...draft.flashcards, cards: draft.flashcards.cards.filter((item) => item.id !== cardId) });
+    });
+    if (state.auth.userId) void removeRemoteCard(state.auth.userId, cardId).catch(() => {});
+    toast('Flashcard excluído.');
+    return;
+  }
+  if (action === 'delete-deck') {
+    const deckId = target.dataset.deckId;
+    if (!deckId || !globalThis.confirm('Excluir este baralho e todos os cartões dele?')) return;
+    store.update((draft) => {
+      draft.flashcards = {
+        decks: draft.flashcards.decks.filter((item) => item.id !== deckId),
+        cards: draft.flashcards.cards.filter((item) => item.deckId !== deckId),
+        reviews: draft.flashcards.reviews,
+      };
+    });
+    if (state.auth.userId) void removeRemoteDeck(state.auth.userId, deckId).catch(() => {});
+    toast('Baralho excluído.');
     return;
   }
   if (action === 'toggle-concurso') {
@@ -964,27 +1397,11 @@ const recoveryBootstrap = currentRoute().pathname === '/nova-senha'
     })
   : Promise.resolve();
 
-if (supabaseConfigured) {
+void initializeSupabase().then((configured) => {
+  if (!configured || !supabaseConfigured) return;
   recoveryBootstrap.then(() => getCurrentUser()).then(async (user) => {
     if (!user) return;
-    store.switchOwner(user.id);
-    const [remote, subscription] = await Promise.all([
-      loadRemoteStudyData(user.id).catch(() => null),
-      loadRemoteSubscription(user.id).catch(() => null),
-    ]);
-    if (store.getOwnerId() !== user.id) return;
-    store.update((draft) => {
-      draft.auth = { mode: 'authenticated', userId: user.id };
-      draft.preferences.hasStarted = true;
-      draft.profile.email = user.email ?? draft.profile.email;
-      draft.profile.name = user.user_metadata?.full_name ?? draft.profile.name;
-      if (remote) {
-        draft.answers = remote.answers;
-        draft.favorites = remote.favorites;
-        draft.savedConcursos = remote.savedConcursos;
-      }
-      if (subscription) draft.subscription = subscription;
-    });
+    await hydrateAuthenticatedUser(user);
   });
   loadPublishedContent()
     .then((content) => {
@@ -994,4 +1411,4 @@ if (supabaseConfigured) {
     .catch(() => {
       // O catálogo compartilhado mantém o site utilizável se a rede falhar.
     });
-}
+});
