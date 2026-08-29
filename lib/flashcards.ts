@@ -173,6 +173,32 @@ export function archiveCardInStore(
   });
 }
 
+export function restoreCardInStore(
+  state: FlashcardStoreState,
+  cardId: string,
+  updatedAt = new Date(),
+): FlashcardStoreState {
+  return withDeckCounts({
+    ...state,
+    cards: state.cards.map((card) =>
+      card.id === cardId ? { ...card, archivedAt: undefined, updatedAt: iso(updatedAt) } : card,
+    ),
+  });
+}
+
+export function restoreDeckInStore(
+  state: FlashcardStoreState,
+  deckId: string,
+  updatedAt = new Date(),
+): FlashcardStoreState {
+  const timestamp = iso(updatedAt);
+  return withDeckCounts({
+    ...state,
+    decks: state.decks.map((deck) => deck.id === deckId ? { ...deck, archivedAt: undefined, updatedAt: timestamp } : deck),
+    cards: state.cards.map((card) => card.deckId === deckId ? { ...card, archivedAt: undefined, updatedAt: timestamp } : card),
+  });
+}
+
 export function reviewCardInStore(
   state: FlashcardStoreState,
   cardId: string,

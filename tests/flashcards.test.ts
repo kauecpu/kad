@@ -5,6 +5,8 @@ import {
   addCardToStore,
   addDeckToStore,
   archiveCardInStore,
+  restoreCardInStore,
+  restoreDeckInStore,
   createInitialFlashcardState,
   createCard,
   createDeck,
@@ -82,5 +84,18 @@ test('revisão atualiza o card na loja sem criar uma cópia', () => {
   assert.equal(reviewed.cards.length, 1);
   assert.equal(reviewed.cards[0].repetitions, 1);
   assert.equal(reviewed.reviews.length, 1);
+});
+
+test('restaura um card e um baralho arquivados sem criar novos registros', () => {
+  const deck = createDeck({ userId: 'user-1', name: 'Direito' }, now);
+  const card = createCard({ userId: 'user-1', deckId: deck.id, front: 'F', back: 'V' }, now);
+  let state = addCardToStore(addDeckToStore(createInitialFlashcardState(), deck), card);
+  state = archiveCardInStore(state, card.id, now);
+  state = restoreCardInStore(state, card.id, now);
+  state = restoreDeckInStore(state, deck.id, now);
+  assert.equal(state.cards.length, 1);
+  assert.equal(state.decks.length, 1);
+  assert.equal(state.cards[0].archivedAt, undefined);
+  assert.equal(state.decks[0].archivedAt, undefined);
 });
 

@@ -13,6 +13,8 @@ import {
   addCardToStore,
   addDeckToStore,
   archiveCardInStore,
+  restoreCardInStore,
+  restoreDeckInStore,
   createCard,
   createDeck,
   createInitialFlashcardState,
@@ -36,6 +38,8 @@ type FlashcardsContextValue = FlashcardStoreState & {
   updateCard: (cardId: string, patch: Partial<Pick<Flashcard, 'front' | 'back' | 'tags' | 'deckId'>>) => void;
   archiveDeck: (deckId: string) => void;
   archiveCard: (cardId: string) => void;
+  restoreDeck: (deckId: string) => void;
+  restoreCard: (cardId: string) => void;
   deleteDeck: (deckId: string) => void;
   deleteCard: (cardId: string) => void;
   reviewCard: (cardId: string, rating: FlashcardRating) => void;
@@ -162,6 +166,12 @@ export function FlashcardsProvider({ children }: { children: ReactNode }) {
     if (changed && user?.id) saveRemoteCard(changed).catch(() => {});
     return next;
   }), [user?.id]);
+  const restoreCard = useCallback((cardId: string) => setState((current) => {
+    const next = restoreCardInStore(current, cardId);
+    const changed = next.cards.find((card) => card.id === cardId);
+    if (changed && user?.id) saveRemoteCard(changed).catch(() => {});
+    return next;
+  }), [user?.id]);
   const archiveDeck = useCallback((deckId: string) => {
     setState((current) => {
       const archivedAt = new Date().toISOString();
@@ -177,13 +187,20 @@ export function FlashcardsProvider({ children }: { children: ReactNode }) {
       };
     });
   }, [user?.id]);
+  const restoreDeck = useCallback((deckId: string) => setState((current) => {
+    const next = restoreDeckInStore(current, deckId);
+    const deck = next.decks.find((item) => item.id === deckId);
+    if (deck && user?.id) saveRemoteDeck(deck).catch(() => {});
+    if (user?.id) next.cards.filter((card) => card.deckId === deckId).forEach((card) => saveRemoteCard(card).catch(() => {}));
+    return next;
+  }), [user?.id]);
   const deleteCard = useCallback((cardId: string) => { setState((current) => { const cards = current.cards.filter((card) => card.id !== cardId); return { ...current, cards, decks: current.decks.map((deck) => ({ ...deck, cardCount: cards.filter((card) => card.deckId === deck.id && !card.archivedAt).length })) }; }); if (user?.id) removeRemoteCard(user.id, cardId).catch(() => {}); }, [user?.id]);
   const deleteDeck = useCallback((deckId: string) => { setState((current) => ({ ...current, decks: current.decks.filter((deck) => deck.id !== deckId), cards: current.cards.filter((card) => card.deckId !== deckId) })); if (user?.id) removeRemoteDeck(user.id, deckId).catch(() => {}); }, [user?.id]);
   const reviewCard = useCallback((cardId: string, rating: FlashcardRating) => setState((current) => { const next = reviewCardInStore(current, cardId, rating); const card = next.cards.find((item) => item.id === cardId); const review = next.reviews[next.reviews.length - 1]; if (card && user?.id) saveRemoteCard(card).catch(() => {}); if (review && review.cardId === cardId && user?.id) saveRemoteReview(review).catch(() => {}); return next; }), [user?.id]);
   const filter = useCallback((criteria: FlashcardFilter) => filterFlashcards(state.cards, criteria), [state.cards]);
   const due = useMemo(() => dueCards(state.cards), [state.cards]);
 
-  const value = useMemo(() => ({ ...state, hydrated, due, createDeck: createDeckAction, createCard: createCardAction, updateDeck, updateCard, archiveDeck, archiveCard, deleteDeck, deleteCard, reviewCard, filter }), [archiveCard, archiveDeck, createCardAction, createDeckAction, deleteCard, deleteDeck, due, filter, hydrated, reviewCard, state, updateCard, updateDeck]);
+  const value = useMemo(() => ({ ...state, hydrated, due, createDeck: createDeckAction, createCard: createCardAction, updateDeck, updateCard, archiveDeck, archiveCard, restoreDeck, restoreCard, deleteDeck, deleteCard, reviewCard, filter }), [archiveCard, archiveDeck, createCardAction, createDeckAction, deleteCard, deleteDeck, due, filter, hydrated, restoreCard, restoreDeck, reviewCard, state, updateCard, updateDeck]);
   return <FlashcardsContext.Provider value={value}>{children}</FlashcardsContext.Provider>;
 }
 
