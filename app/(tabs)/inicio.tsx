@@ -16,6 +16,7 @@ import {
 } from '@/components/home-study-momentum';
 import { Avatar } from '@/components/ui/avatar';
 import { FeaturedCard } from '@/components/ui/featured-card';
+import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { PressFeedback } from '@/components/ui/press-feedback';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -135,6 +136,8 @@ export function HomeContent() {
           onPress={() => router.push(primaryAction.route)}
           accessibilityLabel={`${primaryAction.title}. ${primaryAction.description}`}
           intensity="strong"
+          visual="faceted"
+          artwork={<KadCardArtwork />}
           tone={primaryVisual.tone}
           icon={
             primaryAction.route === '/meta'

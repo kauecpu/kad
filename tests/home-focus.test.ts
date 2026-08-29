@@ -25,11 +25,12 @@ test('a tela inicial mantém uma única ação principal e a hierarquia do paine
   assert.ok(deadline > recent);
 });
 
-test('a ação principal preserva jornada e marca sem o mascote', () => {
+test('a ação principal preserva jornada e usa a assinatura facetada', () => {
   assert.match(home, /getHomePrimaryVisual\(primaryAction\)/);
   assert.match(home, /intensity="strong"/);
   assert.match(home, /tone=\{primaryVisual\.tone\}/);
-  assert.doesNotMatch(home, /KadMascot|primaryVisual\.mascot|artwork=/);
+  assert.match(home, /visual="faceted"/);
+  assert.match(home, /KadCardArtwork/);
   assert.match(home, /color=\{colors\.onBrand\}/);
   assert.match(home, /trackColor=\{colors\.brandTrace\}/);
 });

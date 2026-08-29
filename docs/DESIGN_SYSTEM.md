@@ -29,3 +29,13 @@ Resumo para telas em que uma métrica responde à pergunta principal e as demais
 | Carregando | A tela responsável deve manter o cabeçalho e anunciar o carregamento |
 | Bloqueado | A tela responsável deve explicar o acesso necessário e oferecer a próxima ação |
 
+## Destaque facetado
+
+`FeaturedCard` continua usando a superfície neutra por padrão. A variante `visual="faceted"` é reservada para o destaque principal da tela e combina:
+
+- `brandSurfaceStrong` e `brandSurfaceDeep` no fundo;
+- `onBrand` e `onBrandMuted` para texto;
+- arte geométrica decorativa em `KadCardArtwork`;
+- `brandTrace` para linhas e transparências discretas.
+
+A arte nunca carrega informação, não recebe toque e fica fora da árvore de acessibilidade. Use no máximo um destaque facetado por tela. Cards de lista, métricas e estados semânticos permanecem neutros.
