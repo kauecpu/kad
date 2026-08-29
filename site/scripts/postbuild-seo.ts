@@ -20,9 +20,9 @@ if (!siteUrl) {
   process.exit(0);
 }
 
-const indexPath = fileURLToPath(new NodeUrl('../dist/index.html', import.meta.url));
-const robotsPath = fileURLToPath(new NodeUrl('../dist/robots.txt', import.meta.url));
-const sitemapPath = fileURLToPath(new NodeUrl('../dist/sitemap.xml', import.meta.url));
+const indexPath = fileURLToPath(new NodeUrl('../dist/client/index.html', import.meta.url));
+const robotsPath = fileURLToPath(new NodeUrl('../dist/client/robots.txt', import.meta.url));
+const sitemapPath = fileURLToPath(new NodeUrl('../dist/client/sitemap.xml', import.meta.url));
 const absoluteHome = siteUrl.toString();
 
 const html = await readFile(indexPath, 'utf8');
