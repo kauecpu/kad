@@ -94,7 +94,7 @@ test('layout web usa autenticação dividida, resumos compactos e comentários l
   assert.match(publicView, /auth-page auth-page--split/);
   assert.match(publicView, /auth-story__slides/);
   assert.match(publicView, /auth-card auth-card--portal/);
-  assert.match(questionsView, /summary-grid summary-grid--strip/);
+  assert.match(questionsView, /home-metrics page-metrics/);
   assert.match(questionsView, /discipline-card__copy/);
   assert.match(questionsView, /<textarea class="textarea"[^>]+rows="3"/);
   assert.match(styles, /\.comment-form \.button \{ width: 100%; \}/);
@@ -204,4 +204,29 @@ test('início interno adota composição editorial com navegação lateral prese
   assert.match(metadata, /indexable = false/);
   assert.match(main, /source\.closest<HTMLAnchorElement>\('\.skip-link'\)/);
   assert.match(main, /document\.querySelector<HTMLElement>\(skipLink\.hash\)\?\.focus\(\)/);
+});
+
+test('áreas internas compartilham padrão editorial sem perder estruturas específicas', async () => {
+  const [components, questions, simulations, explore, profile, styles] = await Promise.all([
+    source('src/ui/components.ts'),
+    source('src/views/questions.ts'),
+    source('src/views/simulations.ts'),
+    source('src/views/explore.ts'),
+    source('src/views/profile.ts'),
+    source('src/styles/app.css'),
+  ]);
+  const internalViews = `${questions}${simulations}${explore}${profile}`;
+
+  assert.match(components, /export function workspaceHero/);
+  for (const view of [questions, simulations, explore, profile]) assert.match(view, /workspaceHero\(/);
+  assert.doesNotMatch(internalViews, /hero-card/);
+  assert.match(questions, /class="filter-bar filter-panel"/);
+  assert.match(explore, /filter-panel--contest/);
+  assert.match(profile, /filter-panel--short/);
+  assert.doesNotMatch(questions, /class="sr-only" for="question-(keyword|discipline|board|status)"/);
+  assert.doesNotMatch(explore, /class="sr-only" for="contest-(q|status|region)"/);
+  assert.match(profile, /class="form-page"/);
+  assert.match(styles, /\.app-shell \.card \{[^}]+box-shadow: none/);
+  assert.match(styles, /\.workspace-hero \{[^}]+border-top: 3px solid var\(--primary\)/);
+  assert.match(styles, /\.result-list \{[^}]+border-block:/);
 });

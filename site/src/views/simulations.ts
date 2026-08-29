@@ -1,6 +1,6 @@
 import { getCatalog } from '../data/catalog.ts';
 import { clamp, escapeHtml, filterQuestions, formatPercent, formatTimer, matchesPack, randomId, shuffle, unique } from '../core/utils.ts';
-import { badge, button, card, emptyState, icon, metricRing, progress, section, stat } from '../ui/components.ts';
+import { badge, button, card, emptyState, icon, metricRing, progress, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
 import type { SiteSimulationConfig, SiteSimulationSession, SiteState, ViewModel } from '../types/domain.ts';
 
@@ -72,31 +72,41 @@ export function simulationsView(state: SiteState): ViewModel {
   const historyScores = history.map((item) => simulationScore(item));
   const featuredPacks = packs.slice(0, 6);
   const historySummary = history.length ? `
-      <div class="summary-grid summary-grid--strip" aria-label="Resumo dos simulados">
-        ${card(stat(String(history.length), 'Simulados concluídos', 'ClipboardCheck'))}
-        ${card(stat(formatPercent(historyScores.reduce((sum, item) => sum + item.accuracy, 0) / history.length), 'Média de acerto', 'TrendingUp', 'success'))}
-        ${card(stat(String(historyScores.reduce((sum, item) => sum + item.answered, 0)), 'Questões treinadas', 'BookOpen'))}
-        ${card(stat(formatPercent(Math.max(...historyScores.map((item) => item.accuracy))), 'Melhor resultado', 'Trophy', 'warning'))}
-      </div>` : '';
+      <section class="home-metrics page-metrics" aria-label="Resumo dos simulados">
+        ${stat(String(history.length), 'Simulados concluídos', 'ClipboardCheck')}
+        ${stat(formatPercent(historyScores.reduce((sum, item) => sum + item.accuracy, 0) / history.length), 'Média de acerto', 'TrendingUp', 'success')}
+        ${stat(String(historyScores.reduce((sum, item) => sum + item.answered, 0)), 'Questões treinadas', 'BookOpen')}
+        ${stat(formatPercent(Math.max(...historyScores.map((item) => item.accuracy))), 'Melhor resultado', 'Trophy', 'warning')}
+      </section>` : '';
   return {
     title: 'Simulados',
     subtitle: 'Monte provas, controle o tempo e acompanhe sua evolução',
     content: `
-      ${current && current.status !== 'completed' ? card(`
-        <div class="hero-card__content"><p class="eyebrow">SIMULADO EM ANDAMENTO</p><h2>Seu treino está esperando.</h2><p>${Object.keys(current.answers).length} de ${current.questionIds.length} questões respondidas · ${formatTimer(current.remainingSeconds)} restantes.</p>${button(current.status === 'paused' ? 'Retomar simulado' : 'Continuar simulado', { route: '/simulados/em-andamento', iconName: 'Play' })}</div>
-        <div class="hero-card__art"><img src="/assets/kad-mascot-simulation.png" alt="" width="300" height="300" /></div>
-      `, 'hero-card hero-card--task') : card(`
-        <div class="hero-card__content"><p class="eyebrow">SIMULADOS KAD</p><h2>Treine como se fosse o dia da prova.</h2><p>Escolha o conteúdo, defina o tempo e acompanhe seu resultado ao final.</p><div class="welcome__actions">${button('Montar simulado', { route: '/simulados/configurar', iconName: 'Timer' })}${button('Simulado rápido', { action: 'start-demo-simulation', variant: 'secondary', iconName: 'Play' })}</div></div>
-        <div class="hero-card__art"><img src="/assets/kad-mascot-simulation.png" alt="" width="300" height="300" /></div>
-      `, 'hero-card hero-card--task')}
+      ${current && current.status !== 'completed'
+        ? workspaceHero({
+            id: 'simulation-overview',
+            eyebrow: 'SIMULADO EM ANDAMENTO',
+            title: 'Seu treino está esperando.',
+            description: `${Object.keys(current.answers).length} de ${current.questionIds.length} questões respondidas · ${formatTimer(current.remainingSeconds)} restantes.`,
+            actions: button(current.status === 'paused' ? 'Retomar simulado' : 'Continuar simulado', { route: '/simulados/em-andamento', iconName: 'Play' }),
+            imageSrc: '/assets/kad-mascot-simulation.png',
+          })
+        : workspaceHero({
+            id: 'simulation-overview',
+            eyebrow: 'SIMULADOS KAD',
+            title: 'Treine como se fosse o dia da prova.',
+            description: 'Escolha o conteúdo, defina o tempo e acompanhe seu resultado ao final.',
+            actions: `${button('Montar simulado', { route: '/simulados/configurar', iconName: 'Timer' })}${button('Simulado rápido', { action: 'start-demo-simulation', variant: 'secondary', iconName: 'Play' })}`,
+            imageSrc: '/assets/kad-mascot-simulation.png',
+          })}
       ${section('Por concurso e área', `<div class="discipline-grid">${featuredPacks.map((pack) => {
         const total = getCatalog().questions.filter((question) => matchesPack(question, pack)).length;
         return `<button class="discipline-card" type="button" data-route="/simulados/configurar?packId=${pack.id}" style="--discipline-color:${pack.color}"><span class="discipline-card__mark">${escapeHtml(pack.name.slice(0, 2).toUpperCase())}</span><span class="discipline-card__copy"><h3>${escapeHtml(pack.name)}</h3><p>${total} ${total === 1 ? 'questão disponível' : 'questões disponíveis'}</p></span>${pack.kind === 'concurso' ? badge('Concurso') : badge('Área')}</button>`;
       }).join('')}</div>`)}
       ${historySummary}
-      ${section('Histórico recente', history.length ? `<div class="dashboard-main">${history.map((session) => {
+      ${section('Histórico recente', history.length ? `<div class="dashboard-main result-list">${history.map((session) => {
         const score = simulationScore(session);
-        return card(`<button class="list-row" type="button" data-action="open-simulation-result" data-simulation-id="${session.id}"><span class="list-row__icon">${icon('BarChart3')}</span><span class="list-row__copy"><strong>${session.config.packId ? escapeHtml(packs.find((pack) => pack.id === session.config.packId)?.name ?? 'Simulado') : 'Simulado personalizado'}</strong><span>${score.correct} acertos de ${score.total} · ${new Intl.DateTimeFormat('pt-BR').format(new Date(session.completedAt ?? session.createdAt))}</span></span>${badge(formatPercent(score.accuracy), score.accuracy >= 70 ? 'success' : 'warning')}${icon('ChevronRight')}</button>`) }).join('')}</div>` : emptyState('Nenhum simulado concluído', 'Monte seu primeiro treino para criar um histórico de desempenho.', { route: '/simulados/configurar', actionLabel: 'Montar simulado' }))}
+        return `<button class="list-row result-row" type="button" data-action="open-simulation-result" data-simulation-id="${session.id}"><span class="list-row__icon">${icon('BarChart3')}</span><span class="list-row__copy"><strong>${session.config.packId ? escapeHtml(packs.find((pack) => pack.id === session.config.packId)?.name ?? 'Simulado') : 'Simulado personalizado'}</strong><span>${score.correct} acertos de ${score.total} · ${new Intl.DateTimeFormat('pt-BR').format(new Date(session.completedAt ?? session.createdAt))}</span></span>${badge(formatPercent(score.accuracy), score.accuracy >= 70 ? 'success' : 'warning')}${icon('ChevronRight')}</button>` }).join('')}</div>` : emptyState('Nenhum simulado concluído', 'Monte seu primeiro treino para criar um histórico de desempenho.', { route: '/simulados/configurar', actionLabel: 'Montar simulado' }))}
     `,
   };
 }
@@ -111,7 +121,7 @@ export function simulationConfigView(params: ViewParams = {}): ViewModel {
     content: `
       ${stackHeader('Configurar simulado', selectedPack ? selectedPack.name : 'Defina o conteúdo e o tempo')}
       <div class="dashboard-grid">
-        ${card(`<form class="form-stack card--padded" data-form="simulation-config">
+        ${card(`<form class="form-stack" data-form="simulation-config">
           <div class="field"><label for="simulation-pack">Concurso ou área</label><select class="select" id="simulation-pack" name="packId"><option value="">Banco completo</option>${packs.map((pack) => `<option value="${pack.id}" ${pack.id === params.packId ? 'selected' : ''}>${escapeHtml(pack.name)}</option>`).join('')}</select></div>
           <div class="form-grid">
             <div class="field"><label for="simulation-discipline">Disciplina</label><select class="select" id="simulation-discipline" name="discipline"><option value="">Todas</option>${disciplines.map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join('')}</select></div>
@@ -125,7 +135,7 @@ export function simulationConfigView(params: ViewParams = {}): ViewModel {
           <label class="chip"><input type="checkbox" name="shuffleQuestions" checked /> Embaralhar questões</label>
           <p class="form-message" data-form-message>${questions.length} questões disponíveis antes dos filtros.</p>
           ${button('Iniciar simulado', { type: 'submit', size: 'lg', iconName: 'Play', className: 'full-width' })}
-        </form>`)}
+        </form>`, 'form-panel')}
         <aside class="dashboard-aside">
           ${card(`<div class="detail-panel"><p class="eyebrow">COMO FUNCIONA</p><h2>Você controla o ritmo</h2><ul class="benefit-list"><li>${icon('Check')}Tempo preservado se você atualizar a página</li><li>${icon('Check')}Navegação livre entre questões</li><li>${icon('Check')}Pausa, retomada e conclusão manual</li><li>${icon('Check')}Resultado detalhado ao final</li></ul></div>`)}
         </aside>
@@ -171,8 +181,8 @@ export function simulationResultView(state: SiteState, requestedId?: string): Vi
     content: `
       ${stackHeader('Resultado do simulado', new Intl.DateTimeFormat('pt-BR').format(new Date(session.completedAt ?? session.createdAt)))}
       ${card(`<div class="result-hero"><div class="result-hero__copy"><p class="eyebrow">DESEMPENHO</p><h2>${score.accuracy >= 80 ? 'Excelente resultado!' : score.accuracy >= 60 ? 'Você está no caminho.' : 'Este resultado mostra onde avançar.'}</h2><p>${score.correct} acertos, ${score.wrong} erros e ${score.blank} questões em branco.</p><div class="welcome__actions">${button('Novo simulado', { route: '/simulados/configurar', iconName: 'RotateCcw' })}${button('Voltar aos simulados', { route: '/simulados', variant: 'secondary' })}</div></div>${metricRing(score.accuracy, 'de acerto')}</div>`)}
-      <div class="summary-grid">${card(stat(String(score.correct), 'Acertos', 'CheckCircle2', 'success'))}${card(stat(String(score.wrong), 'Erros', 'XCircle', 'danger'))}${card(stat(String(score.blank), 'Em branco', 'Circle'))}${card(stat(formatPercent(score.accuracy), 'Aproveitamento', 'BarChart3'))}</div>
-      ${section('Revisão da prova', `<div class="dashboard-main">${score.items.map((item, index) => card(`<button class="list-row" type="button" data-action="open-question" data-question-id="${escapeHtml(item.question.id)}"><span class="list-row__icon">${icon(item.correct ? 'CheckCircle2' : item.selected ? 'XCircle' : 'Circle')}</span><span class="list-row__copy"><strong>Questão ${index + 1} · ${escapeHtml(item.question.topic)}</strong><span>${item.selected ? `Sua resposta: ${escapeHtml(item.selected)}` : 'Não respondida'} · Gabarito: ${escapeHtml(item.question.correct)}</span></span>${badge(item.correct ? 'Acertou' : 'Revisar', item.correct ? 'success' : 'warning')}${icon('ChevronRight')}</button>`)).join('')}</div>`)}
+      <section class="home-metrics page-metrics" aria-label="Resumo do resultado">${stat(String(score.correct), 'Acertos', 'CheckCircle2', 'success')}${stat(String(score.wrong), 'Erros', 'XCircle', 'danger')}${stat(String(score.blank), 'Em branco', 'Circle')}${stat(formatPercent(score.accuracy), 'Aproveitamento', 'BarChart3')}</section>
+      ${section('Revisão da prova', `<div class="dashboard-main result-list">${score.items.map((item, index) => `<button class="list-row result-row" type="button" data-action="open-question" data-question-id="${escapeHtml(item.question.id)}"><span class="list-row__icon">${icon(item.correct ? 'CheckCircle2' : item.selected ? 'XCircle' : 'Circle')}</span><span class="list-row__copy"><strong>Questão ${index + 1} · ${escapeHtml(item.question.topic)}</strong><span>${item.selected ? `Sua resposta: ${escapeHtml(item.selected)}` : 'Não respondida'} · Gabarito: ${escapeHtml(item.question.correct)}</span></span>${badge(item.correct ? 'Acertou' : 'Revisar', item.correct ? 'success' : 'warning')}${icon('ChevronRight')}</button>`).join('')}</div>`)}
     `,
   };
 }
