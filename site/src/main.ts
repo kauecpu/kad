@@ -71,6 +71,8 @@ import type {
 } from './types/domain.ts';
 
 const AUTH_STORY_INTERVAL = 6500;
+let welcomeNavigationCleanup: (() => void) | null = null;
+let publicAuthTrigger: HTMLElement | null = null;
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -287,7 +289,54 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
   void poll();
 }
 
+function setupWelcomeNavigation(route: Route): void {
+  if (route.pathname !== '/') return;
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-public-section-target]'));
+  const sections = links.map((link) => ({ link, section: document.getElementById(link.dataset.publicSectionTarget ?? '') }))
+    .filter((item): item is { link: HTMLAnchorElement; section: HTMLElement } => item.section instanceof HTMLElement);
+  if (!sections.length) return;
+
+  let frame = 0;
+  const setActive = (activeId: string) => {
+    sections.forEach(({ link }) => {
+      const active = link.dataset.publicSectionTarget === activeId;
+      link.classList.toggle('is-active', active);
+      if (active) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
+    });
+  };
+  const update = () => {
+    const headerHeight = document.querySelector<HTMLElement>('.public-header')?.getBoundingClientRect().height ?? 0;
+    const marker = headerHeight + Math.min(globalThis.innerHeight * 0.22, 190);
+    let active = sections[0];
+    sections.forEach((item) => {
+      if (item.section.getBoundingClientRect().top <= marker) active = item;
+    });
+    if (globalThis.scrollY + globalThis.innerHeight >= document.documentElement.scrollHeight - 8) active = sections.at(-1) ?? active;
+    setActive(active.link.dataset.publicSectionTarget ?? 'kad-about');
+    frame = 0;
+  };
+  const queueUpdate = () => {
+    if (frame) return;
+    frame = globalThis.requestAnimationFrame(update);
+  };
+  globalThis.addEventListener('scroll', queueUpdate, { passive: true });
+  globalThis.addEventListener('resize', queueUpdate);
+  update();
+
+  const hashTarget = globalThis.location.hash ? document.querySelector<HTMLElement>(globalThis.location.hash) : null;
+  if (hashTarget) globalThis.requestAnimationFrame(() => hashTarget.scrollIntoView({ block: 'start' }));
+
+  welcomeNavigationCleanup = () => {
+    globalThis.removeEventListener('scroll', queueUpdate);
+    globalThis.removeEventListener('resize', queueUpdate);
+    if (frame) globalThis.cancelAnimationFrame(frame);
+  };
+}
+
 function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void {
+  welcomeNavigationCleanup?.();
+  welcomeNavigationCleanup = null;
   const route = currentRoute();
   const routeKey = `${route.pathname}${route.search}`;
   if (routeKey !== ui.lastRouteKey) {
@@ -304,7 +353,7 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
   applyTheme(state);
   const view: ViewModel = resolveView(route, state);
   const layout = view.layout?.startsWith('public')
-    ? publicLayout(view.content, { simple: view.layout === 'public-simple' })
+    ? publicLayout(view.content, { simple: view.layout === 'public-simple', dark: document.documentElement.dataset.theme === 'dark' })
     : appLayout(view.content, {
         pathname: route.pathname,
         title: view.title,
@@ -321,6 +370,7 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
   });
   document.body.classList.remove('nav-open');
   startPageTimers(route, state);
+  setupWelcomeNavigation(route);
   maybeConfirmCheckout(route, state);
   if (routeChanged) document.querySelector<HTMLElement>('#conteudo')?.focus({ preventScroll: true });
 }
@@ -548,6 +598,19 @@ function isBillingCycle(value?: string): value is BillingCycle {
   return value === 'monthly' || value === 'quarterly' || value === 'annual';
 }
 
+function setPublicAuthMode(dialog: HTMLDialogElement, requestedMode?: string): void {
+  const mode = requestedMode === 'signup' ? 'signup' : 'login';
+  dialog.querySelectorAll<HTMLElement>('[data-public-auth-form]').forEach((form) => {
+    form.hidden = form.dataset.publicAuthForm !== mode;
+  });
+  dialog.querySelectorAll<HTMLElement>('[data-action="switch-public-auth"]').forEach((control) => {
+    const active = control.dataset.authMode === mode;
+    control.classList.toggle('is-active', active);
+    control.setAttribute('aria-pressed', String(active));
+  });
+  dialog.setAttribute('aria-labelledby', mode === 'signup' ? 'public-signup-title' : 'public-login-title');
+}
+
 document.addEventListener('click', async (event) => {
   const source = event.target instanceof Element ? event.target : null;
   if (!source) return;
@@ -593,6 +656,30 @@ document.addEventListener('click', async (event) => {
   if (action === 'toggle-theme') {
     const dark = document.documentElement.dataset.theme === 'dark';
     store.update((draft) => { draft.preferences.theme = dark ? 'light' : 'dark'; });
+    return;
+  }
+  if (action === 'open-public-auth') {
+    const dialog = document.querySelector<HTMLDialogElement>('[data-public-auth-dialog]');
+    if (!dialog) return;
+    publicAuthTrigger = target;
+    setPublicAuthMode(dialog, target.dataset.authMode);
+    if (!dialog.open) dialog.showModal();
+    const activeForm = dialog.querySelector<HTMLElement>(`[data-public-auth-form="${target.dataset.authMode === 'signup' ? 'signup' : 'login'}"]`);
+    activeForm?.querySelector<HTMLInputElement>('input')?.focus();
+    return;
+  }
+  if (action === 'close-public-auth') {
+    const dialog = target.closest<HTMLDialogElement>('[data-public-auth-dialog]');
+    dialog?.close();
+    publicAuthTrigger?.focus({ preventScroll: true });
+    return;
+  }
+  if (action === 'switch-public-auth') {
+    const dialog = target.closest<HTMLDialogElement>('[data-public-auth-dialog]');
+    if (!dialog) return;
+    setPublicAuthMode(dialog, target.dataset.authMode);
+    const activeForm = dialog.querySelector<HTMLElement>(`[data-public-auth-form="${target.dataset.authMode === 'signup' ? 'signup' : 'login'}"]`);
+    activeForm?.querySelector<HTMLInputElement>('input')?.focus();
     return;
   }
   if (action === 'previous-auth-story' || action === 'next-auth-story' || action === 'select-auth-story') {

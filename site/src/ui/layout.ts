@@ -28,16 +28,23 @@ function navLink(item: NavigationItem, pathname: string, compact = false): strin
   return `<a href="${item.href}" data-route="${item.href}" class="nav-link ${active ? 'is-active' : ''} ${compact ? 'nav-link--compact' : ''}" ${active ? 'aria-current="page"' : ''}>${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`;
 }
 
-export function publicLayout(content: string, { simple = false }: { simple?: boolean } = {}): string {
+export function publicLayout(content: string, { simple = false, dark = false }: { simple?: boolean; dark?: boolean } = {}): string {
   return `
     <div class="public-shell ${simple ? 'public-shell--simple' : ''}">
       <header class="public-header">
         <a href="/" data-route="/" class="brand" aria-label="KAD Concursos — página inicial">
           <img src="/assets/kad-logo.png" alt="KAD Concursos" width="178" height="76" />
         </a>
+        ${!simple ? `<nav class="public-section-nav" aria-label="Conheça o KAD">
+          <a href="#kad-about" data-public-section-target="kad-about" class="is-active" aria-current="location">O KAD</a>
+          <a href="#kad-how" data-public-section-target="kad-how">Como funciona</a>
+          <a href="#kad-tools" data-public-section-target="kad-tools">Ferramentas</a>
+          <a href="#kad-contests" data-public-section-target="kad-contests">Concursos</a>
+          <a href="#kad-plans" data-public-section-target="kad-plans">Planos</a>
+        </nav>` : ''}
         <div class="public-header__actions">
-          ${button('Tema', { action: 'toggle-theme', variant: 'ghost', iconName: 'Sun', className: 'icon-label-button' })}
-          ${!simple ? `<a href="/entrar" data-route="/entrar" class="text-link">Entrar</a>` : ''}
+          ${button(dark ? 'Escuro' : 'Claro', { action: 'toggle-theme', variant: 'ghost', iconName: dark ? 'Moon' : 'Sun', className: 'icon-label-button', attrs: `aria-label="Ativar tema ${dark ? 'claro' : 'escuro'}" aria-pressed="${dark}"` })}
+          ${!simple ? button('Entrar', { action: 'open-public-auth', variant: 'secondary', iconName: 'LogIn', attrs: 'data-auth-mode="login"' }) : ''}
         </div>
       </header>
       <main id="conteudo" class="public-main" tabindex="-1">${content}</main>
