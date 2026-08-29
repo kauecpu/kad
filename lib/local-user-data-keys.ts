@@ -8,6 +8,7 @@ export const LEGACY_SIMULATION_HISTORY_KEY = '@kad/simulation-history/v1';
 export const SIMULATION_STORAGE_KEY_PREFIX = '@kad/simulation-session/v2';
 export const SIMULATION_HISTORY_KEY_PREFIX = '@kad/simulation-history/v2';
 export const ESSAY_DRAFT_PREFIX = '@kad/essay-draft/';
+export const FLASHCARDS_STORAGE_KEY_PREFIX = '@kad/flashcards/v1';
 
 const GUEST_MODE_KEY = '@kad/auth/guest-mode/v1';
 const ONBOARDING_PREFIX = '@kad/onboarding/completed/v1/';
@@ -25,6 +26,10 @@ export function simulationHistoryKey(ownerId: string) {
   return `${SIMULATION_HISTORY_KEY_PREFIX}:${ownerId}`;
 }
 
+export function flashcardsStorageKey(ownerId: string) {
+  return `${FLASHCARDS_STORAGE_KEY_PREFIX}:${ownerId}`;
+}
+
 function isOwnerEssayKey(key: string, ownerId: string) {
   if (!key.startsWith(ESSAY_DRAFT_PREFIX)) return false;
   const suffix = key.slice(ESSAY_DRAFT_PREFIX.length);
@@ -40,6 +45,7 @@ export function localUserDataInventory(ownerId: string, physicalKeys: readonly s
     appStorageKey(ownerId),
     simulationStorageKey(ownerId),
     simulationHistoryKey(ownerId),
+    flashcardsStorageKey(ownerId),
     ...physicalKeys.filter((key) => isOwnerEssayKey(key, ownerId)),
     ...protectedLogicalKeys.filter((key) => isOwnerEssayKey(key, ownerId)),
   ]);
@@ -60,3 +66,4 @@ export function localUserDataInventory(ownerId: string, physicalKeys: readonly s
     ],
   };
 }
+

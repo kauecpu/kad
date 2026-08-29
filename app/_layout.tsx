@@ -16,6 +16,7 @@ import { SearchProvider } from '@/providers/search-provider';
 import { SimulationProvider } from '@/providers/simulation-provider';
 import { ConcursosProvider } from '@/providers/concursos-provider';
 import { QuestionsProvider } from '@/providers/questions-provider';
+import { FlashcardsProvider } from '@/providers/flashcards-provider';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -88,6 +89,7 @@ function RootNavigator() {
           <Stack.Screen name="redacao" options={{ headerShown: false }} />
           <Stack.Screen name="ranking" options={{ headerShown: false }} />
           <Stack.Screen name="biblioteca" options={{ headerShown: false }} />
+          <Stack.Screen name="flashcards" options={{ headerShown: false }} />
         </Stack.Protected>
 
         <Stack.Protected guard={routeAccess.auth}>
@@ -136,11 +138,13 @@ export default function RootLayout() {
           <ConcursosProvider>
             <QuestionsProvider>
               <AppProvider>
-                <SimulationProvider>
-                  <SearchProvider>
-                    <RootNavigator />
-                  </SearchProvider>
-                </SimulationProvider>
+                <FlashcardsProvider>
+                  <SimulationProvider>
+                    <SearchProvider>
+                      <RootNavigator />
+                    </SearchProvider>
+                  </SimulationProvider>
+                </FlashcardsProvider>
               </AppProvider>
             </QuestionsProvider>
           </ConcursosProvider>
@@ -149,3 +153,4 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+

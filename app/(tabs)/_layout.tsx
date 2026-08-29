@@ -36,6 +36,8 @@ export default function MainLayout() {
       <Drawer.Screen name="simulados" options={{ title: 'Simulados' }} />
       <Drawer.Screen name="explorar" options={{ title: 'Explorar' }} />
       <Drawer.Screen name="rank" options={{ title: 'Ranking' }} />
+      <Drawer.Screen name="flashcards" options={{ title: 'Flashcards' }} />
     </Drawer>
   );
 }
+

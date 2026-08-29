@@ -27,7 +27,7 @@ test('o drawer apresenta todas as áreas na ordem e nos grupos aprovados', () =>
   );
   assert.deepEqual(
     APP_DRAWER_ITEMS.map(({ title }) => title),
-    ['Início', 'Questões', 'Concursos', 'Simulados', 'Ranking', 'Trilhas', 'Redação', 'Biblioteca', 'Perfil']
+    ['Início', 'Questões', 'Concursos', 'Simulados', 'Ranking', 'Trilhas', 'Redação', 'Biblioteca', 'Flashcards', 'Perfil']
   );
   assert.deepEqual(
     drawerItemsForGroup('main').map(({ title }) => title),
@@ -121,3 +121,4 @@ test('a tela Início preserva o destaque forte e achata o resumo diário', () =>
   assert.doesNotMatch(home, /styles\.summaryCard/);
   assert.match(home, /<StudyMomentumCard/);
 });
+
