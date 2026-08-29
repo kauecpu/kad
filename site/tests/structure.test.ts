@@ -230,3 +230,20 @@ test('áreas internas compartilham padrão editorial sem perder estruturas espec
   assert.match(styles, /\.workspace-hero \{[^}]+border-top: 3px solid var\(--primary\)/);
   assert.match(styles, /\.result-list \{[^}]+border-block:/);
 });
+
+test('build do site inclui o adaptador e o fallback exigidos pela hospedagem', async () => {
+  const [packageJson, viteConfig, hostingScript, hostingConfig] = await Promise.all([
+    source('package.json'),
+    source('vite.config.ts'),
+    source('scripts/postbuild-hosting.ts'),
+    source('.openai/hosting.json'),
+  ]);
+
+  assert.match(packageJson, /@openai\/sites-vite-plugin/);
+  assert.match(packageJson, /postbuild-hosting\.ts/);
+  assert.match(viteConfig, /plugins: \[sites\(\)\]/);
+  assert.match(hostingScript, /dist\/server\/index\.js/);
+  assert.match(hostingScript, /env\.ASSETS\.fetch/);
+  assert.match(hostingScript, /new URL\('\/index\.html'/);
+  assert.match(hostingConfig, /"project_id": "appgprj_[a-f0-9]+"/);
+});

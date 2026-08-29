@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "postbuild": "node scripts/postbuild-seo.ts",
+    "postbuild": "node scripts/postbuild-seo.ts && node scripts/postbuild-hosting.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "node --no-warnings --test tests/*.test.ts",
@@ -17,6 +17,7 @@
     "lucide": "^1.33.0"
   },
   "devDependencies": {
+    "@openai/sites-vite-plugin": "^0.2.0",
     "@types/node": "^24.0.0",
     "typescript": "~5.9.2",
     "vite": "^8.2.2"

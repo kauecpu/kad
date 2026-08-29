@@ -1,8 +1,10 @@
+import { sites } from '@openai/sites-vite-plugin';
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   appType: 'spa',
+  plugins: [sites()],
   server: {
     fs: {
       // Permite que o adaptador leia somente os catálogos puros compartilhados da raiz.
