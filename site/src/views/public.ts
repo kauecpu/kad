@@ -45,6 +45,14 @@ function publicAuthDialog(): string {
         <p class="form-message" data-form-message aria-live="polite"></p>
         ${button('Criar minha conta', { type: 'submit', size: 'lg', className: 'full-width' })}
       </form>
+      <section class="public-auth-dialog__visitor" data-public-auth-visitor aria-labelledby="public-visitor-title">
+        <div class="public-auth-dialog__visitor-heading">
+          <h3 id="public-visitor-title">Modo visitante</h3>
+          ${badge('Teste', 'warning')}
+        </div>
+        <p>Entre sem cadastro para testar o KAD. Seus dados ficarão salvos apenas neste navegador.</p>
+        ${button('Acessar como visitante', { action: 'continue-visitor', variant: 'secondary', className: 'full-width' })}
+      </section>
     </dialog>`;
 }
 

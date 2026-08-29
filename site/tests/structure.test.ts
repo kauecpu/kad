@@ -139,7 +139,9 @@ test('melhorias de interface preservam semântica, privacidade e linguagem de pr
   ]);
 
   assert.match(components, /data-action="toggle-password"/);
-  assert.doesNotMatch(publicView, /continuar como visitante/i);
+  assert.match(publicView, /data-public-auth-visitor/);
+  assert.match(publicView, /action: 'continue-visitor'/);
+  assert.match(publicView, /Acessar como visitante/);
   assert.doesNotMatch(publicView, /Supabase ainda não estiver configurado/);
   assert.match(layout, /stack-header[\s\S]+<h2>/);
   assert.doesNotMatch(layout, /stack-header[\s\S]+<h1>/);
@@ -169,8 +171,10 @@ test('página pública usa navegação por seções, tema e acesso em janela', a
   assert.match(publicView, /data-public-auth-dialog/);
   assert.match(publicView, /data-public-auth-form="login"/);
   assert.match(publicView, /data-public-auth-form="signup"/);
+  assert.match(publicView, /data-public-auth-visitor/);
   assert.match(layout, /data-action="toggle-theme"/);
   assert.match(main, /setupWelcomeNavigation/);
+  assert.match(main, /visitorAccess\.hidden = mode !== 'login'/);
   assert.match(main, /aria-current', 'location'/);
   assert.match(styles, /\.public-section-nav a\.is-active/);
   assert.match(styles, /\.public-auth-dialog::backdrop/);

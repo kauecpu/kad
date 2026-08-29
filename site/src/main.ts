@@ -608,6 +608,9 @@ function setPublicAuthMode(dialog: HTMLDialogElement, requestedMode?: string): v
     control.classList.toggle('is-active', active);
     control.setAttribute('aria-pressed', String(active));
   });
+  dialog.querySelectorAll<HTMLElement>('[data-public-auth-visitor]').forEach((visitorAccess) => {
+    visitorAccess.hidden = mode !== 'login';
+  });
   dialog.setAttribute('aria-labelledby', mode === 'signup' ? 'public-signup-title' : 'public-login-title');
 }
 

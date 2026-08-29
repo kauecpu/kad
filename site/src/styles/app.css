@@ -106,6 +106,11 @@
 .public-auth-form { gap: 14px; }
 .public-auth-form[hidden] { display: none; }
 .public-auth-form__recovery { width: fit-content; justify-self: end; }
+.public-auth-dialog__visitor { display: grid; gap: 10px; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 18px; }
+.public-auth-dialog__visitor[hidden] { display: none; }
+.public-auth-dialog__visitor-heading { display: flex; align-items: center; gap: 8px; }
+.public-auth-dialog__visitor-heading h3 { font-size: .96rem; }
+.public-auth-dialog__visitor > p { color: var(--text-muted); font-size: .82rem; line-height: 1.5; }
 
 .auth-page { display: grid; min-height: calc(100vh - 86px); place-items: center; padding: 40px 20px 72px; background: radial-gradient(circle at 20% 10%, var(--primary-soft), transparent 42%), var(--background); }
 .auth-card { display: grid; width: min(100%, 450px); gap: 24px; padding: 30px; }
