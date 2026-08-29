@@ -13,8 +13,10 @@ import Ionicons from '@/components/ui/app-icon';
 import { PressFeedback } from '@/components/ui/press-feedback';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type FeaturedCardTone = 'brand' | 'achievement';
+type FeaturedCardVisual = 'plain' | 'faceted';
 
 type FeaturedCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -27,6 +29,7 @@ type FeaturedCardProps = {
   accessibilityLabel?: string;
   disabled?: boolean;
   tone?: FeaturedCardTone;
+  visual?: FeaturedCardVisual;
   intensity?: 'standard' | 'strong';
   artwork?: ReactNode;
   compact?: boolean;
@@ -46,6 +49,7 @@ export function FeaturedCard({
   accessibilityLabel,
   disabled = false,
   tone = 'brand',
+  visual = 'plain',
   intensity = 'standard',
   artwork,
   compact = false,
@@ -60,8 +64,8 @@ export function FeaturedCard({
   const soft = achievement ? colors.warningSoft : colors.primarySoft;
   const foreground = strong ? colors.onBrand : colors.text;
   const mutedForeground = strong ? colors.onBrandMuted : colors.textMuted;
-  const artworkWidth = fontScale >= 1.25 ? 72 : width < 420 ? 88 : width < 768 ? 108 : 128;
-  const showArtwork = Boolean(artwork) && fontScale < 1.5;
+  const artworkWidth = fontScale >= 1.5 ? 92 : width < 420 ? 112 : width < 768 ? 148 : 180;
+  const showArtwork = Boolean(artwork) && fontScale < 1.75;
 
   const cardContent = (
     <>
@@ -128,14 +132,8 @@ export function FeaturedCard({
     </View>
   );
 
-  const strongSurface = (
-    <View
-      style={[
-        styles.surface,
-        styles.surfaceStrong,
-        compact && styles.surfaceCompact,
-        { backgroundColor: colors.brandSurfaceStrong },
-      ]}>
+  const strongContent = (
+    <>
       {showArtwork ? (
         <View style={styles.strongLayout}>
           <View style={styles.strongContent}>{cardContent}</View>
@@ -144,6 +142,26 @@ export function FeaturedCard({
       ) : (
         cardContent
       )}
+    </>
+  );
+
+  const strongSurface = visual === 'faceted' ? (
+    <LinearGradient
+      colors={[colors.brandSurfaceStrong, colors.brandSurfaceDeep]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.surface, styles.surfaceStrong, compact && styles.surfaceCompact]}>
+      {strongContent}
+    </LinearGradient>
+  ) : (
+    <View
+      style={[
+        styles.surface,
+        styles.surfaceStrong,
+        compact && styles.surfaceCompact,
+        { backgroundColor: colors.brandSurfaceStrong },
+      ]}>
+      {strongContent}
     </View>
   );
 
@@ -294,3 +312,4 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.992 }],
   },
 });
+

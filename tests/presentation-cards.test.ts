@@ -16,25 +16,37 @@ const ranking = source('../app/ranking.tsx');
 const trails = source('../app/trilhas.tsx');
 const essays = source('../app/redacao.tsx');
 const featuredCard = source('../components/ui/featured-card.tsx');
+const cardArtwork = source('../components/ui/kad-card-artwork.tsx');
 const concursoCard = source('../components/concurso-card.tsx');
 
-test('o destaque compartilhado usa superfície sólida e hierarquia direta', () => {
+test('o destaque compartilhado oferece superfície sólida e visual facetado opcional', () => {
   assert.match(featuredCard, /export function FeaturedCard/);
   assert.match(featuredCard, /backgroundColor: colors\.surfaceAlt/);
   assert.match(featuredCard, /backgroundColor: colors\.brandSurfaceStrong/);
-  assert.doesNotMatch(featuredCard, /LinearGradient|facetThin|iconGleam|eyebrow/);
+  assert.match(featuredCard, /type FeaturedCardVisual = 'plain' \| 'faceted'/);
+  assert.match(featuredCard, /LinearGradient/);
   assert.match(featuredCard, /minHeight: 44/);
   assert.match(featuredCard, /accessibilityState=\{\{ disabled \}\}/);
   assert.match(featuredCard, /tone === 'achievement'/);
 });
 
-test('a intensidade forte é opcional e não adiciona decoração gratuita', () => {
+test('a intensidade forte e a arte facetada são opt-in', () => {
   assert.match(featuredCard, /intensity\?: 'standard' \| 'strong'/);
   assert.match(featuredCard, /artwork\?: ReactNode/);
   assert.match(featuredCard, /intensity = 'standard'/);
   assert.match(featuredCard, /colors\.brandSurfaceStrong/);
+  assert.match(featuredCard, /colors\.brandSurfaceDeep/);
   assert.match(featuredCard, /styles\.frameStrong/);
-  assert.doesNotMatch(featuredCard, /KadProgressSignature|cardShadow/);
+  assert.doesNotMatch(featuredCard, /cardShadow/);
+});
+
+test('a arte facetada usa tokens e permanece decorativa', () => {
+  assert.match(cardArtwork, /LinearGradient/);
+  assert.match(cardArtwork, /colors\.primary/);
+  assert.match(cardArtwork, /colors\.brandSurfaceDeep/);
+  assert.match(cardArtwork, /pointerEvents="none"/);
+  assert.match(cardArtwork, /accessibilityElementsHidden/);
+  assert.doesNotMatch(cardArtwork, /#[0-9A-Fa-f]{6}/);
 });
 
 test('o card de montar simulado mantém estados e CTA dentro da nova superfície', () => {
@@ -83,6 +95,15 @@ test('os demais destaques usam a mesma família sem substituir o cartão de perf
   assert.doesNotMatch(profile, /FeaturedCard/);
 });
 
+test('o destaque principal usa a assinatura facetada em cada jornada', () => {
+  for (const screen of [home, questions, concursos, simulations, trails, essays]) {
+    assert.match(screen, /visual="faceted"/);
+    assert.match(screen, /artwork=\{<KadCardArtwork variant="/);
+  }
+  assert.match(ranking, /tone="achievement"/);
+  assert.doesNotMatch(ranking, /visual="faceted"/);
+});
+
 test('a Redação mantém um destaque mesmo quando o perfil ainda não possui meta', () => {
   assert.match(essays, /!recommendedTopic && !hasActiveDiscovery/);
   assert.match(essays, /Sua próxima redação começa aqui/);
@@ -104,3 +125,4 @@ test('o radar de editais mantém os dados e remove ornamentos de template', () =
   assert.match(concursoCard, /VAGAS/);
   assert.match(concursoCard, /deadline\.label/);
 });
+
