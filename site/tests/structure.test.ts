@@ -245,7 +245,8 @@ test('build do site inclui o adaptador e o fallback exigidos pela hospedagem', a
   assert.match(packageJson, /@cloudflare\/vite-plugin/);
   assert.match(viteConfig, /plugins: \[sites\(\), cloudflare\(/);
   assert.match(viteConfig, /viteEnvironment: \{ name: 'server' \}/);
-  assert.match(worker, /new Response\(null, \{ status: 404 \}\)/);
+  assert.match(worker, /env\.ASSETS\.fetch/);
+  assert.match(worker, /new URL\('\/'/);
   assert.match(wranglerConfig, /"binding": "ASSETS"/);
   assert.match(wranglerConfig, /"not_found_handling": "single-page-application"/);
   assert.match(seoScript, /dist\/client\/index\.html/);
