@@ -1,5 +1,5 @@
 import type { RankingParticipantSeed, RankingPeriod } from '../data/ranking.ts';
-import { questionMatchesPack } from './simulations.ts';
+import { questionsForPack } from './simulations.ts';
 import type { AnswerRecord, ConcursoPack, Difficulty, Question } from '../types/index.ts';
 
 export const RANKING_POINTS: Record<Difficulty, number> = {
@@ -64,7 +64,7 @@ export function localRankingScore({
   now?: Date;
 }): LocalRankingScore {
   const pack = packId === 'all' ? undefined : packs.find((item) => item.id === packId);
-  const eligibleQuestions = questions.filter((question) => !pack || questionMatchesPack(question, pack));
+  const eligibleQuestions = pack ? questionsForPack(pack, questions) : questions;
   const eligibleIds = new Set(eligibleQuestions.map((question) => question.id));
   const questionById = new Map(questions.map((question) => [question.id, question]));
   const records = Object.values(answers).filter(

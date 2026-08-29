@@ -11,7 +11,6 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { SearchField } from '@/components/ui/search-field';
 import { Section } from '@/components/ui/section';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
-import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { findStudyPackForConcurso } from '@/lib/concursos';
@@ -52,28 +51,28 @@ export default function SimulationsScreen() {
   const { canUseSimulations, profile, savedConcursos, subscriptionLoading } = useApp();
   const { concursos } = useConcursos();
   const { session, history } = useSimulation();
-  const { questions } = useQuestions();
+  const { questions, packs } = useQuestions();
   const [query, setQuery] = useState('');
 
   const recommendedPack = useMemo(() => {
-    const byGoal = recommendPackForGoal(CONCURSO_PACKS, profile.targetRole);
+    const byGoal = recommendPackForGoal(packs, profile.targetRole);
     if (byGoal) return byGoal;
 
     for (const concursoId of savedConcursos) {
       const concurso = concursos.find((item) => item.id === concursoId);
-      const match = concurso ? findStudyPackForConcurso(concurso, CONCURSO_PACKS) : undefined;
+      const match = concurso ? findStudyPackForConcurso(concurso, packs) : undefined;
       if (match) return match;
     }
     return undefined;
-  }, [concursos, profile.targetRole, savedConcursos]);
+  }, [concursos, packs, profile.targetRole, savedConcursos]);
 
   const visiblePacks = useMemo(() => {
     const term = normalize(query.trim());
-    if (!term) return CONCURSO_PACKS;
-    return CONCURSO_PACKS.filter((pack) =>
+    if (!term) return packs;
+    return packs.filter((pack) =>
       normalize(`${pack.name} ${pack.subtitle ?? ''}`).includes(term)
     );
-  }, [query]);
+  }, [packs, query]);
 
   const exactPacks = visiblePacks.filter(
     (pack) => pack.kind === 'concurso' && (query || pack.id !== recommendedPack?.id)
@@ -325,8 +324,8 @@ export default function SimulationsScreen() {
 
 function HistoryRow({ session, isLast }: { session: SimulationSession; isLast: boolean }) {
   const { colors } = useTheme();
-  const { questions } = useQuestions();
-  const pack = CONCURSO_PACKS.find((item) => item.id === session.config.packId);
+  const { questions, packs } = useQuestions();
+  const pack = packs.find((item) => item.id === session.config.packId);
   const score = simulationScore(session, questions);
   return (
     <View

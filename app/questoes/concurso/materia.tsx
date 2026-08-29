@@ -11,7 +11,6 @@ import { Section } from '@/components/ui/section';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
-import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
 import { formatPercent } from '@/lib/format';
 import { questionsForPack } from '@/lib/simulations';
@@ -24,9 +23,9 @@ export default function ConcursoDisciplineScreen() {
   const router = useRouter();
   const { id, discipline } = useLocalSearchParams<{ id: string; discipline: string }>();
   const { answers, canViewStatistics } = useApp();
-  const { questions: availableQuestions } = useQuestions();
+  const { questions: availableQuestions, packs } = useQuestions();
 
-  const pack = CONCURSO_PACKS.find((item) => item.id === id);
+  const pack = packs.find((item) => item.id === id);
   const definition = DISCIPLINES.find((item) => item.name === discipline);
   const questions = useMemo(
     () =>

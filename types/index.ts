@@ -75,6 +75,10 @@ export type ConcursoPack = {
     concursos?: string[];
     roles?: string[];
   };
+  /** IDs exatos usados por grupos derivados do conteúdo publicado. */
+  questionIds?: string[];
+  /** Indica que o grupo ainda não possui um registro editorial de concurso. */
+  metadataMissing?: boolean;
   /** Cargos do perfil para os quais este pacote é uma recomendação natural. */
   goalKeywords: string[];
 };
