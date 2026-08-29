@@ -21,6 +21,7 @@ import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FeedbackToast } from '@/components/ui/feedback-toast';
 import { FeaturedCard } from '@/components/ui/featured-card';
+import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { DrawerMenuButton } from '@/components/ui/drawer-menu-button';
 import { MultiSelectSheet } from '@/components/ui/multi-select-sheet';
 import { SearchField } from '@/components/ui/search-field';
@@ -233,6 +234,9 @@ export default function ConcursosScreen() {
         title={targetRole}
         description={`${goalMatches.length} ${goalMatches.length === 1 ? 'oportunidade compatível' : 'oportunidades compatíveis'} com sua direção atual.`}
         actionLabel="Ver oportunidades"
+        intensity="strong"
+        visual="faceted"
+        artwork={<KadCardArtwork />}
         compact
       />
     </View>

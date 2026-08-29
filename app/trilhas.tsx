@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { FeaturedCard } from '@/components/ui/featured-card';
+import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SearchField } from '@/components/ui/search-field';
 import { Section } from '@/components/ui/section';
@@ -333,7 +334,11 @@ export default function TrailsScreen() {
                 ? `Esta trilha combina com sua meta de ${profile.targetRole}.`
                 : `${heroMetrics.total} ${heroMetrics.total === 1 ? 'questão disponível' : 'questões disponíveis'} em ${heroLevels.length} ${heroLevels.length === 1 ? 'nível' : 'níveis'}.`
               : 'Escolha um concurso, uma área ou uma disciplina para começar.'
-          }>
+          }
+          intensity="strong"
+          visual="faceted"
+          artwork={<KadCardArtwork />}
+        >
           <View style={[styles.heroFooter, isDesktop && styles.heroFooterDesktop]}>
             {heroTrack ? (
               <View style={styles.heroMetrics}>

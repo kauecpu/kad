@@ -95,6 +95,15 @@ test('os demais destaques usam a mesma família sem substituir o cartão de perf
   assert.doesNotMatch(profile, /FeaturedCard/);
 });
 
+test('o destaque principal usa a assinatura facetada em cada jornada', () => {
+  for (const screen of [home, questions, concursos, simulations, trails, essays]) {
+    assert.match(screen, /visual="faceted"/);
+    assert.match(screen, /artwork=\{<KadCardArtwork \/>\}/);
+  }
+  assert.match(ranking, /tone="achievement"/);
+  assert.doesNotMatch(ranking, /visual="faceted"/);
+});
+
 test('a Redação mantém um destaque mesmo quando o perfil ainda não possui meta', () => {
   assert.match(essays, /!recommendedTopic && !hasActiveDiscovery/);
   assert.match(essays, /Sua próxima redação começa aqui/);

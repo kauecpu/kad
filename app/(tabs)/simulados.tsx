@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { FeaturedCard } from '@/components/ui/featured-card';
+import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SearchField } from '@/components/ui/search-field';
 import { Section } from '@/components/ui/section';
@@ -243,6 +244,9 @@ export default function SimulationsScreen() {
           icon="options"
           title="Monte seu simulado"
           description="Escolha conteúdo, quantidade de questões e tempo de prova."
+          intensity="strong"
+          visual="faceted"
+          artwork={<KadCardArtwork />}
           accessory={(
             <Badge
               label={

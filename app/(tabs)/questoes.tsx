@@ -5,6 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FeaturedCard } from '@/components/ui/featured-card';
+import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
@@ -194,6 +195,9 @@ export default function QuestionsScreen() {
         icon="compass-outline"
         title="Escolha como estudar"
         description="Navegue por matéria ou encontre uma questão específica."
+        intensity="strong"
+        visual="faceted"
+        artwork={<KadCardArtwork />}
         compact>
         <Segmented options={STUDY_OPTIONS} value={studyMode} onChange={setStudyMode} />
         <Pressable
