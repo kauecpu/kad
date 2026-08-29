@@ -10,6 +10,7 @@ export type AppFeatureId =
   | 'trails'
   | 'essay'
   | 'library'
+  | 'flashcards'
   | 'profile';
 
 export type AppFeatureIcon =
@@ -21,6 +22,7 @@ export type AppFeatureIcon =
   | 'map-outline'
   | 'create-outline'
   | 'library-outline'
+  | 'layers-outline'
   | 'person-outline';
 
 export type AppFeature = {
@@ -36,6 +38,7 @@ export type AppFeature = {
     | '/trilhas'
     | '/redacao'
     | '/biblioteca'
+    | '/flashcards'
     | '/perfil';
   icon: AppFeatureIcon;
   presentation: 'card' | 'row';
@@ -117,6 +120,15 @@ export const APP_FEATURES = [
     presentation: 'row',
   },
   {
+    id: 'flashcards',
+    group: 'other',
+    title: 'Flashcards',
+    description: 'Crie cards e revise no seu ritmo',
+    href: '/flashcards',
+    icon: 'layers-outline',
+    presentation: 'row',
+  },
+  {
     id: 'profile',
     group: 'account',
     title: 'Perfil',
@@ -192,3 +204,4 @@ export function featuresForGroup(group: AppFeatureGroupId): ReadonlyArray<AppFea
 export function exploreColumnCount(fontScale: number): 1 | 2 {
   return fontScale >= 1.35 ? 1 : 2;
 }
+
