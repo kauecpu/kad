@@ -29,8 +29,10 @@ export const DEFAULT_STATE: Readonly<SiteState> = Object.freeze({
   favorites: [],
   savedConcursos: [],
   comments: {},
+  communityAccuracy: {},
   simulations: { current: null, history: [] },
   essays: {},
+  flashcards: { decks: [], cards: [], reviews: [] },
   trail: null,
   feedback: [],
   activityByDate: {},
@@ -53,6 +55,7 @@ function mergeState(candidate: unknown): SiteState {
     preferences: { ...fallback.preferences, ...partial.preferences },
     subscription: { ...fallback.subscription, ...partial.subscription },
     simulations: { ...fallback.simulations, ...partial.simulations },
+    flashcards: { ...fallback.flashcards, ...partial.flashcards },
   };
 }
 

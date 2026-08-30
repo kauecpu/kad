@@ -182,6 +182,7 @@ export function questionSessionView(state: SiteState, params: ViewParams, ui: Qu
   const answer = state.answers[question.id];
   const favorite = state.favorites.includes(question.id);
   const comments = state.comments[question.id] ?? [];
+  const communityAccuracy = state.communityAccuracy[question.id];
   ui.visitedQuestionIds ??= new Set();
   ui.visitedQuestionIds.add(question.id);
   const options = question.alternatives.map((alternative) => {
@@ -198,7 +199,7 @@ export function questionSessionView(state: SiteState, params: ViewParams, ui: Qu
     return `<button type="button" data-action="go-question" data-index="${mapIndex}" class="${mapIndex === index ? 'is-active' : ''} ${answered ? 'is-answered' : ''} ${skipped ? 'is-skipped' : ''}" aria-label="Questão ${mapIndex + 1}${stateLabel}">${mapIndex + 1}</button>`;
   }).join('');
   const commentList = comments.length
-    ? comments.slice(-4).map((comment) => `<div class="comment"><strong>${escapeHtml(comment.author)}</strong><p>${escapeHtml(comment.text)}</p></div>`).join('')
+    ? comments.slice(0, 8).map((comment) => `<article class="comment"><div class="comment__heading"><strong>${escapeHtml(comment.author)}</strong><time datetime="${escapeHtml(comment.createdAt)}">${new Intl.DateTimeFormat('pt-BR').format(new Date(comment.createdAt))}</time></div><p>${escapeHtml(comment.text)}</p><div class="comment__actions">${state.auth.mode === 'authenticated' ? `<button type="button" data-action="like-comment" data-comment-id="${escapeHtml(comment.id)}" aria-pressed="${Boolean(comment.likedByMe)}" aria-label="${comment.likedByMe ? 'Remover curtida' : 'Curtir comentário'}">${icon('ThumbsUp')}<span>${comment.likes ?? 0}</span></button>` : ''}${comment.isOwn ? `<button type="button" data-action="edit-comment" data-comment-id="${escapeHtml(comment.id)}">${icon('Pencil')}<span>Editar</span></button><button type="button" data-action="delete-comment" data-comment-id="${escapeHtml(comment.id)}">${icon('Trash2')}<span>Excluir</span></button>` : ''}</div></article>`).join('')
     : '<p class="muted">Ainda não há comentários nesta questão.</p>';
   const progressValue = ((index + 1) / questions.length) * 100;
   const isLastQuestion = index === questions.length - 1;
@@ -223,7 +224,7 @@ export function questionSessionView(state: SiteState, params: ViewParams, ui: Qu
           </div>
           <p class="question-statement">${escapeHtml(question.statement)}</p>
           <div class="options">${options}</div>
-          ${answer ? `<div class="explanation"><strong>${answer.isCorrect ? 'Resposta correta' : `Resposta incorreta · gabarito ${question.correct}`}</strong><p>${escapeHtml(question.explanation)}</p></div>` : ''}
+          ${answer ? `<div class="explanation"><strong>${answer.isCorrect ? 'Resposta correta' : `Resposta incorreta · gabarito ${question.correct}`}</strong><p>${escapeHtml(question.explanation)}</p>${communityAccuracy ? `<small>${formatPercent(communityAccuracy.accuracy)} de acerto entre ${communityAccuracy.totalAnswers} ${communityAccuracy.totalAnswers === 1 ? 'resposta registrada' : 'respostas registradas'}.</small>` : ''}</div>` : ''}
           <div class="study-controls">
             ${button('Anterior', { action: 'previous-question', variant: 'secondary', iconName: 'ArrowLeft', disabled: index === 0 })}
             <div class="toolbar__group">${answer ? button('Tentar novamente', { action: 'retry-question', variant: 'ghost', iconName: 'RotateCcw', attrs: `data-question-id="${escapeHtml(question.id)}"` }) : ''}${forwardButton}</div>
@@ -231,7 +232,7 @@ export function questionSessionView(state: SiteState, params: ViewParams, ui: Qu
         `, 'question-card')}
         <aside class="study-side">
           ${card(`<p class="eyebrow">PROGRESSO</p><h3>Mapa da sessão</h3><div class="question-map">${map}</div>`, 'detail-panel')}
-          ${card(`<details class="comments-disclosure" ${comments.length ? 'open' : ''}><summary><span><span class="eyebrow">COMUNIDADE</span><strong>Comentários</strong></span><span class="comments-disclosure__meta">${comments.length}</span>${icon('ChevronDown')}</summary><div class="comments-disclosure__content"><div class="comment-list">${commentList}</div><form class="comment-form" data-form="question-comment" data-question-id="${escapeHtml(question.id)}"><label class="sr-only" for="comment-${escapeHtml(question.id)}">Adicionar comentário</label><textarea class="textarea" id="comment-${escapeHtml(question.id)}" name="comment" maxlength="280" rows="3" placeholder="Compartilhe uma dúvida" required></textarea>${button('Enviar comentário', { type: 'submit', variant: 'secondary', iconName: 'Send', size: 'sm' })}</form></div></details>`, 'detail-panel comments-card')}
+          ${card(`<details class="comments-disclosure" data-community-question-id="${escapeHtml(question.id)}" ${comments.length ? 'open' : ''}><summary><span><span class="eyebrow">COMUNIDADE</span><strong>Comentários</strong></span><span class="comments-disclosure__meta">${comments.length}</span>${icon('ChevronDown')}</summary><div class="comments-disclosure__content"><div class="comment-list">${commentList}</div>${state.auth.mode === 'authenticated' ? `<form class="comment-form" data-form="question-comment" data-question-id="${escapeHtml(question.id)}"><label for="comment-${escapeHtml(question.id)}">Participar da discussão</label><textarea class="textarea" id="comment-${escapeHtml(question.id)}" name="comment" maxlength="280" rows="3" placeholder="Compartilhe uma dúvida" required></textarea><p class="form-message" data-form-message></p>${button('Enviar comentário', { type: 'submit', variant: 'secondary', iconName: 'Send', size: 'sm' })}</form>` : `<div class="comment-login"><p>Entre na sua conta para ler a comunidade completa e participar.</p>${button('Entrar', { route: '/entrar', variant: 'secondary', size: 'sm' })}</div>`}</div></details>`, 'detail-panel comments-card')}
         </aside>
       </div>
     `,

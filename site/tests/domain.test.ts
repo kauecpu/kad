@@ -8,7 +8,9 @@ import {
   storageKeyForOwner,
 } from '../src/core/store.ts';
 import { parseRecoveryCallback } from '../src/core/auth-callback.ts';
+import { createCard, createDeck, dueCards, mergeFlashcardStates, scheduleReview } from '../src/core/flashcards.ts';
 import { createPasswordSecurity } from '../src/core/password-security.ts';
+import { mergeEssayDocuments, mergeSimulationSessions, nextSyncTimestamp } from '../src/core/user-sync.ts';
 import { filterQuestions, matchesPack, questionsPerformance } from '../src/core/utils.ts';
 import { matchRoute, shouldOpenStudyHome } from '../src/core/router.ts';
 import { questionSessionView, questionsIndexView } from '../src/views/questions.ts';
@@ -60,11 +62,11 @@ test('busca combina palavra-chave, disciplina e pacote sem misturar escopos', ()
 test('simulado respeita quantidade, recebe respostas e calcula resultado', () => {
   const session = createSimulation({ questionCount: 5, durationMinutes: 10, shuffleQuestions: false });
   assert.ok(session);
-  assert.equal(session.questionIds.length, 5);
+  assert.equal(session.questions.length, 5);
   assert.equal(session.remainingSeconds, 600);
 
   const questions = getCatalog().questions;
-  for (const id of session.questionIds.slice(0, 3)) {
+  for (const id of session.questions.slice(0, 3).map((item) => item.questionId)) {
     const question = questions.find((item) => item.id === id);
     assert.ok(question);
     session.answers[id] = question.correct;
@@ -74,6 +76,49 @@ test('simulado respeita quantidade, recebe respostas e calcula resultado', () =>
     { total: score.total, answered: score.answered, correct: score.correct, blank: score.blank },
     { total: 5, answered: 3, correct: 3, blank: 2 },
   );
+});
+
+test('flashcards preservam o formato compartilhado e agendam revisão espaçada', () => {
+  const now = new Date('2026-08-29T12:00:00.000Z');
+  const deck = createDeck({ userId: 'user-a', name: ' Constitucional ' }, now);
+  const card = createCard({
+    userId: 'user-a',
+    deckId: deck.id,
+    front: ' O que é controle difuso? ',
+    back: 'Controle exercido em um caso concreto.',
+    tags: ['controle', 'controle', ' CF '],
+  }, now);
+
+  assert.equal(card.front, 'O que é controle difuso?');
+  assert.deepEqual(card.tags, ['controle', 'CF']);
+  assert.deepEqual(dueCards([card], now).map((item) => item.id), [card.id]);
+
+  const scheduled = scheduleReview(card, 'good', now);
+  assert.equal(scheduled.card.state, 'review');
+  assert.equal(scheduled.card.intervalDays, 1);
+  assert.equal(scheduled.review.cardId, card.id);
+  assert.deepEqual(dueCards([scheduled.card], now), []);
+});
+
+test('sincronização mantém a versão mais recente sem duplicar conteúdo do usuário', () => {
+  const deck = createDeck({ userId: 'user-a', name: 'Português' }, new Date('2026-08-29T10:00:00.000Z'));
+  const localCard = createCard({ userId: 'user-a', deckId: deck.id, front: 'Crase', back: 'Regra local' }, new Date('2026-08-29T10:00:00.000Z'));
+  const remoteCard = { ...localCard, back: 'Regra atualizada', updatedAt: '2026-08-29T11:00:00.000Z' };
+  const mergedCards = mergeFlashcardStates(
+    { decks: [deck], cards: [localCard], reviews: [] },
+    { decks: [deck], cards: [remoteCard], reviews: [] },
+  );
+  assert.equal(mergedCards.cards[0]?.back, 'Regra atualizada');
+  assert.equal(mergedCards.decks[0]?.cardCount, 1);
+
+  const mergedEssays = mergeEssayDocuments({
+    tema: { topicId: 'tema', content: 'local', elapsedSeconds: 10, status: 'draft', updatedAt: '2026-08-29T10:00:00.000Z' },
+  }, [{ topicId: 'tema', content: 'remoto', elapsedSeconds: 20, status: 'draft', updatedAt: '2026-08-29T11:00:00.000Z' }]);
+  assert.equal(mergedEssays.tema?.content, 'remoto');
+  assert.ok(nextSyncTimestamp('2026-08-29T12:00:00.000Z', '2026-08-29T11:00:00.000Z') > '2026-08-29T12:00:00.000Z');
+
+  const completed = { ...createSimulation({ questionCount: 2, durationMinutes: 10, shuffleQuestions: false })!, status: 'completed' as const, completedAt: '2026-08-29T12:00:00.000Z', updatedAt: '2026-08-29T12:00:00.000Z' };
+  assert.deepEqual(mergeSimulationSessions([], [completed]).history.map((item) => item.id), [completed.id]);
 });
 
 test('catálogos omitem métricas vazias até existir atividade real', () => {

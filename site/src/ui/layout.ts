@@ -15,6 +15,7 @@ const studyNavigation = [
   { href: '/trilhas', label: 'Trilhas', icon: 'Compass' },
   { href: '/redacao', label: 'Redação', icon: 'PenLine' },
   { href: '/biblioteca', label: 'Biblioteca', icon: 'Library' },
+  { href: '/flashcards', label: 'Flashcards', icon: 'Layers3' },
 ];
 
 type NavigationItem = { href: string; label: string; icon: string };
@@ -73,7 +74,7 @@ export function appLayout(content: string, { pathname, title, subtitle, state }:
         </nav>
         <div class="sidebar__footer">
           <button class="profile-summary" type="button" data-route="/perfil">
-            ${avatar(profile.name)}
+            ${avatar(profile.name, 'md', profile.avatarUri)}
             <span><strong>${escapeHtml(profile.name)}</strong><small>${state.auth.mode === 'authenticated' ? 'Conta KAD' : 'Modo visitante'}</small></span>
             ${icon('ChevronRight')}
           </button>
@@ -86,7 +87,7 @@ export function appLayout(content: string, { pathname, title, subtitle, state }:
           <div class="topbar__actions">
             <button class="desktop-search" type="button" data-route="/questoes/buscar">${icon('Search')}<span>Buscar questões</span><kbd>Ctrl K</kbd></button>
             <button class="icon-button" type="button" data-action="toggle-theme" aria-label="Ativar tema ${dark ? 'claro' : 'escuro'}" aria-pressed="${dark}">${icon(dark ? 'Moon' : 'Sun')}</button>
-            <button class="avatar-button" type="button" data-route="/perfil" aria-label="Abrir perfil">${avatar(profile.name, 'sm')}</button>
+            <button class="avatar-button" type="button" data-route="/perfil" aria-label="Abrir perfil">${avatar(profile.name, 'sm', profile.avatarUri)}</button>
           </div>
         </header>
         <main id="conteudo" class="page-content" tabindex="-1">${content}</main>

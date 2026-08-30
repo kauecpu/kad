@@ -4,6 +4,7 @@ import { ESSAY_TOPICS } from '../../../data/essay-topics.ts';
 import { CONCURSO_PACKS } from '../../../data/exam-concursos.ts';
 import { QUESTIONS } from '../../../data/questions.ts';
 import { RANKING_PARTICIPANTS } from '../../../data/ranking.ts';
+import { buildQuestionPacks } from '../core/question-catalog.ts';
 import type { Concurso, Question, SiteCatalog } from '../types/domain.ts';
 
 /**
@@ -29,10 +30,12 @@ export function getCatalog(): SiteCatalog {
   return liveCatalog;
 }
 export function replacePublishedCatalog({ questions, concursos }: { questions?: Question[]; concursos?: Concurso[] }): SiteCatalog {
+  const publishedQuestions = Array.isArray(questions) ? questions : liveCatalog.questions;
   liveCatalog = {
     ...liveCatalog,
-    questions: Array.isArray(questions) && questions.length ? questions : liveCatalog.questions,
-    concursos: Array.isArray(concursos) && concursos.length ? concursos : liveCatalog.concursos,
+    questions: publishedQuestions,
+    concursos: Array.isArray(concursos) ? concursos : liveCatalog.concursos,
+    packs: buildQuestionPacks(publishedQuestions, Array.isArray(questions)),
   };
   return liveCatalog;
 }
