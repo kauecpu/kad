@@ -23,7 +23,8 @@ import type { SubscriptionPlan, ThemePreference } from '@/types';
 
 const PLAN_LABEL: Record<SubscriptionPlan, string> = {
   basic: 'Plano Básico',
-  diamond: 'KAD Platina',
+  platinum: 'KAD Platina',
+  diamond: 'KAD Diamante',
   circle: 'KAD Círculo',
 };
 
@@ -253,8 +254,10 @@ export default function PerfilScreen() {
                 <Text style={[styles.identityPlanText, { color: colors.primary }]}>
                   {subscription.plan === 'circle'
                     ? 'Círculo'
-                    : subscription.plan === 'diamond'
+                    : subscription.plan === 'platinum'
                       ? 'Platina'
+                    : subscription.plan === 'diamond'
+                      ? 'Diamante'
                       : 'Básico'}
                 </Text>
               </View>

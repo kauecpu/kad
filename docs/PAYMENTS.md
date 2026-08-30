@@ -2,7 +2,7 @@
 
 ## Escopo desta entrega
 
-O checkout de produção foi preparado para o KAD Diamante na versão web. O preço e o
+O checkout de produção foi preparado para os planos Platina e Diamante na versão web. O preço e o
 período são definidos exclusivamente no backend; o aplicativo nunca envia o valor a ser
 cobrado. O Mercado Pago hospeda a coleta de Pix e cartão, então o KAD não recebe nem
 armazena dados completos do cartão.
@@ -87,7 +87,7 @@ servidor, receber notificações da Apple e do Google, oferecer restauração de
 abrir o gerenciamento da assinatura da loja. Até isso existir, a interface móvel informa
 que o pagamento está em preparação e não direciona o usuário ao checkout web.
 
-## Estado da base técnica para Google Play Billing (Android)
+## Google Play Billing (Android)
 
 Esta branch prepara somente a base nativa para testes internos. O projeto usa
 `expo-dev-client` e `expo-iap` com os identificadores `com.kad.app`; o perfil
@@ -95,24 +95,48 @@ EAS `development` aponta exclusivamente para o Supabase de homologação.
 
 O adaptador `lib/billing.ts` carrega `expo-iap` somente em runtime nativo e expõe
 conexão, catálogo, compra por eventos, restauração, observação e finalização de
-transações. A compra nunca é finalizada pelo adaptador antes da validação
-server-side; isso evita liberar acesso sem confirmação ou provocar estorno pela
-Google Play. Em web, testes Node e ambientes sem módulo nativo ele falha de forma
-explícita, sem quebrar a tela.
+transações. `lib/subscriptions.ts` envia apenas o SKU e o `purchaseToken` para a
+Edge Function `validate-google-purchase`. O app só chama `finishStorePurchase`
+depois que o servidor confirma a compra.
 
-A tela de planos ainda mantém o botão móvel desabilitado. A habilitação depende de
-produtos publicados no Play Console para Platina e Diamante, conta de teste licenciada e uma Edge Function
-que valide `purchaseToken` com a API Google Play Developer e atualize
-`subscriptions` de forma idempotente. Não se deve chamar `finishStorePurchase`
-antes dessa validação.
+A Edge Function autentica o usuário, consulta a API Google Play Developer com a
+credencial guardada nos segredos do Supabase, confere pacote, SKU, estado e validade
+do token e chama `apply_google_play_purchase`. Essa operação grava o token uma única
+vez e atualiza `subscriptions` de forma idempotente. Tokens pendentes ou inválidos
+não liberam acesso nem são finalizados. A tela de planos habilita Platina e Diamante
+no Android; na web, o checkout Mercado Pago continua separado.
 
-O catálogo nativo não contém mais o Círculo. O valor legado `circle` permanece
-aceito apenas no contrato antigo de assinaturas para não invalidar registros já
-existentes; ele não pode ser usado para criar novos produtos ou compras.
+O catálogo nativo não contém o Círculo. O valor legado `circle` permanece aceito
+apenas na leitura de assinaturas antigas para não invalidar registros existentes;
+ele não pode criar produtos ou compras novas.
 
-Para validar a camada nativa, é obrigatório gerar um Development Build Android
-com EAS e testar em dispositivo físico ou emulador com Google Play, usando uma
-conta de teste licenciada. Expo Go não carrega o módulo nativo. A criação dos
-produtos, credenciais do Google Cloud/Play Console, RTDN, validação de recibos e
-integração final da tela continuam pendentes até que esses recursos sejam
-configurados no ambiente de homologação.
+### Segredos da validação Google
+
+Cadastre no projeto Supabase, fora do repositório:
+
+```text
+GOOGLE_PLAY_PACKAGE_NAME=com.kad.app
+GOOGLE_SERVICE_ACCOUNT_JSON=<JSON da conta de serviço com acesso à API Google Play Developer>
+```
+
+Os SKUs esperados pela função são:
+
+```text
+kad_platinum_monthly
+kad_platinum_quarterly
+kad_platinum_annual
+kad_diamond_monthly
+kad_diamond_quarterly
+kad_diamond_annual
+```
+
+Conceda à conta de serviço a permissão mínima necessária no Play Console. Nunca
+coloque o JSON, a chave privada ou tokens de compra no app, em `.env`, commits ou
+logs. Publique `validate-google-purchase` e a migration
+`202608300001_google_play_billing.sql` antes de testar compras reais.
+
+Para validar a camada nativa, gere um Development Build Android com EAS e teste
+em dispositivo físico ou emulador com Google Play, usando uma conta de teste
+licenciada. Expo Go não carrega o módulo nativo. Ainda é necessário criar e
+publicar os seis produtos, configurar a conta de serviço e, para produção,
+adicionar notificações de renovação do Google (RTDN) e um processo de reconciliação.

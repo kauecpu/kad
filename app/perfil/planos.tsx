@@ -28,19 +28,27 @@ import {
 import {
   BASIC_PLAN_ACCESS,
   DIAMOND_BENEFITS,
+  DIAMOND_BILLING_OPTIONS,
   PLATINUM_BENEFITS,
   PLATINUM_BILLING_OPTIONS,
 } from '@/data/user';
 import { useTheme } from '@/hooks/use-theme';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { ANDROID_PRODUCT_IDS, endBilling, initBilling, observeStorePurchases } from '@/lib/billing';
 import { isValidPaymentCheckoutReturnId } from '@/lib/payment-security';
+import {
+  purchaseGoogleSubscription,
+  restoreGoogleSubscriptions,
+  settleGooglePurchase,
+} from '@/lib/subscriptions';
 import { useApp } from '@/providers/app-provider';
 import { useAuth } from '@/providers/auth-provider';
 import type { BillingCycle, SubscriptionPlan } from '@/types';
 
 const PLAN_LABEL: Record<SubscriptionPlan, string> = {
   basic: 'Plano Básico',
-  diamond: 'KAD Platina',
+  platinum: 'KAD Platina',
+  diamond: 'KAD Diamante',
   circle: 'KAD Círculo',
 };
 
@@ -65,10 +73,30 @@ export default function PlansScreen() {
     subscriptionLoading,
   } = useApp();
   const [platinumCycle, setPlatinumCycle] = useState<BillingCycle>('monthly');
+  const [diamondCycle, setDiamondCycle] = useState<BillingCycle>('monthly');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [checkoutReturned, setCheckoutReturned] = useState(false);
   const isDesktop = width >= 760 && fontScale < 1.3;
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    void initBilling();
+    return () => {
+      void endBilling();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !session) return;
+    return observeStorePurchases((purchase) => {
+      if (purchase.purchaseState !== 'purchased') return;
+      void settleGooglePurchase(purchase).then((result) => {
+        if (result.ok) void refreshSubscription();
+      });
+    });
+  }, [refreshSubscription, session]);
 
   useEffect(() => {
     if (!isValidPaymentCheckoutReturnId(checkout) || !session) return;
@@ -106,7 +134,7 @@ export default function PlansScreen() {
   };
 
   const subscribeTo = async (
-    plan: Exclude<SubscriptionPlan, 'basic'>,
+    plan: Exclude<SubscriptionPlan, 'basic' | 'circle'>,
     cycle: BillingCycle
   ) => {
     if (!session) {
@@ -115,10 +143,22 @@ export default function PlansScreen() {
       return;
     }
     if (Platform.OS !== 'web') {
-      notify(
-        'Pagamento móvel em preparação',
-        'As compras pelo aplicativo serão liberadas após a configuração da loja.'
-      );
+      if (Platform.OS !== 'android') {
+        notify('Compra no Android', 'A assinatura pela Google Play está disponível no Android.');
+        return;
+      }
+      setCheckoutLoading(true);
+      try {
+        const result = await purchaseGoogleSubscription(ANDROID_PRODUCT_IDS[plan][cycle]);
+        if (!result.ok) {
+          notify('Não foi possível concluir a compra', result.message ?? 'Tente novamente.');
+          return;
+        }
+        await refreshSubscription();
+        notify('Assinatura confirmada', 'Seu acesso foi atualizado pelo servidor.');
+      } finally {
+        setCheckoutLoading(false);
+      }
       return;
     }
 
@@ -132,6 +172,36 @@ export default function PlansScreen() {
       globalThis.location.assign(result.checkoutUrl);
     } finally {
       setCheckoutLoading(false);
+    }
+  };
+
+  const restore = async () => {
+    if (!session) {
+      notify('Conta necessária', 'Entre ou crie uma conta para restaurar suas compras.');
+      router.push('/auth/login');
+      return;
+    }
+    if (Platform.OS === 'web') {
+      notify('Restauração no aplicativo', 'Abra o KAD no Android para restaurar compras da Google Play.');
+      return;
+    }
+    if (Platform.OS !== 'android') {
+      notify('Restauração no Android', 'A restauração pela Google Play está disponível no Android.');
+      return;
+    }
+    setRestoreLoading(true);
+    try {
+      const result = await restoreGoogleSubscriptions();
+      if (!result.ok) {
+        notify('Não foi possível restaurar', result.message ?? 'Tente novamente.');
+        return;
+      }
+      await refreshSubscription();
+      notify('Restauração concluída', result.entitled > 0
+        ? 'Sua assinatura foi restaurada.'
+        : 'Nenhuma assinatura ativa foi encontrada.');
+    } finally {
+      setRestoreLoading(false);
     }
   };
 
@@ -276,6 +346,16 @@ export default function PlansScreen() {
               fullWidth
             />
           ) : null}
+          {session ? (
+            <Button
+              label={restoreLoading ? 'Restaurando...' : 'Restaurar compras'}
+              variant="ghost"
+              icon="refresh-circle-outline"
+              onPress={() => void restore()}
+              disabled={restoreLoading || checkoutLoading}
+              fullWidth
+            />
+          ) : null}
         </Card>
 
         <View style={styles.planIntro}>
@@ -291,13 +371,13 @@ export default function PlansScreen() {
               tier="platinum"
               name="KAD Platina"
               subtitle="Estratégia e desempenho, sem excesso visual."
-              badge={subscription.plan === 'diamond' && isPremium ? 'Seu plano' : 'Disponível'}
+              badge={subscription.plan === 'platinum' && isPremium ? 'Seu plano' : 'Disponível'}
               benefits={PLATINUM_BENEFITS}
               options={PLATINUM_BILLING_OPTIONS}
               selectedCycle={platinumCycle}
               onSelectCycle={setPlatinumCycle}
-              active={subscription.plan === 'diamond' && isPremium}
-              onSubscribe={() => subscribeTo('diamond', platinumCycle)}
+              active={subscription.plan === 'platinum' && isPremium}
+              onSubscribe={() => subscribeTo('platinum', platinumCycle)}
               checkoutLoading={checkoutLoading}
               isDesktop={isDesktop}
             />
@@ -305,9 +385,14 @@ export default function PlansScreen() {
               tier="diamond"
               name="KAD Diamante"
               subtitle="O próximo nível da preparação KAD."
-              badge="Em breve"
+              badge={subscription.plan === 'diamond' && isPremium ? 'Seu plano' : 'Disponível'}
               benefits={DIAMOND_BENEFITS}
-              available={false}
+              options={DIAMOND_BILLING_OPTIONS}
+              selectedCycle={diamondCycle}
+              onSelectCycle={setDiamondCycle}
+              active={subscription.plan === 'diamond' && isPremium}
+              onSubscribe={() => subscribeTo('diamond', diamondCycle)}
+              checkoutLoading={checkoutLoading}
               isDesktop={isDesktop}
             />
           </View>
@@ -420,12 +505,12 @@ function PremiumPlanSection({
     ? `Seu ${name} está ativo`
     : !available
       ? `${name} · em breve`
-      : checkoutLoading
-        ? 'Preparando pagamento...'
-        : Platform.OS === 'web' && selected
-          ? `Assinar KAD Platina · ${formatCurrency(selected.price)}`
-          : 'Pagamento móvel em breve';
-  const ctaDisabled = Boolean(active || !available || checkoutLoading || Platform.OS !== 'web');
+        : checkoutLoading
+          ? 'Preparando pagamento...'
+        : selected
+          ? `Assinar ${name} · ${formatCurrency(selected.price)}`
+          : `Assinar ${name}`;
+  const ctaDisabled = Boolean(active || !available || checkoutLoading);
 
   return (
     <Card
@@ -534,7 +619,7 @@ function PremiumPlanSection({
 
       <View style={styles.paymentNotice}>
         <Ionicons
-          name={available && Platform.OS === 'web' ? 'shield-checkmark-outline' : 'information-circle-outline'}
+          name={available ? 'shield-checkmark-outline' : 'information-circle-outline'}
           size={18}
           color={colors.textSubtle}
         />
@@ -543,7 +628,7 @@ function PremiumPlanSection({
             ? 'Os benefícios são os mesmos do Platina nesta primeira definição.'
             : Platform.OS === 'web'
               ? 'Pagamento processado no ambiente seguro do Mercado Pago.'
-              : 'A compra pelo aplicativo será liberada após a configuração das lojas.'}
+              : 'A compra será confirmada pelo servidor antes de liberar o acesso.'}
         </Text>
       </View>
     </Card>

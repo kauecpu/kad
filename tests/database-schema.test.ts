@@ -238,6 +238,7 @@ test('webhook financeiro exige HMAC e consulta o recurso no provedor', () => {
   assert.match(paymentWebhook, /mercadoPagoRequest<MercadoPagoPayment>/);
   assert.match(supabaseConfig, /\[functions\.mercado-pago-webhook\]/);
   assert.match(supabaseConfig, /verify_jwt = false/);
+  assert.match(supabaseConfig, /\[functions\.validate-google-purchase\][\s\S]*?verify_jwt = true/);
 });
 
 test('checkout financeiro usa rate limiting concorrente no banco antes do provedor', () => {
@@ -613,4 +614,23 @@ test('reconciliação remove privilégios destrutivos e corrige índices de FKs'
   ]) {
     assert.match(editorialIndexSql, new RegExp(`create index if not exists ${indexName}`));
   }
+});
+
+test('Google Play valida tokens no servidor e aplica a assinatura de forma idempotente', () => {
+  const googleBillingMigration = readMigration('202608300001_google_play_billing.sql');
+  const googleValidationFunction = readFileSync(
+    new NodeURL('../supabase/functions/validate-google-purchase/index.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(googleBillingMigration, /google_play_purchases/);
+  assert.match(googleBillingMigration, /on conflict \(purchase_token\) do update/);
+  assert.match(googleBillingMigration, /apply_google_play_purchase/);
+  assert.match(googleBillingMigration, /grant execute on function public\.apply_google_play_purchase/);
+  assert.match(googleBillingMigration, /kad_platinum_monthly/);
+  assert.match(googleBillingMigration, /kad_diamond_annual/);
+  assert.match(googleValidationFunction, /purchases\/subscriptionsv2\/tokens/);
+  assert.match(googleValidationFunction, /GOOGLE_SERVICE_ACCOUNT_JSON/);
+  assert.match(googleValidationFunction, /product_mismatch/);
+  assert.match(googleValidationFunction, /purchase_pending/);
+  assert.doesNotMatch(googleValidationFunction, /service_role.*client/i);
 });

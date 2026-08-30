@@ -52,7 +52,7 @@ function isBillingCycle(value: unknown): value is BillingCycle {
 }
 
 function isPaidPlan(value: unknown): value is Exclude<SubscriptionPlan, 'basic'> {
-  return value === 'diamond' || value === 'circle';
+  return value === 'platinum' || value === 'diamond' || value === 'circle';
 }
 
 function isProvider(value: unknown): value is NonNullable<Subscription['provider']> {

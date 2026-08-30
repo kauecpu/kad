@@ -201,7 +201,8 @@ export type Concurso = {
   contentSource?: 'demo' | 'published';
 };
 
-export type SubscriptionPlan = 'basic' | 'diamond' | 'circle';
+/** Plans exposed to new customers. `circle` remains readable for legacy rows. */
+export type SubscriptionPlan = 'basic' | 'platinum' | 'diamond' | 'circle';
 
 export type BillingCycle = 'monthly' | 'quarterly' | 'annual';
 

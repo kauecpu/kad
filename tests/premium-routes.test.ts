@@ -61,7 +61,7 @@ test('o KAD Círculo não é oferecido para novas assinaturas', () => {
   assert.doesNotMatch(plans, /subscribeTo\('circle'/);
 });
 
-test('os planos premium usam cards minimalistas e preservam o checkout existente no Platina', () => {
+test('os planos premium exibem Platina e Diamante com ciclos e compra nativa', () => {
   assert.match(plans, /name="KAD Platina"/);
   assert.match(plans, /name="KAD Diamante"/);
   assert.match(plans, /benefits=\{PLATINUM_BENEFITS\}/);
@@ -69,8 +69,10 @@ test('os planos premium usam cards minimalistas e preservam o checkout existente
   assert.match(plans, /styles\.premiumCard/);
   assert.match(plans, /width >= 760 && fontScale < 1\.3/);
   assert.doesNotMatch(plans, /styles\.diamondGlow|styles\.diamondFacet/);
-  assert.match(plans, /onSubscribe=\{\(\) => subscribeTo\('diamond', platinumCycle\)\}/);
-  assert.match(plans, /name="KAD Diamante"[\s\S]*?available=\{false\}/);
+  assert.match(plans, /onSubscribe=\{\(\) => subscribeTo\('platinum', platinumCycle\)\}/);
+  assert.match(plans, /name="KAD Diamante"[\s\S]*?DIAMOND_BILLING_OPTIONS/);
+  assert.match(plans, /purchaseGoogleSubscription/);
+  assert.match(plans, /restoreGoogleSubscriptions/);
   assert.equal(plans.match(/subscribeTo\('diamond'/g)?.length, 1);
 });
 
