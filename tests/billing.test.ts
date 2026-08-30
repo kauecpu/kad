@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import {
   ANDROID_PRODUCT_IDS,
   endBilling,
+  finishStorePurchase,
   fetchStoreSubscriptions,
   initBilling,
   observeStorePurchases,
+  restoreStorePurchases,
   requestStorePurchase,
 } from '../lib/billing.ts';
 
@@ -19,12 +21,14 @@ test('o mapa de produtos mantém SKU estável por plano e ciclo', () => {
   assert.equal(ANDROID_PRODUCT_IDS.circle.annual, 'kad_circle_annual');
 });
 
-test('operações de Billing permanecem explicitamente desabilitadas até a validação nativa', async () => {
+test('operações de Billing falham explicitamente fora de um runtime nativo', async () => {
   const results = await Promise.all([
     initBilling(),
     endBilling(),
     fetchStoreSubscriptions(['kad_diamond_monthly']),
     requestStorePurchase('kad_diamond_monthly'),
+    restoreStorePurchases(),
+    finishStorePurchase({ productId: 'kad_diamond_monthly', purchaseToken: 'test-token' }),
   ]);
 
   for (const result of results) {
