@@ -1,4 +1,4 @@
-export type PaidPlan = 'diamond';
+export type PaidPlan = 'platinum' | 'diamond';
 export type BillingCycle = 'monthly' | 'quarterly' | 'annual';
 
 export type PaymentPlan = {
@@ -10,30 +10,58 @@ export type PaymentPlan = {
   frequencyType: 'months';
 };
 
-export const PAYMENT_PLANS: Record<BillingCycle, PaymentPlan> = {
-  monthly: {
-    plan: 'diamond',
-    billingCycle: 'monthly',
-    title: 'KAD Diamante mensal',
-    amountCents: 1499,
-    frequency: 1,
-    frequencyType: 'months',
+export const PAYMENT_PLANS: Record<PaidPlan, Record<BillingCycle, PaymentPlan>> = {
+  platinum: {
+    monthly: {
+      plan: 'platinum',
+      billingCycle: 'monthly',
+      title: 'KAD Platina mensal',
+      amountCents: 1499,
+      frequency: 1,
+      frequencyType: 'months',
+    },
+    quarterly: {
+      plan: 'platinum',
+      billingCycle: 'quarterly',
+      title: 'KAD Platina trimestral',
+      amountCents: 3999,
+      frequency: 3,
+      frequencyType: 'months',
+    },
+    annual: {
+      plan: 'platinum',
+      billingCycle: 'annual',
+      title: 'KAD Platina anual',
+      amountCents: 14999,
+      frequency: 12,
+      frequencyType: 'months',
+    },
   },
-  quarterly: {
-    plan: 'diamond',
-    billingCycle: 'quarterly',
-    title: 'KAD Diamante trimestral',
-    amountCents: 3999,
-    frequency: 3,
-    frequencyType: 'months',
-  },
-  annual: {
-    plan: 'diamond',
-    billingCycle: 'annual',
-    title: 'KAD Diamante anual',
-    amountCents: 14999,
-    frequency: 12,
-    frequencyType: 'months',
+  diamond: {
+    monthly: {
+      plan: 'diamond',
+      billingCycle: 'monthly',
+      title: 'KAD Diamante mensal',
+      amountCents: 1499,
+      frequency: 1,
+      frequencyType: 'months',
+    },
+    quarterly: {
+      plan: 'diamond',
+      billingCycle: 'quarterly',
+      title: 'KAD Diamante trimestral',
+      amountCents: 3999,
+      frequency: 3,
+      frequencyType: 'months',
+    },
+    annual: {
+      plan: 'diamond',
+      billingCycle: 'annual',
+      title: 'KAD Diamante anual',
+      amountCents: 14999,
+      frequency: 12,
+      frequencyType: 'months',
+    },
   },
 };
 
@@ -58,7 +86,7 @@ export function paymentPlan(
   plan: unknown,
   billingCycle: unknown
 ): PaymentPlan | null {
-  if (plan !== 'diamond') return null;
+  if (plan !== 'platinum' && plan !== 'diamond') return null;
   if (
     billingCycle !== 'monthly' &&
     billingCycle !== 'quarterly' &&
@@ -66,7 +94,7 @@ export function paymentPlan(
   ) {
     return null;
   }
-  return PAYMENT_PLANS[billingCycle];
+  return PAYMENT_PLANS[plan][billingCycle];
 }
 
 export function checkoutReference(checkoutId: string) {

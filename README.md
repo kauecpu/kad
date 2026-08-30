@@ -22,7 +22,7 @@ Ambos reúnem questões comentadas, busca, concursos, simulados e gestão de per
   quantidade de questões e tempo.
 - Pausa, retomada, resultado e revisão de questões erradas em simulados.
 - Perfil editável, tema claro/escuro e escolha de cargo desejado.
-- Plano Básico e assinaturas KAD Diamante e KAD Círculo.
+- Plano Básico e assinaturas KAD Platina e KAD Diamante.
 
 ## Pagamentos e assinaturas
 

@@ -157,7 +157,7 @@ type AppContextValue = AppDataState & {
   updateProfile: (patch: Partial<UserProfile>) => Promise<void>;
   updateProfileAvatar: (asset: ProfileAvatarAsset) => Promise<void>;
   subscribe: (
-    plan: Exclude<SubscriptionPlan, 'basic'>,
+    plan: Exclude<SubscriptionPlan, 'basic' | 'circle'>,
     billingCycle: BillingCycle
   ) => Promise<SubscriptionActionResult>;
   cancelSubscription: () => Promise<SubscriptionActionResult>;
@@ -687,7 +687,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const subscribe = useCallback(
-    (plan: Exclude<SubscriptionPlan, 'basic'>, billingCycle: BillingCycle) =>
+    (plan: Exclude<SubscriptionPlan, 'basic' | 'circle'>, billingCycle: BillingCycle) =>
       createSubscriptionCheckout(plan, billingCycle),
     []
   );

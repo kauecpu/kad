@@ -55,5 +55,8 @@ export const PLATINUM_BENEFITS = [
   'Indicadores de acerto durante a prática',
 ] as const;
 
+/** Prices are provisional until the corresponding Play base plans are configured. */
+export const DIAMOND_BILLING_OPTIONS = PLATINUM_BILLING_OPTIONS;
+
 /** Benefícios temporariamente compartilhados até a diferenciação do KAD Diamante. */
 export const DIAMOND_BENEFITS = PLATINUM_BENEFITS;
