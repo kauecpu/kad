@@ -86,3 +86,29 @@ integrar o SDK de compra compatível com Expo Development Build, validar recibos
 servidor, receber notificações da Apple e do Google, oferecer restauração de compras e
 abrir o gerenciamento da assinatura da loja. Até isso existir, a interface móvel informa
 que o pagamento está em preparação e não direciona o usuário ao checkout web.
+
+## Estado da base técnica para Google Play Billing (Android)
+
+Esta branch prepara somente a base nativa para testes internos. O projeto usa
+`expo-dev-client` e `expo-iap` com os identificadores `com.kad.app`; o perfil
+EAS `development` aponta exclusivamente para o Supabase de homologação.
+
+O adaptador `lib/billing.ts` carrega `expo-iap` somente em runtime nativo e expõe
+conexão, catálogo, compra por eventos, restauração, observação e finalização de
+transações. A compra nunca é finalizada pelo adaptador antes da validação
+server-side; isso evita liberar acesso sem confirmação ou provocar estorno pela
+Google Play. Em web, testes Node e ambientes sem módulo nativo ele falha de forma
+explícita, sem quebrar a tela.
+
+A tela de planos ainda mantém o botão móvel desabilitado. A habilitação depende de
+produtos publicados no Play Console, conta de teste licenciada e uma Edge Function
+que valide `purchaseToken` com a API Google Play Developer e atualize
+`subscriptions` de forma idempotente. Não se deve chamar `finishStorePurchase`
+antes dessa validação.
+
+Para validar a camada nativa, é obrigatório gerar um Development Build Android
+com EAS e testar em dispositivo físico ou emulador com Google Play, usando uma
+conta de teste licenciada. Expo Go não carrega o módulo nativo. A criação dos
+produtos, credenciais do Google Cloud/Play Console, RTDN, validação de recibos e
+integração final da tela continuam pendentes até que esses recursos sejam
+configurados no ambiente de homologação.
