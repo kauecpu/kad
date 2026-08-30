@@ -106,6 +106,10 @@ que valide `purchaseToken` com a API Google Play Developer e atualize
 `subscriptions` de forma idempotente. Não se deve chamar `finishStorePurchase`
 antes dessa validação.
 
+O catálogo nativo não contém mais o Círculo. O valor legado `circle` permanece
+aceito apenas no contrato antigo de assinaturas para não invalidar registros já
+existentes; ele não pode ser usado para criar novos produtos ou compras.
+
 Para validar a camada nativa, é obrigatório gerar um Development Build Android
 com EAS e testar em dispositivo físico ou emulador com Google Play, usando uma
 conta de teste licenciada. Expo Go não carrega o módulo nativo. A criação dos
