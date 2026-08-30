@@ -13,12 +13,13 @@ import {
 } from '../lib/billing.ts';
 
 test('o mapa de produtos mantém SKU estável por plano e ciclo', () => {
+  assert.equal(ANDROID_PRODUCT_IDS.platinum.monthly, 'kad_platinum_monthly');
+  assert.equal(ANDROID_PRODUCT_IDS.platinum.quarterly, 'kad_platinum_quarterly');
+  assert.equal(ANDROID_PRODUCT_IDS.platinum.annual, 'kad_platinum_annual');
   assert.equal(ANDROID_PRODUCT_IDS.diamond.monthly, 'kad_diamond_monthly');
   assert.equal(ANDROID_PRODUCT_IDS.diamond.quarterly, 'kad_diamond_quarterly');
   assert.equal(ANDROID_PRODUCT_IDS.diamond.annual, 'kad_diamond_annual');
-  assert.equal(ANDROID_PRODUCT_IDS.circle.monthly, 'kad_circle_monthly');
-  assert.equal(ANDROID_PRODUCT_IDS.circle.quarterly, 'kad_circle_quarterly');
-  assert.equal(ANDROID_PRODUCT_IDS.circle.annual, 'kad_circle_annual');
+  assert.equal(Object.keys(ANDROID_PRODUCT_IDS).sort().join(','), 'diamond,platinum');
 });
 
 test('operações de Billing falham explicitamente fora de um runtime nativo', async () => {

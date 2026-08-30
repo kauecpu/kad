@@ -101,7 +101,7 @@ Google Play. Em web, testes Node e ambientes sem módulo nativo ele falha de for
 explícita, sem quebrar a tela.
 
 A tela de planos ainda mantém o botão móvel desabilitado. A habilitação depende de
-produtos publicados no Play Console, conta de teste licenciada e uma Edge Function
+produtos publicados no Play Console para Platina e Diamante, conta de teste licenciada e uma Edge Function
 que valide `purchaseToken` com a API Google Play Developer e atualize
 `subscriptions` de forma idempotente. Não se deve chamar `finishStorePurchase`
 antes dessa validação.
