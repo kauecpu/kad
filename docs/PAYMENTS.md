@@ -101,10 +101,14 @@ Google Play. Em web, testes Node e ambientes sem módulo nativo ele falha de for
 explícita, sem quebrar a tela.
 
 A tela de planos ainda mantém o botão móvel desabilitado. A habilitação depende de
-produtos publicados no Play Console, conta de teste licenciada e uma Edge Function
+produtos publicados no Play Console para Platina e Diamante, conta de teste licenciada e uma Edge Function
 que valide `purchaseToken` com a API Google Play Developer e atualize
 `subscriptions` de forma idempotente. Não se deve chamar `finishStorePurchase`
 antes dessa validação.
+
+O catálogo nativo não contém mais o Círculo. O valor legado `circle` permanece
+aceito apenas no contrato antigo de assinaturas para não invalidar registros já
+existentes; ele não pode ser usado para criar novos produtos ou compras.
 
 Para validar a camada nativa, é obrigatório gerar um Development Build Android
 com EAS e testar em dispositivo físico ou emulador com Google Play, usando uma

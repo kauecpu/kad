@@ -8,7 +8,8 @@
 
 import type { ProductSubscription, Purchase } from 'expo-iap';
 
-export type BillingPlan = 'diamond' | 'circle';
+/** Commercial plans currently exposed in Google Play. */
+export type BillingPlan = 'platinum' | 'diamond';
 export type BillingCycle = 'monthly' | 'quarterly' | 'annual';
 
 export type StoreSubscription = {
@@ -38,15 +39,15 @@ export type BillingResult<T> = { ok: true; value: T } | BillingFailure;
 export const ANDROID_PRODUCT_IDS: Readonly<
   Record<BillingPlan, Readonly<Record<BillingCycle, string>>>
 > = {
+  platinum: {
+    monthly: 'kad_platinum_monthly',
+    quarterly: 'kad_platinum_quarterly',
+    annual: 'kad_platinum_annual',
+  },
   diamond: {
     monthly: 'kad_diamond_monthly',
     quarterly: 'kad_diamond_quarterly',
     annual: 'kad_diamond_annual',
-  },
-  circle: {
-    monthly: 'kad_circle_monthly',
-    quarterly: 'kad_circle_quarterly',
-    annual: 'kad_circle_annual',
   },
 };
 
