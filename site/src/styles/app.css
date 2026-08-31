@@ -824,8 +824,7 @@ button.list-row:hover { background: var(--surface-alt); }
 @media (max-width: 680px) {
   .public-header { min-height: 76px; padding-inline: 18px; }
   .public-header .brand img { width: 118px; }
-  .public-section-nav,
-  .public-header__login { display: none; }
+  .public-section-nav { display: none; }
   .landing-hero__inner { gap: 38px; padding: 70px 20px 86px; }
   .landing-hero__inner::before { right: 20px; left: 20px; }
   .landing-hero__copy { gap: 22px; }
