@@ -176,7 +176,7 @@ test('melhorias de interface preservam semântica, privacidade e linguagem de pr
   assert.match(questionsView, /Pular questão/);
   assert.match(simulationsView, /questão disponível/);
   assert.doesNotMatch(simulationsView, /versão web|Frontend|Treino fiel ao app/);
-  assert.match(styles, /--text-subtle: #5f6c7d/);
+  assert.match(styles, /--text-subtle: #5f5f5f/);
   assert.match(styles, /scroll-padding-bottom/);
 });
 
@@ -256,6 +256,19 @@ test('áreas internas compartilham padrão editorial sem perder estruturas espec
   assert.match(styles, /\.app-shell \.card \{[^}]+box-shadow: none/);
   assert.match(styles, /\.workspace-hero \{[^}]+border-top: 3px solid var\(--primary\)/);
   assert.match(styles, /\.result-list \{[^}]+border-block:/);
+});
+
+test('linguagem visual do site prioriza neutros e mantém roxo como acento', async () => {
+  const [styles, appStyles] = await Promise.all([
+    source('src/styles/base.css'),
+    source('src/styles/app.css'),
+  ]);
+
+  assert.match(styles, /--primary: #171717/);
+  assert.match(styles, /--accent: #6d28d9/);
+  assert.match(styles, /--accent-soft: #f1ebff/);
+  assert.match(appStyles, /\.landing-hero__visual::before[^}]+background: var\(--surface-alt\)/);
+  assert.match(appStyles, /@media \(max-width: 680px\)[\s\S]+\.landing-hero__visual > img \{[^}]+position: static/);
 });
 
 test('build do site inclui o adaptador e o fallback exigidos pela hospedagem', async () => {
