@@ -61,7 +61,6 @@ export function questionsIndexView(state: SiteState): ViewModel {
         title: 'Escolha como estudar.',
         description: 'Filtre o banco inteiro, avance por disciplina ou pratique um concurso específico.',
         actions: `${button('Procurar questões', { route: '/questoes/buscar', iconName: 'Search' })}${button('Desafio rápido', { route: '/questoes/desafio', variant: 'secondary', iconName: 'Zap' })}`,
-        visual: true,
       })}
       ${section('Estudar por disciplina', `<div class="discipline-grid">${disciplineCards}</div>`, { eyebrow: 'BANCO DE QUESTÕES' })}
       ${progressSummary}
