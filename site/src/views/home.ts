@@ -79,10 +79,6 @@ export function homeView(state: SiteState): ViewModel {
               ${button('Montar um simulado', { route: '/simulados', variant: 'ghost', iconName: 'Timer' })}
             </div>
           </div>
-          <figure class="home-intro__visual" aria-hidden="true">
-            <span class="home-intro__orbit"></span>
-            <span class="home-intro__mark"><strong>KAD</strong><i></i></span>
-          </figure>
         </section>
 
         ${studySummary}

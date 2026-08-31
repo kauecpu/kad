@@ -99,7 +99,7 @@ test('apresentação pública usa somente conteúdo real e não exibe mascotes d
     ]),
   ]);
   assert.equal(assets.length, 1);
-  assert.match(view, /landing-hero__bolt/);
+  assert.match(view, /landing-hero__signal/);
   assert.doesNotMatch(`${view}${explore}`, /kad-mascot-/);
   assert.doesNotMatch(view, /82%|\+12 questões|acerto esta semana|ritmo de hoje/);
 });
@@ -142,14 +142,35 @@ test('entrada apresenta recursos reais em carrossel controlável e sensível a m
 
   assert.match(publicView, /data-auth-carousel/);
   assert.match(publicView, /data-action="pause-auth-story"/);
-  assert.match(publicView, /auth-story__mark/);
-  assert.match(publicView, /mark: '01'/);
+  assert.match(publicView, /auth-story__copy/);
   assert.doesNotMatch(publicView, /kad-mascot-/);
   assert.match(main, /AUTH_STORY_INTERVAL = 6500/);
   assert.match(main, /prefers-reduced-motion: reduce/);
   assert.match(main, /pointerover/);
   assert.match(main, /focusin/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+});
+
+test('sinal visual do KAD é vetorial, contido e substitui os placeholders rejeitados', async () => {
+  const [brand, publicView, components, styles, home] = await Promise.all([
+    source('src/ui/brand.ts'),
+    source('src/views/public.ts'),
+    source('src/ui/components.ts'),
+    source('src/styles/app.css'),
+    source('src/views/home.ts'),
+  ]);
+
+  assert.match(brand, /export function kadSignalMark/);
+  assert.match(brand, /<svg[\s\S]+viewBox="0 0 64 88"/);
+  assert.match(brand, /variant\?: 'color' \| 'mono' \| 'compact'/);
+  assert.match(publicView, /kadSignalMark/);
+  assert.match(publicView, /landing-hero__pillars/);
+  assert.doesNotMatch(`${publicView}${components}${home}`, /landing-note|landing-hero__stamp|landing-hero__bolt|auth-story__mark|workspace-hero__mark|home-intro__mark/);
+  assert.doesNotMatch(components, /imageSrc|kad-mascot-/);
+  assert.match(styles, /--kad-signal-yellow:\s*#/);
+  assert.match(styles, /\.kad-signal--compact/);
+  assert.doesNotMatch(styles, /\.home-intro \{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 210px/);
+  assert.match(styles, /\.kad-signal \{[^}]*overflow:\s*hidden/);
 });
 
 test('melhorias de interface preservam semântica, privacidade e linguagem de produto', async () => {
@@ -264,8 +285,9 @@ test('linguagem visual do site prioriza neutros e mantém roxo como acento', asy
   assert.match(styles, /--primary: #171717/);
   assert.match(styles, /--accent: #6d28d9/);
   assert.match(styles, /--accent-soft: #f1ebff/);
-  assert.match(appStyles, /\.landing-hero__visual::before[^}]+background: var\(--surface-alt\)/);
-  assert.match(appStyles, /@media \(max-width: 680px\)[\s\S]+\.landing-hero__visual > img \{[^}]+position: static/);
+  assert.match(appStyles, /--kad-signal-yellow:\s*#/);
+  assert.match(appStyles, /\.landing-hero__signal\s*\{/);
+  assert.doesNotMatch(appStyles, /\.landing-hero__bolt|\.landing-hero__stamp|\.landing-note/);
 });
 
 test('build do site inclui o adaptador e o fallback exigidos pela hospedagem', async () => {
