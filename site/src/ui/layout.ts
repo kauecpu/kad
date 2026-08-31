@@ -36,7 +36,7 @@ export function publicLayout(content: string, { simple = false }: { simple?: boo
           <img src="/assets/kad-logo.png" alt="KAD Concursos" width="178" height="76" />
         </a>
         <div class="public-header__actions">
-          ${button('Tema', { action: 'toggle-theme', variant: 'ghost', iconName: 'Sun', className: 'icon-label-button' })}
+          ${button('Alternar tema', { action: 'toggle-theme', variant: 'ghost', iconName: 'Sun', className: 'icon-label-button' })}
           ${!simple ? `<a href="/entrar" data-route="/entrar" class="text-link">Entrar</a>` : ''}
         </div>
       </header>
@@ -76,7 +76,7 @@ export function appLayout(content: string, { pathname, title, subtitle, state }:
           <div class="topbar__title"><h1>${escapeHtml(title)}</h1>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div>
           <div class="topbar__actions">
             <button class="desktop-search" type="button" data-route="/questoes/buscar">${icon('Search')}<span>Buscar questões</span><kbd>Ctrl K</kbd></button>
-            <button class="icon-button" type="button" data-action="toggle-theme" aria-label="Alternar tema">${icon('Sun')}</button>
+            <button class="icon-button" type="button" data-action="toggle-theme" aria-label="Tema atual: ${state.preferences.theme === 'system' ? 'automático' : state.preferences.theme === 'dark' ? 'escuro' : 'claro'}. Alternar tema">${icon('Sun')}</button>
             <button class="avatar-button" type="button" data-route="/perfil" aria-label="Abrir perfil">${avatar(profile.name, 'sm')}</button>
           </div>
         </header>

@@ -141,6 +141,15 @@ test('melhorias de interface preservam semântica, privacidade e linguagem de pr
   assert.match(questionsView, /Pular questão/);
   assert.match(simulationsView, /questão disponível/);
   assert.doesNotMatch(simulationsView, /versão web|Frontend|Treino fiel ao app/);
-  assert.match(styles, /--text-subtle: #5f6c7d/);
+  assert.match(styles, /--text-subtle: #5f5f5f/);
   assert.match(styles, /scroll-padding-bottom/);
+});
+
+test('direção editorial mantém o roxo como acento e protege a landing mobile', async () => {
+  const styles = await source('src/styles/base.css');
+  const appStyles = await source('src/styles/app.css');
+
+  assert.match(styles, /--accent:\s*#6d28d9/);
+  assert.match(styles, /--primary:\s*#171717/);
+  assert.match(appStyles, /@media \(max-width: 680px\)[\s\S]+\.welcome__mascot\s*\{[^}]*position:\s*static/);
 });
