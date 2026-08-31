@@ -35,9 +35,14 @@ export function publicLayout(content: string, { simple = false }: { simple?: boo
         <a href="/" data-route="/" class="brand" aria-label="KAD Concursos — página inicial">
           <img src="/assets/kad-logo.png" alt="KAD Concursos" width="178" height="76" />
         </a>
+        ${!simple ? `<nav class="public-nav" aria-label="Navegação do site">
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#recursos">Recursos</a>
+          <a href="/entrar" data-route="/entrar">Entrar</a>
+        </nav>` : ''}
         <div class="public-header__actions">
           ${button('Alternar tema', { action: 'toggle-theme', variant: 'ghost', iconName: 'Sun', className: 'icon-label-button' })}
-          ${!simple ? `<a href="/entrar" data-route="/entrar" class="text-link">Entrar</a>` : ''}
+          ${!simple ? button('Criar conta', { route: '/cadastro', size: 'sm', className: 'public-header__cta' }) : ''}
         </div>
       </header>
       <main id="conteudo" class="public-main" tabindex="-1">${content}</main>

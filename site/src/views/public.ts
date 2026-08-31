@@ -15,22 +15,57 @@ export function welcomeView(): ViewModel {
     content: `
       <section class="welcome" aria-labelledby="welcome-title">
         <div class="welcome__copy">
-          ${badge('Seu ambiente de preparação', 'accent', 'Sparkles')}
-          <h1 id="welcome-title">Estude com <span>direção.</span></h1>
-          <p class="welcome__lead">Questões comentadas, simulados, trilhas e concursos organizados para transformar constância em aprovação — agora também no computador.</p>
+          <p class="eyebrow">KAD CONCURSOS · PREPARAÇÃO COM DIREÇÃO</p>
+          <h1 id="welcome-title">Estude o que importa.<br /><span>Avance com direção.</span></h1>
+          <p class="welcome__lead">Questões comentadas, simulados, trilhas e concursos organizados para transformar constância em aprovação — sem ruído no caminho.</p>
           <div class="welcome__actions">
             ${button('Estudar como visitante', { action: 'continue-visitor', iconName: 'Play', size: 'lg' })}
             ${button('Entrar na minha conta', { route: '/entrar', variant: 'secondary', size: 'lg' })}
           </div>
-          <div class="welcome__proof" aria-label="Recursos do KAD">
-            <span>${icon('CheckCircle2')} Questões ilimitadas</span>
-            <span>${icon('CheckCircle2')} Progresso salvo neste navegador</span>
-            <span>${icon('CheckCircle2')} Feito para qualquer tela</span>
+          <div class="welcome__proof" aria-label="O que você encontra no KAD">
+            <span>${icon('CheckCircle2')} Prática por disciplina</span>
+            <span>${icon('CheckCircle2')} Gabarito para aprender</span>
+            <span>${icon('CheckCircle2')} Ritmo no seu tempo</span>
           </div>
         </div>
-        <div class="welcome__visual" aria-hidden="true">
+        <div class="welcome__visual" aria-label="Mascote do KAD estudando" role="img">
+          <span class="welcome__visual-label">01 / começar</span>
           <div class="welcome__halo"></div>
+          <div class="welcome__visual-note">Uma questão de cada vez.<br /><strong>O próximo passo é seu.</strong></div>
           <img class="welcome__mascot" src="/assets/kad-mascot-goal.png" alt="" width="620" height="620" />
+        </div>
+      </section>
+      <section class="welcome__manifesto" id="como-funciona" aria-labelledby="manifesto-title">
+        <div class="welcome__section-intro">
+          <p class="eyebrow">COMO FUNCIONA</p>
+          <h2 id="manifesto-title">Menos ruído.<br /><span>Mais estudo que cabe no seu dia.</span></h2>
+          <p>O KAD organiza a preparação em decisões simples: escolher, responder, entender e voltar quando for preciso.</p>
+        </div>
+        <div class="welcome__principles">
+          <article>
+            <span class="welcome__principle-mark">A</span>
+            <div><h3>Escolha um foco</h3><p>Encontre uma disciplina, concurso ou trilha para começar sem abrir mil caminhos ao mesmo tempo.</p></div>
+          </article>
+          <article>
+            <span class="welcome__principle-mark">B</span>
+            <div><h3>Resolva com contexto</h3><p>Questões, gabaritos e comentários ficam juntos para transformar erro em próxima pista.</p></div>
+          </article>
+          <article>
+            <span class="welcome__principle-mark">C</span>
+            <div><h3>Continue no seu ritmo</h3><p>Seu histórico, favoritos e metas ajudam a retomar o estudo de onde você parou.</p></div>
+          </article>
+        </div>
+      </section>
+      <section class="welcome__resources" id="recursos" aria-labelledby="resources-title">
+        <div class="welcome__resources-heading">
+          <p class="eyebrow">RECURSOS PARA PREPARAR</p>
+          <h2 id="resources-title">Tudo no mesmo lugar,<br /><span>com espaço para pensar.</span></h2>
+        </div>
+        <div class="welcome__resource-list">
+          <a href="/questoes" data-route="/questoes"><span>01</span><strong>Questões</strong><em>Pratique por disciplina e assunto</em>${icon('ArrowUpRight')}</a>
+          <a href="/simulados" data-route="/simulados"><span>02</span><strong>Simulados</strong><em>Treine tempo e estratégia de prova</em>${icon('ArrowUpRight')}</a>
+          <a href="/trilhas" data-route="/trilhas"><span>03</span><strong>Trilhas</strong><em>Siga uma sequência progressiva</em>${icon('ArrowUpRight')}</a>
+          <a href="/concursos" data-route="/concursos"><span>04</span><strong>Concursos</strong><em>Acompanhe oportunidades e metas</em>${icon('ArrowUpRight')}</a>
         </div>
       </section>`,
   };
