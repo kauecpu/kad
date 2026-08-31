@@ -169,6 +169,8 @@ test('sinal visual do KAD é vetorial, contido e substitui os placeholders rejei
   assert.doesNotMatch(components, /imageSrc|kad-mascot-/);
   assert.match(styles, /--kad-signal-yellow:\s*#/);
   assert.match(styles, /\.kad-signal--compact/);
+  assert.doesNotMatch(styles, /\.home-intro \{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 210px/);
+  assert.match(styles, /\.kad-signal \{[^}]*overflow:\s*hidden/);
 });
 
 test('melhorias de interface preservam semântica, privacidade e linguagem de produto', async () => {

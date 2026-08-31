@@ -539,7 +539,7 @@ button.list-row:hover { background: var(--surface-alt); }
   body.nav-open .nav-scrim { display: block; }
   .dashboard-grid,
   .contest-detail { grid-template-columns: 1fr; }
-  .home-intro { grid-template-columns: minmax(0, 1fr) 210px; padding-inline: clamp(24px, 5vw, 42px); }
+  .home-intro { grid-template-columns: 1fr; padding-inline: clamp(24px, 5vw, 42px); }
   .workspace-hero { padding-inline: clamp(24px, 5vw, 40px); }
   .auth-page--split { grid-template-areas: 'access' 'story'; grid-template-columns: minmax(0, 700px); place-items: start center; padding: 24px; }
   .auth-page--split .auth-card--portal { grid-area: access; max-width: 520px; }
@@ -755,7 +755,7 @@ button.list-row:hover { background: var(--surface-alt); }
 .landing-hero__signal { position: relative; display: grid; align-content: center; min-height: clamp(380px, 43vw, 560px); border-left: 1px solid var(--border-strong); padding: 0 clamp(0px, 4vw, 56px) 0 clamp(26px, 4vw, 56px); }
 .landing-hero__signal::before { position: absolute; top: 11%; left: -1px; width: 4px; height: 58px; background: var(--kad-signal-yellow); content: ''; }
 .landing-hero__signal-mark { position: absolute; top: 5%; right: clamp(10px, 2vw, 28px); }
-.kad-signal { display: block; width: 56px; height: auto; overflow: visible; }
+.kad-signal { display: block; width: 56px; height: auto; overflow: hidden; }
 .kad-signal--hero { width: clamp(66px, 7vw, 104px); color: var(--accent); transform: rotate(10deg); }
 .kad-signal__beam { fill: var(--kad-signal-yellow); }
 .kad-signal__cut { fill: var(--surface); }
