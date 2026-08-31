@@ -1,7 +1,6 @@
 import { badge, button, card, icon, passwordField } from '../ui/components.ts';
 import { kadSignalMark } from '../ui/brand.ts';
 import { escapeHtml } from '../core/utils.ts';
-import { getCatalog } from '../data/catalog.ts';
 import type { SiteState, ViewModel } from '../types/domain.ts';
 
 type AuthViewKind = 'entrar' | 'cadastro';
@@ -58,136 +57,74 @@ function publicAuthDialog(): string {
 }
 
 export function welcomeView(): ViewModel {
-  const catalog = getCatalog();
-  const openContests = catalog.concursos.filter((contest) => contest.status !== 'encerrado');
-  const featuredContests = (openContests.length ? openContests : catalog.concursos).slice(0, 3);
-  const statusLabels = { aberto: 'Inscrições abertas', previsto: 'Previsto', encerrado: 'Encerrado' } as const;
   return {
     title: 'KAD Concursos',
     description: 'Questões, simulados e concursos reunidos em uma experiência de estudo feita para manter seu foco.',
     indexable: true,
     layout: 'public',
     content: `
-      <section class="landing-hero" id="kad-top" aria-labelledby="welcome-title">
-        <div class="landing-hero__inner">
+      <div class="landing" aria-label="KAD Concursos">
+        <section class="landing-hero" id="kad-top" aria-labelledby="welcome-title">
           <div class="landing-hero__copy">
-            <p class="eyebrow">SEU AMBIENTE DE PREPARAÇÃO</p>
+            <p class="eyebrow">KAD CONCURSOS · PREPARAÇÃO COM DIREÇÃO</p>
             <h1 id="welcome-title">Estude o que importa.<br /><span>Avance com direção.</span></h1>
-            <p class="landing-hero__lead">Questões, simulados, trilhas e concursos organizados para transformar constância em aprovação — sem ruído no caminho.</p>
+            <p class="landing-hero__lead">Questões e simulados organizados para você estudar com direção.</p>
             <div class="landing-hero__actions">
-              <a class="button button--primary button--lg" href="#kad-about"><span>Conhecer o KAD</span>${icon('ArrowDown')}</a>
-              <a class="button button--secondary button--lg" href="#kad-tools"><span>Ver ferramentas</span></a>
+              ${button('Começar agora', { action: 'open-public-auth', size: 'lg', attrs: 'data-auth-mode="signup"' })}
+              <a class="button button--secondary button--lg" href="#kad-about">Conhecer o KAD</a>
             </div>
-            <div class="landing-hero__proof" aria-label="Características do KAD">
-              <span>${icon('CheckCircle2')} Prática por disciplina</span>
-              <span>${icon('CheckCircle2')} Gabarito para aprender</span>
-              <span>${icon('CheckCircle2')} Ritmo no seu tempo</span>
+            <div class="landing-hero__proof" aria-label="O que você encontra no KAD">
+              <span>Questões por foco</span><span>Gabarito que ensina</span><span>Ritmo possível</span>
             </div>
           </div>
-          <div class="landing-hero__signal" aria-label="O que você encontra no KAD">
-            <div class="landing-hero__signal-mark">${kadSignalMark({ className: 'kad-signal--hero' })}</div>
-            <p class="landing-hero__signal-label">Um caminho para estudar melhor</p>
-            <ul class="landing-hero__pillars">
-              <li><span>01</span><strong>Questões</strong><small>prática por disciplina</small></li>
-              <li><span>02</span><strong>Simulados</strong><small>tempo e estratégia</small></li>
-              <li><span>03</span><strong>Trilhas</strong><small>próximo passo visível</small></li>
-              <li><span>04</span><strong>Concursos</strong><small>foco antes do edital</small></li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section class="landing-section landing-section--surface" id="kad-about" aria-labelledby="kad-about-title">
-        <div class="landing-section__inner">
-          <div class="landing-section__heading"><p class="eyebrow">O KAD</p><h2 id="kad-about-title">Um ambiente de estudos que organiza o caminho, não só o conteúdo.</h2></div>
-          <div class="landing-about">
-            <div class="landing-about__copy">
-              <p>O KAD foi pensado para quem estuda para concursos e precisa transformar muitas possibilidades em uma rotina possível. Em vez de espalhar questões, metas e revisões por várias ferramentas, o ambiente reúne cada etapa da preparação em um fluxo mais claro.</p>
-              <p>Você escolhe onde quer chegar, pratica com contexto e acompanha o que merece atenção. A informação e a próxima ação continuam no centro da experiência.</p>
+          <aside class="landing-hero__panel" aria-label="O essencial do KAD">
+            <div class="landing-hero__panel-head"><h2>O essencial, em um só lugar</h2><div class="landing-hero__lightning" aria-hidden="true">${kadSignalMark({ className: 'kad-signal--compact' })}</div></div>
+            <div class="landing-hero__features">
+              <div><strong>Questões</strong><span>Prática por disciplina, banca e cargo.</span></div>
+              <div><strong>Simulados</strong><span>Treino com tempo e estratégia de prova.</span></div>
+              <div><strong>Trilhas</strong><span>Um próximo passo claro para cada sessão.</span></div>
             </div>
-            <div class="landing-benefits" aria-label="Por que estudar pelo KAD">
-              <article>${icon('Route')}<h3>Direção</h3><p>Metas e próximos passos visíveis.</p></article>
-              <article>${icon('Layers3')}<h3>Organização</h3><p>Preparação reunida em um só ambiente.</p></article>
-              <article>${icon('ChartNoAxesCombined')}<h3>Evolução</h3><p>Histórico que ajuda a decidir o foco.</p></article>
-            </div>
-          </div>
-        </div>
-      </section>
+          </aside>
+        </section>
 
-      <section class="landing-section" id="kad-how" aria-labelledby="kad-how-title">
-        <div class="landing-section__inner">
-          <div class="landing-section__heading"><p class="eyebrow">COMO FUNCIONA</p><h2 id="kad-how-title">Da meta à prática, sem perder o próximo passo.</h2></div>
-          <div class="landing-how">
-            <ol class="landing-steps">
-              <li><span>01</span><div><h3>Defina sua direção</h3><p>Escolha um cargo, área ou concurso para organizar sua preparação.</p></div></li>
-              <li><span>02</span><div><h3>Pratique com contexto</h3><p>Resolva questões, monte simulados e retome os pontos que pedem atenção.</p></div></li>
-              <li><span>03</span><div><h3>Acompanhe sua evolução</h3><p>Use seu histórico real para decidir com mais clareza o que estudar depois.</p></div></li>
-            </ol>
-            <div class="landing-moments">
-              <h3>Para cada momento da preparação</h3>
-              <div>
-                <article><strong>Começando agora</strong><p>Escolha uma meta e organize as matérias essenciais.</p></article>
-                <article><strong>Pré-edital</strong><p>Construa constância com questões, trilhas e revisões.</p></article>
-                <article><strong>Reta final</strong><p>Treine tempo de prova e retome erros com simulados.</p></article>
-              </div>
-            </div>
+        <section class="landing-section landing-about" id="kad-about" aria-labelledby="about-title">
+          <header class="landing-section__heading"><p class="eyebrow">O KAD</p><h2 id="about-title">Estudo com direção,<br />não com excesso.</h2><p>O KAD reúne o essencial para você saber o que estudar agora.</p></header>
+          <div class="landing-about__principles">
+            <article><span>01</span><div><h3>Direção</h3><p>Foque no que mais importa para sua prova.</p></div></article>
+            <article><span>02</span><div><h3>Organização</h3><p>Questões, simulados e revisões no mesmo caminho.</p></div></article>
+            <article><span>03</span><div><h3>Evolução</h3><p>Acompanhe seu ritmo e ajuste a próxima sessão.</p></div></article>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="landing-section landing-section--surface" id="kad-tools" aria-labelledby="kad-tools-title">
-        <div class="landing-section__inner">
-          <div class="landing-section__heading"><p class="eyebrow">FERRAMENTAS</p><h2 id="kad-tools-title">Tudo que sustenta uma preparação consistente.</h2></div>
-          <div class="landing-tools">
-            <article>${icon('BookOpen')}<div><h3>Questões</h3><p>Prática por disciplina, banca e concurso, com gabarito no mesmo fluxo.</p></div></article>
-            <article>${icon('Timer')}<div><h3>Simulados</h3><p>Sessões objetivas para treinar conteúdo, estratégia e tempo de prova.</p></div></article>
-            <article>${icon('Compass')}<div><h3>Trilhas</h3><p>Metas e caminhos organizados para reduzir a dúvida sobre o próximo passo.</p></div></article>
-            <article>${icon('PenLine')}<div><h3>Redação e biblioteca</h3><p>Espaço para escrever, revisar e manter seu repertório por perto.</p></div></article>
-            <article>${icon('ChartNoAxesCombined')}<div><h3>Desempenho</h3><p>Progresso por disciplina para orientar suas próximas sessões.</p></div></article>
-            <article>${icon('RotateCcw')}<div><h3>Revisão de erros</h3><p>Retome questões erradas e favoritas sem perder o histórico.</p></div></article>
+        <section class="landing-section landing-steps" id="kad-how" aria-labelledby="steps-title">
+          <header class="landing-section__heading"><p class="eyebrow">COMO FUNCIONA</p><h2 id="steps-title">Três passos para sair da intenção e praticar.</h2></header>
+          <div class="landing-steps__grid">
+            <article><span>01</span><h3>Escolha seu objetivo</h3><p>Defina o concurso ou carreira que guia seus estudos.</p></article>
+            <article><span>02</span><h3>Pratique com contexto</h3><p>Resolva questões e simulados com foco no edital.</p></article>
+            <article><span>03</span><h3>Veja sua evolução</h3><p>Use seu histórico para decidir o próximo passo.</p></article>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="landing-section" id="kad-contests" aria-labelledby="kad-contests-title">
-        <div class="landing-section__inner">
-          <div class="landing-section__heading"><p class="eyebrow">CONCURSOS</p><h2 id="kad-contests-title">Encontre uma direção antes de abrir o edital.</h2><p>Reconheça rapidamente áreas, bancas e níveis de escolaridade presentes no catálogo.</p></div>
-          <div class="landing-contests">
-            ${featuredContests.map((contest) => `<article>
-              <div class="landing-contest__meta">${badge(statusLabels[contest.status], contest.status === 'aberto' ? 'accent' : 'warning')}<small>${escapeHtml(contest.board)} · ${escapeHtml(contest.levels.join(' e '))}</small></div>
-              <h3>${escapeHtml(contest.shortName)}</h3><p>${escapeHtml(contest.title)}</p>
-              ${button('Preparar para este concurso', { action: 'open-public-auth', variant: 'ghost', iconName: 'ArrowRight', attrs: 'data-auth-mode="signup"' })}
-            </article>`).join('')}
+        <section class="landing-section landing-plans" id="kad-plans" aria-labelledby="plans-title">
+          <header class="landing-section__heading landing-section__heading--center"><p class="eyebrow">PLANOS</p><h2 id="plans-title">Comece pelo essencial.</h2><p>Planos claros para o seu ritmo.</p></header>
+          <div class="landing-plans__grid">
+            <article><p class="landing-plan__name">BÁSICO</p><strong>Grátis</strong><ul><li>Questões ilimitadas</li><li>Correção e gabarito comentado</li></ul>${button('Começar agora', { action: 'open-public-auth', variant: 'secondary', className: 'landing-plan__button', attrs: 'data-auth-mode="signup"' })}</article>
+            <article><p class="landing-plan__name">DIAMOND MENSAL</p><strong>R$ 14,99<small>/mês</small></strong><ul><li>Simulados personalizados</li><li>Desempenho por disciplina</li><li>Revisão de erros e favoritas</li></ul>${button('Assinar mensal', { action: 'open-public-auth', variant: 'secondary', className: 'landing-plan__button', attrs: 'data-auth-mode="signup"' })}</article>
+            <article class="landing-plan--featured"><p class="landing-plan__name">DIAMOND ANUAL <em>RECOMENDADO</em></p><strong>R$ 149,99<small>/ano</small></strong><ul><li>Todos os benefícios do Diamond</li><li>Acesso por 12 meses</li><li>Melhores condições</li></ul>${button('Garantir plano anual', { action: 'open-public-auth', className: 'landing-plan__button', attrs: 'data-auth-mode="signup"' })}</article>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="landing-section landing-section--surface" id="kad-plans" aria-labelledby="kad-plans-title">
-        <div class="landing-section__inner">
-          <div class="landing-section__heading"><p class="eyebrow">PLANOS</p><h2 id="kad-plans-title">Comece pelo essencial e avance quando fizer sentido.</h2><p>Condições claras, com os principais benefícios visíveis antes do cadastro.</p></div>
-          <div class="landing-plans">
-            <article><div><h3>Básico</h3><p class="landing-plan__price">Grátis</p></div><ul><li>Questões ilimitadas</li><li>Correção e gabarito comentado</li></ul>${button('Criar conta', { action: 'open-public-auth', variant: 'secondary', attrs: 'data-auth-mode="signup"' })}</article>
-            <article><div><h3>Diamond mensal</h3><p class="landing-plan__price">R$ 14,99 <small>/mês</small></p></div><ul><li>Simulados personalizados</li><li>Desempenho por disciplina</li><li>Revisão de erros e favoritas</li></ul>${button('Escolher mensal', { action: 'open-public-auth', variant: 'secondary', attrs: 'data-auth-mode="signup"' })}</article>
-            <article class="landing-plan--featured"><span class="landing-plan__label">Recomendado</span><div><h3>Diamond trimestral</h3><p class="landing-plan__price">R$ 39,99 <small>/3 meses</small></p></div><ul><li>Tudo do Diamond</li><li>Economia de 11%</li><li>Cancele quando quiser</li></ul>${button('Escolher trimestral', { action: 'open-public-auth', attrs: 'data-auth-mode="signup"' })}</article>
-            <article><div><h3>Diamond anual</h3><p class="landing-plan__price">R$ 149,99 <small>/ano</small></p></div><ul><li>Tudo do Diamond</li><li>Economia de 17%</li><li>Cancele quando quiser</li></ul>${button('Escolher anual', { action: 'open-public-auth', variant: 'secondary', attrs: 'data-auth-mode="signup"' })}</article>
-          </div>
-        </div>
-      </section>
-
-      <section class="landing-section landing-faq" id="kad-faq" aria-labelledby="kad-faq-title">
-        <div class="landing-section__inner">
-          <div class="landing-section__heading"><p class="eyebrow">DÚVIDAS</p><h2 id="kad-faq-title">Antes de começar.</h2></div>
+        <section class="landing-section landing-faq" id="kad-faq" aria-labelledby="faq-title">
+          <header class="landing-section__heading"><p class="eyebrow">DÚVIDAS</p><h2 id="faq-title">Antes de começar.</h2></header>
           <div class="landing-faq__list">
-            <details open><summary>Como começo a estudar pelo KAD?</summary><p>Crie sua conta, escolha uma meta e use as ferramentas para montar uma rotina alinhada ao concurso desejado.</p></details>
-            <details><summary>Onde faço meu acesso?</summary><p>Use o botão “Entrar” no topo. Ele abre uma janela simples sem tirar você desta página.</p></details>
-            <details><summary>E se eu ainda não tiver cadastro?</summary><p>Na própria janela de acesso, escolha “Criar conta” para começar.</p></details>
-            <details><summary>Como escolho um plano?</summary><p>O plano Básico reúne questões e correção comentada. Os planos Diamond acrescentam simulados personalizados, desempenho e revisão de erros.</p></details>
+            <details><summary>Como começo a estudar pelo KAD?${icon('Plus')}</summary><p>Crie sua conta, escolha uma meta e deixe o KAD organizar o próximo passo.</p></details>
+            <details><summary>Onde faço meu acesso?${icon('Plus')}</summary><p>Use o botão “Entrar” no topo para continuar de onde parou.</p></details>
+            <details><summary>Como escolho um plano?${icon('Plus')}</summary><p>Comece no plano Básico e avance quando fizer sentido.</p></details>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="landing-final" aria-labelledby="landing-final-title"><div><p class="eyebrow">QUANDO ESTIVER PRONTO</p><h2 id="landing-final-title">Seu próximo passo pode começar por uma questão.</h2></div>${button('Criar minha conta', { action: 'open-public-auth', size: 'lg', attrs: 'data-auth-mode="signup"' })}</section>
-      <footer class="landing-footer"><span>KAD Concursos</span><nav aria-label="Documentos"><a href="/termos" data-route="/termos">Termos</a><a href="/privacidade" data-route="/privacidade">Privacidade</a></nav><span>Estudo com direção.</span></footer>
+        <footer class="landing-footer"><div><h2>Comece por uma questão.</h2>${button('Criar minha conta', { action: 'open-public-auth', attrs: 'data-auth-mode="signup"' })}</div><div><strong>KAD Concursos</strong><a href="/termos" data-route="/termos">Termos de Uso</a><a href="/privacidade" data-route="/privacidade">Privacidade</a><em>Estude com direção.</em></div></footer>
+      </div>
       ${publicAuthDialog()}`,
   };
 }

@@ -99,7 +99,7 @@ test('apresentação pública usa somente conteúdo real e não exibe mascotes d
     ]),
   ]);
   assert.equal(assets.length, 1);
-  assert.match(view, /landing-hero__signal/);
+  assert.match(view, /landing-hero__panel/);
   assert.doesNotMatch(`${view}${explore}`, /kad-mascot-/);
   assert.doesNotMatch(view, /82%|\+12 questões|acerto esta semana|ritmo de hoje/);
 });
@@ -164,7 +164,7 @@ test('sinal visual do KAD é vetorial, contido e substitui os placeholders rejei
   assert.match(brand, /<svg[\s\S]+viewBox="0 0 64 88"/);
   assert.match(brand, /variant\?: 'color' \| 'mono' \| 'compact'/);
   assert.match(publicView, /kadSignalMark/);
-  assert.match(publicView, /landing-hero__pillars/);
+  assert.match(publicView, /landing-hero__features/);
   assert.doesNotMatch(`${publicView}${components}${home}`, /landing-note|landing-hero__stamp|landing-hero__bolt|auth-story__mark|workspace-hero__mark|home-intro__mark/);
   assert.doesNotMatch(components, /imageSrc|kad-mascot-/);
   assert.match(styles, /--kad-signal-yellow:\s*#/);
@@ -206,11 +206,15 @@ test('página pública usa navegação por seções, tema e acesso em janela', a
     source('src/styles/app.css'),
   ]);
 
-  for (const target of ['kad-about', 'kad-how', 'kad-tools', 'kad-contests', 'kad-plans', 'kad-faq']) {
+  for (const target of ['kad-how', 'kad-plans']) {
     assert.match(layout, new RegExp(`data-public-section-target="${target}"`));
     assert.match(publicView, new RegExp(`id="${target}"`));
   }
-  assert.match(layout, />Dúvidas<\/a>/);
+  for (const target of ['kad-about', 'kad-faq']) {
+    assert.match(publicView, new RegExp(`id="${target}"`));
+  }
+  assert.doesNotMatch(publicView, /id="kad-tools"|id="kad-contests"/);
+  assert.match(layout, /class="public-nav"/);
   assert.match(layout, /className: 'public-header__login'/);
   assert.doesNotMatch(layout, /button\('Entrar',[\s\S]+iconName: 'LogIn'/);
   assert.match(publicView, /data-public-auth-dialog/);
@@ -221,7 +225,7 @@ test('página pública usa navegação por seções, tema e acesso em janela', a
   assert.match(main, /setupWelcomeNavigation/);
   assert.match(main, /visitorAccess\.hidden = mode !== 'login'/);
   assert.match(main, /aria-current', 'location'/);
-  assert.match(styles, /\.public-section-nav a\.is-active/);
+  assert.match(styles, /\.public-shell--landing \.public-nav a/);
   assert.match(styles, /\.public-auth-dialog::backdrop/);
 });
 
