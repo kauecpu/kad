@@ -10,6 +10,7 @@ import {
   checkoutMatchesProviderSubscription,
   type MercadoPagoWebhookBody,
   parseMercadoPagoWebhookBody,
+  webhookProcessingOutcome,
   webhookEnvironmentMatches,
 } from '../_shared/mercado-pago-webhook.ts';
 
@@ -374,12 +375,13 @@ Deno.serve(async (request) => {
       correlated = await processChargeback(admin, resourceId);
     }
 
+    const outcome = webhookProcessingOutcome(correlated);
     const { error: processedError } = await admin
       .from('payment_webhook_events')
       .update({
-        processed: true,
-        processed_at: new Date().toISOString(),
-        error_code: correlated ? null : 'not_correlated',
+        processed: outcome.processed,
+        processed_at: outcome.processed ? new Date().toISOString() : null,
+        error_code: outcome.errorCode,
       })
       .eq('provider_event_key', providerEventKey);
     if (processedError) throw processedError;

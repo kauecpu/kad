@@ -61,7 +61,7 @@ papel já estão fixados no perfil.
 4. O Pull Request passa por `npm run check` e revisão humana.
 5. A mesma migration pode ser aplicada à produção somente após aprovação e novo
    backup manual.
-6. As 707 questões não fazem parte desta configuração e não são copiadas.
+6. As 758 questões publicadas de produção não fazem parte desta configuração e não são copiadas.
 
 Auth, Storage, tabelas, usuários e Edge Functions são próprios de cada projeto.
 Segredos de funções ficam no painel do respectivo ambiente. O app, o site e o
@@ -69,9 +69,9 @@ painel administrativo recebem somente chaves publicáveis.
 
 As Edge Functions de pagamento continuam somente na produção. Elas não devem ser
 publicadas na homologação até existirem credenciais de teste próprias do provedor;
-credenciais reais nunca podem ser reutilizadas nesse ambiente. Login, leitura,
-gravação e RLS já foram validados na homologação com uma conta descartável, removida
-ao fim do teste.
+credenciais reais nunca podem ser reutilizadas nesse ambiente. A leitura pública e
+o bloqueio de dados privados foram verificados; o teste completo de login e escrita
+com conta descartável ainda depende de um e-mail de homologação controlado.
 
 ## Limitação conhecida
 

@@ -167,6 +167,27 @@ summary:focus-visible {
 .text-center { text-align: center; }
 .divider { height: 1px; background: var(--border); border: 0; margin: 8px 0; }
 
+.backend-status {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  max-width: 1200px;
+  margin: 0 auto 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.backend-status strong { color: var(--text); }
+.backend-status--success { border-left-color: var(--success); }
+.backend-status--warning { border-left-color: var(--warning); }
+.backend-status--danger { border-left-color: var(--danger); }
+.backend-status--neutral { border-left-color: var(--accent); }
+.public-main > .backend-status { margin-inline: 24px; }
+
 .icon-button {
   display: inline-grid;
   width: 44px;

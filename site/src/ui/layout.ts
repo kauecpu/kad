@@ -1,4 +1,5 @@
 import { escapeHtml } from '../core/utils.ts';
+import { backendStateMessage, type BackendState } from '../core/backend-state.ts';
 import { avatar, button, icon } from './components.ts';
 import type { SiteState } from '../types/domain.ts';
 
@@ -20,6 +21,11 @@ const studyNavigation = [
 
 type NavigationItem = { href: string; label: string; icon: string };
 
+function backendStatus(state: BackendState): string {
+  const copy = backendStateMessage(state);
+  return `<aside class="backend-status backend-status--${copy.tone}" data-backend-status role="status"><strong>${escapeHtml(copy.label)}</strong><span>${escapeHtml(copy.description)}</span></aside>`;
+}
+
 function isActive(href: string, pathname: string): boolean {
   if (href === '/inicio') return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -29,7 +35,7 @@ function navLink(item: NavigationItem, pathname: string, compact = false): strin
   return `<a href="${item.href}" data-route="${item.href}" class="nav-link ${active ? 'is-active' : ''} ${compact ? 'nav-link--compact' : ''}" ${active ? 'aria-current="page"' : ''}>${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`;
 }
 
-export function publicLayout(content: string, { simple = false, dark = false }: { simple?: boolean; dark?: boolean } = {}): string {
+export function publicLayout(content: string, { simple = false, dark = false, backendState }: { simple?: boolean; dark?: boolean; backendState: BackendState } ): string {
   return `
     <div class="public-shell ${simple ? 'public-shell--simple' : ''}">
       <header class="public-header">
@@ -49,11 +55,11 @@ export function publicLayout(content: string, { simple = false, dark = false }: 
           ${!simple ? button('Entrar', { action: 'open-public-auth', variant: 'secondary', className: 'public-header__login', attrs: 'data-auth-mode="login"' }) : ''}
         </div>
       </header>
-      <main id="conteudo" class="public-main" tabindex="-1">${content}</main>
+      <main id="conteudo" class="public-main" tabindex="-1">${backendStatus(backendState)}${content}</main>
     </div>`;
 }
 
-export function appLayout(content: string, { pathname, title, subtitle, state }: { pathname: string; title: string; subtitle?: string; state: SiteState }): string {
+export function appLayout(content: string, { pathname, title, subtitle, state, backendState }: { pathname: string; title: string; subtitle?: string; state: SiteState; backendState: BackendState }): string {
   const profile = state.profile;
   const dark = document.documentElement.dataset.theme === 'dark';
   return `
@@ -90,7 +96,7 @@ export function appLayout(content: string, { pathname, title, subtitle, state }:
             <button class="avatar-button" type="button" data-route="/perfil" aria-label="Abrir perfil">${avatar(profile.name, 'sm', profile.avatarUri)}</button>
           </div>
         </header>
-        <main id="conteudo" class="page-content" tabindex="-1">${content}</main>
+        <main id="conteudo" class="page-content" tabindex="-1">${backendStatus(backendState)}${content}</main>
       </div>
       <nav class="mobile-tabs" aria-label="Navegação principal">
         ${mainNavigation.map((item) => navLink(item, pathname, true)).join('')}
