@@ -71,16 +71,16 @@ export function welcomeView(): ViewModel {
         <div class="landing-hero__inner">
           <div class="landing-hero__copy">
             <p class="eyebrow">SEU AMBIENTE DE PREPARAÇÃO</p>
-            <h1 id="welcome-title">Mais clareza para chegar à sua próxima aprovação.</h1>
-            <p class="landing-hero__lead">Questões, simulados, trilhas e concursos organizados para você estudar com direção, no seu ritmo e em qualquer tela.</p>
+            <h1 id="welcome-title">Estude o que importa.<br /><span>Avance com direção.</span></h1>
+            <p class="landing-hero__lead">Questões, simulados, trilhas e concursos organizados para transformar constância em aprovação — sem ruído no caminho.</p>
             <div class="landing-hero__actions">
               <a class="button button--primary button--lg" href="#kad-about"><span>Conhecer o KAD</span>${icon('ArrowDown')}</a>
               <a class="button button--secondary button--lg" href="#kad-tools"><span>Ver ferramentas</span></a>
             </div>
             <div class="landing-hero__proof" aria-label="Características do KAD">
-              <span>${icon('CheckCircle2')} Questões comentadas</span>
-              <span>${icon('CheckCircle2')} Progresso organizado</span>
-              <span>${icon('CheckCircle2')} Acesso no computador e celular</span>
+              <span>${icon('CheckCircle2')} Prática por disciplina</span>
+              <span>${icon('CheckCircle2')} Gabarito para aprender</span>
+              <span>${icon('CheckCircle2')} Ritmo no seu tempo</span>
             </div>
           </div>
           <div class="landing-hero__visual" aria-hidden="true">
