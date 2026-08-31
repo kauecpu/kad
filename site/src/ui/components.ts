@@ -88,10 +88,10 @@ export type WorkspaceHeroOptions = {
   title: string;
   description: string;
   actions?: string;
-  imageSrc?: string;
+  visual?: boolean;
 };
 
-export function workspaceHero({ id, eyebrow, title, description, actions = '', imageSrc = '' }: WorkspaceHeroOptions): string {
+export function workspaceHero({ id, eyebrow, title, description, actions = '', visual = false }: WorkspaceHeroOptions): string {
   return `<section class="workspace-hero" aria-labelledby="${escapeHtml(id)}">
     <div class="workspace-hero__copy">
       <p class="eyebrow">${escapeHtml(eyebrow)}</p>
@@ -99,7 +99,7 @@ export function workspaceHero({ id, eyebrow, title, description, actions = '', i
       <p>${escapeHtml(description)}</p>
       ${actions ? `<div class="workspace-hero__actions">${actions}</div>` : ''}
     </div>
-    ${imageSrc ? `<figure class="workspace-hero__visual" aria-hidden="true"><span class="workspace-hero__orbit"></span><img src="${escapeHtml(imageSrc)}" alt="" width="240" height="240" /></figure>` : ''}
+    ${visual ? `<figure class="workspace-hero__visual" aria-hidden="true"><span class="workspace-hero__orbit"></span><span class="workspace-hero__mark"><span>KAD</span><i></i></span></figure>` : ''}
   </section>`;
 }
 

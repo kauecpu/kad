@@ -90,19 +90,17 @@ test('site expõe flashcards e sincronização de estudo sem importar o aplicati
   assert.match(worker, /SUPABASE_PUBLISHABLE_KEY/);
 });
 
-test('apresentação pública usa somente imagens existentes e não inventa métricas pessoais', async () => {
+test('apresentação pública usa somente conteúdo real e não exibe mascotes decorativos', async () => {
   const [view, explore, assets] = await Promise.all([
     source('src/views/public.ts'),
     source('src/views/explore.ts'),
     Promise.all([
       source('public/assets/kad-logo.png'),
-      source('public/assets/kad-mascot-goal.png'),
     ]),
   ]);
-  assert.equal(assets.length, 2);
-  assert.match(view, /kad-mascot-goal\.png/);
-  assert.match(explore, /kad-mascot-goal\.png/);
-  assert.doesNotMatch(`${view}${explore}`, /kad-mascot-study\.png/);
+  assert.equal(assets.length, 1);
+  assert.match(view, /landing-hero__bolt/);
+  assert.doesNotMatch(`${view}${explore}`, /kad-mascot-/);
   assert.doesNotMatch(view, /82%|\+12 questões|acerto esta semana|ritmo de hoje/);
 });
 
@@ -144,10 +142,9 @@ test('entrada apresenta recursos reais em carrossel controlável e sensível a m
 
   assert.match(publicView, /data-auth-carousel/);
   assert.match(publicView, /data-action="pause-auth-story"/);
-  assert.match(publicView, /kad-mascot-practice\.png/);
-  assert.match(publicView, /kad-mascot-simulation\.png/);
-  assert.match(publicView, /kad-mascot-writing\.png/);
-  assert.match(publicView, /kad-mascot-goal\.png/);
+  assert.match(publicView, /auth-story__mark/);
+  assert.match(publicView, /mark: '01'/);
+  assert.doesNotMatch(publicView, /kad-mascot-/);
   assert.match(main, /AUTH_STORY_INTERVAL = 6500/);
   assert.match(main, /prefers-reduced-motion: reduce/);
   assert.match(main, /pointerover/);
