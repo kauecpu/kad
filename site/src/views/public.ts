@@ -86,7 +86,8 @@ export function welcomeView(): ViewModel {
           <div class="landing-hero__visual" aria-hidden="true">
             <span class="landing-hero__orbit landing-hero__orbit--outer"></span>
             <span class="landing-hero__orbit landing-hero__orbit--inner"></span>
-            <img src="/assets/kad-mascot-goal.png" alt="" width="620" height="620" />
+            <span class="landing-hero__bolt"></span>
+            <span class="landing-hero__stamp"><strong>01</strong><small>comece<br />por aqui</small></span>
             <span class="landing-note landing-note--focus">${icon('Target')}<span><small>Foco de hoje</small>Praticar com direção</span></span>
             <span class="landing-note landing-note--rhythm">${icon('BookOpenCheck')}<span><small>Seu ritmo</small>Um passo de cada vez</span></span>
           </div>
@@ -99,7 +100,7 @@ export function welcomeView(): ViewModel {
           <div class="landing-about">
             <div class="landing-about__copy">
               <p>O KAD foi pensado para quem estuda para concursos e precisa transformar muitas possibilidades em uma rotina possível. Em vez de espalhar questões, metas e revisões por várias ferramentas, o ambiente reúne cada etapa da preparação em um fluxo mais claro.</p>
-              <p>Você escolhe onde quer chegar, pratica com contexto e acompanha o que merece atenção. O mascote apoia a jornada; a informação e a próxima ação continuam no centro da experiência.</p>
+              <p>Você escolhe onde quer chegar, pratica com contexto e acompanha o que merece atenção. A informação e a próxima ação continuam no centro da experiência.</p>
             </div>
             <div class="landing-benefits" aria-label="Por que estudar pelo KAD">
               <article>${icon('Route')}<h3>Direção</h3><p>Metas e próximos passos visíveis.</p></article>
@@ -208,28 +209,28 @@ const authStories = [
     eyebrow: 'PRÁTICA COM DIREÇÃO',
     title: 'Transforme questões em um plano de estudo.',
     description: 'Resolva, confira o gabarito e retome seus pontos de atenção sem perder o contexto da sessão.',
-    image: 'kad-mascot-practice.png',
+    mark: '01',
     highlights: [['ClipboardCheck', 'Gabarito no mesmo fluxo'], ['Bookmark', 'Favoritos para revisar']],
   },
   {
     eyebrow: 'SIMULADOS',
     title: 'Treine conteúdo, estratégia e tempo de prova.',
     description: 'Monte sessões objetivas, acompanhe o relógio e revise o resultado quando terminar.',
-    image: 'kad-mascot-simulation.png',
+    mark: '02',
     highlights: [['Timer', 'Tempo sob controle'], ['ListChecks', 'Revisão por questão']],
   },
   {
     eyebrow: 'REDAÇÃO E REPERTÓRIO',
     title: 'Escreva com foco e preserve cada versão.',
     description: 'Organize propostas, rascunhos e referências no mesmo ambiente usado para estudar as disciplinas.',
-    image: 'kad-mascot-writing.png',
+    mark: '03',
     highlights: [['PenLine', 'Editor focado'], ['Library', 'Biblioteca de apoio']],
   },
   {
     eyebrow: 'TRILHAS E CONCURSOS',
     title: 'Tenha clareza sobre o próximo passo.',
     description: 'Escolha uma meta e encontre questões, trilhas e concursos organizados para a sua preparação.',
-    image: 'kad-mascot-goal.png',
+    mark: '04',
     highlights: [['Compass', 'Trilhas organizadas'], ['Target', 'Meta sempre visível']],
   },
 ];
@@ -250,7 +251,7 @@ function authShowcase(): string {
             </div>
             <div class="auth-story__art" aria-hidden="true">
               <span class="auth-story__orbit"></span>
-              <img src="/assets/${story.image}" alt="" width="520" height="520" />
+              <span class="auth-story__mark"><strong>${story.mark}</strong><i></i></span>
             </div>
           </article>`).join('')}
       </div>
