@@ -68,7 +68,7 @@ export function flashcardsView(state: SiteState, params: ViewParams = {}): ViewM
           ? 'Seus baralhos, cartões e revisões acompanham a mesma conta usada no aplicativo.'
           : 'No modo visitante, seus flashcards ficam somente neste navegador.',
         actions: `${button(due.length ? `Revisar ${due.length} agora` : 'Revisões em dia', { route: '/flashcards/revisar', disabled: !due.length, iconName: 'Brain' })}${button('Novo cartão', { action: 'focus-new-flashcard', variant: 'secondary', iconName: 'Plus' })}`,
-        imageSrc: '/assets/kad-mascot-practice.png',
+        visual: true,
       })}
       <section class="home-metrics page-metrics" aria-label="Resumo dos flashcards">
         ${stat(String(activeDecks.length), 'Baralhos ativos', 'Layers3')}

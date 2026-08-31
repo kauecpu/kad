@@ -104,7 +104,7 @@ export function simulationsView(state: SiteState): ViewModel {
             title: 'Seu treino está esperando.',
             description: `${Object.keys(current.answers).length} de ${current.questions.length} questões respondidas · ${formatTimer(current.remainingSeconds)} restantes.`,
             actions: button(current.status === 'paused' ? 'Retomar simulado' : 'Continuar simulado', { route: '/simulados/em-andamento', iconName: 'Play' }),
-            imageSrc: '/assets/kad-mascot-simulation.png',
+            visual: true,
           })
         : workspaceHero({
             id: 'simulation-overview',
@@ -112,7 +112,7 @@ export function simulationsView(state: SiteState): ViewModel {
             title: 'Treine como se fosse o dia da prova.',
             description: 'Escolha o conteúdo, defina o tempo e acompanhe seu resultado ao final.',
             actions: `${button('Montar simulado', { route: '/simulados/configurar', iconName: 'Timer' })}${button('Simulado rápido', { action: 'start-demo-simulation', variant: 'secondary', iconName: 'Play' })}`,
-            imageSrc: '/assets/kad-mascot-simulation.png',
+            visual: true,
           })}
       ${section('Por concurso e área', `<div class="discipline-grid">${featuredPacks.map((pack) => {
         const total = getCatalog().questions.filter((question) => matchesPack(question, pack)).length;

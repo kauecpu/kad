@@ -81,7 +81,7 @@ export function homeView(state: SiteState): ViewModel {
           </div>
           <figure class="home-intro__visual" aria-hidden="true">
             <span class="home-intro__orbit"></span>
-            <img src="/assets/kad-mascot-practice.png" alt="" width="240" height="240" />
+            <span class="home-intro__mark"><strong>KAD</strong><i></i></span>
           </figure>
         </section>
 

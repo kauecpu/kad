@@ -52,7 +52,7 @@ export function concursosView(state: SiteState, params: ViewParams = {}, savedOn
         title: 'Encontre o concurso que combina com seu próximo passo.',
         description: 'Compare vagas, salários, datas e comece a estudar pelas questões relacionadas.',
         actions: button('Ver concursos salvos', { route: '/concursos/salvos', iconName: 'Bookmark' }),
-        imageSrc: '/assets/kad-mascot-goal.png',
+        visual: true,
       })}
       <form class="filter-bar filter-panel filter-panel--contest" data-form="contest-search">
         <div class="field"><label for="contest-q">Buscar concurso</label><input class="input" id="contest-q" name="q" value="${escapeHtml(params.q ?? '')}" placeholder="Órgão, banca, cargo ou estado" /></div>
@@ -148,7 +148,7 @@ export function rankingView(state: SiteState, params: ViewParams = {}): ViewMode
         title: 'Suba no ranking estudando com consistência.',
         description: 'Cada acerto soma pontos conforme a dificuldade. Use os filtros para comparar períodos e áreas.',
         actions: button('Responder questões', { route: '/questoes', iconName: 'TrendingUp' }),
-        imageSrc: '/assets/kad-mascot-goal.png',
+        visual: true,
       })}
       <div class="toolbar"><div class="segmented" aria-label="Período do ranking">${[['today', 'Hoje'], ['month', 'Este mês'], ['all', 'Geral']].map(([value, label]) => `<button type="button" data-action="ranking-period" data-period="${value}" class="${period === value ? 'is-active' : ''}">${label}</button>`).join('')}</div><select class="select" style="width:auto" data-action="ranking-pack" aria-label="Filtrar ranking por concurso"><option value="">Todos os concursos</option>${packs.map((item) => `<option value="${item.id}" ${pack?.id === item.id ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
       <div class="podium">${podium.map((entry, index) => `<div class="podium-card ${index === 0 ? 'podium-card--first' : ''}">${avatar(entry.name, index === 0 ? 'md' : 'sm')}<strong>${escapeHtml(entry.name)}</strong><span>${escapeHtml(entry.username)}</span><b>${entry.points} pts</b>${badge(`#${entry.rank}`, index === 0 ? 'warning' : 'neutral')}</div>`).join('')}</div>
@@ -205,7 +205,7 @@ export function trailsView(state: SiteState, params: ViewParams = {}): ViewModel
         title: selectedPack?.name ?? selectedDiscipline?.name ?? 'Escolha sua trilha',
         description: `${trackQuestions.length} questões distribuídas em até dez níveis, sem repetição.`,
         actions: trackQuestions.length ? button('Começar próximo nível', { route: levels ? `/questoes/sessao?${selectedPack ? `packId=${selectedPack.id}` : `discipline=${encodeURIComponent(selectedDiscipline?.name ?? '')}`}&limit=${chunks.find((chunk) => chunk.length)?.length ?? 1}` : '/questoes', iconName: 'Play' }) : '',
-        imageSrc: '/assets/kad-mascot-goal.png',
+        visual: true,
       })}
       <div class="toolbar"><div class="segmented"><button type="button" data-action="trail-mode" data-mode="concurso" class="${mode === 'concurso' ? 'is-active' : ''}">Por concurso</button><button type="button" data-action="trail-mode" data-mode="disciplina" class="${mode === 'disciplina' ? 'is-active' : ''}">Por disciplina</button></div><select class="select" style="width:auto;max-width:300px" data-action="trail-track" aria-label="Escolher trilha">${tracks.map(([id, label]) => `<option value="${escapeHtml(id)}" ${selectedId === id ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select></div>
       ${section('Níveis disponíveis', `<div class="trail-levels">${levels}</div>`, { eyebrow: mode === 'concurso' ? 'CONCURSO OU ÁREA' : 'DISCIPLINA' })}
