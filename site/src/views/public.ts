@@ -1,4 +1,5 @@
 import { badge, button, card, icon, passwordField } from '../ui/components.ts';
+import { kadSignalMark } from '../ui/brand.ts';
 import { escapeHtml } from '../core/utils.ts';
 import { getCatalog } from '../data/catalog.ts';
 import type { SiteState, ViewModel } from '../types/domain.ts';
@@ -83,13 +84,15 @@ export function welcomeView(): ViewModel {
               <span>${icon('CheckCircle2')} Ritmo no seu tempo</span>
             </div>
           </div>
-          <div class="landing-hero__visual" aria-hidden="true">
-            <span class="landing-hero__orbit landing-hero__orbit--outer"></span>
-            <span class="landing-hero__orbit landing-hero__orbit--inner"></span>
-            <span class="landing-hero__bolt"></span>
-            <span class="landing-hero__stamp"><strong>01</strong><small>comece<br />por aqui</small></span>
-            <span class="landing-note landing-note--focus">${icon('Target')}<span><small>Foco de hoje</small>Praticar com direção</span></span>
-            <span class="landing-note landing-note--rhythm">${icon('BookOpenCheck')}<span><small>Seu ritmo</small>Um passo de cada vez</span></span>
+          <div class="landing-hero__signal" aria-label="O que você encontra no KAD">
+            <div class="landing-hero__signal-mark">${kadSignalMark({ className: 'kad-signal--hero' })}</div>
+            <p class="landing-hero__signal-label">Um caminho para estudar melhor</p>
+            <ul class="landing-hero__pillars">
+              <li><span>01</span><strong>Questões</strong><small>prática por disciplina</small></li>
+              <li><span>02</span><strong>Simulados</strong><small>tempo e estratégia</small></li>
+              <li><span>03</span><strong>Trilhas</strong><small>próximo passo visível</small></li>
+              <li><span>04</span><strong>Concursos</strong><small>foco antes do edital</small></li>
+            </ul>
           </div>
         </div>
       </section>
@@ -209,28 +212,24 @@ const authStories = [
     eyebrow: 'PRÁTICA COM DIREÇÃO',
     title: 'Transforme questões em um plano de estudo.',
     description: 'Resolva, confira o gabarito e retome seus pontos de atenção sem perder o contexto da sessão.',
-    mark: '01',
     highlights: [['ClipboardCheck', 'Gabarito no mesmo fluxo'], ['Bookmark', 'Favoritos para revisar']],
   },
   {
     eyebrow: 'SIMULADOS',
     title: 'Treine conteúdo, estratégia e tempo de prova.',
     description: 'Monte sessões objetivas, acompanhe o relógio e revise o resultado quando terminar.',
-    mark: '02',
     highlights: [['Timer', 'Tempo sob controle'], ['ListChecks', 'Revisão por questão']],
   },
   {
     eyebrow: 'REDAÇÃO E REPERTÓRIO',
     title: 'Escreva com foco e preserve cada versão.',
     description: 'Organize propostas, rascunhos e referências no mesmo ambiente usado para estudar as disciplinas.',
-    mark: '03',
     highlights: [['PenLine', 'Editor focado'], ['Library', 'Biblioteca de apoio']],
   },
   {
     eyebrow: 'TRILHAS E CONCURSOS',
     title: 'Tenha clareza sobre o próximo passo.',
     description: 'Escolha uma meta e encontre questões, trilhas e concursos organizados para a sua preparação.',
-    mark: '04',
     highlights: [['Compass', 'Trilhas organizadas'], ['Target', 'Meta sempre visível']],
   },
 ];
@@ -248,10 +247,6 @@ function authShowcase(): string {
               <div class="auth-story__highlights" aria-label="Recursos relacionados">
                 ${story.highlights.map(([iconName, label]) => `<span>${icon(iconName)} ${label}</span>`).join('')}
               </div>
-            </div>
-            <div class="auth-story__art" aria-hidden="true">
-              <span class="auth-story__orbit"></span>
-              <span class="auth-story__mark"><strong>${story.mark}</strong><i></i></span>
             </div>
           </article>`).join('')}
       </div>

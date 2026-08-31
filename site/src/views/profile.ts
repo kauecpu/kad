@@ -57,7 +57,6 @@ export function essayView(state: SiteState, params: ViewParams = {}): ViewModel 
         title: 'Sua próxima redação começa aqui.',
         description: `${recommended.title}. Organize os argumentos, escreva no seu tempo e finalize com um roteiro de autorrevisão.`,
         actions: button('Começar tema recomendado', { route: `/redacao?topic=${recommended.id}&stage=write`, iconName: 'PenLine' }),
-        visual: true,
       })}
       <form class="filter-bar filter-panel filter-panel--short" data-form="essay-filter"><div class="field"><label for="essay-q">Buscar tema</label><input class="input" id="essay-q" name="q" value="${escapeHtml(params.q ?? '')}" placeholder="Tema ou categoria" /></div><div class="field"><label for="essay-pack">Concurso</label><select class="select" id="essay-pack" name="packId"><option value="">Todos os concursos</option>${packs.map((pack) => `<option value="${pack.id}" ${params.packId === pack.id ? 'selected' : ''}>${escapeHtml(pack.name)}</option>`).join('')}</select></div>${button('Filtrar', { type: 'submit', iconName: 'Filter' })}</form>
       ${section('Explorar temas', topics.length ? `<div class="topic-grid">${topics.map((item) => {
