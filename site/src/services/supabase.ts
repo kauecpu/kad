@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { resolvePublicSupabaseConfig } from '@/contracts/deployment-environment.ts';
 import { parseRecoveryCallback } from '../core/auth-callback.ts';
+import { signOutLocally } from '../core/auth-actions.ts';
+import { buildSignupMetadata } from '../core/auth-profile.ts';
 import { isEssayDocument, isSimulationSession } from '../core/user-sync.ts';
 import { createPasswordSecurity } from '../core/password-security.ts';
 import { mapPublishedConcursos, mapPublishedQuestions } from './published-content.ts';
@@ -126,7 +128,7 @@ export async function signUp({ name, email, password }: { name: string; email: s
   const { data, error } = await remote.auth.signUp({
     email,
     password,
-    options: { data: { full_name: name } },
+    options: { data: buildSignupMetadata(name) },
   });
   return error
     ? { ok: false, message: 'Não foi possível criar a conta agora.' }
@@ -341,7 +343,7 @@ export async function updateAccountPassword(
 
 export async function signOut(): Promise<void> {
   const remote = await client();
-  if (remote) await remote.auth.signOut();
+  if (remote) await signOutLocally(remote.auth);
 }
 
 function avatarUrl(remote: SupabaseClient, path?: string | null, version?: string | null): string | undefined {

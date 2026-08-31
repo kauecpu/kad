@@ -16,6 +16,8 @@ import {
 } from './core/flashcards.ts';
 import { recordAnswer, store } from './core/store.ts';
 import { mergeEssayDocuments, mergeSimulationSessions, nextSyncTimestamp, touchSimulationSession } from './core/user-sync.ts';
+import { displayNameFromMetadata } from './core/auth-profile.ts';
+import { classifyBackendState, type BackendState } from './core/backend-state.ts';
 import { randomId } from './core/utils.ts';
 import { hydrateIcons } from './ui/icons.ts';
 import { appLayout, publicLayout } from './ui/layout.ts';
@@ -113,6 +115,7 @@ import type {
 } from './types/domain.ts';
 
 const AUTH_STORY_INTERVAL = 6500;
+let backendState: BackendState = { connection: 'connecting', content: 'loading' };
 let welcomeNavigationCleanup: (() => void) | null = null;
 let publicAuthTrigger: HTMLElement | null = null;
 const loadedCommunityKeys = new Set<string>();
@@ -167,7 +170,7 @@ function toast(message: string): void {
   ui.toastTimer = setTimeout(() => element.remove(), 3600);
 }
 
-async function hydrateAuthenticatedUser(user: { id: string; email?: string | null; user_metadata?: { full_name?: string } }): Promise<void> {
+async function hydrateAuthenticatedUser(user: { id: string; email?: string | null; user_metadata?: { name?: unknown; full_name?: unknown } }): Promise<void> {
   store.switchOwner(user.id);
   const [remote, subscription, profile, essays, simulations, flashcards] = await Promise.all([
     loadRemoteStudyData(user.id).catch(() => null),
@@ -189,7 +192,7 @@ async function hydrateAuthenticatedUser(user: { id: string; email?: string | nul
     draft.auth = { mode: 'authenticated', userId: user.id };
     draft.preferences.hasStarted = true;
     draft.profile.email = user.email ?? draft.profile.email;
-    draft.profile.name = user.user_metadata?.full_name ?? draft.profile.name;
+    draft.profile.name = displayNameFromMetadata(user.user_metadata, draft.profile.name);
     if (profile) draft.profile = { ...draft.profile, ...profile, email: user.email ?? draft.profile.email };
     if (remote) {
       draft.answers = remote.answers;
@@ -498,12 +501,13 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
   applyTheme(state);
   const view: ViewModel = resolveView(route, state);
   const layout = view.layout?.startsWith('public')
-    ? publicLayout(view.content, { simple: view.layout === 'public-simple', dark: document.documentElement.dataset.theme === 'dark' })
+    ? publicLayout(view.content, { simple: view.layout === 'public-simple', dark: document.documentElement.dataset.theme === 'dark', backendState })
     : appLayout(view.content, {
         pathname: route.pathname,
         title: view.title,
         subtitle: view.subtitle,
         state,
+        backendState,
       });
   root.innerHTML = layout;
   hydrateIcons(root);
@@ -1398,7 +1402,13 @@ const recoveryBootstrap = currentRoute().pathname === '/nova-senha'
   : Promise.resolve();
 
 void initializeSupabase().then((configured) => {
-  if (!configured || !supabaseConfigured) return;
+  if (!configured || !supabaseConfigured) {
+    backendState = classifyBackendState({ configured: false, loading: false, loadedFromRemote: false });
+    render();
+    return;
+  }
+  backendState = classifyBackendState({ configured: true, loading: true, loadedFromRemote: false });
+  render();
   recoveryBootstrap.then(() => getCurrentUser()).then(async (user) => {
     if (!user) return;
     await hydrateAuthenticatedUser(user);
@@ -1406,9 +1416,24 @@ void initializeSupabase().then((configured) => {
   loadPublishedContent()
     .then((content) => {
       replacePublishedCatalog(content);
+      backendState = classifyBackendState({
+        configured: true,
+        loading: false,
+        loadedFromRemote: true,
+        questionCount: content.questions.length,
+        concursoCount: content.concursos.length,
+      });
       render();
     })
     .catch(() => {
-      // O catálogo compartilhado mantém o site utilizável se a rede falhar.
+      // Em uma falha configurada, não apresentamos o catálogo local como se fosse remoto.
+      replacePublishedCatalog({ questions: [], concursos: [] });
+      backendState = classifyBackendState({
+        configured: true,
+        loading: false,
+        error: 'published-content-unavailable',
+        loadedFromRemote: false,
+      });
+      render();
     });
 });

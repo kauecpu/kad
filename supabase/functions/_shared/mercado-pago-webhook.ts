@@ -59,3 +59,11 @@ export function checkoutMatchesProviderSubscription(
   );
 }
 
+export function webhookProcessingOutcome(correlated: boolean): {
+  processed: boolean;
+  errorCode: string | null;
+} {
+  return correlated
+    ? { processed: true, errorCode: null }
+    : { processed: false, errorCode: 'not_correlated' };
+}
