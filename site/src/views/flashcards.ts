@@ -67,7 +67,7 @@ export function flashcardsView(state: SiteState, params: ViewParams = {}): ViewM
         description: state.auth.mode === 'authenticated'
           ? 'Seus baralhos, cartões e revisões acompanham a mesma conta usada no aplicativo.'
           : 'No modo visitante, seus flashcards ficam somente neste navegador.',
-        actions: `${button(due.length ? `Revisar ${formatCount(due.length, 'cartão', 'cartões')}` : 'Revisões em dia', { route: '/flashcards/revisar', disabled: !due.length, iconName: 'Brain' })}${button('Novo cartão', { action: 'focus-new-flashcard', variant: 'secondary', iconName: 'Plus' })}${button('Novo baralho', { action: 'focus-new-deck', variant: 'ghost', iconName: 'FolderPlus' })}`,
+        actions: `${button(due.length ? `Revisar ${formatCount(due.length, 'cartão', 'cartões')}` : 'Revisões em dia', { route: '/flashcards/revisar', disabled: !due.length, iconName: 'Brain' })}${button('Novo cartão', { action: 'focus-new-flashcard', variant: 'secondary', iconName: 'Plus' })}${button('Novo baralho', { action: 'focus-new-deck', variant: 'ghost', iconName: 'Layers3' })}`,
       })}
       <section class="home-metrics page-metrics" aria-label="Resumo dos flashcards">
         ${stat(String(activeDecks.length), 'Baralhos ativos', 'Layers3')}
