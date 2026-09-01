@@ -46,7 +46,7 @@ export function appLayout(content: string, { pathname, title, subtitle, state, b
   const profile = state.profile;
   const dark = document.documentElement.dataset.theme === 'dark';
   return `
-    <div class="app-shell">
+    <div class="app-shell${pathname.startsWith('/perfil') ? ' app-shell--profile' : ''}">
       <aside class="sidebar" id="main-navigation">
         <div class="sidebar__header">
           <a href="/inicio" data-route="/inicio" class="brand brand--sidebar" aria-label="KAD Concursos — início">
