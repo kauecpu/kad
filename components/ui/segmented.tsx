@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -46,7 +46,7 @@ export function Segmented<T extends string>({
       toValue: selectedIndex,
       duration: 110,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     });
 
     selectionAnimation.start();
@@ -68,7 +68,6 @@ export function Segmented<T extends string>({
       ]}>
       {animated && itemWidth > 0 ? (
         <Animated.View
-          pointerEvents="none"
           style={[
             styles.indicator,
             {
@@ -131,7 +130,7 @@ function SegmentedItem({
       toValue,
       duration: toValue < 1 ? 55 : 85,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
   }
 
@@ -181,10 +180,16 @@ const styles = StyleSheet.create({
     bottom: CONTAINER_PADDING,
     borderRadius: Radius.sm + 2,
     borderWidth: StyleSheet.hairlineWidth,
-    shadowOpacity: 0.18,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    pointerEvents: 'none',
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.18,
+        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      android: { elevation: 2 },
+      default: {},
+    }),
   },
   item: {
     flex: 1,

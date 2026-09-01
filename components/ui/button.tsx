@@ -56,7 +56,13 @@ export function Button({
     danger: { background: colors.dangerSoft, foreground: colors.danger, border: colors.dangerSoft },
   };
 
-  const { background, foreground, border } = palette[variant];
+  const { background, foreground, border } = disabled
+    ? {
+        background: colors.surfaceSunken,
+        foreground: colors.textMuted,
+        border: colors.borderStrong,
+      }
+    : palette[variant];
   const iconDistance = iconMotion === 'backward' ? -3 : iconMotion === 'up' ? -2 : 3;
 
   const animateIcon = (pressed: boolean) => {
@@ -94,9 +100,9 @@ export function Button({
           borderColor: border,
         },
         fullWidth && styles.fullWidth,
-        (pressed || disabled) && {
-          opacity: disabled ? 0.45 : 0.9,
-          transform: iconMotion ? undefined : [{ scale: disabled ? 1 : 0.985 }],
+        pressed && !disabled && {
+          opacity: 0.9,
+          transform: iconMotion ? undefined : [{ scale: 0.985 }],
         },
         style,
       ]}>

@@ -94,15 +94,16 @@ export default function WelcomeScreen() {
             />
             {isDark ? (
               <>
-                <View pointerEvents="none" style={styles.darkWordmarkClip}>
+                <View style={[styles.darkWordmarkClip, styles.noPointerEvents]}>
                   <Image
                     source={require('../assets/images/kad-logo-v4.png')}
-                    style={[styles.darkWordmark, { tintColor: colors.text }]}
+                    tintColor={colors.text}
+                    style={styles.darkWordmark}
                     resizeMode="stretch"
                     accessible={false}
                   />
                 </View>
-                <View pointerEvents="none" style={styles.darkAccentClip}>
+                <View style={[styles.darkAccentClip, styles.noPointerEvents]}>
                   <Image
                     source={require('../assets/images/kad-logo-v4.png')}
                     style={styles.darkAccent}
@@ -228,6 +229,7 @@ const styles = StyleSheet.create({
     width: 178,
     height: 76,
   },
+  noPointerEvents: { pointerEvents: 'none' },
   copy: { gap: Spacing.md },
   title: {
     fontSize: 32,

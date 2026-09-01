@@ -45,7 +45,7 @@ test('a marca da tela inicial mantém contraste no tema escuro', () => {
   assert.match(welcomeScreen, /const \{ colors, isDark \} = useTheme\(\)/);
   assert.match(welcomeScreen, /isDark \? \(/);
   assert.match(welcomeScreen, /styles\.darkWordmark/);
-  assert.match(welcomeScreen, /tintColor: colors\.text/);
+  assert.match(welcomeScreen, /tintColor=\{colors\.text\}/);
   assert.match(welcomeScreen, /accessibilityLabel="KAD Concursos"/);
 });
 
