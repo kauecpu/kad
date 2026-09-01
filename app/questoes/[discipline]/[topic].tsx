@@ -88,6 +88,10 @@ export default function TopicPlayerScreen() {
   const current = questions[Math.min(index, Math.max(0, questions.length - 1))];
   const isFirst = index === 0;
   const isLast = index >= questions.length - 1;
+  const hasAnsweredCurrent = Boolean(answers[current.id]);
+  const showPreviousAction = !isFirst;
+  const showForwardAction = hasAnsweredCurrent;
+  const showFooter = showPreviousAction || showForwardAction;
   const progress = questions.length > 0 ? ((index + 1) / questions.length) * 100 : 0;
 
   return (
@@ -149,41 +153,44 @@ export default function TopicPlayerScreen() {
             />
           </ScrollView>
 
-          <View
-            style={[
-              styles.footer,
-              {
-                paddingBottom: insets.bottom + Spacing.md,
-                backgroundColor: colors.background,
-                borderTopColor: colors.border,
-              },
-            ]}>
-            <Button
-              label="Anterior"
-              variant="secondary"
-              icon="chevron-back"
-              onPress={() => goTo(index - 1)}
-              disabled={isFirst}
-              style={styles.footerButton}
-            />
-            {isLast ? (
-              <Button
-                label="Concluir sessão"
-                icon="checkmark-done"
-                onPress={() => router.back()}
-                disabled={!answers[current.id]}
-                style={styles.footerButton}
-              />
-            ) : (
-              <Button
-                label="Próxima questão"
-                icon="chevron-forward"
-                onPress={() => goTo(index + 1)}
-                disabled={!answers[current.id]}
-                style={styles.footerButton}
-              />
-            )}
-          </View>
+          {showFooter ? (
+            <View
+              style={[
+                styles.footer,
+                {
+                  paddingBottom: insets.bottom + Spacing.md,
+                  backgroundColor: colors.background,
+                  borderTopColor: colors.border,
+                },
+              ]}>
+              {showPreviousAction ? (
+                <Button
+                  label="Anterior"
+                  variant="secondary"
+                  icon="chevron-back"
+                  onPress={() => goTo(index - 1)}
+                  style={styles.footerButton}
+                />
+              ) : null}
+              {showForwardAction ? (
+                isLast ? (
+                  <Button
+                    label="Concluir sessão"
+                    icon="checkmark-done"
+                    onPress={() => router.back()}
+                    style={styles.footerButton}
+                  />
+                ) : (
+                  <Button
+                    label="Próxima questão"
+                    icon="chevron-forward"
+                    onPress={() => goTo(index + 1)}
+                    style={styles.footerButton}
+                  />
+                )
+              ) : null}
+            </View>
+          ) : null}
         </>
       )}
 

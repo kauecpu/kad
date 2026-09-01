@@ -64,8 +64,8 @@ export function FeaturedCard({
   const soft = achievement ? colors.warningSoft : colors.primarySoft;
   const foreground = strong ? colors.onBrand : colors.text;
   const mutedForeground = strong ? colors.onBrandMuted : colors.textMuted;
-  const artworkWidth = fontScale >= 1.5 ? 92 : width < 420 ? 112 : width < 768 ? 148 : 180;
-  const showArtwork = Boolean(artwork) && fontScale < 1.75;
+  const artworkWidth = fontScale >= 1.5 ? 92 : width < 768 ? 148 : 180;
+  const showArtwork = Boolean(artwork) && width >= 420 && fontScale < 1.75;
 
   const cardContent = (
     <>
@@ -246,6 +246,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'flex-end',
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',

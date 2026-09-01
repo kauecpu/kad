@@ -12,7 +12,6 @@ export function KadProgressSignature({ style }: KadProgressSignatureProps) {
 
   return (
     <View
-      pointerEvents="none"
       accessible={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
@@ -30,6 +29,7 @@ export function KadProgressSignature({ style }: KadProgressSignatureProps) {
 const styles = StyleSheet.create({
   frame: {
     overflow: 'hidden',
+    pointerEvents: 'none',
   },
   rail: {
     position: 'absolute',

@@ -15,7 +15,6 @@ export function KadCardArtwork({ variant = 'stack' }: { variant?: KadCardArtwork
 
   return (
     <View
-      pointerEvents="none"
       accessible={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
@@ -76,7 +75,8 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     minHeight: 112,
-    overflow: 'visible',
+    overflow: 'hidden',
+    pointerEvents: 'none',
     borderRadius: Radius.md,
   },
   fold: {

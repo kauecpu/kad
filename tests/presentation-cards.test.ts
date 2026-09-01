@@ -44,7 +44,7 @@ test('a arte facetada usa tokens e permanece decorativa', () => {
   assert.match(cardArtwork, /LinearGradient/);
   assert.match(cardArtwork, /colors\.primary/);
   assert.match(cardArtwork, /colors\.brandSurfaceDeep/);
-  assert.match(cardArtwork, /pointerEvents="none"/);
+  assert.match(cardArtwork, /pointerEvents: 'none'/);
   assert.match(cardArtwork, /accessibilityElementsHidden/);
   assert.doesNotMatch(cardArtwork, /#[0-9A-Fa-f]{6}/);
 });

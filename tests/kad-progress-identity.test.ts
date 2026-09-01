@@ -121,7 +121,7 @@ test('a assinatura de progresso é puramente decorativa', () => {
 
   const progressSignature = readFileSync(componentUrl, 'utf8');
   assert.match(progressSignature, /export function KadProgressSignature/);
-  assert.match(progressSignature, /pointerEvents="none"/);
+  assert.match(progressSignature, /pointerEvents: 'none'/);
   assert.match(progressSignature, /accessibilityElementsHidden/);
   assert.match(progressSignature, /importantForAccessibility="no-hide-descendants"/);
   assert.equal(progressSignature.match(/styles\.rail,/g)?.length, 2);

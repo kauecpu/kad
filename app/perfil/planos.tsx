@@ -269,9 +269,9 @@ export default function PlansScreen() {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}>
-          <View pointerEvents="none" style={styles.heroGlow} />
-          <View pointerEvents="none" style={styles.heroFacetOne} />
-          <View pointerEvents="none" style={styles.heroFacetTwo} />
+          <View style={[styles.heroGlow, styles.noPointerEvents]} />
+          <View style={[styles.heroFacetOne, styles.noPointerEvents]} />
+          <View style={[styles.heroFacetTwo, styles.noPointerEvents]} />
           <View style={styles.heroEyebrowRow}>
             <View style={styles.heroDot} />
             <Text style={styles.heroEyebrow}>PLANOS KAD</Text>
@@ -522,7 +522,7 @@ function PremiumPlanSection({
           backgroundColor: colors.surface,
         },
       ]}>
-      <View pointerEvents="none" style={[styles.premiumAccent, { backgroundColor: accent }]} />
+      <View style={[styles.premiumAccent, styles.noPointerEvents, { backgroundColor: accent }]} />
 
       <View style={styles.premiumHeader}>
         <View style={[styles.premiumIcon, { backgroundColor: accentSoft }]}>
@@ -637,6 +637,7 @@ function PremiumPlanSection({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  noPointerEvents: { pointerEvents: 'none' },
   content: {
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,

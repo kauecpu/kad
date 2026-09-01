@@ -77,7 +77,6 @@ export function AnimatedCounter({
         defaultValue={formattedValue}
         editable={false}
         focusable={false}
-        pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
         underlineColorAndroid="transparent"
@@ -105,6 +104,7 @@ const styles = StyleSheet.create({
     margin: 0,
     borderWidth: 0,
     backgroundColor: 'transparent',
+    pointerEvents: 'none',
     fontVariant: ['tabular-nums'],
   },
 });
