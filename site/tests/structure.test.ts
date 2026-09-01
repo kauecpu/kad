@@ -355,6 +355,39 @@ test('linguagem visual do site prioriza neutros e mantém roxo como acento', asy
   assert.doesNotMatch(appStyles, /\.landing-hero__bolt|\.landing-hero__stamp|\.landing-note/);
 });
 
+test('PR 3 adiciona identidade roxa e energia amarela somente às áreas internas', async () => {
+  const styles = await source('src/styles/app.css');
+
+  assert.match(styles, /\.app-shell\s*\{[\s\S]*--primary:\s*#6d28d9/);
+  assert.match(styles, /\.app-shell\s*\{[\s\S]*--energy:\s*#f6c800/);
+  assert.match(styles, /:root\[data-theme='dark'\] \.app-shell\s*\{[\s\S]*--energy:\s*#ffd84a/);
+  assert.match(styles, /\.app-shell \.nav-link\.is-active[\s\S]*inset 6px 0 0[^;]*var\(--energy\)/);
+  assert.match(styles, /\.app-shell \.home-weekly \.progress__fill\s*\{[^}]*background:\s*var\(--energy\)/);
+  assert.match(styles, /\.app-shell \.mobile-tabs \.nav-link--compact\.is-active/);
+  assert.match(styles, /\.app-shell \.home-intro::before/);
+  assert.match(styles, /\.app-shell \.workspace-hero::after/);
+  assert.doesNotMatch(styles, /\.public-shell\s*\{[^}]*--energy:/);
+  assert.match(styles, /\.app-shell--profile\s*\{[\s\S]*--primary:\s*#171717/);
+});
+
+test('PR 3.1 adiciona suporte semântico contido e mantém a exceção neutra do perfil', async () => {
+  const styles = await source('src/styles/app.css');
+
+  for (const token of ['info', 'success', 'warning', 'danger']) {
+    assert.match(styles, new RegExp(`--color-support-${token}:\\s*#`));
+    assert.match(styles, new RegExp(`--color-support-${token}-soft:\\s*#`));
+    assert.match(styles, new RegExp(`--color-support-${token}-strong:\\s*#`));
+  }
+  assert.match(styles, /:root\[data-theme='dark'\] \.app-shell\s*\{[\s\S]*--color-support-info:/);
+  assert.match(styles, /\.app-shell \.badge--success[\s\S]*var\(--color-support-success-soft\)/);
+  assert.match(styles, /\.app-shell \.badge--warning[\s\S]*var\(--color-support-warning-soft\)/);
+  assert.match(styles, /\.app-shell \.badge--danger[\s\S]*var\(--color-support-danger-soft\)/);
+  assert.match(styles, /\.app-shell \.support-info/);
+  assert.match(styles, /\.app-shell \.support-focus:focus-visible/);
+  assert.match(styles, /\.app-shell--profile\s*\{[\s\S]*--primary:\s*#171717/);
+  assert.doesNotMatch(styles, /\.public-shell \.badge--success[\s\S]*--color-support-success/);
+});
+
 test('build do site inclui o adaptador e o fallback exigidos pela hospedagem', async () => {
   const [packageJson, viteConfig, worker, wranglerConfig, hostingConfig, seoScript] = await Promise.all([
     source('package.json'),
