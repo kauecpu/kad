@@ -25,6 +25,7 @@ type VerifiedSubscriptionAccessState = {
   userId: string | null;
   loading: boolean;
   subscription: Subscription;
+  now?: Date;
 };
 
 /** Mantém o acesso pendente até a primeira consulta do usuário atual terminar. */
@@ -43,8 +44,9 @@ export function subscriptionHasVerifiedAccess({
   userId,
   loading,
   subscription,
+  now,
 }: VerifiedSubscriptionAccessState): boolean {
-  return Boolean(userId && !loading && subscriptionHasAccess(subscription));
+  return Boolean(userId && !loading && subscriptionHasAccess(subscription, now));
 }
 
 function isBillingCycle(value: unknown): value is BillingCycle {

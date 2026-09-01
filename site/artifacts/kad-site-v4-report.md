@@ -33,7 +33,7 @@ Os componentes novos reutilizam os tokens existentes e adicionam padrões pequen
 - Navegação por teclado, foco, seleção, sucesso, atenção e perigo.
 - Ausência de rolagem horizontal nas rotas internas verificadas.
 - Typecheck, testes, lint e build executados.
-- A suíte específica do site passou integralmente (46/46). Na suíte geral, 387/388 testes passaram; a falha reproduzível restante pertence à troca de usuário Premium do app (`tests/app-rules.test.ts`) e nenhum arquivo fora de `site/` foi alterado neste PR.
+- A suíte específica do site passou integralmente (46/46) e a suíte geral passou 388/388. O teste de troca de usuário Premium foi tornado determinístico ao receber uma data de verificação explícita, preservando a regra de acesso e eliminando a dependência do relógio do CI.
 
 ## Capturas
 

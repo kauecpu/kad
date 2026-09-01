@@ -224,6 +224,7 @@ test('assinatura permanece carregando até consultar o usuário autenticado atua
 });
 
 test('troca de usuário e logout não reaproveitam acesso Premium antigo', () => {
+  const duringSubscription = new Date('2026-08-15T12:00:00.000Z');
   const premium: Subscription = {
     plan: 'diamond',
     billingCycle: 'monthly',
@@ -242,7 +243,12 @@ test('troca de usuário e logout não reaproveitam acesso Premium antigo', () =>
   });
 
   assert.equal(
-    subscriptionHasVerifiedAccess({ userId: 'user-1', loading: false, subscription: premium }),
+    subscriptionHasVerifiedAccess({
+      userId: 'user-1',
+      loading: false,
+      subscription: premium,
+      now: duringSubscription,
+    }),
     true
   );
   assert.equal(
@@ -250,11 +256,17 @@ test('troca de usuário e logout não reaproveitam acesso Premium antigo', () =>
       userId: 'user-2',
       loading: loadingAfterUserChange,
       subscription: premium,
+      now: duringSubscription,
     }),
     false
   );
   assert.equal(
-    subscriptionHasVerifiedAccess({ userId: null, loading: false, subscription: premium }),
+    subscriptionHasVerifiedAccess({
+      userId: null,
+      loading: false,
+      subscription: premium,
+      now: duringSubscription,
+    }),
     false
   );
 });
