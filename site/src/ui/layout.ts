@@ -102,5 +102,5 @@ export function appLayout(content: string, { pathname, title, subtitle, state, b
 }
 
 export function stackHeader(title: string, subtitle = ''): string {
-  return `<header class="stack-header"><button class="icon-button" type="button" data-action="back" aria-label="Voltar">${icon('ArrowLeft')}</button><div><h2>${escapeHtml(title)}</h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div></header>`;
+  return `<nav class="stack-header" aria-label="Navegação contextual"><button class="icon-button" type="button" data-action="back" aria-label="Voltar de ${escapeHtml(title)}">${icon('ArrowLeft')}</button>${subtitle ? `<p class="stack-header__context">${escapeHtml(subtitle)}</p>` : ''}</nav>`;
 }

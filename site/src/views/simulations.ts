@@ -1,5 +1,5 @@
 import { getCatalog } from '../data/catalog.ts';
-import { clamp, escapeHtml, filterQuestions, formatPercent, formatTimer, matchesPack, randomId, shuffle, unique } from '../core/utils.ts';
+import { clamp, escapeHtml, filterQuestions, formatCount, formatPercent, formatTimer, matchesPack, randomId, shuffle, unique } from '../core/utils.ts';
 import { badge, button, card, emptyState, icon, metricRing, progress, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
 import type { SiteSimulationSession, SiteState, ViewModel } from '../types/domain.ts';
@@ -102,7 +102,7 @@ export function simulationsView(state: SiteState): ViewModel {
             id: 'simulation-overview',
             eyebrow: 'SIMULADO EM ANDAMENTO',
             title: 'Seu treino está esperando.',
-            description: `${Object.keys(current.answers).length} de ${current.questions.length} questões respondidas · ${formatTimer(current.remainingSeconds)} restantes.`,
+            description: `${Object.keys(current.answers).length} de ${formatCount(current.questions.length, 'questão respondida', 'questões respondidas')} · ${formatTimer(current.remainingSeconds)} restantes.`,
             actions: button(current.status === 'paused' ? 'Retomar simulado' : 'Continuar simulado', { route: '/simulados/em-andamento', iconName: 'Play' }),
           })
         : workspaceHero({
@@ -114,12 +114,12 @@ export function simulationsView(state: SiteState): ViewModel {
           })}
       ${section('Por concurso e área', `<div class="discipline-grid">${featuredPacks.map((pack) => {
         const total = getCatalog().questions.filter((question) => matchesPack(question, pack)).length;
-        return `<button class="discipline-card" type="button" data-route="/simulados/configurar?packId=${pack.id}" style="--discipline-color:${pack.color}"><span class="discipline-card__mark">${escapeHtml(pack.name.slice(0, 2).toUpperCase())}</span><span class="discipline-card__copy"><h3>${escapeHtml(pack.name)}</h3><p>${total} ${total === 1 ? 'questão disponível' : 'questões disponíveis'}</p></span>${pack.kind === 'concurso' ? badge('Concurso') : badge('Área')}</button>`;
+        return `<button class="discipline-card" type="button" data-route="/simulados/configurar?packId=${pack.id}" style="--discipline-color:${pack.color}"><span class="discipline-card__mark">${escapeHtml(pack.name.slice(0, 2).toUpperCase())}</span><span class="discipline-card__copy"><h3>${escapeHtml(pack.name)}</h3><p>${formatCount(total, 'questão disponível', 'questões disponíveis')}</p></span>${pack.kind === 'concurso' ? badge('Concurso') : badge('Área')}</button>`;
       }).join('')}</div>`)}
       ${historySummary}
       ${section('Histórico recente', history.length ? `<div class="dashboard-main result-list">${history.map((session) => {
         const score = simulationScore(session);
-        return `<button class="list-row result-row" type="button" data-action="open-simulation-result" data-simulation-id="${session.id}"><span class="list-row__icon">${icon('BarChart3')}</span><span class="list-row__copy"><strong>${session.config.packId ? escapeHtml(packs.find((pack) => pack.id === session.config.packId)?.name ?? 'Simulado') : 'Simulado personalizado'}</strong><span>${score.correct} acertos de ${score.total} · ${new Intl.DateTimeFormat('pt-BR').format(new Date(session.completedAt ?? session.createdAt))}</span></span>${badge(formatPercent(score.accuracy), score.accuracy >= 70 ? 'success' : 'warning')}${icon('ChevronRight')}</button>` }).join('')}</div>` : emptyState('Nenhum simulado concluído', 'Monte seu primeiro treino para criar um histórico de desempenho.', { route: '/simulados/configurar', actionLabel: 'Montar simulado' }))}
+        return `<button class="list-row result-row" type="button" data-action="open-simulation-result" data-simulation-id="${session.id}"><span class="list-row__icon">${icon('BarChart3')}</span><span class="list-row__copy"><strong>${session.config.packId ? escapeHtml(packs.find((pack) => pack.id === session.config.packId)?.name ?? 'Simulado') : 'Simulado personalizado'}</strong><span>${formatCount(score.correct, 'acerto', 'acertos')} de ${formatCount(score.total, 'questão', 'questões')} · ${new Intl.DateTimeFormat('pt-BR').format(new Date(session.completedAt ?? session.createdAt))}</span></span>${badge(formatPercent(score.accuracy), score.accuracy >= 70 ? 'success' : 'warning')}${icon('ChevronRight')}</button>` }).join('')}</div>` : emptyState('Nenhum simulado concluído', 'Monte seu primeiro treino para criar um histórico de desempenho.', { route: '/simulados/configurar', actionLabel: 'Montar simulado' }))}
     `,
   };
 }
@@ -146,7 +146,7 @@ export function simulationConfigView(params: ViewParams = {}): ViewModel {
           </div>
           <div class="field"><label for="simulation-duration">Duração</label><select class="select" id="simulation-duration" name="durationMinutes">${[10, 20, 30, 45, 60, 90].map((value) => `<option value="${value}" ${value === 20 ? 'selected' : ''}>${value} minutos</option>`).join('')}</select></div>
           <label class="chip"><input type="checkbox" name="shuffleQuestions" checked /> Embaralhar questões</label>
-          <p class="form-message" data-form-message>${questions.length} questões disponíveis antes dos filtros.</p>
+          <p class="form-message" data-form-message>${formatCount(questions.length, 'questão disponível', 'questões disponíveis')} antes dos filtros.</p>
           ${button('Iniciar simulado', { type: 'submit', size: 'lg', iconName: 'Play', className: 'full-width' })}
         </form>`, 'form-panel')}
         <aside class="dashboard-aside">
@@ -173,9 +173,9 @@ export function simulationPlayerView(state: SiteState): ViewModel {
   const map = ids.map((id, mapIndex) => `<button type="button" data-action="go-simulation-question" data-index="${mapIndex}" class="${mapIndex === index ? 'is-active' : ''} ${session.answers[id] ? 'is-answered' : ''}">${mapIndex + 1}</button>`).join('');
   return {
     title: 'Simulado em andamento',
-    subtitle: `${answered} de ${session.questions.length} respondidas`,
+    subtitle: `${answered} de ${formatCount(session.questions.length, 'questão respondida', 'questões respondidas')}`,
     content: `
-      ${stackHeader('Simulado em andamento', `${answered} de ${session.questions.length} respondidas`)}
+      ${stackHeader('Simulado em andamento', `${answered} de ${formatCount(session.questions.length, 'questão respondida', 'questões respondidas')}`)}
       <div class="toolbar">${badge(formatTimer(session.remainingSeconds), session.remainingSeconds < 300 ? 'danger' : 'accent', 'Clock3')}<div class="toolbar__group">${button(session.status === 'paused' ? 'Retomar' : 'Pausar', { action: session.status === 'paused' ? 'resume-simulation' : 'pause-simulation', variant: 'secondary', iconName: session.status === 'paused' ? 'Play' : 'Pause', size: 'sm' })}${button('Finalizar', { action: 'finish-simulation', variant: 'danger', size: 'sm' })}</div></div>
       ${progress(((index + 1) / session.questions.length) * 100, `Questão ${index + 1} de ${session.questions.length}`)}
       <div class="study-layout">
@@ -192,10 +192,10 @@ export function simulationResultView(state: SiteState, requestedId?: string): Vi
   const score = simulationScore(session);
   return {
     title: 'Resultado do simulado',
-    subtitle: `${score.correct} acertos em ${score.total} questões`,
+    subtitle: `${formatCount(score.correct, 'acerto', 'acertos')} em ${formatCount(score.total, 'questão', 'questões')}`,
     content: `
       ${stackHeader('Resultado do simulado', new Intl.DateTimeFormat('pt-BR').format(new Date(session.completedAt ?? session.createdAt)))}
-      ${card(`<div class="result-hero"><div class="result-hero__copy"><p class="eyebrow">DESEMPENHO</p><h2>${score.accuracy >= 80 ? 'Excelente resultado!' : score.accuracy >= 60 ? 'Você está no caminho.' : 'Este resultado mostra onde avançar.'}</h2><p>${score.correct} acertos, ${score.wrong} erros e ${score.blank} questões em branco.</p><div class="welcome__actions">${button('Novo simulado', { route: '/simulados/configurar', iconName: 'RotateCcw' })}${button('Voltar aos simulados', { route: '/simulados', variant: 'secondary' })}</div></div>${metricRing(score.accuracy, 'de acerto')}</div>`)}
+      ${card(`<div class="result-hero"><div class="result-hero__copy"><p class="eyebrow">DESEMPENHO</p><h2>${score.accuracy >= 80 ? 'Excelente resultado!' : score.accuracy >= 60 ? 'Você está no caminho.' : 'Este resultado mostra onde avançar.'}</h2><p>${formatCount(score.correct, 'acerto', 'acertos')}, ${formatCount(score.wrong, 'erro', 'erros')} e ${formatCount(score.blank, 'questão em branco', 'questões em branco')}.</p><div class="welcome__actions">${button('Novo simulado', { route: '/simulados/configurar', iconName: 'RotateCcw' })}${button('Voltar aos simulados', { route: '/simulados', variant: 'secondary' })}</div></div>${metricRing(score.accuracy, 'de acerto')}</div>`)}
       <section class="home-metrics page-metrics" aria-label="Resumo do resultado">${stat(String(score.correct), 'Acertos', 'CheckCircle2', 'success')}${stat(String(score.wrong), 'Erros', 'XCircle', 'danger')}${stat(String(score.blank), 'Em branco', 'Circle')}${stat(formatPercent(score.accuracy), 'Aproveitamento', 'BarChart3')}</section>
       ${section('Revisão da prova', `<div class="dashboard-main result-list">${score.items.map((item, index) => `<button class="list-row result-row" type="button" data-action="open-question" data-question-id="${escapeHtml(item.question.id)}"><span class="list-row__icon">${icon(item.correct ? 'CheckCircle2' : item.selected ? 'XCircle' : 'Circle')}</span><span class="list-row__copy"><strong>Questão ${index + 1} · ${escapeHtml(item.question.topic)}</strong><span>${item.selected ? `Sua resposta: ${escapeHtml(item.selected)}` : 'Não respondida'} · Gabarito: ${escapeHtml(item.question.correct)}</span></span>${badge(item.correct ? 'Acertou' : 'Revisar', item.correct ? 'success' : 'warning')}${icon('ChevronRight')}</button>`).join('')}</div>`)}
     `,

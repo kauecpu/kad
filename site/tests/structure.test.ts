@@ -188,14 +188,34 @@ test('melhorias de interface preservam semântica, privacidade e linguagem de pr
   assert.match(publicView, /action: 'continue-visitor'/);
   assert.match(publicView, /Acessar como visitante/);
   assert.doesNotMatch(publicView, /Supabase ainda não estiver configurado/);
-  assert.match(layout, /stack-header[\s\S]+<h2>/);
-  assert.doesNotMatch(layout, /stack-header[\s\S]+<h1>/);
+  assert.match(layout, /class="stack-header"/);
+  assert.doesNotMatch(layout, /stack-header[^`]+<h[1-6]/);
+  assert.match(layout, /<main id="conteudo" class="page-content"[\s\S]+<\/main>/);
+  assert.match(layout, /<h1>\$\{escapeHtml\(title\)\}<\/h1>/);
   assert.match(questionsView, /comments-disclosure/);
   assert.match(questionsView, /Pular questão/);
   assert.match(simulationsView, /questão disponível/);
   assert.doesNotMatch(simulationsView, /versão web|Frontend|Treino fiel ao app/);
   assert.match(styles, /--text-subtle: #5f5f5f/);
   assert.match(styles, /scroll-padding-bottom/);
+});
+
+test('correções móveis reservam espaço para navegação e ampliam alvos de toque', async () => {
+  const [baseStyles, appStyles, profile] = await Promise.all([
+    source('src/styles/base.css'),
+    source('src/styles/app.css'),
+    source('src/views/profile.ts'),
+  ]);
+
+  assert.match(baseStyles, /--mobile-tabs-clearance:/);
+  assert.match(baseStyles, /\.segmented button \{ min-height: 44px/);
+  assert.match(baseStyles, /\.chip \{ min-height: 44px/);
+  assert.match(appStyles, /\.app-column \{ height: calc\(100vh - var\(--mobile-tabs-clearance\)\)/);
+  assert.match(appStyles, /\.mobile-tabs \{[^}]+height: var\(--mobile-tabs-height\)/);
+  assert.match(appStyles, /\.question-map button \{ min-width: 44px; min-height: 44px/);
+  assert.match(appStyles, /\.comment__actions button \{[^}]+min-height: 44px/);
+  assert.match(appStyles, /\.profile-legal-links a \{[^}]+min-height: 44px/);
+  assert.match(profile, /profile-legal-links/);
 });
 
 test('página pública usa navegação por seções, tema e acesso em janela', async () => {

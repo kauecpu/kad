@@ -3,6 +3,7 @@ import {
   clamp,
   escapeHtml,
   filterQuestions,
+  formatCount,
   formatPercent,
   normalizeText,
   questionsPerformance,
@@ -16,10 +17,6 @@ import type { Question, SiteState, UiState, ViewModel } from '../types/domain.ts
 type ViewParams = Record<string, string | undefined>;
 type AnswerStatus = 'unanswered' | 'correct' | 'wrong' | 'favorites' | undefined;
 type QuestionUiState = Pick<UiState, 'questionIndex' | 'visitedQuestionIds'>;
-
-function questionCountLabel(count: number): string {
-  return `${count} ${count === 1 ? 'questão' : 'questões'}`;
-}
 
 function questionResultCard(question: Question, state: SiteState): string {
   const answer = state.answers[question.id];
@@ -39,7 +36,7 @@ export function questionsIndexView(state: SiteState): ViewModel {
     const answered = available.filter((question) => state.answers[question.id]).length;
     return `<button class="discipline-card" type="button" data-route="/questoes/disciplina/${slugify(discipline.name)}" style="--discipline-color:${discipline.color}">
       <span class="discipline-card__mark">${escapeHtml(discipline.name.slice(0, 2).toUpperCase())}</span>
-      <span class="discipline-card__copy"><h3>${escapeHtml(discipline.name)}</h3><p>${questionCountLabel(available.length)} · ${answered} respondidas</p></span>
+      <span class="discipline-card__copy"><h3>${escapeHtml(discipline.name)}</h3><p>${formatCount(available.length, 'questão', 'questões')} · ${formatCount(answered, 'respondida', 'respondidas')}</p></span>
       ${icon('ChevronRight')}
     </button>`;
   }).join('');
@@ -53,7 +50,7 @@ export function questionsIndexView(state: SiteState): ViewModel {
 
   return {
     title: 'Questões',
-    subtitle: `${questions.length} questões disponíveis para praticar`,
+    subtitle: `${formatCount(questions.length, 'questão disponível', 'questões disponíveis')} para praticar`,
     content: `
       ${workspaceHero({
         id: 'questions-overview',
@@ -65,7 +62,7 @@ export function questionsIndexView(state: SiteState): ViewModel {
       ${section('Estudar por disciplina', `<div class="discipline-grid">${disciplineCards}</div>`, { eyebrow: 'BANCO DE QUESTÕES' })}
       ${progressSummary}
       ${section('Revisar', `<div class="action-grid">
-        <button class="action-card" type="button" data-route="/questoes/revisar?tipo=favoritas"><span class="action-card__icon">${icon('Bookmark')}</span><div><h3>Favoritas</h3><p>${state.favorites.length} questões marcadas</p></div></button>
+        <button class="action-card" type="button" data-route="/questoes/revisar?tipo=favoritas"><span class="action-card__icon">${icon('Bookmark')}</span><div><h3>Favoritas</h3><p>${formatCount(state.favorites.length, 'questão marcada', 'questões marcadas')}</p></div></button>
         <button class="action-card" type="button" data-route="/questoes/revisar?tipo=erradas"><span class="action-card__icon">${icon('RotateCcw')}</span><div><h3>Questões erradas</h3><p>Reforce os pontos frágeis</p></div></button>
         <button class="action-card" type="button" data-route="/concursos"><span class="action-card__icon">${icon('Building2')}</span><div><h3>Por concurso</h3><p>Pratique dentro da sua meta</p></div></button>
       </div>`)}
@@ -83,13 +80,13 @@ export function disciplineView(slug: string, state: SiteState): ViewModel {
   const topicRows = discipline.topics.map((topic) => {
     const topicQuestions = available.filter((question) => question.topic === topic);
     const answered = topicQuestions.filter((question) => state.answers[question.id]).length;
-    return `<button class="list-row" type="button" data-route="/questoes/sessao?discipline=${encodeURIComponent(discipline.name)}&topic=${encodeURIComponent(topic)}"><span class="list-row__icon">${icon('ListChecks')}</span><span class="list-row__copy"><strong>${escapeHtml(topic)}</strong><span>${questionCountLabel(topicQuestions.length)} · ${answered} respondidas</span></span>${badge(String(topicQuestions.length), topicQuestions.length ? 'accent' : 'neutral')}${icon('ChevronRight')}</button>`;
+    return `<button class="list-row" type="button" data-route="/questoes/sessao?discipline=${encodeURIComponent(discipline.name)}&topic=${encodeURIComponent(topic)}"><span class="list-row__icon">${icon('ListChecks')}</span><span class="list-row__copy"><strong>${escapeHtml(topic)}</strong><span>${formatCount(topicQuestions.length, 'questão', 'questões')} · ${formatCount(answered, 'respondida', 'respondidas')}</span></span>${badge(String(topicQuestions.length), topicQuestions.length ? 'accent' : 'neutral')}${icon('ChevronRight')}</button>`;
   }).join('');
   return {
     title: discipline.name,
-    subtitle: `${questionCountLabel(available.length)} em ${discipline.topics.length} assuntos`,
+    subtitle: `${formatCount(available.length, 'questão', 'questões')} em ${formatCount(discipline.topics.length, 'assunto', 'assuntos')}`,
     content: `
-      ${stackHeader(discipline.name, questionCountLabel(available.length))}
+      ${stackHeader(discipline.name, formatCount(available.length, 'questão', 'questões'))}
       ${card(`<div class="detail-panel"><div><p class="eyebrow">SESSÃO GERAL</p><h2>Praticar todos os assuntos</h2></div><p class="muted">Misture as questões disponíveis desta disciplina em uma única sessão.</p>${button('Começar sessão', { route: `/questoes/sessao?discipline=${encodeURIComponent(discipline.name)}`, iconName: 'Play' })}</div>`)}
       ${section('Escolha um assunto', `<div class="result-list">${topicRows}</div>`)}
     `,
@@ -124,7 +121,7 @@ export function searchView(state: SiteState, params: ViewParams = {}): ViewModel
         <div class="field"><label for="question-status">Situação</label><select class="select" id="question-status" name="status"><option value="">Qualquer situação</option><option value="unanswered" ${params.status === 'unanswered' ? 'selected' : ''}>Não respondidas</option><option value="correct" ${params.status === 'correct' ? 'selected' : ''}>Acertadas</option><option value="wrong" ${params.status === 'wrong' ? 'selected' : ''}>Erradas</option></select></div>
         ${button('Buscar', { type: 'submit', iconName: 'Search' })}
       </form>
-      <div class="toolbar"><div><p class="eyebrow">RESULTADOS</p><h2>${questionCountLabel(filtered.length)}</h2></div>${filtered.length ? button('Estudar resultados', { action: 'study-search-results', iconName: 'Play', attrs: `data-search="${escapeHtml(serializedParams.toString())}"` }) : ''}</div>
+      <div class="toolbar"><div><p class="eyebrow">RESULTADOS</p><h2>${formatCount(filtered.length, 'questão', 'questões')}</h2></div>${filtered.length ? button('Estudar resultados', { action: 'study-search-results', iconName: 'Play', attrs: `data-search="${escapeHtml(serializedParams.toString())}"` }) : ''}</div>
       ${filtered.length ? `<div class="dashboard-main result-list">${filtered.slice(0, 40).map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState(hasSearch ? 'Nenhuma questão encontrada' : 'Seu banco inteiro está pronto', hasSearch ? 'Tente remover um filtro ou usar termos mais amplos.' : 'Use os filtros acima ou comece com todas as questões.', { action: 'study-all-questions', actionLabel: 'Praticar todas' })}
     `,
   };
@@ -144,7 +141,7 @@ export function reviewView(type: string | undefined, state: SiteState): ViewMode
   return {
     title,
     subtitle,
-    content: `${stackHeader(title, questionCountLabel(filtered.length))}${filtered.length ? `<div class="dashboard-main result-list">${filtered.map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState('Nada para revisar agora', 'Continue praticando e volte quando houver questões nesta lista.', { route: '/questoes', actionLabel: 'Praticar questões' })}`,
+    content: `${stackHeader(title, formatCount(filtered.length, 'questão', 'questões'))}${filtered.length ? `<div class="dashboard-main result-list">${filtered.map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState('Nada para revisar agora', 'Continue praticando e volte quando houver questões nesta lista.', { route: '/questoes', actionLabel: 'Praticar questões' })}`,
   };
 }
 

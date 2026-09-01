@@ -2,6 +2,7 @@ import { getCatalog } from '../data/catalog.ts';
 import {
   escapeHtml,
   filterQuestions,
+  formatCount,
   formatCurrency,
   formatDate,
   formatPercent,
@@ -44,9 +45,9 @@ export function concursosView(state: SiteState, params: ViewParams = {}, savedOn
   const title = savedOnly ? 'Meus concursos' : 'Concursos';
   return {
     title,
-    subtitle: savedOnly ? `${filtered.length} concursos acompanhados` : 'Editais, prazos e oportunidades para sua meta',
+    subtitle: savedOnly ? formatCount(filtered.length, 'concurso acompanhado', 'concursos acompanhados') : 'Editais, prazos e oportunidades para sua meta',
     content: `
-      ${savedOnly ? stackHeader(title, `${filtered.length} salvos`) : workspaceHero({
+      ${savedOnly ? stackHeader(title, formatCount(filtered.length, 'concurso salvo', 'concursos salvos')) : workspaceHero({
         id: 'contests-overview',
         eyebrow: 'FOCO DA META',
         title: 'Encontre o concurso que combina com seu próximo passo.',
@@ -60,7 +61,7 @@ export function concursosView(state: SiteState, params: ViewParams = {}, savedOn
         <input type="hidden" name="savedOnly" value="${savedOnly ? '1' : ''}" />
         ${button('Filtrar', { type: 'submit', iconName: 'Filter' })}
       </form>
-      <div class="toolbar"><div><p class="eyebrow">OPORTUNIDADES</p><h2>${filtered.length} ${filtered.length === 1 ? 'concurso' : 'concursos'}</h2></div>${!savedOnly ? button('Meus concursos', { route: '/concursos/salvos', variant: 'secondary', iconName: 'Bookmark' }) : ''}</div>
+      <div class="toolbar"><div><p class="eyebrow">OPORTUNIDADES</p><h2>${formatCount(filtered.length, 'concurso', 'concursos')}</h2></div>${!savedOnly ? button('Meus concursos', { route: '/concursos/salvos', variant: 'secondary', iconName: 'Bookmark' }) : ''}</div>
       ${filtered.length ? `<div class="contest-grid">${filtered.map((concurso) => contestCard(concurso, state)).join('')}</div>` : emptyState(savedOnly ? 'Nenhum concurso salvo' : 'Nenhum concurso encontrado', savedOnly ? 'Salve oportunidades para acompanhar tudo em um só lugar.' : 'Tente remover um filtro ou pesquisar por outro termo.', { route: '/concursos', actionLabel: 'Explorar concursos' })}
     `,
   };
@@ -93,7 +94,7 @@ export function concursoDetailView(id: string, state: SiteState): ViewModel {
         </div>
         <aside class="dashboard-aside">
           ${card(`<div class="detail-panel"><p class="eyebrow">CRONOGRAMA</p><div class="detail-list"><div class="detail-row"><span>Início das inscrições</span><strong>${formatDate(concurso.registrationStart)}</strong></div><div class="detail-row"><span>Fim das inscrições</span><strong>${formatDate(concurso.registrationEnd)}</strong></div><div class="detail-row"><span>Data da prova</span><strong>${formatDate(concurso.examDate)}</strong></div><div class="detail-row"><span>Taxa</span><strong>${concurso.fee ? formatCurrency(concurso.fee) : 'A definir'}</strong></div></div></div>`)}
-          ${card(`<div class="detail-panel"><p class="eyebrow">ESTUDAR</p><h2>${pack ? escapeHtml(pack.name) : 'Conteúdo em preparação'}</h2><p class="muted">${pack ? `${packQuestions.length} questões relacionadas ao escopo deste concurso.` : 'Ainda não há um pacote de questões ligado a este edital.'}</p>${pack && packQuestions.length ? button('Estudar para este concurso', { route: `/questoes/sessao?packId=${pack.id}`, iconName: 'Play', className: 'full-width' }) : ''}</div>`)}
+          ${card(`<div class="detail-panel"><p class="eyebrow">ESTUDAR</p><h2>${pack ? escapeHtml(pack.name) : 'Conteúdo em preparação'}</h2><p class="muted">${pack ? `${formatCount(packQuestions.length, 'questão relacionada', 'questões relacionadas')} ao escopo deste concurso.` : 'Ainda não há um pacote de questões ligado a este edital.'}</p>${pack && packQuestions.length ? button('Estudar para este concurso', { route: `/questoes/sessao?packId=${pack.id}`, iconName: 'Play', className: 'full-width' }) : ''}</div>`)}
         </aside>
       </div>`,
   };
@@ -189,7 +190,7 @@ export function trailsView(state: SiteState, params: ViewParams = {}): ViewModel
       ? `packId=${selectedPack.id}`
       : `discipline=${encodeURIComponent(selectedDiscipline?.name ?? '')}`;
     const offset = chunks.slice(0, index).reduce((sum, current) => sum + current.length, 0);
-    return card(`<span class="trail-level__number">${index + 1}</span><span><h3>${['Iniciante', 'Primeiros conceitos', 'Fundamentos', 'Base prática', 'Intermediário', 'Consolidação', 'Aplicação', 'Desafios', 'Revisão avançada', 'Avançado'][index]}</h3><p>${chunk.length ? `${answered} de ${chunk.length} questões` : 'Conteúdo em preparação'}</p></span>${chunk.length && unlocked ? button(complete ? 'Revisar' : answered ? 'Continuar' : 'Começar', { route: `/questoes/sessao?${query}&offset=${offset}&limit=${chunk.length}`, variant: complete ? 'secondary' : 'primary', size: 'sm' }) : badge(chunk.length ? 'Bloqueado' : 'Em breve')}`, `trail-level ${!unlocked ? 'is-locked' : ''}`);
+    return card(`<span class="trail-level__number">${index + 1}</span><span><h3>${['Iniciante', 'Primeiros conceitos', 'Fundamentos', 'Base prática', 'Intermediário', 'Consolidação', 'Aplicação', 'Desafios', 'Revisão avançada', 'Avançado'][index]}</h3><p>${chunk.length ? `${answered} de ${formatCount(chunk.length, 'questão', 'questões')}` : 'Conteúdo em preparação'}</p></span>${chunk.length && unlocked ? button(complete ? 'Revisar' : answered ? 'Continuar' : 'Começar', { route: `/questoes/sessao?${query}&offset=${offset}&limit=${chunk.length}`, variant: complete ? 'secondary' : 'primary', size: 'sm' }) : badge(chunk.length ? 'Bloqueado' : 'Em breve')}`, `trail-level ${!unlocked ? 'is-locked' : ''}`);
   }).join('');
   const tracks = mode === 'concurso' ? packs.map((item) => [item.id, item.name]) : disciplines.map((item) => [slugify(item.name), item.name]);
   return {
@@ -201,7 +202,7 @@ export function trailsView(state: SiteState, params: ViewParams = {}): ViewModel
         id: 'trails-overview',
         eyebrow: 'TRILHA ATUAL',
         title: selectedPack?.name ?? selectedDiscipline?.name ?? 'Escolha sua trilha',
-        description: `${trackQuestions.length} questões distribuídas em até dez níveis, sem repetição.`,
+        description: `${formatCount(trackQuestions.length, 'questão distribuída', 'questões distribuídas')} em até dez níveis, sem repetição.`,
         actions: trackQuestions.length ? button('Começar próximo nível', { route: levels ? `/questoes/sessao?${selectedPack ? `packId=${selectedPack.id}` : `discipline=${encodeURIComponent(selectedDiscipline?.name ?? '')}`}&limit=${chunks.find((chunk) => chunk.length)?.length ?? 1}` : '/questoes', iconName: 'Play' }) : '',
       })}
       <div class="toolbar"><div class="segmented"><button type="button" data-action="trail-mode" data-mode="concurso" class="${mode === 'concurso' ? 'is-active' : ''}">Por concurso</button><button type="button" data-action="trail-mode" data-mode="disciplina" class="${mode === 'disciplina' ? 'is-active' : ''}">Por disciplina</button></div><select class="select" style="width:auto;max-width:300px" data-action="trail-track" aria-label="Escolher trilha">${tracks.map(([id, label]) => `<option value="${escapeHtml(id)}" ${selectedId === id ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select></div>

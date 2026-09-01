@@ -34,6 +34,11 @@ export function formatPercent(value: number): string {
   return `${Math.round(Number.isFinite(value) ? value : 0)}%`;
 }
 
+export function formatCount(count: number, singular: string, plural: string): string {
+  const safeCount = Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
+  return `${safeCount.toLocaleString('pt-BR')} ${safeCount === 1 ? singular : plural}`;
+}
+
 export function formatCurrency(value?: number | null): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',

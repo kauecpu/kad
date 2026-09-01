@@ -1,5 +1,5 @@
 import { getCatalog } from '../data/catalog.ts';
-import { escapeHtml, formatCurrency, formatPercent, localDay, questionsPerformance } from '../core/utils.ts';
+import { escapeHtml, formatCount, formatCurrency, formatPercent, localDay, questionsPerformance } from '../core/utils.ts';
 import { badge, button, icon, progress, section, stat } from '../ui/components.ts';
 import type { SiteState, ViewModel } from '../types/domain.ts';
 
@@ -54,14 +54,15 @@ export function homeView(state: SiteState): ViewModel {
         ${stat(String(state.favorites.length), 'Questões favoritas', 'Bookmark', 'warning')}
       </section>` : '';
 
+  const weeklyRemaining = Math.max(0, state.preferences.weeklyGoal - weeklyAnswered);
   const weeklyMessage = weeklyProgress >= 100
     ? 'Meta concluída. Excelente constância!'
     : weeklyAnswered
-      ? `Faltam ${Math.max(0, state.preferences.weeklyGoal - weeklyAnswered)} questões para concluir a meta.`
+      ? `${weeklyRemaining === 1 ? 'Falta' : 'Faltam'} ${formatCount(weeklyRemaining, 'questão', 'questões')} para concluir a meta.`
       : 'Comece com uma questão e construa seu ritmo durante a semana.';
 
   const nextStepDescription = performance.total
-    ? `Você já respondeu ${performance.total} questões e está com ${formatPercent(performance.accuracy)} de acerto. Continue de onde parou.`
+    ? `Você já respondeu ${formatCount(performance.total, 'questão', 'questões')} e está com ${formatPercent(performance.accuracy)} de acerto. Continue de onde parou.`
     : 'Escolha uma disciplina, responda no seu tempo e use o comentário do gabarito para aprender de verdade.';
 
   return {
