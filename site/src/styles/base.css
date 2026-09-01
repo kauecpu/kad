@@ -31,6 +31,9 @@
   --radius-xl: 18px;
   --sidebar-width: 232px;
   --topbar-height: 76px;
+  --content-max-width: 1320px;
+  --page-section-gap: 24px;
+  --navigation-group-gap: 16px;
   --mobile-tabs-height: 62px;
   --mobile-tabs-offset: max(10px, env(safe-area-inset-bottom));
   --mobile-tabs-clearance: calc(var(--mobile-tabs-height) + var(--mobile-tabs-offset));
@@ -190,6 +193,26 @@ summary:focus-visible {
 .backend-status--danger { border-left-color: var(--danger); }
 .backend-status--neutral { border-left-color: var(--accent); }
 .public-main > .backend-status { margin-inline: 24px; }
+
+.app-status {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  padding: 6px 10px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.app-status__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); }
+.app-status--success .app-status__dot { background: var(--success); }
+.app-status--warning .app-status__dot { background: var(--warning); }
+.app-status--danger .app-status__dot { background: var(--danger); }
+.app-status--neutral .app-status__dot { background: var(--accent); }
 
 .icon-button {
   display: inline-grid;

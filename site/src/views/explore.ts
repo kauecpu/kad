@@ -27,7 +27,7 @@ function contestCard(concurso: Concurso, state: SiteState): string {
     <div><h3>${escapeHtml(concurso.title)}</h3><p class="contest-card__organ">${escapeHtml(concurso.organ)}</p></div>
     <div class="question-meta">${badge(concurso.status === 'aberto' ? 'Aberto' : concurso.status === 'previsto' ? 'Previsto' : 'Encerrado', concurso.status === 'aberto' ? 'success' : concurso.status === 'previsto' ? 'warning' : 'neutral')}${badge(concurso.board)}</div>
     <div class="contest-card__meta"><span class="mini-meta">${icon('MapPin')}${escapeHtml(concurso.state)}</span><span class="mini-meta">${icon('BriefcaseBusiness')}${concurso.vacancies.toLocaleString('pt-BR')} vagas</span><span class="mini-meta">${icon('WalletCards')}${formatCurrency(concurso.salaryMax)}</span><span class="mini-meta">${icon('CalendarDays')}${formatDate(concurso.examDate)}</span></div>
-    <div class="contest-card__actions">${button('Ver detalhes', { route: `/concursos/${concurso.id}`, variant: 'secondary', className: 'full-width' })}</div>
+    <a class="contest-card__link" href="/concursos/${concurso.id}" data-route="/concursos/${concurso.id}"><span>Ver concurso</span>${icon('ArrowRight')}</a>
   `, 'contest-card');
 }
 export function concursosView(state: SiteState, params: ViewParams = {}, savedOnly = false): ViewModel {
@@ -144,10 +144,10 @@ export function rankingView(state: SiteState, params: ViewParams = {}): ViewMode
     content: `
       ${workspaceHero({
         id: 'ranking-overview',
-        eyebrow: 'RANKING KAD',
+        eyebrow: 'RANKING KAD · DEMONSTRAÇÃO',
         title: 'Suba no ranking estudando com consistência.',
-        description: 'Cada acerto soma pontos conforme a dificuldade. Use os filtros para comparar períodos e áreas.',
-        actions: button('Responder questões', { route: '/questoes', iconName: 'TrendingUp' }),
+        description: 'Os participantes exibidos são demonstrativos. Seus próprios pontos são calculados a partir da atividade salva neste ambiente.',
+        actions: `${badge('Dados demonstrativos', 'warning', 'Info')}${button('Responder questões', { route: '/questoes', iconName: 'TrendingUp' })}`,
       })}
       <div class="toolbar"><div class="segmented" aria-label="Período do ranking">${[['today', 'Hoje'], ['month', 'Este mês'], ['all', 'Geral']].map(([value, label]) => `<button type="button" data-action="ranking-period" data-period="${value}" class="${period === value ? 'is-active' : ''}">${label}</button>`).join('')}</div><select class="select" style="width:auto" data-action="ranking-pack" aria-label="Filtrar ranking por concurso"><option value="">Todos os concursos</option>${packs.map((item) => `<option value="${item.id}" ${pack?.id === item.id ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
       <div class="podium">${podium.map((entry, index) => `<div class="podium-card ${index === 0 ? 'podium-card--first' : ''}">${avatar(entry.name, index === 0 ? 'md' : 'sm')}<strong>${escapeHtml(entry.name)}</strong><span>${escapeHtml(entry.username)}</span><b>${entry.points} pts</b>${badge(`#${entry.rank}`, index === 0 ? 'warning' : 'neutral')}</div>`).join('')}</div>
@@ -197,7 +197,6 @@ export function trailsView(state: SiteState, params: ViewParams = {}): ViewModel
     title: 'Trilhas de estudo',
     subtitle: 'Avance do fundamento ao nível de prova',
     content: `
-      ${stackHeader('Trilhas de estudo', 'Uma sequência progressiva para manter o foco')}
       ${workspaceHero({
         id: 'trails-overview',
         eyebrow: 'TRILHA ATUAL',

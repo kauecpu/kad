@@ -1,37 +1,24 @@
 import { escapeHtml } from '../core/utils.ts';
 import { backendStateMessage, type BackendState } from '../core/backend-state.ts';
 import { avatar, button, icon } from './components.ts';
+import {
+  isMobileMoreActive,
+  isNavigationItemActive,
+  mobilePrimaryNavigation,
+  navigationGroups,
+  type NavigationItem,
+} from './navigation.ts';
 import type { SiteState } from '../types/domain.ts';
 
-const mainNavigation = [
-  { href: '/inicio', label: 'Início', icon: 'Home' },
-  { href: '/questoes', label: 'Questões', icon: 'BookOpen' },
-  { href: '/ranking', label: 'Ranking', icon: 'Trophy' },
-  { href: '/simulados', label: 'Simulados', icon: 'Timer' },
-  { href: '/perfil', label: 'Perfil', icon: 'User' },
-];
-
-const studyNavigation = [
-  { href: '/concursos', label: 'Concursos', icon: 'Building2' },
-  { href: '/trilhas', label: 'Trilhas', icon: 'Compass' },
-  { href: '/redacao', label: 'Redação', icon: 'PenLine' },
-  { href: '/biblioteca', label: 'Biblioteca', icon: 'Library' },
-  { href: '/flashcards', label: 'Flashcards', icon: 'Layers3' },
-];
-
-type NavigationItem = { href: string; label: string; icon: string };
-
-function backendStatus(state: BackendState): string {
+function backendStatus(state: BackendState, compact = false): string {
   const copy = backendStateMessage(state);
+  if (compact) {
+    return `<div class="app-status app-status--${copy.tone}" data-backend-status role="status" title="${escapeHtml(copy.description)}"><span class="app-status__dot" aria-hidden="true"></span><strong>${escapeHtml(copy.label)}</strong><span class="sr-only">. ${escapeHtml(copy.description)}</span></div>`;
+  }
   return `<aside class="backend-status backend-status--${copy.tone}" data-backend-status role="status"><strong>${escapeHtml(copy.label)}</strong><span>${escapeHtml(copy.description)}</span></aside>`;
 }
-
-function isActive(href: string, pathname: string): boolean {
-  if (href === '/inicio') return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 function navLink(item: NavigationItem, pathname: string, compact = false): string {
-  const active = isActive(item.href, pathname);
+  const active = isNavigationItemActive(item.href, pathname);
   return `<a href="${item.href}" data-route="${item.href}" class="nav-link ${active ? 'is-active' : ''} ${compact ? 'nav-link--compact' : ''}" ${active ? 'aria-current="page"' : ''}>${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`;
 }
 
@@ -67,19 +54,18 @@ export function appLayout(content: string, { pathname, title, subtitle, state, b
           </a>
           <button class="icon-button sidebar__close" type="button" data-action="close-menu" aria-label="Fechar menu">${icon('X')}</button>
         </div>
-        <nav class="sidebar__nav" aria-label="Navegação principal">
-          ${mainNavigation.map((item) => navLink(item, pathname)).join('')}
-        </nav>
-        <p class="sidebar__label">Outras formas de estudar</p>
-        <nav class="sidebar__nav sidebar__nav--secondary" aria-label="Recursos de estudo">
-          ${studyNavigation.map((item) => navLink(item, pathname)).join('')}
+        <nav class="sidebar__navigation" aria-label="Navegação principal">
+          ${navigationGroups.map((group) => `<section class="sidebar__group" aria-labelledby="nav-group-${group.id}">
+            <h2 class="sidebar__label" id="nav-group-${group.id}">${escapeHtml(group.label)}</h2>
+            <div class="sidebar__nav">${group.items.map((item) => navLink(item, pathname)).join('')}</div>
+          </section>`).join('')}
         </nav>
         <div class="sidebar__footer">
-          <button class="profile-summary" type="button" data-route="/perfil">
+          <a class="profile-summary ${isNavigationItemActive('/perfil', pathname) ? 'is-active' : ''}" href="/perfil" data-route="/perfil" ${isNavigationItemActive('/perfil', pathname) ? 'aria-current="page"' : ''}>
             ${avatar(profile.name, 'md', profile.avatarUri)}
             <span><strong>${escapeHtml(profile.name)}</strong><small>${state.auth.mode === 'authenticated' ? 'Conta KAD' : 'Modo visitante'}</small></span>
             ${icon('ChevronRight')}
-          </button>
+          </a>
         </div>
       </aside>
       <div class="app-column">
@@ -87,15 +73,17 @@ export function appLayout(content: string, { pathname, title, subtitle, state, b
           <button class="icon-button topbar__menu" type="button" data-action="open-menu" aria-controls="main-navigation" aria-expanded="false" aria-label="Abrir menu">${icon('Menu')}</button>
           <div class="topbar__title"><h1>${escapeHtml(title)}</h1>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div>
           <div class="topbar__actions">
+            ${backendStatus(backendState, true)}
             <button class="desktop-search" type="button" data-route="/questoes/buscar">${icon('Search')}<span>Buscar questões</span><kbd>Ctrl K</kbd></button>
             <button class="icon-button" type="button" data-action="toggle-theme" aria-label="Ativar tema ${dark ? 'claro' : 'escuro'}" aria-pressed="${dark}">${icon(dark ? 'Moon' : 'Sun')}</button>
             <button class="avatar-button" type="button" data-route="/perfil" aria-label="Abrir perfil">${avatar(profile.name, 'sm', profile.avatarUri)}</button>
           </div>
         </header>
-        <main id="conteudo" class="page-content" tabindex="-1">${backendStatus(backendState)}${content}</main>
+        <main id="conteudo" class="page-content" tabindex="-1">${content}</main>
       </div>
       <nav class="mobile-tabs" aria-label="Navegação principal">
-        ${mainNavigation.map((item) => navLink(item, pathname, true)).join('')}
+        ${mobilePrimaryNavigation.map((item) => navLink(item, pathname, true)).join('')}
+        <button class="nav-link nav-link--compact nav-link--more ${isMobileMoreActive(pathname) ? 'is-active' : ''}" type="button" data-action="open-menu" aria-controls="main-navigation" aria-expanded="false" aria-label="Abrir mais destinos">${icon('Menu')}<span>Mais</span></button>
       </nav>
       <button class="nav-scrim" type="button" data-action="close-menu" aria-label="Fechar menu"></button>
     </div>`;

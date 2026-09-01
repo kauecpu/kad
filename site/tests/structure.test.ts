@@ -71,15 +71,15 @@ test('integrações web reutilizam RPCs seguras e apenas a chave pública', asyn
 });
 
 test('site expõe flashcards e sincronização de estudo sem importar o aplicativo', async () => {
-  const [view, layout, main, flashcards, worker] = await Promise.all([
+  const [view, navigation, main, flashcards, worker] = await Promise.all([
     source('src/views/flashcards.ts'),
-    source('src/ui/layout.ts'),
+    source('src/ui/navigation.ts'),
     source('src/main.ts'),
     source('src/core/flashcards.ts'),
     source('server/index.ts'),
   ]);
 
-  assert.match(layout, /href: '\/flashcards'/);
+  assert.match(navigation, /href: '\/flashcards'/);
   assert.match(main, /pathname === '\/flashcards\/revisar'/);
   assert.match(main, /hydrateAuthenticatedUser/);
   assert.match(view, /class="flashcard-workspace"/);
@@ -218,6 +218,46 @@ test('correções móveis reservam espaço para navegação e ampliam alvos de t
   assert.match(profile, /profile-legal-links/);
 });
 
+test('navegação interna agrupa tarefas e oferece no máximo cinco destinos móveis', async () => {
+  const [navigation, layout, main, styles] = await Promise.all([
+    source('src/ui/navigation.ts'),
+    source('src/ui/layout.ts'),
+    source('src/main.ts'),
+    source('src/styles/app.css'),
+  ]);
+
+  for (const group of ['Estudar', 'Preparar', 'Acompanhar']) assert.match(navigation, new RegExp(`label: '${group}'`));
+  for (const route of ['/questoes', '/simulados', '/trilhas', '/concursos', '/perfil']) assert.match(navigation, new RegExp(`href: '${route}'`));
+  assert.match(layout, /mobilePrimaryNavigation\.map/);
+  assert.match(layout, /<span>Mais<\/span>/);
+  assert.match(layout, /sidebar__group/);
+  assert.match(main, /navigationTrigger/);
+  assert.match(main, /closeNavigation\(\)/);
+  assert.match(main, /event\.key === 'Tab'/);
+  assert.match(styles, /\.sidebar__navigation \{[^}]+overflow-y: auto/);
+  assert.match(styles, /\.nav-link--more \{[^}]+background: transparent/);
+});
+
+test('hierarquia interna prioriza cabeçalho compacto, ação e revelação progressiva', async () => {
+  const [components, questions, flashcards, profile, explore, styles] = await Promise.all([
+    source('src/ui/components.ts'),
+    source('src/views/questions.ts'),
+    source('src/views/flashcards.ts'),
+    source('src/views/profile.ts'),
+    source('src/views/explore.ts'),
+    source('src/styles/app.css'),
+  ]);
+
+  assert.match(components, /workspace-hero__actions/);
+  assert.match(questions, /class="question-search-panel"/);
+  assert.match(questions, /class="filter-disclosure"/);
+  assert.doesNotMatch(flashcards, /class="creation-panel" open/);
+  assert.match(profile, /class="library-primary"/);
+  assert.match(explore, /RANKING KAD · DEMONSTRAÇÃO/);
+  assert.match(styles, /\.workspace-hero \{[^}]+min-height: 0/);
+  assert.match(styles, /\.question-search-panel__primary/);
+});
+
 test('página pública usa navegação por seções, tema e acesso em janela', async () => {
   const [publicView, layout, main, styles] = await Promise.all([
     source('src/views/public.ts'),
@@ -289,7 +329,8 @@ test('áreas internas compartilham padrão editorial sem perder estruturas espec
   assert.match(components, /export function workspaceHero/);
   for (const view of [questions, simulations, explore, profile]) assert.match(view, /workspaceHero\(/);
   assert.doesNotMatch(internalViews, /hero-card/);
-  assert.match(questions, /class="filter-bar filter-panel"/);
+  assert.match(questions, /class="question-search-panel"/);
+  assert.match(questions, /<details class="filter-disclosure"/);
   assert.match(explore, /filter-panel--contest/);
   assert.match(profile, /filter-panel--short/);
   assert.doesNotMatch(questions, /class="sr-only" for="question-(keyword|discipline|board|status)"/);

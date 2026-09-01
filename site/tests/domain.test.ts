@@ -17,6 +17,13 @@ import { questionSessionView, questionsIndexView } from '../src/views/questions.
 import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.ts';
 import { profileView } from '../src/views/profile.ts';
 import { stackHeader } from '../src/ui/layout.ts';
+import {
+  isMobileMoreActive,
+  isNavigationItemActive,
+  mobilePrimaryNavigation,
+  mobileSecondaryNavigation,
+  navigationGroups,
+} from '../src/ui/navigation.ts';
 import { getCatalog } from '../src/data/catalog.ts';
 import type { StorageLike } from '../src/types/domain.ts';
 
@@ -60,6 +67,19 @@ test('páginas internas mantêm um único título e explicam o modo visitante', 
   assert.equal(profileView(visitor).subtitle, 'Dados salvos neste navegador');
   visitor.auth = { mode: 'authenticated', userId: 'user-a' };
   assert.equal(profileView(visitor).subtitle, 'Dossiê do candidato');
+});
+
+test('catálogo de navegação preserva rotas, grupos e estado ativo', () => {
+  assert.deepEqual(navigationGroups.map((group) => group.label), ['Estudar', 'Preparar', 'Acompanhar']);
+  assert.equal(mobilePrimaryNavigation.length, 4);
+  assert.ok(mobilePrimaryNavigation.every((item) => !mobileSecondaryNavigation.some((secondary) => secondary.href === item.href)));
+  assert.ok(mobileSecondaryNavigation.some((item) => item.href === '/concursos'));
+  assert.ok(mobileSecondaryNavigation.some((item) => item.href === '/perfil'));
+  assert.equal(isNavigationItemActive('/questoes', '/questoes/disciplina/portugues'), true);
+  assert.equal(isNavigationItemActive('/inicio', '/inicio/detalhe'), false);
+  assert.equal(isMobileMoreActive('/concursos/tj-sp'), true);
+  assert.equal(isMobileMoreActive('/perfil'), true);
+  assert.equal(isMobileMoreActive('/questoes/buscar'), false);
 });
 test('busca combina palavra-chave, disciplina e pacote sem misturar escopos', () => {
   const { questions, packs } = getCatalog();

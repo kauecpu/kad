@@ -118,6 +118,7 @@ const AUTH_STORY_INTERVAL = 6500;
 let backendState: BackendState = { connection: 'connecting', content: 'loading' };
 let welcomeNavigationCleanup: (() => void) | null = null;
 let publicAuthTrigger: HTMLElement | null = null;
+let navigationTrigger: HTMLElement | null = null;
 const loadedCommunityKeys = new Set<string>();
 const loadingCommunityKeys = new Set<string>();
 
@@ -168,6 +169,36 @@ function toast(message: string): void {
   announcer.textContent = message;
   if (ui.toastTimer !== null) clearTimeout(ui.toastTimer);
   ui.toastTimer = setTimeout(() => element.remove(), 3600);
+}
+
+function setNavigationExpanded(expanded: boolean): void {
+  document.querySelectorAll<HTMLElement>('[data-action="open-menu"]').forEach((trigger) => {
+    trigger.setAttribute('aria-expanded', String(expanded));
+  });
+}
+
+function closeNavigation({ restoreFocus = true }: { restoreFocus?: boolean } = {}): void {
+  document.body.classList.remove('nav-open');
+  setNavigationExpanded(false);
+  const appColumn = document.querySelector<HTMLElement>('.app-column');
+  const mobileTabs = document.querySelector<HTMLElement>('.mobile-tabs');
+  if (appColumn) appColumn.inert = false;
+  if (mobileTabs) mobileTabs.inert = false;
+  if (restoreFocus && navigationTrigger?.isConnected) navigationTrigger.focus({ preventScroll: true });
+  navigationTrigger = null;
+}
+
+function openNavigation(trigger: HTMLElement): void {
+  navigationTrigger = trigger;
+  document.body.classList.add('nav-open');
+  setNavigationExpanded(true);
+  const appColumn = document.querySelector<HTMLElement>('.app-column');
+  const mobileTabs = document.querySelector<HTMLElement>('.mobile-tabs');
+  if (appColumn) appColumn.inert = true;
+  if (mobileTabs) mobileTabs.inert = true;
+  globalThis.requestAnimationFrame(() => {
+    document.querySelector<HTMLElement>('.sidebar__close')?.focus({ preventScroll: true });
+  });
 }
 
 async function hydrateAuthenticatedUser(user: { id: string; email?: string | null; user_metadata?: { name?: unknown; full_name?: unknown } }): Promise<void> {
@@ -517,7 +548,7 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
     indexable: Boolean(view.indexable),
     path: route.pathname,
   });
-  document.body.classList.remove('nav-open');
+  closeNavigation({ restoreFocus: false });
   startPageTimers(route, state);
   setupWelcomeNavigation(route);
   hydrateQuestionCommunity();
@@ -924,13 +955,11 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'open-menu') {
-    document.body.classList.add('nav-open');
-    target.setAttribute('aria-expanded', 'true');
+    openNavigation(target);
     return;
   }
   if (action === 'close-menu') {
-    document.body.classList.remove('nav-open');
-    document.querySelector('[data-action="open-menu"]')?.setAttribute('aria-expanded', 'false');
+    closeNavigation();
     return;
   }
   if (action === 'toggle-theme') {
@@ -1368,7 +1397,25 @@ document.addEventListener('keydown', (event) => {
     persistEssayBuffer();
     navigate('/questoes/buscar');
   }
-  if (event.key === 'Escape') document.body.classList.remove('nav-open');
+  if (event.key === 'Escape' && document.body.classList.contains('nav-open')) {
+    event.preventDefault();
+    closeNavigation();
+    return;
+  }
+  if (event.key === 'Tab' && document.body.classList.contains('nav-open')) {
+    const sidebar = document.querySelector<HTMLElement>('.sidebar');
+    const focusable = sidebar ? Array.from(sidebar.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')) : [];
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 });
 
 globalThis.addEventListener('beforeunload', persistEssayBuffer);

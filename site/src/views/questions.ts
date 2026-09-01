@@ -114,12 +114,19 @@ export function searchView(state: SiteState, params: ViewParams = {}): ViewModel
     subtitle: 'Combine filtros para montar sua prática',
     content: `
       ${stackHeader('Procurar questões', 'Use um ou mais filtros')}
-      <form class="filter-bar filter-panel" data-form="question-search">
-        <div class="field"><label for="question-keyword">Palavra-chave</label><input class="input" id="question-keyword" name="keyword" value="${escapeHtml(params.keyword ?? '')}" placeholder="Enunciado, assunto, banca ou cargo" /></div>
-        <div class="field"><label for="question-discipline">Disciplina</label><select class="select" id="question-discipline" name="discipline"><option value="">Todas as disciplinas</option>${disciplines.map((item) => `<option value="${escapeHtml(item.name)}" ${params.discipline === item.name ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
-        <div class="field"><label for="question-board">Banca</label><select class="select" id="question-board" name="board"><option value="">Todas as bancas</option>${boards.map((item) => `<option value="${escapeHtml(item)}" ${params.board === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')}</select></div>
-        <div class="field"><label for="question-status">Situação</label><select class="select" id="question-status" name="status"><option value="">Qualquer situação</option><option value="unanswered" ${params.status === 'unanswered' ? 'selected' : ''}>Não respondidas</option><option value="correct" ${params.status === 'correct' ? 'selected' : ''}>Acertadas</option><option value="wrong" ${params.status === 'wrong' ? 'selected' : ''}>Erradas</option></select></div>
-        ${button('Buscar', { type: 'submit', iconName: 'Search' })}
+      <form class="question-search-panel" data-form="question-search">
+        <div class="question-search-panel__primary">
+          <div class="field"><label for="question-keyword">Palavra-chave</label><input class="input" id="question-keyword" name="keyword" value="${escapeHtml(params.keyword ?? '')}" placeholder="Enunciado, assunto, banca ou cargo" /></div>
+          <div class="field"><label for="question-discipline">Disciplina</label><select class="select" id="question-discipline" name="discipline"><option value="">Todas as disciplinas</option>${disciplines.map((item) => `<option value="${escapeHtml(item.name)}" ${params.discipline === item.name ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
+          ${button('Buscar', { type: 'submit', iconName: 'Search' })}
+        </div>
+        <details class="filter-disclosure" ${params.board || params.status ? 'open' : ''}>
+          <summary>${icon('SlidersHorizontal')}<span>Mais filtros</span>${params.board || params.status ? badge('Ativos', 'accent') : ''}${icon('ChevronDown')}</summary>
+          <div class="question-search-panel__advanced">
+            <div class="field"><label for="question-board">Banca</label><select class="select" id="question-board" name="board"><option value="">Todas as bancas</option>${boards.map((item) => `<option value="${escapeHtml(item)}" ${params.board === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')}</select></div>
+            <div class="field"><label for="question-status">Situação</label><select class="select" id="question-status" name="status"><option value="">Qualquer situação</option><option value="unanswered" ${params.status === 'unanswered' ? 'selected' : ''}>Não respondidas</option><option value="correct" ${params.status === 'correct' ? 'selected' : ''}>Acertadas</option><option value="wrong" ${params.status === 'wrong' ? 'selected' : ''}>Erradas</option></select></div>
+          </div>
+        </details>
       </form>
       <div class="toolbar"><div><p class="eyebrow">RESULTADOS</p><h2>${formatCount(filtered.length, 'questão', 'questões')}</h2></div>${filtered.length ? button('Estudar resultados', { action: 'study-search-results', iconName: 'Play', attrs: `data-search="${escapeHtml(serializedParams.toString())}"` }) : ''}</div>
       ${filtered.length ? `<div class="dashboard-main result-list">${filtered.slice(0, 40).map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState(hasSearch ? 'Nenhuma questão encontrada' : 'Seu banco inteiro está pronto', hasSearch ? 'Tente remover um filtro ou usar termos mais amplos.' : 'Use os filtros acima ou comece com todas as questões.', { action: 'study-all-questions', actionLabel: 'Praticar todas' })}
