@@ -10,16 +10,30 @@ type CardProps = {
   style?: StyleProp<ViewStyle>;
   padded?: boolean;
   accessibilityLabel?: string;
+  tone?: 'default' | 'subtle' | 'brand' | 'energy';
 };
 
 /** Superfície base do app. Vira um botão quando recebe `onPress`. */
-export function Card({ children, onPress, style, padded = true, accessibilityLabel }: CardProps) {
+export function Card({
+  children,
+  onPress,
+  style,
+  padded = true,
+  accessibilityLabel,
+  tone = 'default',
+}: CardProps) {
   const { colors } = useTheme();
+  const palette = {
+    default: { background: colors.surfaceRaised, border: colors.border },
+    subtle: { background: colors.surfaceAlt, border: colors.border },
+    brand: { background: colors.primarySoft, border: colors.primary },
+    energy: { background: colors.energySoft, border: colors.energyStrong },
+  }[tone];
 
   const base: StyleProp<ViewStyle> = [
     styles.card,
     padded && styles.padded,
-    { backgroundColor: colors.surface, borderColor: colors.border },
+    { backgroundColor: palette.background, borderColor: palette.border },
     style,
   ];
 

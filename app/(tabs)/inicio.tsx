@@ -205,7 +205,12 @@ export function HomeContent() {
             accessible
             accessibilityLabel={`${studyMomentum.weeklyQuestions} de ${studyMomentum.weeklyGoal} questões da meta semanal${weeklyRemaining > 0 ? `. Faltam ${weeklyRemaining} questões` : '. Meta concluída'}`}
             style={styles.summaryItem}>
-            <Ionicons name="flag-outline" size={20} color={colors.primary} aria-hidden={true} />
+            <Ionicons
+              name="flag-outline"
+              size={20}
+              color={weeklyRemaining > 0 ? colors.energy : colors.success}
+              aria-hidden={true}
+            />
             <View style={styles.summaryCopy}>
               <Text style={[styles.summaryValue, { color: colors.text }]}>
                 {studyMomentum.weeklyQuestions} de {studyMomentum.weeklyGoal}
@@ -217,7 +222,7 @@ export function HomeContent() {
               </Text>
               <ProgressBar
                 value={studyMomentum.weeklyProgress}
-                color={colors.primary}
+                color={weeklyRemaining > 0 ? colors.energyStrong : colors.success}
                 height={4}
                 label={`Meta semanal: ${studyMomentum.weeklyQuestions} de ${studyMomentum.weeklyGoal} questões`}
               />

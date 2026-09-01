@@ -60,8 +60,8 @@ export function FeaturedCard({
   const { fontScale, width } = useWindowDimensions();
   const achievement = tone === 'achievement';
   const strong = intensity === 'strong';
-  const accent = achievement ? colors.warning : colors.primary;
-  const soft = achievement ? colors.warningSoft : colors.primarySoft;
+  const accent = achievement ? colors.energy : colors.primary;
+  const soft = achievement ? colors.energySoft : colors.primarySoft;
   const foreground = strong ? colors.onBrand : colors.text;
   const mutedForeground = strong ? colors.onBrandMuted : colors.textMuted;
   const artworkWidth = fontScale >= 1.5 ? 92 : width < 768 ? 148 : 180;
@@ -126,7 +126,7 @@ export function FeaturedCard({
       style={[
         styles.surface,
         compact && styles.surfaceCompact,
-        { backgroundColor: colors.surfaceAlt },
+        { backgroundColor: colors.surfaceRaised },
       ]}>
       {cardContent}
     </View>

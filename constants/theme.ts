@@ -8,8 +8,9 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 const light = {
-  background: '#FFFFFF',
+  background: '#F7F8FB',
   surface: '#FFFFFF',
+  surfaceRaised: '#FFFFFF',
   surfaceAlt: '#F4F6FA',
   surfaceSunken: '#E9EDF3',
 
@@ -39,6 +40,14 @@ const light = {
   warning: '#9A6700',
   warningSoft: '#FFF6D8',
 
+  energy: '#8A5B00',
+  energySoft: '#FFF4C2',
+  energyStrong: '#F2C230',
+  onEnergy: '#17120A',
+
+  info: '#2457C5',
+  infoSoft: '#EAF1FF',
+
   accent: '#6D28D9',
   accentSoft: '#F3EEFF',
 
@@ -48,6 +57,7 @@ const light = {
   tabActive: '#7657F6',
   tabInactive: '#6B7787',
   tabActiveSurface: '#F3EEFF',
+  focusRing: '#7C3AED',
   overlay: 'rgba(13, 24, 38, 0.48)',
   shadow: '#0B1420',
 };
@@ -57,6 +67,7 @@ export type ThemeColors = typeof light;
 const dark: ThemeColors = {
   background: '#0B1118',
   surface: '#121A23',
+  surfaceRaised: '#17212C',
   surfaceAlt: '#1A2430',
   surfaceSunken: '#070C12',
 
@@ -86,6 +97,14 @@ const dark: ThemeColors = {
   warning: '#F5C451',
   warningSoft: '#302711',
 
+  energy: '#F4CD4D',
+  energySoft: '#302711',
+  energyStrong: '#F2C230',
+  onEnergy: '#17120A',
+
+  info: '#8CB4FF',
+  infoSoft: '#142A4B',
+
   accent: '#A78BFA',
   accentSoft: '#251F3D',
 
@@ -95,6 +114,7 @@ const dark: ThemeColors = {
   tabActive: '#A78BFA',
   tabInactive: '#8D9AA8',
   tabActiveSurface: '#251F3D',
+  focusRing: '#C4B5FD',
   overlay: 'rgba(2, 6, 12, 0.72)',
   shadow: '#000000',
 };

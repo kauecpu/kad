@@ -90,14 +90,14 @@ test('a label inativa da navegação mantém contraste AA no tema claro', () => 
 });
 
 test('os ícones do destaque mantêm contraste nas superfícies tonais', () => {
-  assert.match(featuredCard, /const accent = achievement \? colors\.warning : colors\.primary/);
-  assert.match(featuredCard, /const soft = achievement \? colors\.warningSoft : colors\.primarySoft/);
+  assert.match(featuredCard, /const accent = achievement \? colors\.energy : colors\.primary/);
+  assert.match(featuredCard, /const soft = achievement \? colors\.energySoft : colors\.primarySoft/);
 
   for (const theme of ['light', 'dark'] as const) {
     const block = themeBlock(theme);
     for (const [foregroundToken, backgroundToken] of [
       ['primary', 'primarySoft'],
-      ['warning', 'warningSoft'],
+      ['energy', 'energySoft'],
       ['onBrand', 'brandSurfaceStrong'],
     ] as const) {
       const ratio = contrastRatio(
