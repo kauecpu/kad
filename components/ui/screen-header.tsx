@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { DrawerMenuButton } from '@/components/ui/drawer-menu-button';
+import { KadSignal } from '@/components/ui/kad-signal';
 
 type ScreenHeaderProps = {
   title: string;
@@ -37,7 +38,8 @@ export function ScreenHeader({
         styles.container,
         {
           paddingTop: insets.top + Spacing.sm,
-          backgroundColor: colors.background,
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.border,
         },
       ]}>
       <View style={styles.inner}>
@@ -68,6 +70,7 @@ export function ScreenHeader({
           </View>
           {right}
         </View>
+        <KadSignal />
         {children}
       </View>
     </View>
@@ -75,7 +78,9 @@ export function ScreenHeader({
 }
 
 const styles = StyleSheet.create({
-  container: {},
+  container: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   inner: {
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,

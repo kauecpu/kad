@@ -1,4 +1,5 @@
 import Ionicons from '@/components/ui/app-icon';
+import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { FontSize, Radius, Spacing } from '@/constants/theme';
@@ -18,17 +19,23 @@ export function SearchField({
   accessibilityLabel,
 }: SearchFieldProps) {
   const { colors } = useTheme();
+  const [focused, setFocused] = useState(false);
 
   return (
     <View
       style={[
         styles.container,
-        { backgroundColor: colors.surfaceAlt },
+        {
+          backgroundColor: focused ? colors.surfaceRaised : colors.surfaceAlt,
+          borderColor: focused ? colors.focusRing : colors.border,
+        },
       ]}>
       <Ionicons name="search" size={18} color={colors.textSubtle} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         placeholder={placeholder}
         placeholderTextColor={colors.textSubtle}
         accessibilityLabel={accessibilityLabel ?? placeholder}
@@ -57,7 +64,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.md,
-    borderWidth: 0,
+    borderWidth: 1,
     height: 48,
   },
   input: {

@@ -21,7 +21,7 @@ const concursoCard = source('../components/concurso-card.tsx');
 
 test('o destaque compartilhado oferece superfície sólida e visual facetado opcional', () => {
   assert.match(featuredCard, /export function FeaturedCard/);
-  assert.match(featuredCard, /backgroundColor: colors\.surfaceAlt/);
+  assert.match(featuredCard, /backgroundColor: colors\.surfaceRaised/);
   assert.match(featuredCard, /backgroundColor: colors\.brandSurfaceStrong/);
   assert.match(featuredCard, /type FeaturedCardVisual = 'plain' \| 'faceted'/);
   assert.match(featuredCard, /LinearGradient/);

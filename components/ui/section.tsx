@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { KadSignal } from '@/components/ui/kad-signal';
 
 type SectionProps = {
   title: string;
@@ -18,12 +19,15 @@ export function Section({ title, actionLabel, onAction, children }: SectionProps
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text
-          style={[styles.title, { color: colors.text }]}
-          accessibilityRole="header"
-          aria-level={2}>
-          {title}
-        </Text>
+        <View style={styles.heading}>
+          <KadSignal compact />
+          <Text
+            style={[styles.title, { color: colors.text }]}
+            accessibilityRole="header"
+            aria-level={2}>
+            {title}
+          </Text>
+        </View>
         {actionLabel && onAction ? (
           <Pressable
             onPress={onAction}
@@ -52,6 +56,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 2,
+  },
+  heading: {
+    flex: 1,
+    minWidth: 0,
+    gap: Spacing.sm,
   },
   title: {
     fontSize: FontSize.heading,

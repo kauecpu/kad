@@ -234,9 +234,9 @@ export default function QuestionsScreen() {
             accessibilityLabel="Abrir ranking de questões"
             style={({ pressed }) => [
               styles.rankingAction,
-              { backgroundColor: colors.warningSoft, opacity: pressed ? 0.68 : 1 },
+              { backgroundColor: colors.energySoft, opacity: pressed ? 0.68 : 1 },
             ]}>
-            <Ionicons name="trophy-outline" size={21} color={colors.warning} />
+            <Ionicons name="trophy-outline" size={21} color={colors.energy} />
           </Pressable>
         )}
         subtitle={

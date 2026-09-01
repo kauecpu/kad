@@ -29,6 +29,7 @@ export function Chip({ label, selected = false, onPress, icon }: ChipProps) {
         styles.container,
         {
           backgroundColor: background,
+          borderColor: selected ? colors.primary : colors.border,
           opacity: pressed ? 0.7 : 1,
           transform: [{ scale: pressed ? 0.97 : 1 }],
         },
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm - 1,
     borderRadius: Radius.pill,
-    borderWidth: 0,
+    borderWidth: 1,
   },
   label: {
     fontSize: FontSize.small,

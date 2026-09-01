@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { KadSignal } from '@/components/ui/kad-signal';
 
 type StackHeaderProps = {
   title?: string;
@@ -33,7 +34,11 @@ export function StackHeader({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={{ paddingTop: insets.top, backgroundColor: colors.background }}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, backgroundColor: colors.surface, borderBottomColor: colors.border },
+      ]}>
       <View style={styles.bar}>
         <Pressable
           onPress={onBack}
@@ -72,11 +77,17 @@ export function StackHeader({
 
         {right ?? <View style={styles.iconButton} />}
       </View>
+      <View style={styles.signalFrame}>
+        <KadSignal compact />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   bar: {
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,
@@ -121,5 +132,12 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: FontSize.small,
+  },
+  signalFrame: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
   },
 });

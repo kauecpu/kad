@@ -5,6 +5,8 @@ export type Tone =
   | 'primary'
   | 'success'
   | 'warning'
+  | 'energy'
+  | 'info'
   | 'danger'
   | 'accent'
   | 'insight';
@@ -18,6 +20,10 @@ export function toneColors(colors: ThemeColors, tone: Tone): { background: strin
       return { background: colors.successSoft, foreground: colors.success };
     case 'warning':
       return { background: colors.warningSoft, foreground: colors.warning };
+    case 'energy':
+      return { background: colors.energySoft, foreground: colors.energy };
+    case 'info':
+      return { background: colors.infoSoft, foreground: colors.info };
     case 'danger':
       return { background: colors.dangerSoft, foreground: colors.danger };
     case 'accent':
