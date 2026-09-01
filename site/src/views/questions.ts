@@ -10,7 +10,7 @@ import {
   slugify,
   unique,
 } from '../core/utils.ts';
-import { badge, button, card, emptyState, icon, progress, section, stat, workspaceHero } from '../ui/components.ts';
+import { badge, button, card, emptyState, icon, progress, section, subjectIndexRow } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
 import type { Question, SiteState, UiState, ViewModel } from '../types/domain.ts';
 
@@ -31,42 +31,41 @@ function questionResultCard(question: Question, state: SiteState): string {
 export function questionsIndexView(state: SiteState): ViewModel {
   const { disciplines, questions } = getCatalog();
   const performance = questionsPerformance(state.answers);
-  const disciplineCards = disciplines.map((discipline) => {
+  const disciplineRows = disciplines.map((discipline, index) => {
     const available = questions.filter((question) => question.discipline === discipline.name);
     const answered = available.filter((question) => state.answers[question.id]).length;
-    return `<button class="discipline-card" type="button" data-route="/questoes/disciplina/${slugify(discipline.name)}" style="--discipline-color:${discipline.color}">
-      <span class="discipline-card__mark">${escapeHtml(discipline.name.slice(0, 2).toUpperCase())}</span>
-      <span class="discipline-card__copy"><h3>${escapeHtml(discipline.name)}</h3><p>${formatCount(available.length, 'questão', 'questões')} · ${formatCount(answered, 'respondida', 'respondidas')}</p></span>
-      ${icon('ChevronRight')}
-    </button>`;
+    return subjectIndexRow({
+      abbreviation: discipline.name.slice(0, 2).toUpperCase(),
+      title: discipline.name,
+      description: `${formatCount(available.length, 'questão', 'questões')} · ${formatCount(answered, 'respondida', 'respondidas')}`,
+      route: `/questoes/disciplina/${slugify(discipline.name)}`,
+      tone: index === 0 && answered ? 'info' : 'primary',
+    });
   }).join('');
-  const progressSummary = performance.total ? `
-      <section class="home-metrics page-metrics" aria-label="Seu progresso nas questões">
-        ${stat(String(performance.total), 'Respondidas', 'BookOpen')}
-        ${stat(formatPercent(performance.accuracy), 'Taxa de acerto', 'TrendingUp', 'success')}
-        ${stat(String(performance.correct), 'Acertadas', 'CheckCircle2', 'success')}
-        ${stat(String(state.favorites.length), 'Favoritas', 'Bookmark', 'warning')}
-      </section>` : '';
 
   return {
     title: 'Questões',
     subtitle: `${formatCount(questions.length, 'questão disponível', 'questões disponíveis')} para praticar`,
-    content: `
-      ${workspaceHero({
-        id: 'questions-overview',
-        eyebrow: 'EXPLORAR QUESTÕES',
-        title: 'Escolha como estudar.',
-        description: 'Filtre o banco inteiro, avance por disciplina ou pratique um concurso específico.',
-        actions: `${button('Procurar questões', { route: '/questoes/buscar', iconName: 'Search' })}${button('Desafio rápido', { route: '/questoes/desafio', variant: 'secondary', iconName: 'Zap' })}`,
+    content: `<div class="study-catalog">
+      <header class="catalog-intro" aria-labelledby="questions-overview">
+        <div><p class="eyebrow">BANCO DE QUESTÕES</p><h2 id="questions-overview">Encontre uma matéria e comece.</h2><p>Continue pelo seu histórico ou escolha uma disciplina. Filtros avançados ficam disponíveis quando você precisar.</p></div>
+        <div class="catalog-intro__actions">${button('Procurar questões', { route: '/questoes/buscar', iconName: 'Search' })}${button('Desafio rápido', { route: '/questoes/desafio', variant: 'secondary', iconName: 'Zap' })}</div>
+      </header>
+
+      ${performance.total ? `<aside class="catalog-progress" aria-label="Seu progresso nas questões"><div><p class="eyebrow">CONTINUAR</p><strong>${formatCount(performance.total, 'questão respondida', 'questões respondidas')}</strong><span>${formatPercent(performance.accuracy)} de acerto até agora</span></div>${button('Revisar erros', { route: '/questoes/revisar?tipo=erradas', variant: 'ghost', iconName: 'RotateCcw' })}</aside>` : ''}
+
+      ${section('Matérias', `<div class="subject-index">${disciplineRows}</div>`, {
+        eyebrow: 'ESCOLHA ONDE PRATICAR',
+        action: button('Ver todos os filtros', { route: '/questoes/buscar', variant: 'ghost', size: 'sm', iconName: 'SlidersHorizontal' }),
       })}
-      ${section('Estudar por disciplina', `<div class="discipline-grid">${disciplineCards}</div>`, { eyebrow: 'BANCO DE QUESTÕES' })}
-      ${progressSummary}
-      ${section('Revisar', `<div class="action-grid">
-        <button class="action-card" type="button" data-route="/questoes/revisar?tipo=favoritas"><span class="action-card__icon">${icon('Bookmark')}</span><div><h3>Favoritas</h3><p>${formatCount(state.favorites.length, 'questão marcada', 'questões marcadas')}</p></div></button>
-        <button class="action-card" type="button" data-route="/questoes/revisar?tipo=erradas"><span class="action-card__icon">${icon('RotateCcw')}</span><div><h3>Questões erradas</h3><p>Reforce os pontos frágeis</p></div></button>
-        <button class="action-card" type="button" data-route="/concursos"><span class="action-card__icon">${icon('Building2')}</span><div><h3>Por concurso</h3><p>Pratique dentro da sua meta</p></div></button>
-      </div>`)}
-    `,
+
+      <nav class="review-rail" aria-label="Atalhos de revisão">
+        <span><strong>Revisar</strong><small>Use seu histórico para decidir o próximo estudo.</small></span>
+        <button type="button" data-route="/questoes/revisar?tipo=favoritas">${icon('Bookmark')}Favoritas <strong>${state.favorites.length}</strong></button>
+        <button type="button" data-route="/questoes/revisar?tipo=erradas">${icon('RotateCcw')}Erradas <strong>${performance.wrong}</strong></button>
+        <button type="button" data-route="/concursos">${icon('Building2')}Por concurso</button>
+      </nav>
+    </div>`,
   };
 }
 

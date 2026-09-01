@@ -12,7 +12,7 @@ import {
   slugify,
   unique,
 } from '../core/utils.ts';
-import { avatar, badge, button, card, emptyState, icon, progress, section, stat, workspaceHero } from '../ui/components.ts';
+import { avatar, badge, button, card, emptyState, icon, progress, section, stat, timelineStep, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
 import type { Concurso, ConcursoPack, Question, SiteState, ViewModel } from '../types/domain.ts';
 
@@ -181,6 +181,7 @@ export function trailsView(state: SiteState, params: ViewParams = {}): ViewModel
   const chunks = trailChunks(trackQuestions);
   const answeredIds = new Set(Object.keys(state.answers));
   let priorComplete = true;
+  let nextRoute = '';
   const levels = chunks.map((chunk, index) => {
     const answered = chunk.filter((question) => answeredIds.has(question.id)).length;
     const complete = chunk.length > 0 && answered === chunk.length;
@@ -190,22 +191,27 @@ export function trailsView(state: SiteState, params: ViewParams = {}): ViewModel
       ? `packId=${selectedPack.id}`
       : `discipline=${encodeURIComponent(selectedDiscipline?.name ?? '')}`;
     const offset = chunks.slice(0, index).reduce((sum, current) => sum + current.length, 0);
-    return card(`<span class="trail-level__number">${index + 1}</span><span><h3>${['Iniciante', 'Primeiros conceitos', 'Fundamentos', 'Base prática', 'Intermediário', 'Consolidação', 'Aplicação', 'Desafios', 'Revisão avançada', 'Avançado'][index]}</h3><p>${chunk.length ? `${answered} de ${formatCount(chunk.length, 'questão', 'questões')}` : 'Conteúdo em preparação'}</p></span>${chunk.length && unlocked ? button(complete ? 'Revisar' : answered ? 'Continuar' : 'Começar', { route: `/questoes/sessao?${query}&offset=${offset}&limit=${chunk.length}`, variant: complete ? 'secondary' : 'primary', size: 'sm' }) : badge(chunk.length ? 'Bloqueado' : 'Em breve')}`, `trail-level ${!unlocked ? 'is-locked' : ''}`);
+    const route = chunk.length && unlocked ? `/questoes/sessao?${query}&offset=${offset}&limit=${chunk.length}` : '';
+    if (!nextRoute && route && !complete) nextRoute = route;
+    return timelineStep({
+      index: index + 1,
+      title: ['Iniciante', 'Primeiros conceitos', 'Fundamentos', 'Base prática', 'Intermediário', 'Consolidação', 'Aplicação', 'Desafios', 'Revisão avançada', 'Avançado'][index],
+      description: chunk.length ? `${answered} de ${formatCount(chunk.length, 'questão', 'questões')}` : 'Conteúdo em preparação',
+      state: complete ? 'complete' : unlocked && chunk.length ? 'current' : 'locked',
+      route,
+    });
   }).join('');
   const tracks = mode === 'concurso' ? packs.map((item) => [item.id, item.name]) : disciplines.map((item) => [slugify(item.name), item.name]);
   return {
     title: 'Trilhas de estudo',
     subtitle: 'Avance do fundamento ao nível de prova',
-    content: `
-      ${workspaceHero({
-        id: 'trails-overview',
-        eyebrow: 'TRILHA ATUAL',
-        title: selectedPack?.name ?? selectedDiscipline?.name ?? 'Escolha sua trilha',
-        description: `${formatCount(trackQuestions.length, 'questão distribuída', 'questões distribuídas')} em até dez níveis, sem repetição.`,
-        actions: trackQuestions.length ? button('Começar próximo nível', { route: levels ? `/questoes/sessao?${selectedPack ? `packId=${selectedPack.id}` : `discipline=${encodeURIComponent(selectedDiscipline?.name ?? '')}`}&limit=${chunks.find((chunk) => chunk.length)?.length ?? 1}` : '/questoes', iconName: 'Play' }) : '',
-      })}
-      <div class="toolbar"><div class="segmented"><button type="button" data-action="trail-mode" data-mode="concurso" class="${mode === 'concurso' ? 'is-active' : ''}">Por concurso</button><button type="button" data-action="trail-mode" data-mode="disciplina" class="${mode === 'disciplina' ? 'is-active' : ''}">Por disciplina</button></div><select class="select" style="width:auto;max-width:300px" data-action="trail-track" aria-label="Escolher trilha">${tracks.map(([id, label]) => `<option value="${escapeHtml(id)}" ${selectedId === id ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select></div>
-      ${section('Níveis disponíveis', `<div class="trail-levels">${levels}</div>`, { eyebrow: mode === 'concurso' ? 'CONCURSO OU ÁREA' : 'DISCIPLINA' })}
-    `,
+    content: `<div class="study-journey">
+      <header class="journey-intro" aria-labelledby="trails-overview">
+        <div><p class="eyebrow">TRILHA ATUAL</p><h2 id="trails-overview">${escapeHtml(selectedPack?.name ?? selectedDiscipline?.name ?? 'Escolha sua trilha')}</h2><p>${formatCount(trackQuestions.length, 'questão distribuída', 'questões distribuídas')} em uma sequência progressiva, sem repetição.</p></div>
+        ${nextRoute ? button('Continuar próxima etapa', { route: nextRoute, iconName: 'Play' }) : ''}
+      </header>
+      <div class="journey-controls"><div class="segmented"><button type="button" data-action="trail-mode" data-mode="concurso" class="${mode === 'concurso' ? 'is-active' : ''}">Por concurso</button><button type="button" data-action="trail-mode" data-mode="disciplina" class="${mode === 'disciplina' ? 'is-active' : ''}">Por disciplina</button></div><select class="select" data-action="trail-track" aria-label="Escolher trilha">${tracks.map(([id, label]) => `<option value="${escapeHtml(id)}" ${selectedId === id ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select></div>
+      ${section('Seu percurso', `<div class="study-timeline">${levels}</div>`, { eyebrow: mode === 'concurso' ? 'CONCURSO OU ÁREA' : 'DISCIPLINA' })}
+    </div>`,
   };
 }

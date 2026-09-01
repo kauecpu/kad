@@ -123,3 +123,93 @@ export function metricRing(value: number, label: string): string {
   const bounded = Math.max(0, Math.min(100, Number(value) || 0));
   return `<div class="metric-ring" style="--value:${bounded}" role="img" aria-label="${escapeHtml(label)}: ${formatPercent(bounded)}"><div><strong>${formatPercent(bounded)}</strong><span>${escapeHtml(label)}</span></div></div>`;
 }
+
+export function studyNextAction({
+  eyebrow = 'Próximo passo',
+  title,
+  description,
+  route,
+  actionLabel = 'Continuar estudo',
+  secondary = '',
+}: {
+  eyebrow?: string;
+  title: string;
+  description: string;
+  route: string;
+  actionLabel?: string;
+  secondary?: string;
+}): string {
+  return `<section class="study-next-action" aria-label="${escapeHtml(eyebrow)}">
+    <div class="study-next-action__copy">
+      <p class="eyebrow">${escapeHtml(eyebrow)}</p>
+      <h2>${escapeHtml(title)}</h2>
+      <p>${escapeHtml(description)}</p>
+    </div>
+    <div class="study-next-action__actions">
+      ${button(actionLabel, { route, iconName: 'ArrowRight' })}
+      ${secondary}
+    </div>
+  </section>`;
+}
+
+export function studyPlanRow({
+  index,
+  title,
+  description,
+  route,
+  status = 'next',
+}: {
+  index: number;
+  title: string;
+  description: string;
+  route: string;
+  status?: 'complete' | 'current' | 'next';
+}): string {
+  return `<button class="study-plan-row study-plan-row--${escapeHtml(status)}" type="button" data-route="${escapeHtml(route)}">
+    <span class="study-plan-row__index">${status === 'complete' ? icon('Check') : String(index).padStart(2, '0')}</span>
+    <span class="study-plan-row__copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(description)}</span></span>
+    <span class="study-plan-row__action">${status === 'complete' ? 'Rever' : status === 'current' ? 'Continuar' : 'Começar'}${icon('ArrowRight')}</span>
+  </button>`;
+}
+
+export function subjectIndexRow({
+  abbreviation,
+  title,
+  description,
+  route,
+  tone = 'primary',
+}: {
+  abbreviation: string;
+  title: string;
+  description: string;
+  route: string;
+  tone?: 'primary' | 'info' | 'success' | 'warning';
+}): string {
+  return `<button class="subject-index-row subject-index-row--${escapeHtml(tone)}" type="button" data-route="${escapeHtml(route)}">
+    <span class="subject-index-row__mark">${escapeHtml(abbreviation)}</span>
+    <span class="subject-index-row__copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(description)}</span></span>
+    <span class="subject-index-row__action">Abrir${icon('ArrowRight')}</span>
+  </button>`;
+}
+
+export function timelineStep({
+  index,
+  title,
+  description,
+  state: stepState = 'locked',
+  route = '',
+}: {
+  index: number;
+  title: string;
+  description: string;
+  state?: 'complete' | 'current' | 'locked';
+  route?: string;
+}): string {
+  const tag = route ? 'button' : 'div';
+  const attrs = route ? `type="button" data-route="${escapeHtml(route)}"` : '';
+  return `<${tag} class="timeline-step timeline-step--${escapeHtml(stepState)}" ${attrs}>
+    <span class="timeline-step__marker">${stepState === 'complete' ? icon('Check') : String(index)}</span>
+    <span class="timeline-step__copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(description)}</span></span>
+    ${route ? `<span class="timeline-step__action">${stepState === 'current' ? 'Continuar' : 'Ver'}${icon('ArrowRight')}</span>` : ''}
+  </${tag}>`;
+}

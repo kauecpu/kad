@@ -119,8 +119,8 @@ test('layout web usa autenticação dividida, resumos compactos e comentários l
   assert.match(publicView, /auth-page auth-page--split/);
   assert.match(publicView, /auth-story__slides/);
   assert.match(publicView, /auth-card auth-card--portal/);
-  assert.match(questionsView, /home-metrics page-metrics/);
-  assert.match(questionsView, /discipline-card__copy/);
+  assert.match(questionsView, /class="catalog-progress"/);
+  assert.match(questionsView, /subjectIndexRow/);
   assert.match(questionsView, /<textarea class="textarea"[^>]+rows="3"/);
   assert.match(styles, /\.comment-form \.button \{ width: 100%; \}/);
 });
@@ -301,15 +301,15 @@ test('início interno adota composição editorial com navegação lateral prese
   assert.match(layout, /<aside class="sidebar"/);
   assert.match(layout, /<main id="conteudo" class="page-content"/);
   assert.match(layout, /aria-label="Ativar tema \$\{dark \? 'claro' : 'escuro'\}"/);
-  assert.match(home, /class="home-intro"/);
-  assert.match(home, /class="home-action-list"/);
-  assert.match(home, /class="home-workspace"/);
-  assert.match(home, /<aside class="home-workspace__aside"/);
+  assert.match(home, /class="study-desk"/);
+  assert.match(home, /studyNextAction/);
+  assert.match(home, /class="study-plan"/);
+  assert.match(home, /class="weekly-focus"/);
   assert.doesNotMatch(home, /class="hero-card"/);
   assert.doesNotMatch(home, /class="action-grid"/);
-  assert.match(styles, /\.home-workspace \{[^}]+grid-template-columns:/);
-  assert.match(styles, /\.home-action-row \{[^}]+border-bottom:/);
-  assert.match(styles, /@media \(max-width: 680px\)[\s\S]+\.home-workspace__aside \{ grid-template-columns: 1fr; \}/);
+  assert.match(styles, /\.study-desk__continuity \{[^}]+grid-template-columns:/);
+  assert.match(styles, /\.study-plan-row \{[^}]+border-bottom:/);
+  assert.match(styles, /@media \(max-width: 720px\)[\s\S]+\.study-plan-row \{ grid-template-columns:/);
   assert.match(metadata, /indexable = false/);
   assert.match(main, /source\.closest<HTMLAnchorElement>\('\.skip-link'\)/);
   assert.match(main, /document\.querySelector<HTMLElement>\(skipLink\.hash\)\?\.focus\(\)/);
@@ -327,7 +327,10 @@ test('áreas internas compartilham padrão editorial sem perder estruturas espec
   const internalViews = `${questions}${simulations}${explore}${profile}`;
 
   assert.match(components, /export function workspaceHero/);
-  for (const view of [questions, simulations, explore, profile]) assert.match(view, /workspaceHero\(/);
+  assert.match(simulations, /workspaceHero\(/);
+  assert.match(questions, /subjectIndexRow/);
+  assert.match(explore, /timelineStep/);
+  assert.match(profile, /settings-section/);
   assert.doesNotMatch(internalViews, /hero-card/);
   assert.match(questions, /class="question-search-panel"/);
   assert.match(questions, /<details class="filter-disclosure"/);
