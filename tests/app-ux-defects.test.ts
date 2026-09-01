@@ -20,7 +20,11 @@ test('arte do destaque móvel fica contida em sua coluna', () => {
 });
 
 test('drawer não declara rota raiz de flashcards como filha das tabs', () => {
-  assert.doesNotMatch(drawerLayout, /<Drawer\.Screen name="flashcards"/);
+  assert.equal(
+    drawerLayout.match(/<Drawer\.Screen name="flashcards"/g)?.length,
+    1,
+    'Flashcards deve existir uma única vez dentro do Drawer',
+  );
 });
 
 test('botão desabilitado usa tokens legíveis em vez de reduzir opacidade', () => {

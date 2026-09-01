@@ -8,13 +8,13 @@ function source(path: string) {
 }
 
 const simulations = source('../app/(tabs)/simulados.tsx');
-const profile = source('../app/perfil/index.tsx');
+const profile = source('../app/(tabs)/perfil.tsx');
 const questions = source('../app/(tabs)/questoes.tsx');
 const home = source('../app/(tabs)/inicio.tsx');
 const concursos = source('../app/(tabs)/concursos.tsx');
-const ranking = source('../app/ranking.tsx');
-const trails = source('../app/trilhas.tsx');
-const essays = source('../app/redacao.tsx');
+const ranking = source('../app/(tabs)/ranking.tsx');
+const trails = source('../app/(tabs)/trilhas.tsx');
+const essays = source('../app/(tabs)/redacao.tsx');
 const featuredCard = source('../components/ui/featured-card.tsx');
 const cardArtwork = source('../components/ui/kad-card-artwork.tsx');
 const concursoCard = source('../components/concurso-card.tsx');

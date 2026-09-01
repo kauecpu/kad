@@ -1,8 +1,10 @@
 import { FeaturePreviewScreen } from '@/components/feature-preview-screen';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function LibraryScreen() {
   const { scheme } = useTheme();
+  const openMenu = useOpenAppDrawer();
   const accent = scheme === 'dark' ? '#2DD4BF' : '#0F766E';
 
   return (
@@ -13,6 +15,7 @@ export default function LibraryScreen() {
       icon="library-outline"
       color={accent}
       statusLabel="Em breve"
+      onMenu={openMenu}
       items={[
         {
           icon: 'headset-outline',

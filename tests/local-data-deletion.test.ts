@@ -9,7 +9,7 @@ function source(path: string) {
 
 const appProvider = source('../providers/app-provider.tsx');
 const simulationProvider = source('../providers/simulation-provider.tsx');
-const profile = source('../app/perfil/index.tsx');
+const profile = source('../app/(tabs)/perfil.tsx');
 const deleteAccount = source('../app/perfil/excluir-conta.tsx');
 const localData = source('../lib/local-user-data.ts');
 

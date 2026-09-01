@@ -1,6 +1,6 @@
 export type AppFeatureGroupId = 'practice' | 'progress' | 'other' | 'account';
 
-export type AppDrawerGroupId = 'main' | 'progress' | 'study' | 'account';
+export type AppDrawerGroupId = 'study' | 'prepare' | 'progress' | 'account';
 
 export type AppFeatureId =
   | 'questions'
@@ -150,30 +150,35 @@ export type AppDrawerItem = {
 };
 
 export const APP_DRAWER_GROUPS = [
-  { id: 'main', title: 'Principal' },
+  { id: 'study', title: 'Estudar' },
+  { id: 'prepare', title: 'Preparar' },
   { id: 'progress', title: 'Acompanhar' },
-  { id: 'study', title: 'Outras formas de estudar' },
   { id: 'account', title: 'Conta' },
 ] as const satisfies ReadonlyArray<{ id: AppDrawerGroupId; title: string }>;
 
 const DRAWER_GROUP_BY_FEATURE = {
-  practice: 'main',
-  progress: 'progress',
-  other: 'study',
-  account: 'account',
-} as const satisfies Record<AppFeatureGroupId, AppDrawerGroupId>;
+  questions: 'study',
+  contests: 'prepare',
+  simulations: 'study',
+  ranking: 'progress',
+  trails: 'study',
+  essay: 'prepare',
+  library: 'prepare',
+  flashcards: 'prepare',
+  profile: 'account',
+} as const satisfies Record<AppFeatureId, AppDrawerGroupId>;
 
 export const APP_DRAWER_ITEMS: ReadonlyArray<AppDrawerItem> = [
   {
     id: 'home',
-    group: 'main',
+    group: 'study',
     title: 'Início',
     href: '/inicio',
     icon: 'home-outline',
   },
   ...APP_FEATURES.map((feature) => ({
     id: feature.id,
-    group: DRAWER_GROUP_BY_FEATURE[feature.group],
+    group: DRAWER_GROUP_BY_FEATURE[feature.id],
     title: feature.title,
     href: feature.href,
     icon: feature.icon,

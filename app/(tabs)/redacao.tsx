@@ -20,12 +20,14 @@ import { Chip } from '@/components/ui/chip';
 import { FeaturedCard } from '@/components/ui/featured-card';
 import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { SearchField } from '@/components/ui/search-field';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { Section } from '@/components/ui/section';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { ESSAY_TOPICS, type EssayTopic } from '@/data/essay-topics';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { essayTopicDisclosure, filterEssayTopics } from '@/lib/essay-discovery';
 import { loadRemoteEssay, saveRemoteEssay } from '@/lib/remote-user-sync';
 import { ESSAY_DRAFT_PREFIX } from '@/lib/local-user-data-keys';
@@ -55,6 +57,7 @@ export default function EssayScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const { profile } = useApp();
   const { user } = useAuth();
   const userId = user?.id;
@@ -224,11 +227,15 @@ export default function EssayScreen() {
     <KeyboardAvoidingView
       style={[styles.screen, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StackHeader
-        title="Redação"
-        subtitle={stage === 'topics' ? 'Pratique no formato dos concursos' : selectedTopic?.title}
-        onBack={goBack}
-      />
+      {stage === 'topics' ? (
+        <ScreenHeader
+          title="Redação"
+          subtitle="Pratique no formato dos concursos"
+          onMenu={openMenu}
+        />
+      ) : (
+        <StackHeader title="Redação" subtitle={selectedTopic?.title} onBack={goBack} />
+      )}
 
       {stage === 'topics' ? (
         <TopicSelection

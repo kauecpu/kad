@@ -19,9 +19,9 @@ test('o drawer apresenta todas as áreas na ordem e nos grupos aprovados', () =>
   assert.deepEqual(
     APP_DRAWER_GROUPS.map(({ id, title }) => ({ id, title })),
     [
-      { id: 'main', title: 'Principal' },
+      { id: 'study', title: 'Estudar' },
+      { id: 'prepare', title: 'Preparar' },
       { id: 'progress', title: 'Acompanhar' },
-      { id: 'study', title: 'Outras formas de estudar' },
       { id: 'account', title: 'Conta' },
     ]
   );
@@ -30,9 +30,14 @@ test('o drawer apresenta todas as áreas na ordem e nos grupos aprovados', () =>
     ['Início', 'Questões', 'Concursos', 'Simulados', 'Ranking', 'Trilhas', 'Redação', 'Biblioteca', 'Flashcards', 'Perfil']
   );
   assert.deepEqual(
-    drawerItemsForGroup('main').map(({ title }) => title),
-    ['Início', 'Questões', 'Concursos', 'Simulados']
+    drawerItemsForGroup('study').map(({ title }) => title),
+    ['Início', 'Questões', 'Simulados', 'Trilhas']
   );
+  assert.deepEqual(
+    drawerItemsForGroup('prepare').map(({ title }) => title),
+    ['Concursos', 'Redação', 'Biblioteca', 'Flashcards']
+  );
+  assert.deepEqual(drawerItemsForGroup('progress').map(({ title }) => title), ['Ranking']);
   assert.deepEqual(drawerItemsForGroup('account').map(({ title }) => title), ['Perfil']);
 });
 
@@ -110,6 +115,32 @@ test('a rota Explorar continua disponível, mas não aparece no catálogo do dra
   assert.equal(APP_DRAWER_ITEMS.some(({ href }) => String(href) === '/explorar'), false);
   assert.match(source('../app/(tabs)/_layout.tsx'), /name="explorar"/);
   assert.match(source('../app/(tabs)/explorar.tsx'), /export default function ExploreScreen/);
+});
+
+test('todas as áreas de primeiro nível permanecem dentro do Drawer', () => {
+  const layout = source('../app/(tabs)/_layout.tsx');
+  const rootLayout = source('../app/_layout.tsx');
+
+  for (const route of ['ranking', 'trilhas', 'redacao', 'biblioteca', 'flashcards', 'perfil']) {
+    assert.match(layout, new RegExp(`<Drawer\\.Screen name="${route}"`));
+    assert.doesNotMatch(rootLayout, new RegExp(`<Stack\\.Screen name="${route}(?:/index)?"`));
+  }
+});
+
+test('áreas de primeiro nível usam menu; fluxos internos continuam usando voltar', () => {
+  for (const route of ['ranking', 'trilhas', 'flashcards', 'perfil']) {
+    const screen = source(`../app/(tabs)/${route}.tsx`);
+    assert.match(screen, /useOpenAppDrawer\(\)/, `${route} deve abrir a navegação principal`);
+    assert.match(screen, /onMenu=\{openMenu\}/, `${route} deve mostrar o botão de menu`);
+  }
+
+  const essay = source('../app/(tabs)/redacao.tsx');
+  assert.match(essay, /stage === 'topics'/);
+  assert.match(essay, /<ScreenHeader[\s\S]*?onMenu=\{openMenu\}/);
+  assert.match(essay, /<StackHeader[\s\S]*?onBack=\{goBack\}/);
+
+  const library = source('../app/(tabs)/biblioteca.tsx');
+  assert.match(library, /onMenu=\{openMenu\}/);
 });
 
 test('a tela Início preserva o destaque forte e achata o resumo diário', () => {

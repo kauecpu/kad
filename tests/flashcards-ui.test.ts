@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const routePath = decodeURIComponent(new URL('../app/flashcards.tsx', import.meta.url).pathname).replace(/^\/(\w):/, '$1:');
+const routePath = decodeURIComponent(new URL('../app/(tabs)/flashcards.tsx', import.meta.url).pathname).replace(/^\/(\w):/, '$1:');
 const routeSource = () => readFileSync(routePath, 'utf8');
 
 test('rota Flashcards existe e oferece criação e revisão', () => {

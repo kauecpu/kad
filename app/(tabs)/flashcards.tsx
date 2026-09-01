@@ -1,14 +1,14 @@
 import Ionicons from '@/components/ui/app-icon';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { Section } from '@/components/ui/section';
-import { StackHeader } from '@/components/ui/stack-header';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { dueCards } from '@/lib/flashcards';
 import { useFlashcards } from '@/providers/flashcards-provider';
 import type { Flashcard, FlashcardDeck, FlashcardRating } from '@/types';
-import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -28,7 +28,7 @@ type EditorMode = { kind: 'deck' | 'card'; deck?: FlashcardDeck; card?: Flashcar
 export default function FlashcardsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const flashcards = useFlashcards();
   const [editor, setEditor] = useState<EditorMode>(null);
   const [query, setQuery] = useState('');
@@ -48,7 +48,7 @@ export default function FlashcardsScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <StackHeader title="Flashcards" subtitle="Revisão no seu ritmo" onBack={() => router.back()} />
+      <ScreenHeader title="Flashcards" subtitle="Revisão no seu ritmo" onMenu={openMenu} />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xxxl }]}
         showsVerticalScrollIndicator={false}>
