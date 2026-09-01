@@ -1,0 +1,65 @@
+{
+  "runId": "kad-site-study-environment-v4",
+  "phase": "complete",
+  "step": "validated-delivery",
+  "fileKey": "HoT09YoZAxcgmb3j4Sx1LB",
+  "sourceNodeId": "58:2",
+  "entities": {
+    "collections": {
+      "semanticColor": "VariableCollectionId:51:2",
+      "layout": "VariableCollectionId:82:2"
+    },
+    "variables": {
+      "supportInfo": "color/support/info",
+      "supportSuccess": "color/support/success",
+      "supportWarning": "color/support/warning",
+      "supportDanger": "color/support/danger",
+      "contentMax": "layout/content/max",
+      "readingMax": "layout/reading/max"
+    },
+    "styles": {
+      "textNavigation": "S:d4c1f6c020b696643a23815c0209e0657bb10c56,",
+      "textPageTitle": "S:3800980465bb433d692c4df763dc72edcc5fd31a,",
+      "textStudyTitle": "S:838a1ec77ba2c8d7107f4f7437fff3cfa6a01c24,",
+      "textStudyBody": "S:2ed3e0cca402e5d7c6cdd94a58e13e2b9507410c,",
+      "textQuestion": "S:c37118894bc84f22f912ab1aeb91a9011dea1c5d,",
+      "textMetric": "S:ee4f5246f72aaa7b05da769613cde0436f6f409b,",
+      "textCaption": "S:7e51fac106bf7d2042f331a8b32d021c79cb443e,",
+      "elevationControl": "S:b2ca8c28233f9d24905ab25144f567e397a92d69,",
+      "elevationOverlay": "S:938476e0edb843693be5f4bd86447715a8737216,"
+    },
+    "frames": {
+      "wrapper": "83:2",
+      "principles": "83:3",
+      "archetypes": "83:4",
+      "responsiveNavigation": "83:5",
+      "foundations": "83:6",
+      "components": "83:7",
+      "screens": "83:8",
+      "homeDesktop": "90:5",
+      "questionsCatalog": "90:70",
+      "questionSession": "90:148",
+      "trailsJourney": "90:182",
+      "profileSettings": "90:248",
+      "mobileReferences": "90:323"
+    },
+    "components": {
+      "studyNextAction": "86:5",
+      "subjectIndexRow": "86:10",
+      "answerOption": "86:32",
+      "timelineStep": "86:45",
+      "settingsGroup": "86:46"
+    }
+  },
+  "pendingValidations": [],
+  "completedSteps": [
+    "phase0",
+    "phase1",
+    "phase2:area",
+    "phase3:components",
+    "phase3:screens",
+    "phase4:frontend",
+    "phase4:responsive-qa",
+    "phase4:automated-validation"
+  ]
+}

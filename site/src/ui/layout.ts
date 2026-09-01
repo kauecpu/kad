@@ -42,11 +42,20 @@ export function publicLayout(content: string, { simple = false, dark = false, ba
     </div>`;
 }
 
+function experienceArchetype(pathname: string): 'desk' | 'catalog' | 'session' | 'journey' | 'settings' {
+  if (/^\/(questoes\/(sessao|desafio)|simulados\/em-andamento|flashcards\/revisar)/.test(pathname)) return 'session';
+  if (/^\/(trilhas|ranking|perfil\/desempenho|questoes\/revisar|simulados\/resultado)/.test(pathname)) return 'journey';
+  if (pathname.startsWith('/perfil')) return 'settings';
+  if (/^\/(questoes|simulados|concursos|redacao|flashcards|biblioteca)/.test(pathname)) return 'catalog';
+  return 'desk';
+}
+
 export function appLayout(content: string, { pathname, title, subtitle, state, backendState }: { pathname: string; title: string; subtitle?: string; state: SiteState; backendState: BackendState }): string {
   const profile = state.profile;
   const dark = document.documentElement.dataset.theme === 'dark';
+  const experience = experienceArchetype(pathname);
   return `
-    <div class="app-shell${pathname.startsWith('/perfil') ? ' app-shell--profile' : ''}">
+    <div class="app-shell app-shell--${experience}${pathname.startsWith('/perfil') ? ' app-shell--profile' : ''}" data-study-environment="${experience}">
       <aside class="sidebar" id="main-navigation">
         <div class="sidebar__header">
           <a href="/inicio" data-route="/inicio" class="brand brand--sidebar" aria-label="KAD Concursos — início">

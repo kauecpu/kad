@@ -1,113 +1,96 @@
 import { getCatalog } from '../data/catalog.ts';
-import { escapeHtml, formatCount, formatCurrency, formatPercent, localDay, questionsPerformance } from '../core/utils.ts';
-import { badge, button, icon, progress, section, stat } from '../ui/components.ts';
+import { escapeHtml, formatCount, formatPercent, localDay, questionsPerformance } from '../core/utils.ts';
+import { badge, button, icon, progress, section, studyNextAction, studyPlanRow } from '../ui/components.ts';
 import type { SiteState, ViewModel } from '../types/domain.ts';
 
 export function homeView(state: SiteState): ViewModel {
   const catalog = getCatalog();
   const performance = questionsPerformance(state.answers);
-  const todayCount = (state.activityByDate[localDay()] ?? []).length;
   const weeklyAnswered = Object.values(state.activityByDate).slice(-7).flat().length;
   const weeklyProgress = Math.min(100, (weeklyAnswered / state.preferences.weeklyGoal) * 100);
+  const todayCount = (state.activityByDate[localDay()] ?? []).length;
   const firstName = state.profile.name.trim().split(/\s+/)[0] || 'Estudante';
   const savedFocus = catalog.concursos.find((item) => state.savedConcursos.includes(item.id));
   const focus = savedFocus ?? catalog.concursos.find((item) => item.status === 'aberto');
-  const hasStudyActivity = performance.total > 0;
   const recentAnswers = Object.values(state.answers)
     .sort((left, right) => right.answeredAt.localeCompare(left.answeredAt))
-    .slice(0, 4);
-
-  const actions = [
-    ['BookOpen', 'Questões', 'Pratique por disciplina e assunto', '/questoes', 'Explorar banco'],
-    ['Timer', 'Simulados', 'Treine tempo e estratégia de prova', '/simulados', 'Montar simulado'],
-    ['Compass', 'Trilhas', 'Siga uma sequência progressiva', '/trilhas', 'Ver trilhas'],
-  ];
-
-  const recent = recentAnswers.length
-    ? `<div class="home-activity-list">${recentAnswers.map((answer) => {
-        const question = catalog.questions.find((item) => item.id === answer.questionId);
-        return `<button class="list-row" type="button" data-action="open-question" data-question-id="${escapeHtml(answer.questionId)}"><span class="list-row__icon">${icon(answer.isCorrect ? 'CheckCircle2' : 'XCircle')}</span><span class="list-row__copy"><strong>${escapeHtml(question?.topic ?? answer.subject)}</strong><span>${answer.isCorrect ? 'Resposta correta' : 'Vale revisar esta questão'} · ${escapeHtml(question?.board ?? 'KAD')}</span></span>${icon('ChevronRight')}</button>`;
-      }).join('')}</div>`
-    : `<div class="home-empty">
-        <span class="home-empty__icon">${icon('BookOpen')}</span>
-        <div><h3>Seu histórico começa aqui</h3><p>Responda sua primeira questão para acompanhar sua evolução nesta página.</p></div>
-        ${button('Praticar agora', { route: '/questoes', variant: 'secondary' })}
-      </div>`;
-
-  const focusCard = focus
-    ? `<div class="home-contest">
-        <div class="contest-card__heading"><span class="contest-mark">${escapeHtml(focus.shortName)}</span><div class="question-meta">${savedFocus ? '' : badge('Sugestão', 'accent')}${badge(focus.status === 'aberto' ? 'Inscrições abertas' : 'Acompanhar', focus.status === 'aberto' ? 'success' : 'warning')}</div></div>
-        <div><h3>${escapeHtml(focus.title)}</h3><p class="contest-card__organ">${escapeHtml(focus.organ)} · ${escapeHtml(focus.state)}</p></div>
-        <dl class="home-contest__facts">
-          <div><dt>Vagas</dt><dd>${focus.vacancies.toLocaleString('pt-BR')}</dd></div>
-          <div><dt>Salário até</dt><dd>${formatCurrency(focus.salaryMax)}</dd></div>
-        </dl>
-        ${button(savedFocus ? 'Ver minha meta' : 'Conhecer concurso', { route: `/concursos/${focus.id}`, variant: 'secondary', className: 'full-width' })}
-      </div>`
-    : `<div class="home-contest home-contest--empty"><p>Salve um concurso para acompanhar sua meta e seus próximos passos.</p>${button('Explorar concursos', { route: '/concursos', variant: 'secondary' })}</div>`;
-
-  const studySummary = hasStudyActivity ? `
-      <section class="home-metrics" aria-label="Resumo da preparação">
-        ${stat(String(todayCount), 'Questões hoje', 'CheckCircle2', 'success')}
-        ${stat(`${weeklyAnswered}/${state.preferences.weeklyGoal}`, 'Meta semanal', 'Flag')}
-        ${stat(formatPercent(performance.accuracy), 'Taxa de acerto', 'TrendingUp', 'success')}
-        ${stat(String(state.favorites.length), 'Questões favoritas', 'Bookmark', 'warning')}
-      </section>` : '';
+    .slice(0, 3);
 
   const weeklyRemaining = Math.max(0, state.preferences.weeklyGoal - weeklyAnswered);
   const weeklyMessage = weeklyProgress >= 100
-    ? 'Meta concluída. Excelente constância!'
+    ? 'Meta concluída. Escolha uma revisão curta para manter o ritmo.'
     : weeklyAnswered
-      ? `${weeklyRemaining === 1 ? 'Falta' : 'Faltam'} ${formatCount(weeklyRemaining, 'questão', 'questões')} para concluir a meta.`
-      : 'Comece com uma questão e construa seu ritmo durante a semana.';
+      ? `${formatCount(weeklyRemaining, 'questão restante', 'questões restantes')} nesta semana.`
+      : 'Comece pequeno: uma sessão curta já coloca o plano em movimento.';
 
-  const nextStepDescription = performance.total
-    ? `Você já respondeu ${formatCount(performance.total, 'questão', 'questões')} e está com ${formatPercent(performance.accuracy)} de acerto. Continue de onde parou.`
-    : 'Escolha uma disciplina, responda no seu tempo e use o comentário do gabarito para aprender de verdade.';
+  const nextTitle = performance.total ? 'Continue praticando com o seu histórico.' : 'Comece com uma questão.';
+  const nextDescription = performance.total
+    ? `${formatCount(performance.total, 'questão respondida', 'questões respondidas')} · ${formatPercent(performance.accuracy)} de acerto`
+    : 'Escolha uma matéria, responda no seu tempo e aprenda com o comentário do gabarito.';
+
+  const todayPlan = [
+    studyPlanRow({
+      index: 1,
+      title: performance.wrong ? 'Revisar questões erradas' : 'Fazer a primeira revisão',
+      description: performance.wrong ? formatCount(performance.wrong, 'erro para revisar', 'erros para revisar') : 'Crie histórico para liberar sua fila de revisão',
+      route: performance.wrong ? '/questoes/revisar?tipo=erradas' : '/questoes',
+      status: performance.wrong ? 'current' : 'next',
+    }),
+    studyPlanRow({
+      index: 2,
+      title: 'Praticar uma matéria',
+      description: 'Sessão curta por disciplina e assunto',
+      route: '/questoes',
+      status: todayCount ? 'complete' : 'current',
+    }),
+    studyPlanRow({
+      index: 3,
+      title: focus ? `Avançar na preparação para ${focus.shortName}` : 'Definir um concurso-alvo',
+      description: focus ? `${focus.organ} · ${focus.state}` : 'Organize matérias e próximos passos',
+      route: focus ? `/concursos/${focus.id}` : '/concursos',
+    }),
+  ].join('');
+
+  const recent = recentAnswers.length
+    ? `<div class="study-history">${recentAnswers.map((answer) => {
+        const question = catalog.questions.find((item) => item.id === answer.questionId);
+        return `<button class="study-history__row" type="button" data-action="open-question" data-question-id="${escapeHtml(answer.questionId)}"><span class="study-history__status study-history__status--${answer.isCorrect ? 'success' : 'warning'}">${icon(answer.isCorrect ? 'Check' : 'RotateCcw')}</span><span><strong>${escapeHtml(question?.topic ?? answer.subject)}</strong><small>${answer.isCorrect ? 'Concluída' : 'Separada para revisão'} · ${escapeHtml(question?.board ?? 'KAD')}</small></span>${icon('ArrowRight')}</button>`;
+      }).join('')}</div>`
+    : `<div class="study-empty-line"><span>${icon('BookOpen')}</span><div><strong>Seu histórico começa na primeira resposta.</strong><p>Sem gráficos vazios: quando houver dados, eles aparecem aqui.</p></div></div>`;
 
   return {
     title: `Olá, ${firstName}`,
-    subtitle: state.profile.targetRole ? `Central KAD · ${state.profile.targetRole}` : 'Sua central de preparação',
-    content: `
-      <div class="home-dashboard">
-        <section class="home-intro" aria-labelledby="home-next-step">
-          <div class="home-intro__copy">
-            <p class="eyebrow">SEU PRÓXIMO PASSO</p>
-            <h2 id="home-next-step">${performance.total ? 'Continue transformando prática em confiança.' : 'Sua preparação começa com uma questão.'}</h2>
-            <p>${nextStepDescription}</p>
-            <div class="home-intro__actions">
-              ${button(performance.total ? 'Continuar praticando' : 'Responder primeira questão', { route: '/questoes', iconName: 'Play' })}
-              ${button('Montar um simulado', { route: '/simulados', variant: 'ghost', iconName: 'Timer' })}
-            </div>
-          </div>
-        </section>
+    subtitle: state.profile.targetRole || 'Seu ponto de continuidade',
+    content: `<div class="study-desk">
+      <div class="study-desk__continuity">
+        ${studyNextAction({
+          title: nextTitle,
+          description: nextDescription,
+          route: '/questoes',
+          actionLabel: performance.total ? 'Continuar estudo' : 'Responder primeira questão',
+          secondary: button('Montar simulado', { route: '/simulados', variant: 'ghost', iconName: 'Timer' }),
+        })}
+        <aside class="weekly-focus" aria-label="Meta da semana">
+          <p class="eyebrow">Meta da semana</p>
+          <div class="weekly-focus__value"><strong>${weeklyAnswered} de ${state.preferences.weeklyGoal}</strong><span>questões</span></div>
+          ${progress(weeklyProgress, `Meta semanal: ${weeklyAnswered} de ${state.preferences.weeklyGoal}`, weeklyProgress >= 100 ? 'success' : 'warning')}
+          <p>${weeklyMessage}</p>
+          ${button('Ajustar meta', { route: '/meta', variant: 'ghost', size: 'sm', iconName: 'Settings2' })}
+        </aside>
+      </div>
 
-        ${studySummary}
+      ${section('Um plano curto, em ordem', `<div class="study-plan">${todayPlan}</div>`, {
+        eyebrow: 'HOJE',
+        action: button('Buscar questões', { route: '/questoes/buscar', variant: 'ghost', size: 'sm', iconName: 'Search' }),
+      })}
 
-        <div class="home-workspace">
-          <div class="home-workspace__primary">
-            ${section('Praticar agora', `<div class="home-action-list">${actions.map(([iconName, title, description, route, callToAction]) => `<button type="button" class="home-action-row" data-route="${route}"><span class="home-action-row__icon">${icon(iconName)}</span><span class="home-action-row__copy"><strong>${title}</strong><span>${description}</span></span><span class="home-action-row__cta">${callToAction}${icon('ArrowRight')}</span></button>`).join('')}</div>`, { eyebrow: 'ESTUDO', action: button('Buscar questões', { route: '/questoes/buscar', variant: 'ghost', size: 'sm', iconName: 'Search' }) })}
-
-            <nav class="home-resource-links" aria-label="Outros recursos de estudo">
-              <span>Outros recursos</span>
-              <button type="button" data-route="/redacao">${icon('PenLine')}Redação</button>
-              <button type="button" data-route="/biblioteca">${icon('Library')}Biblioteca</button>
-              <button type="button" data-route="/questoes/desafio">${icon('Zap')}Desafio rápido</button>
-            </nav>
-
-            ${section('Atividade recente', recent, { action: recentAnswers.length ? button('Revisar respostas', { route: '/questoes/revisar?tipo=respondidas', variant: 'ghost', size: 'sm' }) : '' })}
-          </div>
-
-          <aside class="home-workspace__aside" aria-label="Resumo complementar">
-            ${section('Meta da semana', `<div class="home-weekly">
-              <div class="home-weekly__heading"><strong>${weeklyAnswered} de ${state.preferences.weeklyGoal}</strong><span>questões</span></div>
-              ${progress(weeklyProgress, `Meta semanal: ${weeklyAnswered} de ${state.preferences.weeklyGoal}`)}
-              <p>${weeklyMessage}</p>
-              ${button('Ajustar meta', { route: '/meta', variant: 'ghost', size: 'sm', iconName: 'Settings2' })}
-            </div>`, { eyebrow: 'SEU RITMO' })}
-            ${section(savedFocus ? 'Minha meta' : focus ? 'Concurso em destaque' : 'Defina sua meta', focusCard, { eyebrow: 'PRÓXIMO OBJETIVO' })}
-          </aside>
-        </div>
-      </div>`,
+      <div class="study-desk__lower">
+        ${section('Atividade recente', recent, { eyebrow: 'SEU HISTÓRICO' })}
+        <aside class="study-objective">
+          <p class="eyebrow">PRÓXIMO OBJETIVO</p>
+          ${focus ? `<div class="study-objective__heading"><strong>${escapeHtml(focus.shortName)}</strong>${savedFocus ? badge('Salvo', 'success') : badge('Sugestão', 'accent')}</div><h2>${escapeHtml(focus.title)}</h2><p>${escapeHtml(focus.organ)} · ${escapeHtml(focus.state)}</p>${button(savedFocus ? 'Ver minha meta' : 'Conhecer concurso', { route: `/concursos/${focus.id}`, variant: 'secondary' })}` : `<h2>Escolha uma direção</h2><p>Salve um concurso para organizar seu percurso.</p>${button('Explorar concursos', { route: '/concursos', variant: 'secondary' })}`}
+        </aside>
+      </div>
+    </div>`,
   };
 }
