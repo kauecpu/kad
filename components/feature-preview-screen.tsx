@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ListRow } from '@/components/ui/list-row';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { Section } from '@/components/ui/section';
 import { StackHeader } from '@/components/ui/stack-header';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Spacing } from '@/constants/theme';
@@ -25,6 +26,7 @@ type FeaturePreviewScreenProps = {
   color: string;
   statusLabel?: string;
   items: FeaturePreviewItem[];
+  onMenu?: () => void;
 };
 
 export function FeaturePreviewScreen({
@@ -35,6 +37,7 @@ export function FeaturePreviewScreen({
   color,
   statusLabel,
   items,
+  onMenu,
 }: FeaturePreviewScreenProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -42,7 +45,11 @@ export function FeaturePreviewScreen({
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <StackHeader title={title} onBack={() => router.back()} center />
+      {onMenu ? (
+        <ScreenHeader title={title} subtitle={subtitle} onMenu={onMenu} />
+      ) : (
+        <StackHeader title={title} onBack={() => router.back()} center />
+      )}
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xxxl }]}
         showsVerticalScrollIndicator={false}>

@@ -21,14 +21,15 @@ import { FeaturedCard } from '@/components/ui/featured-card';
 import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SearchField } from '@/components/ui/search-field';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { Section } from '@/components/ui/section';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
-import { StackHeader } from '@/components/ui/stack-header';
 import type { Tone } from '@/components/ui/tone';
 import { FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { DISCIPLINES } from '@/data/disciplines';
 import { CONCURSO_PACKS } from '@/data/exam-concursos';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { questionsForPack, recommendPackForGoal } from '@/lib/simulations';
 import {
   filterTrailTracks,
@@ -129,6 +130,7 @@ export default function TrailsScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const scrollRef = useRef<ScrollView>(null);
   const { session, isGuest } = useAuth();
   const { answers, profile } = useApp();
@@ -284,7 +286,7 @@ export default function TrailsScreen() {
   if (storageKey && hydratedStorageKey !== storageKey) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
-        <StackHeader title="Trilhas de estudo" onBack={() => router.back()} center />
+        <ScreenHeader title="Trilhas" subtitle="Sequências para orientar seu estudo" onMenu={openMenu} />
         <View style={styles.loading}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -309,7 +311,7 @@ export default function TrailsScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <StackHeader title="Trilhas de estudo" onBack={() => router.back()} center />
+      <ScreenHeader title="Trilhas" subtitle="Sequências para orientar seu estudo" onMenu={openMenu} />
 
       <ScrollView
         ref={scrollRef}

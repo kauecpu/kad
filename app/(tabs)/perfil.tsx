@@ -13,6 +13,7 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { formatDate, formatPercent } from '@/lib/format';
 import { profileHeroAction } from '@/lib/profile-presentation';
 import { createDeferredThemeCommitter } from '@/lib/theme-responsiveness';
@@ -99,6 +100,7 @@ export default function PerfilScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const {
     profile,
     subscription,
@@ -218,8 +220,7 @@ export default function PerfilScreen() {
       <ScreenHeader
         title="Meu KAD"
         subtitle="Conta, plano e preferências"
-        onBack={() => router.back()}
-        backLabel="Voltar"
+        onMenu={openMenu}
       />
 
       <ScrollView

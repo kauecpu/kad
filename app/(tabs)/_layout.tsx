@@ -34,8 +34,14 @@ export default function MainLayout() {
       <Drawer.Screen name="questoes" options={{ title: 'Questões' }} />
       <Drawer.Screen name="concursos" options={{ title: 'Concursos' }} />
       <Drawer.Screen name="simulados" options={{ title: 'Simulados' }} />
+      <Drawer.Screen name="ranking" options={{ title: 'Ranking' }} />
+      <Drawer.Screen name="trilhas" options={{ title: 'Trilhas' }} />
+      <Drawer.Screen name="redacao" options={{ title: 'Redação' }} />
+      <Drawer.Screen name="biblioteca" options={{ title: 'Biblioteca' }} />
+      <Drawer.Screen name="flashcards" options={{ title: 'Flashcards' }} />
+      <Drawer.Screen name="perfil" options={{ title: 'Perfil' }} />
       <Drawer.Screen name="explorar" options={{ title: 'Explorar' }} />
-      <Drawer.Screen name="rank" options={{ title: 'Ranking' }} />
+      <Drawer.Screen name="rank" options={{ title: 'Ranking antigo' }} />
     </Drawer>
   );
 }

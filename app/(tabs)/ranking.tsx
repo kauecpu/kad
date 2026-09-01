@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   Pressable,
@@ -14,10 +13,11 @@ import Ionicons from '@/components/ui/app-icon';
 import { Chip } from '@/components/ui/chip';
 import { FeaturedCard } from '@/components/ui/featured-card';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
-import { StackHeader } from '@/components/ui/stack-header';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { cardShadow, CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
 import { RANKING_PARTICIPANTS, type RankingPeriod } from '@/data/ranking';
 import { useTheme } from '@/hooks/use-theme';
+import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
 import { buildRanking, localRankingScore, type RankingEntry } from '@/lib/ranking';
 import { useApp } from '@/providers/app-provider';
 import { useQuestions } from '@/providers/questions-provider';
@@ -44,7 +44,7 @@ export default function RankingScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const openMenu = useOpenAppDrawer();
   const { answers, profile } = useApp();
   const { questions, packs } = useQuestions();
   const [period, setPeriod] = useState<RankingPeriod>('today');
@@ -88,10 +88,10 @@ export default function RankingScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <StackHeader
+      <ScreenHeader
         title="Ranking"
         subtitle="Sua constância também merece destaque"
-        onBack={() => router.back()}
+        onMenu={openMenu}
         right={(
           <Pressable
             onPress={() => setRulesExpanded((current) => !current)}
