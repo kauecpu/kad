@@ -73,9 +73,16 @@ export function libraryView(): ViewModel {
     title: 'Biblioteca',
     subtitle: 'Conteúdo para revisar',
     content: `
-      ${stackHeader('Biblioteca', 'Conteúdo para revisar')}
+      ${workspaceHero({
+        id: 'library-overview',
+        eyebrow: 'BIBLIOTECA KAD',
+        title: 'Revise o que já está disponível.',
+        description: 'Flashcards são o recurso ativo da biblioteca. Os demais formatos continuam identificados como etapas futuras.',
+        actions: button('Abrir flashcards', { route: '/flashcards', iconName: 'Layers3' }),
+      })}
+      ${section('Disponível agora', `<button class="library-primary" type="button" data-route="/flashcards"><span class="library-primary__icon">${icon('Layers3')}</span><span><strong>Flashcards</strong><small>Crie baralhos e revise agora</small></span>${icon('ArrowRight')}</button>`, { eyebrow: 'REVISÃO ATIVA' })}
       <section class="notice-panel" aria-labelledby="library-status"><div class="notice-panel__heading"><span class="empty-state__icon">${icon('Library')}</span>${badge('Em construção', 'warning', 'Clock3')}</div><h2 id="library-status">Sua biblioteca cresce por etapas.</h2><p>Os flashcards já estão disponíveis e sincronizam com o aplicativo. Audiobooks e anotações serão conectados quando houver conteúdo correspondente no backend.</p></section>
-      <div class="action-grid"><div class="action-card"><span class="action-card__icon">${icon('Headphones')}</span><div><h3>Audiobooks</h3><p>Conteúdo ainda não publicado.</p></div></div><div class="action-card"><span class="action-card__icon">${icon('StickyNote')}</span><div><h3>Anotações</h3><p>Integração prevista para uma próxima etapa.</p></div></div><button class="action-card" type="button" data-route="/flashcards"><span class="action-card__icon">${icon('Layers3')}</span><div><h3>Flashcards</h3><p>Crie baralhos e revise agora</p></div>${icon('ChevronRight')}</button></div>
+      <div class="action-grid library-coming-soon"><div class="action-card"><span class="action-card__icon">${icon('Headphones')}</span><div><h3>Audiobooks</h3><p>Conteúdo ainda não publicado.</p></div></div><div class="action-card"><span class="action-card__icon">${icon('StickyNote')}</span><div><h3>Anotações</h3><p>Integração prevista para uma próxima etapa.</p></div></div></div>
     `,
   };
 }

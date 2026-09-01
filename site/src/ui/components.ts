@@ -96,8 +96,8 @@ export function workspaceHero({ id, eyebrow, title, description, actions = '' }:
       <p class="eyebrow">${escapeHtml(eyebrow)}</p>
       <h2 id="${escapeHtml(id)}">${escapeHtml(title)}</h2>
       <p>${escapeHtml(description)}</p>
-      ${actions ? `<div class="workspace-hero__actions">${actions}</div>` : ''}
     </div>
+    ${actions ? `<div class="workspace-hero__actions">${actions}</div>` : ''}
   </section>`;
 }
 
