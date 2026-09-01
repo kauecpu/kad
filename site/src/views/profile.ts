@@ -1,5 +1,5 @@
 import { getCatalog } from '../data/catalog.ts';
-import { escapeHtml, formatPercent, formatTimer, groupPerformance, normalizeText, questionsPerformance } from '../core/utils.ts';
+import { escapeHtml, formatCount, formatPercent, formatTimer, groupPerformance, normalizeText, questionsPerformance } from '../core/utils.ts';
 import { avatar, badge, button, card, emptyState, icon, metricRing, passwordField, progress, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
 import type { SiteState, ViewModel } from '../types/domain.ts';
@@ -35,7 +35,7 @@ export function essayView(state: SiteState, params: ViewParams = {}): ViewModel 
         ${stackHeader('Prática de redação', topic.title)}
         <div class="toolbar"><div class="question-meta">${badge(topic.difficulty, 'accent')}${badge(`${topic.suggestedMinutes} min`, 'neutral', 'Clock3')}${badge(topic.lineRange)}</div><span class="badge badge--accent">${icon('Clock3')} <span data-essay-timer>${formatTimer(draft.elapsedSeconds)}</span></span></div>
         <div class="essay-layout">
-          ${card(`<div class="essay-editor"><div class="toolbar"><p class="eyebrow">SUA REDAÇÃO</p><span class="muted" data-word-count>${wordCount} palavras</span></div><label class="sr-only" for="essay-content">Texto da redação</label><textarea id="essay-content" class="textarea" data-essay-input data-topic-id="${topic.id}" placeholder="Comece a escrever aqui...">${escapeHtml(draft.content)}</textarea><div class="study-controls"><span class="muted">${state.auth.mode === 'authenticated' ? 'Rascunho sincronizado com sua conta KAD.' : 'Rascunho salvo neste navegador.'}</span>${button('Concluir prática', { route: `/redacao?topic=${topic.id}&stage=review`, iconName: 'CheckCircle2' })}</div></div>`)}
+          ${card(`<div class="essay-editor"><div class="toolbar"><p class="eyebrow">SUA REDAÇÃO</p><span class="muted" data-word-count>${formatCount(wordCount, 'palavra', 'palavras')}</span></div><label class="sr-only" for="essay-content">Texto da redação</label><textarea id="essay-content" class="textarea" data-essay-input data-topic-id="${topic.id}" placeholder="Comece a escrever aqui...">${escapeHtml(draft.content)}</textarea><div class="study-controls"><span class="muted">${state.auth.mode === 'authenticated' ? 'Rascunho sincronizado com sua conta KAD.' : 'Rascunho salvo neste navegador.'}</span>${button('Concluir prática', { route: `/redacao?topic=${topic.id}&stage=review`, iconName: 'CheckCircle2' })}</div></div>`)}
           <aside class="dashboard-aside">${card(`<div class="essay-prompt"><p class="eyebrow">PROPOSTA</p><h2>${escapeHtml(topic.title)}</h2><p>${escapeHtml(topic.context)}</p><hr class="divider" /><strong>Comando</strong><p>${escapeHtml(topic.command)}</p></div>`)}${card(`<div class="detail-panel"><p class="eyebrow">CRITÉRIOS</p><ul class="benefit-list">${topic.criteria.map((item) => `<li>${icon('Check')}${escapeHtml(item)}</li>`).join('')}</ul></div>`)}</aside>
         </div>`,
     };
@@ -85,13 +85,13 @@ export function profileView(state: SiteState): ViewModel {
   const performance = questionsPerformance(state.answers);
   const settings = [
     ['Target', 'Minha meta', state.profile.targetRole || 'Definir cargo ou área', '/meta'],
-    ['BarChart3', 'Desempenho', `${performance.total} questões respondidas`, '/perfil/desempenho'],
-    ['Bookmark', 'Concursos salvos', `${state.savedConcursos.length} oportunidades`, '/concursos/salvos'],
+    ['BarChart3', 'Desempenho', formatCount(performance.total, 'questão respondida', 'questões respondidas'), '/perfil/desempenho'],
+    ['Bookmark', 'Concursos salvos', formatCount(state.savedConcursos.length, 'oportunidade', 'oportunidades'), '/concursos/salvos'],
     ['Crown', 'Plano e acesso', state.subscription.plan === 'diamond' ? 'KAD Diamond' : 'Plano Básico', '/perfil/planos'],
   ];
   return {
     title: 'Meu KAD',
-    subtitle: 'Dossiê do candidato',
+    subtitle: state.auth.mode === 'authenticated' ? 'Dossiê do candidato' : 'Dados salvos neste navegador',
     content: `
       ${card(`<div class="profile-hero">${avatar(state.profile.name, 'md', state.profile.avatarUri)}<div class="profile-hero__copy"><div class="question-meta">${badge(state.auth.mode === 'authenticated' ? 'Conta sincronizada' : 'Modo visitante', state.auth.mode === 'authenticated' ? 'success' : 'warning')}${badge(state.subscription.plan === 'diamond' ? 'Diamond' : 'Básico', 'accent')}</div><h2>${escapeHtml(state.profile.name)}</h2><p>${escapeHtml(state.profile.email || state.profile.username || 'Seus dados estão salvos neste navegador')}</p></div>${button('Editar perfil', { route: '/perfil/editar', variant: 'secondary', iconName: 'Settings' })}</div>`)}
       <div class="settings-grid">
@@ -100,7 +100,7 @@ export function profileView(state: SiteState): ViewModel {
         ${card(`<div class="settings-card__header"><p class="eyebrow">03</p><h2>Preferências</h2></div><div class="list"><button class="list-row" type="button" data-action="toggle-theme"><span class="list-row__icon">${icon('Sun')}</span><span class="list-row__copy"><strong>Aparência</strong><span>Alternar entre tema claro e escuro</span></span>${icon('ChevronRight')}</button><button class="list-row" type="button" data-route="/perfil/feedback"><span class="list-row__icon">${icon('MessageCircle')}</span><span class="list-row__copy"><strong>Fale com o KAD</strong><span>Envie sugestões e comentários</span></span>${icon('ChevronRight')}</button></div>`, 'settings-card')}
         ${card(`<div class="settings-card__header"><p class="eyebrow">04</p><h2>Conta e privacidade</h2></div><div class="list"><button class="list-row" type="button" data-route="/perfil/senha"><span class="list-row__icon">${icon('KeyRound')}</span><span class="list-row__copy"><strong>Alterar senha</strong><span>${state.auth.mode === 'authenticated' ? 'Atualize seu acesso' : 'Disponível para contas conectadas'}</span></span>${icon('ChevronRight')}</button><button class="list-row" type="button" data-action="sign-out"><span class="list-row__icon">${icon('LogOut')}</span><span class="list-row__copy"><strong>${state.auth.mode === 'authenticated' ? 'Sair da conta' : 'Encerrar modo visitante'}</strong><span>Voltar à página inicial</span></span>${icon('ChevronRight')}</button><button class="list-row" type="button" data-route="/perfil/excluir"><span class="list-row__icon">${icon('Trash2')}</span><span class="list-row__copy"><strong>${state.auth.mode === 'authenticated' ? 'Excluir conta' : 'Apagar dados deste navegador'}</strong><span>Esta ação exige confirmação</span></span>${icon('ChevronRight')}</button></div>`, 'settings-card')}
       </div>
-      <div class="toolbar__group"><a class="text-link" href="/termos" data-route="/termos">Termos de Uso</a><span class="subtle">·</span><a class="text-link" href="/privacidade" data-route="/privacidade">Política de Privacidade</a></div>
+      <div class="toolbar__group profile-legal-links"><a class="text-link" href="/termos" data-route="/termos">Termos de Uso</a><span class="subtle" aria-hidden="true">·</span><a class="text-link" href="/privacidade" data-route="/privacidade">Política de Privacidade</a></div>
     `,
   };
 }
@@ -111,12 +111,12 @@ export function performanceView(state: SiteState): ViewModel {
   const grouped = groupPerformance(questions, state.answers);
   return {
     title: 'Desempenho',
-    subtitle: `${performance.total} questões respondidas`,
+    subtitle: formatCount(performance.total, 'questão respondida', 'questões respondidas'),
     content: `
-      ${stackHeader('Desempenho', `${performance.total} questões respondidas`)}
-      ${card(`<div class="result-hero"><div class="result-hero__copy"><p class="eyebrow">VISÃO GERAL</p><h2>${performance.total ? 'Seu estudo em números.' : 'Seu desempenho aparecerá aqui.'}</h2><p>${performance.total ? `${performance.correct} acertos e ${performance.wrong} erros registrados no banco de questões.` : 'Responda questões para começar a acompanhar acertos, erros e evolução por matéria.'}</p>${!performance.total ? button('Responder questões', { route: '/questoes', iconName: 'Play' }) : ''}</div>${metricRing(performance.accuracy, 'taxa de acerto')}</div>`)}
+      ${stackHeader('Desempenho', formatCount(performance.total, 'questão respondida', 'questões respondidas'))}
+      ${card(`<div class="result-hero"><div class="result-hero__copy"><p class="eyebrow">VISÃO GERAL</p><h2>${performance.total ? 'Seu estudo em números.' : 'Seu desempenho aparecerá aqui.'}</h2><p>${performance.total ? `${formatCount(performance.correct, 'acerto', 'acertos')} e ${formatCount(performance.wrong, 'erro registrado', 'erros registrados')} no banco de questões.` : 'Responda questões para começar a acompanhar acertos, erros e evolução por matéria.'}</p>${!performance.total ? button('Responder questões', { route: '/questoes', iconName: 'Play' }) : ''}</div>${metricRing(performance.accuracy, 'taxa de acerto')}</div>`)}
       <section class="home-metrics page-metrics" aria-label="Resumo do desempenho">${stat(String(performance.total), 'Questões respondidas', 'BookOpen')}${stat(String(performance.correct), 'Acertos', 'CheckCircle2', 'success')}${stat(String(performance.wrong), 'Erros', 'XCircle', 'danger')}${stat(String(state.favorites.length), 'Favoritas', 'Bookmark', 'warning')}</section>
-      ${section('Revisar questões', `<div class="action-grid"><button class="action-card" type="button" data-route="/questoes/revisar?tipo=favoritas"><span class="action-card__icon">${icon('Bookmark')}</span><div><h3>Favoritas</h3><p>${state.favorites.length} questões</p></div></button><button class="action-card" type="button" data-route="/questoes/revisar?tipo=acertadas"><span class="action-card__icon">${icon('CheckCircle2')}</span><div><h3>Acertadas</h3><p>${performance.correct} questões</p></div></button><button class="action-card" type="button" data-route="/questoes/revisar?tipo=erradas"><span class="action-card__icon">${icon('RotateCcw')}</span><div><h3>Erradas</h3><p>${performance.wrong} questões</p></div></button></div>`)}
+      ${section('Revisar questões', `<div class="action-grid"><button class="action-card" type="button" data-route="/questoes/revisar?tipo=favoritas"><span class="action-card__icon">${icon('Bookmark')}</span><div><h3>Favoritas</h3><p>${formatCount(state.favorites.length, 'questão', 'questões')}</p></div></button><button class="action-card" type="button" data-route="/questoes/revisar?tipo=acertadas"><span class="action-card__icon">${icon('CheckCircle2')}</span><div><h3>Acertadas</h3><p>${formatCount(performance.correct, 'questão', 'questões')}</p></div></button><button class="action-card" type="button" data-route="/questoes/revisar?tipo=erradas"><span class="action-card__icon">${icon('RotateCcw')}</span><div><h3>Erradas</h3><p>${formatCount(performance.wrong, 'questão', 'questões')}</p></div></button></div>`)}
       ${section('Por matéria', grouped.length ? card(`<div class="performance-bars">${grouped.map((item) => `<div class="performance-row"><strong>${escapeHtml(item.name)}</strong>${progress(item.accuracy, `Acerto em ${item.name}`)}<span>${formatPercent(item.accuracy)}</span></div>`).join('')}</div>`) : emptyState('Sem dados por matéria', 'Seu desempenho será agrupado conforme você responder questões.'))}
     `,
   };
@@ -154,7 +154,7 @@ export function plansView(state: SiteState, params: ViewParams = {}): ViewModel 
 export function feedbackView(state: SiteState): ViewModel {
   return {
     title: 'Fale com o KAD',
-    content: `${stackHeader('Fale com o KAD', 'Ajude a construir uma experiência melhor')}<div class="form-page">${card(`<form class="form-stack" data-form="feedback"><div class="field"><label for="feedback-kind">Assunto</label><select class="select" id="feedback-kind" name="kind"><option value="suggestion">Sugestão</option><option value="problem">Problema</option><option value="question">Dúvida</option></select></div><div class="field"><label for="feedback-message">Comentário</label><textarea class="textarea" id="feedback-message" name="message" minlength="3" maxlength="1200" placeholder="Conte o que podemos melhorar" required></textarea><small>Não inclua senhas nem dados sensíveis.</small></div><p class="form-message" data-form-message>${state.feedback.length ? `${state.feedback.length} comentário(s) salvo(s) neste navegador.` : ''}</p>${button('Enviar para o KAD', { type: 'submit', iconName: 'Send' })}</form>`, 'form-panel')}</div>`,
+    content: `${stackHeader('Fale com o KAD', 'Ajude a construir uma experiência melhor')}<div class="form-page">${card(`<form class="form-stack" data-form="feedback"><div class="field"><label for="feedback-kind">Assunto</label><select class="select" id="feedback-kind" name="kind"><option value="suggestion">Sugestão</option><option value="problem">Problema</option><option value="question">Dúvida</option></select></div><div class="field"><label for="feedback-message">Comentário</label><textarea class="textarea" id="feedback-message" name="message" minlength="3" maxlength="1200" placeholder="Conte o que podemos melhorar" required></textarea><small>Não inclua senhas nem dados sensíveis.</small></div><p class="form-message" data-form-message>${state.feedback.length ? `${formatCount(state.feedback.length, 'comentário salvo', 'comentários salvos')} neste navegador.` : ''}</p>${button('Enviar para o KAD', { type: 'submit', iconName: 'Send' })}</form>`, 'form-panel')}</div>`,
   };
 }
 

@@ -1,5 +1,5 @@
 import { dueCards, filterFlashcards } from '../core/flashcards.ts';
-import { escapeHtml } from '../core/utils.ts';
+import { escapeHtml, formatCount } from '../core/utils.ts';
 import { badge, button, card, emptyState, icon, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
 import type { Flashcard, FlashcardDeck, SiteState, UiState, ViewModel } from '../types/domain.ts';
@@ -35,7 +35,7 @@ function flashcardRow(cardItem: Flashcard, decks: FlashcardDeck[]): string {
 function deckRow(deck: FlashcardDeck): string {
   return `<article class="deck-row" style="--deck-color:${escapeHtml(deck.color ?? '#6d28d9')}">
     <span class="deck-row__mark" aria-hidden="true"></span>
-    <div class="deck-row__copy"><strong>${escapeHtml(deck.name)}</strong><span>${deck.cardCount} ${deck.cardCount === 1 ? 'cartão ativo' : 'cartões ativos'}${deck.description ? ` · ${escapeHtml(deck.description)}` : ''}</span></div>
+    <div class="deck-row__copy"><strong>${escapeHtml(deck.name)}</strong><span>${formatCount(deck.cardCount, 'cartão ativo', 'cartões ativos')}${deck.description ? ` · ${escapeHtml(deck.description)}` : ''}</span></div>
     ${badge(deck.archivedAt ? 'Arquivado' : 'Ativo', deck.archivedAt ? 'warning' : 'success')}
     <div class="deck-row__actions">
       ${button('Editar', { route: `/flashcards/baralho/${encodeURIComponent(deck.id)}`, variant: 'ghost', size: 'sm', iconName: 'Pencil' })}
@@ -58,7 +58,7 @@ export function flashcardsView(state: SiteState, params: ViewParams = {}): ViewM
   const canCreateCard = activeDecks.length > 0;
   return {
     title: 'Flashcards',
-    subtitle: `${due.length} ${due.length === 1 ? 'revisão pendente' : 'revisões pendentes'}`,
+    subtitle: formatCount(due.length, 'revisão pendente', 'revisões pendentes'),
     content: `
       ${workspaceHero({
         id: 'flashcards-overview',
@@ -67,7 +67,7 @@ export function flashcardsView(state: SiteState, params: ViewParams = {}): ViewM
         description: state.auth.mode === 'authenticated'
           ? 'Seus baralhos, cartões e revisões acompanham a mesma conta usada no aplicativo.'
           : 'No modo visitante, seus flashcards ficam somente neste navegador.',
-        actions: `${button(due.length ? `Revisar ${due.length} agora` : 'Revisões em dia', { route: '/flashcards/revisar', disabled: !due.length, iconName: 'Brain' })}${button('Novo cartão', { action: 'focus-new-flashcard', variant: 'secondary', iconName: 'Plus' })}`,
+        actions: `${button(due.length ? `Revisar ${formatCount(due.length, 'cartão', 'cartões')}` : 'Revisões em dia', { route: '/flashcards/revisar', disabled: !due.length, iconName: 'Brain' })}${button('Novo cartão', { action: 'focus-new-flashcard', variant: 'secondary', iconName: 'Plus' })}`,
       })}
       <section class="home-metrics page-metrics" aria-label="Resumo dos flashcards">
         ${stat(String(activeDecks.length), 'Baralhos ativos', 'Layers3')}
@@ -83,7 +83,7 @@ export function flashcardsView(state: SiteState, params: ViewParams = {}): ViewM
             <div class="field"><label for="flashcard-state-filter">Situação</label><select class="select" id="flashcard-state-filter" name="state"><option value="active" ${filterState === 'active' ? 'selected' : ''}>Ativos</option><option value="archived" ${filterState === 'archived' ? 'selected' : ''}>Arquivados</option><option value="all" ${filterState === 'all' ? 'selected' : ''}>Todos</option></select></div>
             ${button('Filtrar', { type: 'submit', iconName: 'Filter' })}
           </form>
-          <div class="toolbar"><div><p class="eyebrow">SEUS CARTÕES</p><h2 id="flashcard-list-title">${filtered.length} ${filtered.length === 1 ? 'cartão' : 'cartões'}</h2></div></div>
+          <div class="toolbar"><div><p class="eyebrow">SEUS CARTÕES</p><h2 id="flashcard-list-title">${formatCount(filtered.length, 'cartão', 'cartões')}</h2></div></div>
           ${filtered.length ? `<div class="flashcard-list">${filtered.map((item) => flashcardRow(item, decks)).join('')}</div>` : emptyState('Nenhum cartão encontrado', canCreateCard ? 'Crie um cartão ou ajuste os filtros para continuar.' : 'Crie primeiro um baralho para organizar seus cartões.', { action: canCreateCard ? 'focus-new-flashcard' : 'focus-new-deck', actionLabel: canCreateCard ? 'Criar cartão' : 'Criar baralho', iconName: 'Layers3' })}
         </section>
         <aside class="flashcard-workspace__aside">
@@ -109,11 +109,11 @@ export function flashcardReviewView(state: SiteState, ui: Pick<UiState, 'flashca
   const revealed = ui.flashcardRevealId === current.id;
   return {
     title: 'Revisar flashcards',
-    subtitle: `${queue.length} ${queue.length === 1 ? 'cartão restante' : 'cartões restantes'}`,
+    subtitle: formatCount(queue.length, 'cartão restante', 'cartões restantes'),
     content: `
       ${stackHeader('Revisar flashcards', deckLabel(deck))}
       <div class="review-session">
-        <div class="review-session__progress"><span>${queue.length} restantes</span><span>${state.flashcards.reviews.length} revisões registradas</span></div>
+        <div class="review-session__progress"><span>${formatCount(queue.length, 'cartão restante', 'cartões restantes')}</span><span>${formatCount(state.flashcards.reviews.length, 'revisão registrada', 'revisões registradas')}</span></div>
         <article class="review-card ${revealed ? 'is-revealed' : ''}" aria-live="polite">
           <div class="review-card__face"><p class="eyebrow">FRENTE</p><h2>${escapeHtml(current.front)}</h2>${current.tags.length ? `<div class="question-meta">${current.tags.map((tag) => badge(`#${tag}`)).join('')}</div>` : ''}</div>
           ${revealed ? `<div class="review-card__answer"><p class="eyebrow">VERSO</p><p>${escapeHtml(current.back)}</p></div>` : ''}
@@ -138,6 +138,6 @@ export function flashcardDeckEditorView(state: SiteState, deckId: string): ViewM
   if (!current) return { title: 'Editar baralho', content: `${stackHeader('Editar baralho')}${emptyState('Baralho não encontrado', 'Ele pode ter sido excluído em outro dispositivo.', { route: '/flashcards', actionLabel: 'Voltar aos flashcards' })}` };
   return {
     title: 'Editar baralho',
-    content: `${stackHeader('Editar baralho', `${current.cardCount} cartões ativos`)}<div class="form-page">${card(`<form class="form-stack" data-form="flashcard-deck-edit" data-deck-id="${escapeHtml(current.id)}"><div class="field"><label for="edit-deck-name">Nome</label><input class="input" id="edit-deck-name" name="name" maxlength="120" value="${escapeHtml(current.name)}" required /></div><div class="field"><label for="edit-deck-description">Descrição</label><input class="input" id="edit-deck-description" name="description" maxlength="240" value="${escapeHtml(current.description ?? '')}" /></div><div class="field field--color"><label for="edit-deck-color">Cor</label><input id="edit-deck-color" name="color" type="color" value="${escapeHtml(current.color ?? '#6d28d9')}" /></div><p class="form-message" data-form-message></p>${button('Salvar alterações', { type: 'submit', iconName: 'Save' })}</form>`, 'form-panel')}</div>`,
+    content: `${stackHeader('Editar baralho', formatCount(current.cardCount, 'cartão ativo', 'cartões ativos'))}<div class="form-page">${card(`<form class="form-stack" data-form="flashcard-deck-edit" data-deck-id="${escapeHtml(current.id)}"><div class="field"><label for="edit-deck-name">Nome</label><input class="input" id="edit-deck-name" name="name" maxlength="120" value="${escapeHtml(current.name)}" required /></div><div class="field"><label for="edit-deck-description">Descrição</label><input class="input" id="edit-deck-description" name="description" maxlength="240" value="${escapeHtml(current.description ?? '')}" /></div><div class="field field--color"><label for="edit-deck-color">Cor</label><input id="edit-deck-color" name="color" type="color" value="${escapeHtml(current.color ?? '#6d28d9')}" /></div><p class="form-message" data-form-message></p>${button('Salvar alterações', { type: 'submit', iconName: 'Save' })}</form>`, 'form-panel')}</div>`,
   };
 }

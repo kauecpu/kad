@@ -11,10 +11,12 @@ import { parseRecoveryCallback } from '../src/core/auth-callback.ts';
 import { createCard, createDeck, dueCards, mergeFlashcardStates, scheduleReview } from '../src/core/flashcards.ts';
 import { createPasswordSecurity } from '../src/core/password-security.ts';
 import { mergeEssayDocuments, mergeSimulationSessions, nextSyncTimestamp } from '../src/core/user-sync.ts';
-import { filterQuestions, matchesPack, questionsPerformance } from '../src/core/utils.ts';
+import { filterQuestions, formatCount, matchesPack, questionsPerformance } from '../src/core/utils.ts';
 import { matchRoute, shouldOpenStudyHome } from '../src/core/router.ts';
 import { questionSessionView, questionsIndexView } from '../src/views/questions.ts';
 import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.ts';
+import { profileView } from '../src/views/profile.ts';
+import { stackHeader } from '../src/ui/layout.ts';
 import { getCatalog } from '../src/data/catalog.ts';
 import type { StorageLike } from '../src/types/domain.ts';
 
@@ -39,6 +41,25 @@ test('estado local registra resposta, atividade e restaura dados persistidos', (
   assert.equal(restored.answers[question.id].isCorrect, true);
   assert.equal(questionsPerformance(restored.answers).accuracy, 100);
   assert.ok(Object.values(restored.activityByDate).flat().includes(question.id));
+});
+
+test('contagens usam singular somente para uma unidade', () => {
+  assert.equal(formatCount(0, 'questão', 'questões'), '0 questões');
+  assert.equal(formatCount(1, 'questão', 'questões'), '1 questão');
+  assert.equal(formatCount(2, 'questão', 'questões'), '2 questões');
+  assert.equal(formatCount(Number.NaN, 'item', 'itens'), '0 itens');
+});
+
+test('páginas internas mantêm um único título e explicam o modo visitante', () => {
+  const contextualNavigation = stackHeader('Desempenho', '0 questões respondidas');
+  assert.doesNotMatch(contextualNavigation, /<h[1-6]/);
+  assert.match(contextualNavigation, /aria-label="Voltar de Desempenho"/);
+  assert.match(contextualNavigation, /stack-header__context/);
+
+  const visitor = createStore(memoryStorage()).getState();
+  assert.equal(profileView(visitor).subtitle, 'Dados salvos neste navegador');
+  visitor.auth = { mode: 'authenticated', userId: 'user-a' };
+  assert.equal(profileView(visitor).subtitle, 'Dossiê do candidato');
 });
 test('busca combina palavra-chave, disciplina e pacote sem misturar escopos', () => {
   const { questions, packs } = getCatalog();
