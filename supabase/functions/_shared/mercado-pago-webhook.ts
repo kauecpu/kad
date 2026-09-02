@@ -6,6 +6,13 @@ export type MercadoPagoWebhookBody = {
   data?: { id?: string | number };
 };
 
+const SUPPORTED_EVENT_TYPES = new Set([
+  'subscription_preapproval',
+  'subscription_authorized_payment',
+  'payment',
+  'topic_chargebacks_wh',
+]);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -47,6 +54,11 @@ export function webhookEnvironmentMatches(
 ): boolean {
   if (configuredLiveMode !== 'true' && configuredLiveMode !== 'false') return false;
   return eventLiveMode === (configuredLiveMode === 'true');
+}
+
+/** Eventos válidos, assinados, mas fora do contrato do KAD são ignorados sem gerar retentativas. */
+export function isSupportedMercadoPagoEventType(value: string): boolean {
+  return SUPPORTED_EVENT_TYPES.has(value);
 }
 
 export function checkoutMatchesProviderSubscription(

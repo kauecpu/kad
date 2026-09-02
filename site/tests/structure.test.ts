@@ -72,17 +72,19 @@ test('integrações web reutilizam RPCs seguras e apenas a chave pública', asyn
 });
 
 test('retorno do Mercado Pago mostra estados finais sem confiar na URL', async () => {
-  const [main, profile, service] = await Promise.all([
+  const [main, payment, service] = await Promise.all([
     source('src/main.ts'),
-    source('src/views/profile.ts'),
+    source('src/core/payment.ts'),
     source('src/services/supabase.ts'),
   ]);
   assert.match(main, /loadRemoteCheckoutStatus\(checkoutId\)/);
+  assert.match(main, /reconcileRemoteCheckout\(checkoutId\)/);
+  assert.match(main, /store\.getState\(\)\.auth\.userId === userId/);
   assert.match(main, /checkout\?\.status === 'approved'/);
   assert.match(main, /\['failed', 'canceled', 'expired'\]/);
-  assert.match(profile, /Pagamento confirmado/);
-  assert.match(profile, /Pagamento não aprovado/);
-  assert.match(profile, /Checkout expirado/);
+  assert.match(payment, /Pagamento confirmado/);
+  assert.match(payment, /Pagamento não aprovado/);
+  assert.match(payment, /Checkout expirado/);
   assert.match(service, /context\.clone\(\)\.json\(\)/);
   assert.doesNotMatch(service, /service_role|SUPABASE_SERVICE/);
 });

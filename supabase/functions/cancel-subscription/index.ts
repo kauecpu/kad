@@ -1,6 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { mercadoPagoRequest } from '../_shared/mercado-pago.ts';
+import { classifyCheckoutFailure } from '../_shared/payment-checkout.ts';
+import { logPaymentFailure } from '../_shared/payment-observability.ts';
 import {
   corsHeaders,
   jsonResponse,
@@ -8,6 +10,7 @@ import {
 } from '../_shared/http.ts';
 
 Deno.serve(async (request) => {
+  const requestStartedAt = Date.now();
   const origin = request.headers.get('Origin');
   const rejectedOrigin = rejectDisallowedOrigin(request);
   if (rejectedOrigin) return rejectedOrigin;
@@ -98,10 +101,22 @@ Deno.serve(async (request) => {
       origin
     );
   } catch (error) {
-    console.error('cancel-subscription failed', error instanceof Error ? error.message : error);
+    const reason = classifyCheckoutFailure(error);
+    logPaymentFailure({
+      operation: 'subscription_cancel',
+      category: reason,
+      startedAt: requestStartedAt,
+    });
     return jsonResponse(
-      { error: 'Unable to cancel subscription', code: 'cancellation_unavailable' },
-      502,
+      {
+        error: 'Unable to cancel subscription',
+        code: reason === 'configuration_missing'
+          ? 'server_not_configured'
+          : reason === 'provider_rate_limited'
+            ? 'provider_rate_limited'
+            : 'cancellation_unavailable',
+      },
+      reason === 'configuration_missing' ? 500 : 502,
       origin
     );
   }

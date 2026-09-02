@@ -18,6 +18,7 @@ import { recordAnswer, store } from './core/store.ts';
 import { mergeEssayDocuments, mergeSimulationSessions, nextSyncTimestamp, touchSimulationSession } from './core/user-sync.ts';
 import { displayNameFromMetadata } from './core/auth-profile.ts';
 import { classifyBackendState, type BackendState } from './core/backend-state.ts';
+import { subscriptionHasAccess } from './core/subscription.ts';
 import { randomId } from './core/utils.ts';
 import { levelTracker, recordSiteLevelActivity, siteLevelEventId } from './core/levels.ts';
 import { hydrateIcons } from './ui/icons.ts';
@@ -36,6 +37,7 @@ import {
   initializeSupabase,
   loadPublishedContent,
   loadRemoteCheckoutStatus,
+  reconcileRemoteCheckout,
   loadQuestionComments,
   loadQuestionCommunityAccuracy,
   loadRemoteEssayDocuments,
@@ -433,36 +435,76 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
   const checkoutId = route.pathname === '/perfil/planos' ? route.params.checkout : '';
   const validId = typeof checkoutId === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutId);
-  if (!validId || !state.auth.userId || ui.checkoutId === checkoutId) return;
+  if (!validId || !state.auth.userId) {
+    if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
+    ui.checkoutTimer = null;
+    ui.checkoutId = '';
+    ui.checkoutProgress = null;
+    return;
+  }
+  if (ui.checkoutId === checkoutId) return;
+  if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
+  ui.checkoutTimer = null;
   const userId = state.auth.userId;
   ui.checkoutId = checkoutId;
   ui.checkoutProgress = { status: 'checking' };
   render();
   let attempts = 0;
+  let lastRefreshReason: string | null = null;
+  const isCurrent = () => {
+    const activeRoute = currentRoute();
+    return ui.checkoutId === checkoutId
+      && store.getState().auth.userId === userId
+      && activeRoute.pathname === '/perfil/planos'
+      && activeRoute.params.checkout === checkoutId;
+  };
   const poll = async () => {
     attempts += 1;
-    const checkout = await loadRemoteCheckoutStatus(checkoutId).catch(() => null);
+    if (attempts === 1 || attempts === 11) {
+      const refresh = await reconcileRemoteCheckout(checkoutId).catch(() => ({
+        ok: false as const,
+        code: 'checkout_refresh_unavailable',
+      }));
+      if (!isCurrent()) return;
+      if (!refresh.ok) {
+        const refreshCode = 'code' in refresh ? refresh.code : undefined;
+        if (refreshCode !== 'checkout_refresh_rate_limited') {
+          lastRefreshReason = refreshCode === 'server_not_configured'
+            ? 'configuration_missing'
+            : 'provider_unavailable';
+        }
+      } else if (refresh.ok) {
+        lastRefreshReason = null;
+      }
+    }
+    const [checkout, subscription] = await Promise.all([
+      loadRemoteCheckoutStatus(checkoutId).catch(() => null),
+      loadRemoteSubscription(userId).catch(() => null),
+    ]);
+    if (!isCurrent()) return;
     if (checkout) ui.checkoutProgress = checkout;
-    const subscription = await loadRemoteSubscription(userId).catch(() => null);
     if (subscription) store.update((draft) => { draft.subscription = subscription; });
-    if (checkout?.status === 'approved' && subscription?.plan === 'diamond') {
-      toast('Pagamento confirmado. Seu acesso Diamond foi atualizado.');
+    if (checkout?.status === 'approved' && subscriptionHasAccess(subscription ?? store.getState().subscription)) {
+      ui.checkoutTimer = null;
+      toast('Pagamento confirmado. Seu acesso foi atualizado.');
       render();
       return;
     }
     if (checkout && ['failed', 'canceled', 'expired'].includes(checkout.status)) {
-      toast(checkout.status === 'expired'
-        ? 'Este checkout expirou. Inicie uma nova tentativa.'
-        : checkout.status === 'canceled'
-          ? 'O checkout foi cancelado.'
-          : checkout.reason === 'configuration_missing'
-            ? 'O pagamento não está configurado neste ambiente.'
-            : 'O pagamento não foi aprovado. Você pode tentar novamente.');
+      ui.checkoutTimer = null;
+      render();
+      return;
+    }
+    if (attempts >= 20) {
+      ui.checkoutTimer = null;
+      ui.checkoutProgress = lastRefreshReason
+        ? { status: 'unavailable', reason: lastRefreshReason }
+        : { status: 'pending', reason: checkout?.reason ?? null };
       render();
       return;
     }
     render();
-    if (attempts < 20) ui.checkoutTimer = setTimeout(poll, 3000);
+    ui.checkoutTimer = setTimeout(poll, 3000);
   };
   void poll();
 }
@@ -1361,6 +1403,14 @@ document.addEventListener('click', async (event) => {
     }
     return;
   }
+  if (action === 'retry-checkout') {
+    if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
+    ui.checkoutTimer = null;
+    ui.checkoutId = '';
+    ui.checkoutProgress = { status: 'checking' };
+    render();
+    return;
+  }
   if (action === 'refresh-subscription') {
     if (!state.auth.userId) return;
     const subscription = await loadRemoteSubscription(state.auth.userId).catch(() => null);
@@ -1375,6 +1425,10 @@ document.addEventListener('click', async (event) => {
     const result = await cancelRemoteSubscription();
     if (result.ok) {
       if (!state.auth.userId) return;
+      store.update((draft) => {
+        draft.subscription.autoRenew = false;
+        if (subscriptionHasAccess(draft.subscription)) draft.subscription.status = 'canceled';
+      });
       const subscription = await loadRemoteSubscription(state.auth.userId).catch(() => null);
       if (subscription) store.update((draft) => { draft.subscription = subscription; });
       toast('Renovação cancelada.');

@@ -69,6 +69,7 @@ export const PAYMENT_PLANS: Record<PaidPlan, Record<BillingCycle, PaymentPlan>> 
 
 const MERCADO_PAGO_API_URL = 'https://api.mercadopago.com';
 const CHECKOUT_REFERENCE_PREFIX = 'kad_checkout:';
+const MERCADO_PAGO_REQUEST_TIMEOUT_MS = 8_000;
 
 export class MercadoPagoApiError extends Error {
   readonly status: number;
@@ -78,6 +79,13 @@ export class MercadoPagoApiError extends Error {
     super(`Mercado Pago request failed with status ${status}`);
     this.status = status;
     this.providerCode = providerCode;
+  }
+}
+
+export class MercadoPagoTimeoutError extends Error {
+  constructor() {
+    super('Mercado Pago request timed out');
+    this.name = 'MercadoPagoTimeoutError';
   }
 }
 function safeProviderCode(value: unknown) {
@@ -164,22 +172,43 @@ export function paymentWebhookUrl(): string {
 
 export async function mercadoPagoRequest<T>(
   path: string,
-  init: RequestInit = {}
+  init: RequestInit = {},
+  timeoutMs = MERCADO_PAGO_REQUEST_TIMEOUT_MS
 ): Promise<T> {
   const accessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')?.trim();
   if (!accessToken) throw new Error('MERCADO_PAGO_ACCESS_TOKEN is missing');
 
-  const response = await fetch(`${MERCADO_PAGO_API_URL}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      ...init.headers,
-    },
-  });
-  const body = await response.json().catch(() => null) as
-    | { code?: unknown; error?: unknown }
-    | null;
+  const timeoutController = new AbortController();
+  const timeout = setTimeout(() => timeoutController.abort(), timeoutMs);
+  const abortFromCaller = () => timeoutController.abort();
+  init.signal?.addEventListener('abort', abortFromCaller, { once: true });
+  let response: Response;
+  let body: { code?: unknown; error?: unknown } | null;
+  try {
+    response = await fetch(`${MERCADO_PAGO_API_URL}${path}`, {
+      ...init,
+      signal: timeoutController.signal,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        ...init.headers,
+      },
+    });
+    try {
+      body = await response.json() as { code?: unknown; error?: unknown } | null;
+    } catch (error) {
+      if (timeoutController.signal.aborted) throw error;
+      body = null;
+    }
+  } catch (error) {
+    if (timeoutController.signal.aborted && !init.signal?.aborted) {
+      throw new MercadoPagoTimeoutError();
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    init.signal?.removeEventListener('abort', abortFromCaller);
+  }
   if (!response.ok) {
     throw new MercadoPagoApiError(
       response.status,
