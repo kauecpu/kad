@@ -27,6 +27,7 @@ import {
 import { protectedStorage } from '@/lib/protected-storage';
 import { loadRemoteFlashcards, removeRemoteCard, removeRemoteDeck, saveRemoteCard, saveRemoteDeck, saveRemoteReview } from '@/lib/remote-flashcards';
 import { useAuth } from '@/providers/auth-provider';
+import { levelEventId, useLevels } from '@/providers/levels-provider';
 import type { Flashcard, FlashcardDeck, FlashcardRating } from '@/types';
 
 type FlashcardsContextValue = FlashcardStoreState & {
@@ -55,6 +56,7 @@ function isState(value: unknown): value is FlashcardStoreState {
 }
 
 export function FlashcardsProvider({ children }: { children: ReactNode }) {
+  const { record: recordLevel } = useLevels();
   const { user } = useAuth();
   const ownerId = user?.id ?? 'guest';
   const storageKey = flashcardsStorageKey(ownerId);
@@ -196,7 +198,7 @@ export function FlashcardsProvider({ children }: { children: ReactNode }) {
   }), [user?.id]);
   const deleteCard = useCallback((cardId: string) => { setState((current) => { const cards = current.cards.filter((card) => card.id !== cardId); return { ...current, cards, decks: current.decks.map((deck) => ({ ...deck, cardCount: cards.filter((card) => card.deckId === deck.id && !card.archivedAt).length })) }; }); if (user?.id) removeRemoteCard(user.id, cardId).catch(() => {}); }, [user?.id]);
   const deleteDeck = useCallback((deckId: string) => { setState((current) => ({ ...current, decks: current.decks.filter((deck) => deck.id !== deckId), cards: current.cards.filter((card) => card.deckId !== deckId) })); if (user?.id) removeRemoteDeck(user.id, deckId).catch(() => {}); }, [user?.id]);
-  const reviewCard = useCallback((cardId: string, rating: FlashcardRating) => setState((current) => { const next = reviewCardInStore(current, cardId, rating); const card = next.cards.find((item) => item.id === cardId); const review = next.reviews[next.reviews.length - 1]; if (card && user?.id) saveRemoteCard(card).catch(() => {}); if (review && review.cardId === cardId && user?.id) saveRemoteReview(review).catch(() => {}); return next; }), [user?.id]);
+  const reviewCard = useCallback((cardId: string, rating: FlashcardRating) => setState((current) => { const next = reviewCardInStore(current, cardId, rating); const card = next.cards.find((item) => item.id === cardId); const review = next.reviews[next.reviews.length - 1]; if (card && user?.id) saveRemoteCard(card).catch(() => {}); if (review && review.cardId === cardId) { if (user?.id) saveRemoteReview(review).catch(() => {}); recordLevel({ id: levelEventId(), kind: 'flashcard', itemId: cardId, rating, occurredAt: review.reviewedAt }); } return next; }), [recordLevel, user?.id]);
   const filter = useCallback((criteria: FlashcardFilter) => filterFlashcards(state.cards, criteria), [state.cards]);
   const due = useMemo(() => dueCards(state.cards), [state.cards]);
 

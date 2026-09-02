@@ -19,6 +19,7 @@ import { mergeEssayDocuments, mergeSimulationSessions, nextSyncTimestamp, touchS
 import { displayNameFromMetadata } from './core/auth-profile.ts';
 import { classifyBackendState, type BackendState } from './core/backend-state.ts';
 import { randomId } from './core/utils.ts';
+import { levelTracker, recordSiteLevelActivity, siteLevelEventId } from './core/levels.ts';
 import { hydrateIcons } from './ui/icons.ts';
 import { appLayout, publicLayout } from './ui/layout.ts';
 import { emptyState, icon } from './ui/components.ts';
@@ -122,6 +123,7 @@ let publicAuthTrigger: HTMLElement | null = null;
 let navigationTrigger: HTMLElement | null = null;
 const loadedCommunityKeys = new Set<string>();
 const loadingCommunityKeys = new Set<string>();
+const levelReviewReady = new Set<string>();
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -204,6 +206,7 @@ function openNavigation(trigger: HTMLElement): void {
 }
 
 async function hydrateAuthenticatedUser(user: { id: string; email?: string | null; user_metadata?: { name?: unknown; full_name?: unknown } }): Promise<void> {
+  await levelTracker.selectOwner(user.id);
   store.switchOwner(user.id);
   const [remote, subscription, profile, essays, simulations, flashcards] = await Promise.all([
     loadRemoteStudyData(user.id).catch(() => null),
@@ -292,7 +295,7 @@ function resolveView(route: Route, state: SiteState): ViewModel {
   if (flashcard) return flashcardEditorView(state, flashcard.id);
   const flashcardDeck = matchRoute('/flashcards/baralho/:id', pathname);
   if (flashcardDeck) return flashcardDeckEditorView(state, flashcardDeck.id);
-  if (pathname === '/perfil') return profileView(state);
+  if (pathname === '/perfil') return profileView(state, levelTracker.getState());
   if (pathname === '/perfil/desempenho') return performanceView(state);
   if (pathname === '/perfil/editar') return profileEditView(state);
   if (pathname === '/perfil/planos') return plansView(state, params, ui.checkoutProgress);
@@ -595,12 +598,18 @@ function persistEssayBuffer(): void {
 
 function completeSimulation(draft: SiteState): void {
   const session = draft.simulations.current;
-  if (!session) return;
+  if (!session || session.status === 'completed') return;
   session.status = 'completed';
   session.completedAt = session.completedAt ?? new Date().toISOString();
   session.updatedAt = nextSyncTimestamp(session.updatedAt);
   const history = draft.simulations.history.filter((item) => item.id !== session.id);
   draft.simulations.history = [structuredClone(session), ...history].slice(0, 20);
+  const answers = session.questions.flatMap(item => {
+    const question = getCatalog().questions.find(candidate => candidate.id === item.questionId);
+    const selected = session.answers[item.questionId];
+    return question && selected ? [{ itemId: question.id, selected, isCorrect: selected === question.correct }] : [];
+  });
+  recordSiteLevelActivity({ id: `simulation:${session.id}`, kind: 'simulation', itemId: session.id, answers, occurredAt: session.completedAt });
 }
 
 function updateFormMessage(form: HTMLFormElement, message: string, tone = ''): void {
@@ -897,6 +906,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
         return;
       }
     }
+    await levelTracker.clear();
     store.reset();
     toast(state.auth.userId ? 'Sua conta foi excluída.' : 'Os dados locais foram apagados.');
     navigate('/', { replace: true });
@@ -1025,6 +1035,7 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'continue-visitor' || action === 'skip-onboarding') {
+    await levelTracker.selectOwner(null);
     store.switchOwner(null);
     store.update((draft) => {
       draft.auth = { mode: 'visitor', userId: null };
@@ -1053,6 +1064,7 @@ document.addEventListener('click', async (event) => {
     const question = getCatalog().questions.find((item) => item.id === target.dataset.questionId);
     if (!question || !isAlternativeId(selected)) return;
     store.update((draft) => recordAnswer(draft, question, selected));
+    recordSiteLevelActivity({ id: siteLevelEventId('question'), kind: 'question', itemId: question.id, selected, isCorrect: selected === question.correct, reviewed: levelReviewReady.delete(question.id), occurredAt: new Date().toISOString() });
     if (state.auth.userId) saveRemoteAnswer(question.id, selected).catch(() => {});
     announcer.textContent = selected === question.correct ? 'Resposta correta.' : `Resposta incorreta. Gabarito ${question.correct}.`;
     return;
@@ -1060,6 +1072,9 @@ document.addEventListener('click', async (event) => {
   if (action === 'retry-question') {
     const questionId = target.dataset.questionId;
     if (!questionId) return;
+    const previous = state.answers[questionId];
+    const question = getCatalog().questions.find(item => item.id === questionId);
+    if (previous && !previous.isCorrect && question?.explanation) levelReviewReady.add(questionId);
     store.update((draft) => { delete draft.answers[questionId]; });
     if (state.auth.userId) removeRemoteAnswer(state.auth.userId, questionId).catch(() => {});
     return;
@@ -1229,6 +1244,7 @@ document.addEventListener('click', async (event) => {
       if (!draft.flashcards.reviews.some((item) => item.id === result.review.id)) draft.flashcards.reviews.push(result.review);
     });
     if (state.auth.userId) void Promise.all([saveRemoteCard(result.card), saveRemoteReview(result.review)]).catch(() => {});
+    recordSiteLevelActivity({ id: `flashcard:${result.review.id}`, kind: 'flashcard', itemId: cardId, rating, occurredAt: result.review.reviewedAt });
     ui.flashcardRevealId = null;
     announcer.textContent = 'Revisão registrada. Próximo cartão.';
     render();
@@ -1302,8 +1318,14 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'trail-mode') return navigate(`/trilhas?mode=${target.dataset.mode}`);
+  if (action === 'retry-level') {
+    if (levelTracker.getState().storageError) await levelTracker.selectOwner(state.auth.userId);
+    else await levelTracker.sync();
+    return;
+  }
   if (action === 'sign-out') {
     await signOut();
+    await levelTracker.selectOwner(null);
     store.switchOwner(null);
     store.update((draft) => {
       draft.auth = { mode: 'visitor', userId: null };
@@ -1455,14 +1477,17 @@ globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener('ch
 
 subscribeRouter(() => render({ routeChanged: true }));
 store.subscribe(() => render());
+levelTracker.subscribe(() => render());
+void levelTracker.selectOwner(null);
 applyTheme();
 render({ routeChanged: true });
 
 const recoveryBootstrap = currentRoute().pathname === '/nova-senha'
   ? completePasswordRecoveryCallback(globalThis.location.href)
-    .then((result) => {
+    .then(async (result) => {
       ui.recoveryStatus = result.ok ? 'ready' : 'invalid';
       if (result.ok && result.user?.id) {
+        await levelTracker.selectOwner(result.user.id);
         store.switchOwner(result.user.id);
         store.update((draft) => {
           draft.auth = { mode: 'authenticated', userId: result.user.id };

@@ -197,6 +197,17 @@ export async function saveRemoteAnswer(questionId: string, selected: Alternative
   if (error) throw error;
 }
 
+export async function recordRemoteLevelActivity(userId: string, event: Record<string, unknown> | null): Promise<{ totalXp: number }> {
+  const remote = await client();
+  if (!remote) throw new Error('XP indisponível');
+  const { data: auth } = await remote.auth.getSession();
+  if (auth.session?.user.id !== userId) throw new Error('A conta mudou durante a sincronização.');
+  const { data, error } = await remote.rpc('record_level_activity', { p_event: event });
+  if (error) throw error;
+  if (!data || !Number.isSafeInteger(data.totalXp) || data.totalXp < 0) throw new Error('Resposta de XP inválida.');
+  return { totalXp: data.totalXp };
+}
+
 export async function removeRemoteAnswer(userId: string, questionId: string): Promise<void> {
   const remote = await client();
   if (!remote) return;
