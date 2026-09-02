@@ -69,6 +69,14 @@ const paymentDiagnosticsMigration = readFileSync(
   'utf8'
 );
 
+const paymentReconciliationMigration = readFileSync(
+  new NodeURL(
+    '../supabase/migrations/20260902150000_payment_checkout_reconciliation.sql',
+    import.meta.url
+  ),
+  'utf8'
+);
+
 const feedbackMigration = readFileSync(
   new NodeURL('../supabase/migrations/20260816010000_user_feedback_inbox.sql', import.meta.url),
   'utf8'
@@ -91,6 +99,11 @@ const paymentWebhook = readFileSync(
 
 const paymentCheckout = readFileSync(
   new NodeURL('../supabase/functions/create-payment-checkout/index.ts', import.meta.url),
+  'utf8'
+);
+
+const paymentReconciliation = readFileSync(
+  new NodeURL('../supabase/functions/reconcile-payment-checkout/index.ts', import.meta.url),
   'utf8'
 );
 
@@ -282,6 +295,22 @@ test('checkout expõe somente estado sanitizado ao próprio usuário', () => {
   );
   assert.match(paymentCheckout, /classifyCheckoutFailure/);
   assert.match(paymentCheckout, /status_reason: statusReason/);
+});
+
+test('reconciliação manual é autenticada, limitada e exclusiva do service role', () => {
+  assert.match(supabaseConfig, /\[functions\.reconcile-payment-checkout\][\s\S]*?verify_jwt = true/);
+  assert.match(paymentReconciliationMigration, /last_reconciliation_at timestamptz/);
+  assert.match(paymentReconciliationMigration, /claim_payment_checkout_reconciliation/);
+  assert.match(paymentReconciliationMigration, /interval '10 seconds'/);
+  assert.match(paymentReconciliationMigration, /payment_checkout_sessions\.status = 'approved'/);
+  assert.match(
+    paymentReconciliationMigration,
+    /revoke all on function public\.claim_payment_checkout_reconciliation\(uuid, uuid\)[\s\S]*?from public, anon, authenticated/
+  );
+  assert.match(paymentReconciliationMigration, /to service_role/);
+  assert.match(paymentReconciliation, /\.eq\('user_id', user\.id\)/);
+  assert.match(paymentReconciliation, /authorizedPaymentsSearchPath/);
+  assert.match(paymentReconciliation, /apply_mercado_pago_payment/);
 });
 
 test('crédito de pagamento é imutável e estados de estorno são terminais', () => {

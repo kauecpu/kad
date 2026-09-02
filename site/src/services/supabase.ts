@@ -5,6 +5,7 @@ import { signOutLocally } from '../core/auth-actions.ts';
 import { buildSignupMetadata } from '../core/auth-profile.ts';
 import { isEssayDocument, isSimulationSession } from '../core/user-sync.ts';
 import { createPasswordSecurity } from '../core/password-security.ts';
+import { subscriptionFromRemoteRecord } from '../core/subscription.ts';
 import { mapPublishedConcursos, mapPublishedQuestions } from './published-content.ts';
 import type {
   AlternativeId,
@@ -33,6 +34,9 @@ type SignUpResult = OfflineResult | FailureResult | (SuccessResult & {
   authenticated: boolean;
 });
 type CheckoutResult = OfflineResult | FailureResult | (SuccessResult & { checkoutUrl: string });
+type CheckoutRefreshResult = OfflineResult | FailureResult | (SuccessResult & {
+  progress: CheckoutProgress;
+});
 
 export type RemoteStudyData = {
   answers: Record<string, SiteAnswer>;
@@ -242,29 +246,11 @@ export async function loadRemoteSubscription(userId: string): Promise<Subscripti
   if (!remote || !userId) return null;
   const { data, error } = await remote
     .from('subscriptions')
-    .select('plan, billing_cycle, provider, status, current_period_end, cancel_at_period_end')
+    .select('plan, billing_cycle, provider, status, started_at, current_period_end, cancel_at_period_end')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw error;
-  if (!data) return { plan: 'basic', status: 'inactive', autoRenew: false };
-  const plan: Subscription['plan'] = data.plan === 'diamond' || data.plan === 'circle' ? data.plan : 'basic';
-  const billingCycle: BillingCycle | undefined = ['monthly', 'quarterly', 'annual'].includes(data.billing_cycle)
-    ? data.billing_cycle as BillingCycle
-    : undefined;
-  const provider: Subscription['provider'] = ['mercado_pago', 'apple', 'google'].includes(data.provider)
-    ? data.provider as Subscription['provider']
-    : undefined;
-  const status: Subscription['status'] = ['active', 'inactive', 'past_due', 'canceled', 'expired'].includes(data.status)
-    ? data.status as Subscription['status']
-    : 'inactive';
-  return {
-    plan,
-    billingCycle,
-    provider,
-    status,
-    renewsAt: data.current_period_end ?? undefined,
-    autoRenew: !data.cancel_at_period_end,
-  };
+  return subscriptionFromRemoteRecord(data);
 }
 
 function trustedCheckoutUrl(value: unknown): value is string {
@@ -329,13 +315,62 @@ export async function loadRemoteCheckoutStatus(checkoutId: string): Promise<Chec
   };
 }
 
+export async function reconcileRemoteCheckout(checkoutId: string): Promise<CheckoutRefreshResult> {
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  const { data, error } = await remote.functions.invoke('reconcile-payment-checkout', {
+    body: { checkoutId },
+  });
+  if (error) {
+    let code: string | undefined;
+    const context = typeof error === 'object' && error !== null && 'context' in error
+      ? error.context
+      : null;
+    if (context instanceof Response) {
+      const payload = await context.clone().json().catch(() => null) as { code?: unknown } | null;
+      if (typeof payload?.code === 'string') code = payload.code;
+    }
+    return {
+      ok: false,
+      code,
+      message: code === 'server_not_configured'
+        ? 'O pagamento não está configurado neste ambiente.'
+        : 'Não foi possível atualizar o pagamento agora.',
+    };
+  }
+  if (!data || !['creating', 'pending', 'approved', 'failed', 'canceled', 'expired'].includes(data.status)) {
+    return { ok: false, message: 'O servidor retornou um estado de pagamento inválido.' };
+  }
+  return {
+    ok: true,
+    progress: {
+      status: data.status as CheckoutProgress['status'],
+      reason: typeof data.reason === 'string' ? data.reason : null,
+    },
+  };
+}
+
 export async function cancelRemoteSubscription(): Promise<OfflineResult | FailureResult | SuccessResult> {
   const remote = await client();
   if (!remote) return { ok: false, offline: true };
   const { error } = await remote.functions.invoke('cancel-subscription', { body: {} });
-  return error
-    ? { ok: false, message: 'Não foi possível cancelar a renovação agora.' }
-    : { ok: true };
+  if (!error) return { ok: true };
+  let code: string | undefined;
+  const context = typeof error === 'object' && error !== null && 'context' in error
+    ? error.context
+    : null;
+  if (context instanceof Response) {
+    const payload = await context.clone().json().catch(() => null) as { code?: unknown } | null;
+    if (typeof payload?.code === 'string') code = payload.code;
+  }
+  const message = code === 'server_not_configured'
+    ? 'O pagamento não está configurado neste ambiente.'
+    : code === 'store_managed'
+      ? 'Gerencie esta assinatura pela loja em que ela foi contratada.'
+      : code === 'provider_rate_limited'
+        ? 'O Mercado Pago recebeu muitas solicitações. Aguarde um pouco e tente novamente.'
+        : 'Não foi possível cancelar a renovação agora.';
+  return { ok: false, message, code };
 }
 
 export async function requestPasswordRecovery(email: string): Promise<OfflineResult | FailureResult | SuccessResult> {

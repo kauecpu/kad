@@ -159,7 +159,7 @@ export type UiState = {
 };
 
 export type CheckoutProgress = {
-  status: 'checking' | 'creating' | 'pending' | 'approved' | 'failed' | 'canceled' | 'expired';
+  status: 'checking' | 'creating' | 'pending' | 'approved' | 'failed' | 'canceled' | 'expired' | 'unavailable';
   reason?: string | null;
 };
 

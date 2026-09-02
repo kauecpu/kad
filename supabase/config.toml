@@ -1,6 +1,9 @@
 [functions.mercado-pago-webhook]
 verify_jwt = false
 
+[functions.reconcile-payment-checkout]
+verify_jwt = true
+
 [functions.send-auth-email]
 verify_jwt = false
 

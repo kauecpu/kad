@@ -20,6 +20,7 @@ import {
   jsonResponse,
   rejectDisallowedOrigin,
 } from '../_shared/http.ts';
+import { logPaymentFailure } from '../_shared/payment-observability.ts';
 
 type CheckoutLease = {
   lease_token: string | null;
@@ -79,6 +80,7 @@ function rateLimitedResponse(origin: string | null, retryAfter: unknown) {
 }
 
 Deno.serve(async (request) => {
+  const requestStartedAt = Date.now();
   const origin = request.headers.get('Origin');
   const rejectedOrigin = rejectDisallowedOrigin(request);
   if (rejectedOrigin) return rejectedOrigin;
@@ -142,6 +144,7 @@ Deno.serve(async (request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   let leaseToken: string | null = null;
+  let checkoutIdForLog: string | null = null;
 
   try {
     const { data: lease, error: leaseError } = await admin
@@ -242,6 +245,7 @@ Deno.serve(async (request) => {
       .select('id')
       .single();
     if (checkoutError) throw checkoutError;
+    checkoutIdForLog = checkout.id;
 
     try {
       const providerSubscription = await mercadoPagoRequest<MercadoPagoSubscription>(
@@ -302,14 +306,14 @@ Deno.serve(async (request) => {
     }
   } catch (error) {
     const statusReason = classifyCheckoutFailure(error);
-    console.error(
-      'create-payment-checkout failed',
-      error instanceof MercadoPagoApiError
-        ? { message: error.message, providerCode: error.providerCode }
-        : error instanceof Error
-          ? error.message
-          : error
-    );
+    logPaymentFailure({
+      operation: 'checkout_create',
+      category: statusReason,
+      startedAt: requestStartedAt,
+      checkoutId: checkoutIdForLog,
+      providerStatus: error instanceof MercadoPagoApiError ? error.status : undefined,
+      providerCode: error instanceof MercadoPagoApiError ? error.providerCode : undefined,
+    });
     return jsonResponse(
       {
         error: 'Unable to create checkout',
@@ -326,7 +330,12 @@ Deno.serve(async (request) => {
         p_user_id: user.id,
         p_lease_token: leaseToken,
       });
-      if (releaseError) console.error('create-payment-checkout lease release failed');
+      if (releaseError) logPaymentFailure({
+        operation: 'checkout_create',
+        category: 'lease_release_failed',
+        startedAt: requestStartedAt,
+        checkoutId: checkoutIdForLog,
+      });
     }
   }
 });

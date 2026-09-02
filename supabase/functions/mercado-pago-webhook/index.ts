@@ -8,12 +8,14 @@ import {
 } from '../_shared/mercado-pago.ts';
 import {
   checkoutMatchesProviderSubscription,
+  isSupportedMercadoPagoEventType,
   type MercadoPagoWebhookBody,
   parseMercadoPagoWebhookBody,
   paymentStatusReason,
   webhookProcessingOutcome,
   webhookEnvironmentMatches,
 } from '../_shared/mercado-pago-webhook.ts';
+import { logPaymentFailure } from '../_shared/payment-observability.ts';
 
 type CheckoutRow = {
   id: string;
@@ -316,6 +318,7 @@ async function processChargeback(
 }
 
 Deno.serve(async (request) => {
+  const requestStartedAt = Date.now();
   if (request.method !== 'POST') {
     return Response.json(
       { error: 'Method not allowed' },
@@ -343,6 +346,9 @@ Deno.serve(async (request) => {
 
   if (!webhookEnvironmentMatches(Deno.env.get('MERCADO_PAGO_LIVE_MODE'), body.live_mode)) {
     return Response.json({ error: 'Unexpected environment' }, { status: 401 });
+  }
+  if (!isSupportedMercadoPagoEventType(eventType)) {
+    return Response.json({ ok: true, ignored: true });
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -403,7 +409,12 @@ Deno.serve(async (request) => {
     if (processedError) throw processedError;
     return Response.json({ ok: true });
   } catch (error) {
-    console.error('mercado-pago-webhook failed', error instanceof Error ? error.message : error);
+    logPaymentFailure({
+      operation: 'webhook_process',
+      category: 'processing_failed',
+      startedAt: requestStartedAt,
+      eventType,
+    });
     await admin
       .from('payment_webhook_events')
       .update({ error_code: 'processing_failed' })

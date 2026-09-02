@@ -85,6 +85,12 @@ export function classifyCheckoutFailure(value: unknown): CheckoutFailureReason {
   if (message === 'Provider returned an invalid checkout') {
     return 'provider_invalid_response';
   }
+  if (
+    (value instanceof Error && value.name === 'MercadoPagoTimeoutError') ||
+    message === 'Mercado Pago request timed out'
+  ) {
+    return 'provider_unavailable';
+  }
 
   const status = typeof value === 'object' && value !== null && 'status' in value
     ? Number(value.status)

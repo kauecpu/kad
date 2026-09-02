@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(41);
+select plan(49);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values
@@ -66,6 +66,51 @@ select
   'pending',
   '2030-01-01T00:00:00Z'::timestamptz
 from (values (8), (9)) as cases(test_case);
+
+select ok(
+  not has_function_privilege(
+    'anon',
+    'public.claim_payment_checkout_reconciliation(uuid,uuid)',
+    'EXECUTE'
+  ),
+  'anon cannot claim provider reconciliation'
+);
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.claim_payment_checkout_reconciliation(uuid,uuid)',
+    'EXECUTE'
+  ),
+  'authenticated cannot bypass reconciliation rate limits'
+);
+select ok(
+  has_function_privilege(
+    'service_role',
+    'public.claim_payment_checkout_reconciliation(uuid,uuid)',
+    'EXECUTE'
+  ),
+  'service_role can claim provider reconciliation'
+);
+select ok(
+  (
+    select claim.claimed
+    from public.claim_payment_checkout_reconciliation(
+      '20000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000001'
+    ) as claim
+  ),
+  'first provider reconciliation is claimed'
+);
+select ok(
+  (
+    select not claim.claimed and claim.retry_after_seconds >= 1
+    from public.claim_payment_checkout_reconciliation(
+      '20000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000001'
+    ) as claim
+  ),
+  'immediate duplicate reconciliation is rate limited'
+);
 
 select ok(
   not has_function_privilege(
@@ -331,6 +376,22 @@ select is(
 select ok(
   (select credit_applied_at is not null from public.payment_transactions where provider_payment_id = 'payment-a'),
   'approved payment records its immutable credit marker'
+);
+select public.sync_mercado_pago_subscription('subscription-1', 'canceled');
+select is(
+  (select status from public.payment_checkout_sessions where id = '20000000-0000-4000-8000-000000000001'),
+  'approved',
+  'canceling renewal does not rewrite an approved checkout'
+);
+select is(
+  (select status from public.subscriptions where user_id = '10000000-0000-4000-8000-000000000001'),
+  'canceled',
+  'canceling renewal marks the subscription without revoking paid access'
+);
+select is(
+  (select current_period_end from public.subscriptions where user_id = '10000000-0000-4000-8000-000000000001'),
+  (select current_period_end from original_periods where user_id = '10000000-0000-4000-8000-000000000001'),
+  'canceling renewal preserves the paid period end'
 );
 
 select public.apply_mercado_pago_payment(

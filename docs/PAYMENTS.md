@@ -21,7 +21,10 @@ Purchase antes da publicação nas lojas.
    provedor e confere correlação, preço e moeda.
 5. Uma função transacional e idempotente registra o pagamento e libera ou estende o
    período da assinatura.
-6. O app lê somente a linha de `subscriptions` pertencente ao usuário. Cancelar encerra
+6. Se o webhook demorar, `reconcile-payment-checkout` permite que o próprio usuário
+   autenticado solicite uma consulta limitada ao provedor. A função valida novamente
+   assinatura, referência, preço e moeda antes de aplicar qualquer mudança.
+7. O app lê somente a linha de `subscriptions` pertencente ao usuário. Cancelar encerra
    cobranças futuras e mantém o acesso até o fim do período pago.
 
 Eventos repetidos não estendem o acesso duas vezes. Pagamentos rejeitados, estornados
@@ -35,18 +38,23 @@ respostas, e-mails ou segredos.
 
 ## Configuração do Supabase
 
-Aplique a migration `202608110001_payments_subscriptions.sql` e publique estas Edge
-Functions:
+Aplique as migrations financeiras versionadas, inclusive
+`20260902150000_payment_checkout_reconciliation.sql`, e publique estas Edge Functions:
 
 ```text
 create-payment-checkout
 cancel-subscription
 mercado-pago-webhook
+reconcile-payment-checkout
 ```
 
-O arquivo `supabase/config.toml` desativa a validação JWT apenas para o webhook. As duas
-funções chamadas pelo app continuam autenticando o usuário e nunca expõem a chave
+O arquivo `supabase/config.toml` desativa a validação JWT apenas para o webhook. As três
+funções chamadas pelo site continuam autenticando o usuário e nunca expõem a chave
 `service_role`.
+
+Todas as chamadas à API do Mercado Pago possuem timeout. Falha temporária não aprova
+checkout e aparece na web como estado consultável novamente. A reconciliação manual
+possui intervalo mínimo por sessão no banco para impedir abuso e cliques repetidos.
 
 Cadastre os segredos abaixo no projeto Supabase, sem colocá-los em `.env`, commits,
 logs ou Pull Requests:
@@ -88,6 +96,8 @@ subscription_authorized_payment
 - Confirme que preço/moeda divergentes são rejeitados e que outro usuário não consegue
   consultar ou cancelar a assinatura.
 - Valide a URL de retorno e as origens CORS do domínio final.
+- Confirme que uma consulta manual de checkout pendente não concede acesso sem um
+  pagamento confirmado diretamente pelo provedor.
 - Faça uma compra real de baixo valor somente depois da homologação completa e do aceite
   dos textos legais/comerciais pelo responsável do KAD.
 

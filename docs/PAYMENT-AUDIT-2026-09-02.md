@@ -57,6 +57,20 @@ digests não foram copiados para o repositório, logs, testes ou PR.
 - testes de catálogo, ciclo, URL de retorno, URL oficial, HMAC, idempotência,
   eventos fora de ordem, estorno, chargeback, cancelamento, rate limit e interface.
 
+## Revisão de conclusão do checkout web
+
+A revisão posterior acrescentou uma reconciliação autenticada e limitada para sessões
+pendentes, timeout nas chamadas ao Mercado Pago, logs sanitizados por categoria e
+proteção do polling da web contra troca de rota, logout ou troca de usuário. O site
+também passou a reconhecer corretamente assinaturas Platina e a encerrar localmente o
+acesso quando `current_period_end` já venceu.
+
+Nesta execução, a consulta remota foi interrompida antes de qualquer alteração porque
+o Supabase CLI não possuía uma sessão autenticada. Portanto, a tabela de presença de
+segredos acima permanece evidência histórica da auditoria anterior; ela não foi
+revalidada nesta branch. Consulte `PAYMENT-HOMOLOGATION-2026-09-02.md` para o estado
+atual, matriz de cenários e plano de promoção.
+
 ## Bloqueio da homologação
 
 O teste integrado não pode prosseguir enquanto os seis segredos personalizados
@@ -71,11 +85,12 @@ produção deve ser copiada. Depois da configuração, executar nesta ordem:
 5. concluir cenários aprovado, recusado e pendente;
 6. reenviar o mesmo webhook e confirmar um único período de acesso;
 7. validar cancelamento, estorno, chargeback e divergência de preço/moeda;
-8. comparar apenas contagens e estados sanitizados no banco.
+8. comparar apenas contagens e estados sanitizados no banco;
+9. validar também o retorno antes do webhook por `reconcile-payment-checkout`.
 
 ## Publicação em produção
 
 Não publicar esta branch em produção antes de concluir a homologação acima. Após a
-aprovação humana do PR, fazer backup, aplicar a migration, publicar as três funções
+aprovação humana do PR, fazer backup, aplicar a migration, publicar as quatro funções
 com suas configurações JWT atuais e executar uma verificação sem cobrança. Qualquer
 cobrança real ou alteração de segredo de produção exige autorização explícita.

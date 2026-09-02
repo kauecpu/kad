@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   checkoutMatchesProviderSubscription,
+  isSupportedMercadoPagoEventType,
   parseMercadoPagoWebhookBody,
   paymentStatusReason,
   webhookEnvironmentMatches,
@@ -54,6 +55,14 @@ test('valida o ambiente do webhook de forma fechada', () => {
   assert.equal(webhookEnvironmentMatches('false', true), false);
   assert.equal(webhookEnvironmentMatches(undefined, false), false);
   assert.equal(webhookEnvironmentMatches('teste', false), false);
+});
+
+test('processa somente eventos financeiros previstos no contrato', () => {
+  assert.equal(isSupportedMercadoPagoEventType('subscription_preapproval'), true);
+  assert.equal(isSupportedMercadoPagoEventType('subscription_authorized_payment'), true);
+  assert.equal(isSupportedMercadoPagoEventType('payment'), true);
+  assert.equal(isSupportedMercadoPagoEventType('topic_chargebacks_wh'), true);
+  assert.equal(isSupportedMercadoPagoEventType('merchant_order'), false);
 });
 
 test('nao correlaciona um checkout ja vinculado a outra assinatura', () => {

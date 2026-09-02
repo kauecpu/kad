@@ -5,6 +5,7 @@ import {
   classifyCheckoutFailure,
   decideCheckoutAction,
 } from '../supabase/functions/_shared/payment-checkout.ts';
+import { MercadoPagoTimeoutError } from '../supabase/functions/_shared/mercado-pago.ts';
 
 const now = new Date('2026-08-12T02:00:00.000Z').getTime();
 const baseCheckout = {
@@ -63,6 +64,7 @@ test('falhas de checkout são reduzidas a categorias seguras', () => {
   assert.equal(classifyCheckoutFailure({ status: 422 }), 'provider_request_rejected');
   assert.equal(classifyCheckoutFailure({ status: 429 }), 'provider_rate_limited');
   assert.equal(classifyCheckoutFailure({ status: 503 }), 'provider_unavailable');
+  assert.equal(classifyCheckoutFailure(new MercadoPagoTimeoutError()), 'provider_unavailable');
   assert.equal(
     classifyCheckoutFailure(new Error('Provider returned an invalid checkout')),
     'provider_invalid_response'
