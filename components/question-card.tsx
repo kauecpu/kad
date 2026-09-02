@@ -21,6 +21,7 @@ import {
   resolveStudyOptionState,
 } from '@/lib/study-interactions';
 import type { AlternativeId, AnswerRecord, Difficulty, Question } from '@/types';
+import { useLevels } from '@/providers/levels-provider';
 
 type QuestionCardProps = {
   question: Question;
@@ -48,6 +49,7 @@ function QuestionCardComponent({
   onReset,
 }: QuestionCardProps) {
   const { colors } = useTheme();
+  const { markReview } = useLevels();
   const [pendingSelection, setPendingSelection] = useState<AlternativeId | null>(null);
   const [showExplanation, setShowExplanation] = useState(true);
   const answerGate = useRef(createStudyActionGate());
@@ -74,6 +76,7 @@ function QuestionCardComponent({
   };
 
   const handleReset = () => {
+    if (answer && !answer.isCorrect && showExplanation && question.explanation) markReview(question.id);
     answerGate.current.reset();
     setPendingSelection(null);
     setShowExplanation(true);

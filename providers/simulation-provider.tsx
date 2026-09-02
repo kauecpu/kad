@@ -31,6 +31,7 @@ import {
 } from '@/lib/user-sync';
 import { useAuth } from '@/providers/auth-provider';
 import { useQuestions } from '@/providers/questions-provider';
+import { useLevels } from '@/providers/levels-provider';
 import type { AlternativeId, SimulationConfig, SimulationSession } from '@/types';
 
 const LEGACY_STORAGE_KEY = LEGACY_SIMULATION_STORAGE_KEY;
@@ -66,6 +67,7 @@ type SimulationContextValue = {
 const SimulationContext = createContext<SimulationContextValue | null>(null);
 
 export function SimulationProvider({ children }: { children: ReactNode }) {
+  const { record: recordLevel } = useLevels();
   const { session: authSession, isLoading: authLoading } = useAuth();
   const { questions, packs } = useQuestions();
   const [session, setSession] = useState<SimulationSession | null>(null);
@@ -178,11 +180,17 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated || session?.status !== 'completed') return;
+    const attempted = session.questions.flatMap(item => {
+      const question = questions.find(q => q.id === item.questionId);
+      const selected = session.answers[item.questionId];
+      return question && selected ? [{ itemId: question.id, selected, isCorrect: selected === question.correct }] : [];
+    });
+    recordLevel({ id: `simulation:${session.id}`, kind: 'simulation', itemId: session.id, occurredAt: session.completedAt ?? new Date().toISOString(), answers: attempted });
     setHistory((current) => {
       if (current.some((item) => item.id === session.id)) return current;
       return [session, ...current].slice(0, HISTORY_LIMIT);
     });
-  }, [hydrated, session]);
+  }, [hydrated, session, recordLevel, questions]);
 
   const startSimulation = useCallback((config: SimulationConfig) => {
     const next = createSimulationSession(config, questions, packs);

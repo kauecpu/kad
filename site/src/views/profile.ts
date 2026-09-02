@@ -3,6 +3,8 @@ import { escapeHtml, formatCount, formatPercent, formatTimer, groupPerformance, 
 import { avatar, badge, button, card, emptyState, icon, metricRing, passwordField, progress, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
 import type { CheckoutProgress, SiteState, ViewModel } from '../types/domain.ts';
+import type { LevelState } from '../../../contracts/level-tracker.ts';
+import { LEVEL_MILESTONES, LEVEL_RULES, levelColor } from '../../../contracts/levels.ts';
 
 type ViewParams = Record<string, string | undefined>;
 
@@ -87,7 +89,24 @@ export function libraryView(): ViewModel {
   };
 }
 
-export function profileView(state: SiteState): ViewModel {
+function levelModule(levelState: LevelState): string {
+  const progress = levelState.progress;
+  if (levelState.status === 'loading' && !progress) return `<section class="level-card level-card--status" aria-busy="true"><span class="level-spinner" aria-hidden="true"></span><p>Carregando seu nível…</p></section>`;
+  if (!progress) return `<section class="level-card level-card--status" role="alert"><span class="level-status-icon">${icon('CloudOff')}</span><div><h2>Nível indisponível</h2><p>Seu progresso não foi substituído por zero. Tente sincronizar novamente.</p></div><button class="button button--secondary" type="button" data-action="retry-level">Tentar de novo</button></section>`;
+  const milestone = LEVEL_MILESTONES.includes(progress.level as (typeof LEVEL_MILESTONES)[number]);
+  const percent = Math.round(progress.ratio * 10000) / 100;
+  const sync = levelState.status === 'unavailable'
+    ? `<p class="level-sync level-sync--error" role="alert">Não foi possível atualizar agora. O último XP confirmado continua visível. <button type="button" data-action="retry-level">Tentar novamente</button></p>`
+    : levelState.pending ? `<p class="level-sync" role="status">${formatCount(levelState.pending, 'atividade aguardando confirmação', 'atividades aguardando confirmação')}.</p>` : '';
+  return `<section class="level-card" aria-labelledby="level-title">
+    <div class="level-heading"><div class="level-ring${milestone ? ' is-milestone' : ''}" style="--level:${progress.level * 3.6}deg;--level-color:${levelColor(progress.level)}" role="img" aria-label="Nível ${progress.level} de 100"><strong>${progress.level}</strong></div><div><p class="level-eyebrow">SEU ESTUDO, ACUMULADO</p><h2 id="level-title">Nível ${progress.level} de 100</h2><p>Prática e constância. No seu ritmo.</p></div></div>
+    <div class="level-xp"><strong>${progress.max ? `${progress.totalXp.toLocaleString('pt-BR')} XP acumulados` : `${progress.currentXp.toLocaleString('pt-BR')} / ${progress.nextCost.toLocaleString('pt-BR')} XP`}</strong><div class="level-progress" role="progressbar" aria-label="${progress.max ? 'Nível máximo alcançado' : `Progresso para o nível ${progress.level + 1}`}" aria-valuemin="0" aria-valuemax="${progress.max ? 100 : progress.nextCost}" aria-valuenow="${progress.max ? 100 : progress.currentXp}"><span style="width:${progress.max ? 100 : percent}%"></span></div><p>${progress.max ? 'Nível máximo. Seu XP continua sendo acumulado.' : `Faltam ${progress.remainingXp.toLocaleString('pt-BR')} XP para o nível ${progress.level + 1}.`}</p>${sync}</div>
+    <p>Questões, revisões e estudo válido geram XP.</p>
+    <details class="level-rules"><summary>Como ganhar XP ${icon('ArrowRight')}</summary><div>${LEVEL_RULES.map(([label, description]) => `<section><h3>${escapeHtml(label)}</h3><p>${escapeHtml(description)}</p></section>`).join('')}</div></details>
+  </section>`;
+}
+
+export function profileView(state: SiteState, levelState: LevelState): ViewModel {
   const { questions } = getCatalog();
   const performance = questionsPerformance(state.answers);
   const settings = [
@@ -102,6 +121,8 @@ export function profileView(state: SiteState): ViewModel {
     subtitle: state.auth.mode === 'authenticated' ? 'Dossiê do candidato' : 'Dados salvos neste navegador',
     content: `<div class="study-settings">
       <section class="profile-identity" aria-label="Identidade da conta">${avatar(state.profile.name, 'md', state.profile.avatarUri)}<div class="profile-identity__copy"><div class="question-meta">${badge(state.auth.mode === 'authenticated' ? 'Conta sincronizada' : 'Modo visitante', state.auth.mode === 'authenticated' ? 'success' : 'warning')}${badge(state.subscription.plan === 'diamond' ? 'Diamond' : 'Básico', 'accent')}</div><h2>${escapeHtml(state.profile.name)}</h2><p>${escapeHtml(state.profile.email || state.profile.username || 'Seus dados estão salvos neste navegador')}</p></div>${button('Editar perfil', { route: '/perfil/editar', variant: 'secondary', iconName: 'Settings' })}</section>
+
+      ${levelModule(levelState)}
 
       <div class="settings-sections">
         <section class="settings-section"><header><p class="eyebrow">ESTUDO</p><h2>Minha preparação</h2></header><div>${settings.slice(0, 3).map((item) => settingRow(item)).join('')}</div></section>

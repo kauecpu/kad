@@ -16,6 +16,7 @@ import { matchRoute, shouldOpenStudyHome } from '../src/core/router.ts';
 import { questionSessionView, questionsIndexView } from '../src/views/questions.ts';
 import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.ts';
 import { profileView } from '../src/views/profile.ts';
+import { levelProgress } from '../../contracts/levels.ts';
 import { stackHeader } from '../src/ui/layout.ts';
 import {
   isMobileMoreActive,
@@ -64,9 +65,11 @@ test('páginas internas mantêm um único título e explicam o modo visitante', 
   assert.match(contextualNavigation, /stack-header__context/);
 
   const visitor = createStore(memoryStorage()).getState();
-  assert.equal(profileView(visitor).subtitle, 'Dados salvos neste navegador');
+  const level = { owner: null, status: 'ready' as const, progress: levelProgress(0), pending: 0, storageError: false };
+  assert.equal(profileView(visitor, level).subtitle, 'Dados salvos neste navegador');
+  assert.match(profileView(visitor, level).content, /Nível 0 de 100/);
   visitor.auth = { mode: 'authenticated', userId: 'user-a' };
-  assert.equal(profileView(visitor).subtitle, 'Dossiê do candidato');
+  assert.equal(profileView(visitor, { ...level, owner: 'user-a' }).subtitle, 'Dossiê do candidato');
 });
 
 test('catálogo de navegação preserva rotas, grupos e estado ativo', () => {

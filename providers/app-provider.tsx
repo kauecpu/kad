@@ -63,6 +63,7 @@ import {
   type ProfileAvatarAsset,
 } from '@/lib/remote-user-sync';
 import { useAuth } from '@/providers/auth-provider';
+import { levelEventId, useLevels } from '@/providers/levels-provider';
 import type {
   AlternativeId,
   AnswerRecord,
@@ -295,6 +296,7 @@ function AppThemeStateProvider({
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const { record: recordLevel, consumeReview, clear: clearLevel } = useLevels();
   const { session, isLoading: authLoading } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
@@ -568,6 +570,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const answerQuestion = useCallback((question: Question, selected: AlternativeId) => {
+    if (!question.alternatives.some(option => option.id === selected)) return;
+    recordLevel({ id: levelEventId(), kind: 'question', itemId: question.id, selected, isCorrect: selected === question.correct, reviewed: consumeReview(question.id), occurredAt: new Date().toISOString() });
     setState((current) => {
       const answeredAt = new Date();
       const usage = recordDailyQuestionUsage(
@@ -596,7 +600,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
     });
     if (userId) saveRemoteAnswer(question, selected).catch(() => {});
-  }, [userId]);
+  }, [userId, recordLevel, consumeReview]);
 
   const setWeeklyQuestionGoal = useCallback((goal: number) => {
     setState((current) => ({
@@ -734,7 +738,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState({ ...INITIAL_STATE });
     setThemeResetVersion((current) => current + 1);
     await eraseLocalUserData(ownerId);
-  }, [ownerId]);
+    await clearLevel();
+  }, [clearLevel, ownerId]);
 
   const performance = useMemo(() => computePerformance(state.answers), [state.answers]);
   const isPremium = subscriptionHasVerifiedAccess({

@@ -9,6 +9,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ListRow } from '@/components/ui/list-row';
+import { LevelProgressCard } from '@/components/level-progress-card';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
@@ -350,6 +351,8 @@ export default function PerfilScreen() {
             </Pressable>
           </View>
         </Card>
+
+        <LevelProgressCard />
 
         <DossierSection title="Minha preparação">
           <View
