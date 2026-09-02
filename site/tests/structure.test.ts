@@ -59,6 +59,7 @@ test('integrações web reutilizam RPCs seguras e apenas a chave pública', asyn
   assert.match(service, /rpc\('record_question_attempt'/);
   assert.match(service, /rpc\('submit_user_feedback'/);
   assert.match(service, /create-payment-checkout/);
+  assert.match(service, /get_payment_checkout_status/);
   assert.match(service, /mercadopago\.com\.br/);
   assert.match(service, /from\('flashcard_decks'\)/);
   assert.match(service, /from\('flashcards'\)/);
@@ -67,6 +68,22 @@ test('integrações web reutilizam RPCs seguras e apenas a chave pública', asyn
   assert.match(service, /rpc\('sync_simulation_session'/);
   assert.match(service, /from\('question_comments'\)/);
   assert.match(service, /delete-account/);
+  assert.doesNotMatch(service, /service_role|SUPABASE_SERVICE/);
+});
+
+test('retorno do Mercado Pago mostra estados finais sem confiar na URL', async () => {
+  const [main, profile, service] = await Promise.all([
+    source('src/main.ts'),
+    source('src/views/profile.ts'),
+    source('src/services/supabase.ts'),
+  ]);
+  assert.match(main, /loadRemoteCheckoutStatus\(checkoutId\)/);
+  assert.match(main, /checkout\?\.status === 'approved'/);
+  assert.match(main, /\['failed', 'canceled', 'expired'\]/);
+  assert.match(profile, /Pagamento confirmado/);
+  assert.match(profile, /Pagamento não aprovado/);
+  assert.match(profile, /Checkout expirado/);
+  assert.match(service, /context\.clone\(\)\.json\(\)/);
   assert.doesNotMatch(service, /service_role|SUPABASE_SERVICE/);
 });
 

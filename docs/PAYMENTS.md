@@ -27,6 +27,12 @@ Purchase antes da publicação nas lojas.
 Eventos repetidos não estendem o acesso duas vezes. Pagamentos rejeitados, estornados
 ou contestados atualizam o estado sem confiar nos dados enviados pelo navegador.
 
+O retorno da web consulta `get_payment_checkout_status` com o usuário autenticado. A
+URL do navegador contém somente o UUID da tentativa e nunca libera acesso. A sessão
+guarda uma categoria sanitizada em `status_reason`, permitindo distinguir falha de
+configuração, credencial recusada, erro do provedor e pagamento recusado sem persistir
+respostas, e-mails ou segredos.
+
 ## Configuração do Supabase
 
 Aplique a migration `202608110001_payments_subscriptions.sql` e publique estas Edge
@@ -49,6 +55,7 @@ logs ou Pull Requests:
 MERCADO_PAGO_ACCESS_TOKEN=<credencial privada do ambiente>
 MERCADO_PAGO_WEBHOOK_SECRET=<assinatura secreta do webhook>
 MERCADO_PAGO_LIVE_MODE=false
+MERCADO_PAGO_TEST_PAYER_EMAIL=test_user_...@testuser.com
 KAD_WEB_APP_URL=https://app.exemplo.com
 ALLOWED_WEB_ORIGINS=https://app.exemplo.com
 ```
@@ -56,6 +63,11 @@ ALLOWED_WEB_ORIGINS=https://app.exemplo.com
 Em produção, altere `MERCADO_PAGO_LIVE_MODE` para `true`. `KAD_WEB_APP_URL` precisa usar
 HTTPS. `ALLOWED_WEB_ORIGINS` aceita uma lista separada por vírgulas quando houver mais de
 uma origem oficial.
+
+Em homologação, `MERCADO_PAGO_TEST_PAYER_EMAIL` deve ser uma conta Comprador criada na
+área de testes do Mercado Pago e usar o domínio reservado `testuser.com`. Vendedor e
+comprador devem pertencer ao mesmo país e ao conjunto de testes da mesma integração.
+O código recusa um e-mail comum quando `MERCADO_PAGO_LIVE_MODE=false`.
 
 O backend envia a URL pública de `mercado-pago-webhook` no campo `notification_url`
 durante a criação da assinatura. Esse é o modo exigido para notificações de Assinaturas.

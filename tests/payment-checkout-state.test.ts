@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { decideCheckoutAction } from '../supabase/functions/_shared/payment-checkout.ts';
+import {
+  classifyCheckoutFailure,
+  decideCheckoutAction,
+} from '../supabase/functions/_shared/payment-checkout.ts';
 
 const now = new Date('2026-08-12T02:00:00.000Z').getTime();
 const baseCheckout = {
@@ -49,4 +52,20 @@ test('checkout expirado não é reutilizado', () => {
     ),
     'replace'
   );
+});
+
+test('falhas de checkout são reduzidas a categorias seguras', () => {
+  assert.equal(
+    classifyCheckoutFailure(new Error('MERCADO_PAGO_ACCESS_TOKEN is missing')),
+    'configuration_missing'
+  );
+  assert.equal(classifyCheckoutFailure({ status: 401 }), 'provider_credentials_rejected');
+  assert.equal(classifyCheckoutFailure({ status: 422 }), 'provider_request_rejected');
+  assert.equal(classifyCheckoutFailure({ status: 429 }), 'provider_rate_limited');
+  assert.equal(classifyCheckoutFailure({ status: 503 }), 'provider_unavailable');
+  assert.equal(
+    classifyCheckoutFailure(new Error('Provider returned an invalid checkout')),
+    'provider_invalid_response'
+  );
+  assert.equal(classifyCheckoutFailure(new Error('database unavailable')), 'internal_error');
 });

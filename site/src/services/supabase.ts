@@ -9,6 +9,7 @@ import { mapPublishedConcursos, mapPublishedQuestions } from './published-conten
 import type {
   AlternativeId,
   BillingCycle,
+  CheckoutProgress,
   Concurso,
   EssayDocument,
   Flashcard,
@@ -23,7 +24,7 @@ import type {
 } from '../types/domain.ts';
 
 type OfflineResult = { ok: false; offline: true; message?: never };
-type FailureResult = { ok: false; message: string; offline?: false };
+type FailureResult = { ok: false; message: string; code?: string; offline?: false };
 type SuccessResult = { ok: true; offline?: false };
 type AuthResult = OfflineResult | FailureResult | (SuccessResult & { user: User });
 type SignUpResult = OfflineResult | FailureResult | (SuccessResult & {
@@ -278,9 +279,43 @@ export async function createSubscriptionCheckout(billingCycle: BillingCycle): Pr
     body: { plan: 'diamond', billingCycle },
   });
   if (error || !trustedCheckoutUrl(data?.checkoutUrl)) {
-    return { ok: false, message: 'Não foi possível abrir o pagamento agora.' };
+    let code: string | undefined;
+    const context = typeof error === 'object' && error !== null && 'context' in error
+      ? error.context
+      : null;
+    if (context instanceof Response) {
+      const payload = await context.clone().json().catch(() => null) as { code?: unknown } | null;
+      if (typeof payload?.code === 'string') code = payload.code;
+    }
+    const message = code === 'server_not_configured'
+      ? 'O pagamento não está configurado neste ambiente.'
+      : code === 'checkout_in_progress'
+        ? 'Já existe um checkout sendo preparado. Aguarde alguns segundos.'
+        : code === 'checkout_rate_limited'
+          ? 'Muitas tentativas seguidas. Aguarde um pouco e tente novamente.'
+          : code === 'subscription_active'
+            ? 'Sua assinatura já possui acesso ativo.'
+            : 'Não foi possível abrir o pagamento agora.';
+    return { ok: false, message, code };
   }
   return { ok: true, checkoutUrl: data.checkoutUrl };
+}
+
+export async function loadRemoteCheckoutStatus(checkoutId: string): Promise<CheckoutProgress | null> {
+  const remote = await client();
+  if (!remote || !checkoutId) return null;
+  const { data, error } = await remote.rpc('get_payment_checkout_status', {
+    p_checkout_id: checkoutId,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || !['creating', 'pending', 'approved', 'failed', 'canceled', 'expired'].includes(row.status)) {
+    return null;
+  }
+  return {
+    status: row.status as CheckoutProgress['status'],
+    reason: typeof row.status_reason === 'string' ? row.status_reason : null,
+  };
 }
 
 export async function cancelRemoteSubscription(): Promise<OfflineResult | FailureResult | SuccessResult> {

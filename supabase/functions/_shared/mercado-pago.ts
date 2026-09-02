@@ -1,3 +1,5 @@
+declare const Deno: { env: { get(name: string): string | undefined } };
+
 export type PaidPlan = 'platinum' | 'diamond';
 export type BillingCycle = 'monthly' | 'quarterly' | 'annual';
 
@@ -69,11 +71,13 @@ const MERCADO_PAGO_API_URL = 'https://api.mercadopago.com';
 const CHECKOUT_REFERENCE_PREFIX = 'kad_checkout:';
 
 export class MercadoPagoApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly providerCode?: string
-  ) {
+  readonly status: number;
+  readonly providerCode?: string;
+
+  constructor(status: number, providerCode?: string) {
     super(`Mercado Pago request failed with status ${status}`);
+    this.status = status;
+    this.providerCode = providerCode;
   }
 }
 function safeProviderCode(value: unknown) {
@@ -119,11 +123,19 @@ export function amountInCents(value: unknown): number | null {
   return Math.round(amount * 100);
 }
 
-export function paymentReturnUrl(checkoutId: string): string {
-  const configured = Deno.env.get('KAD_WEB_APP_URL')?.trim();
+export function isMercadoPagoTestPayerEmail(value: unknown): value is string {
+  return typeof value === 'string'
+    && value.length <= 254
+    && /^[^\s@]+@testuser\.com$/i.test(value);
+}
+
+export function buildPaymentReturnUrl(
+  configured: string | undefined,
+  checkoutId: string,
+  liveMode: boolean
+): string {
   if (!configured) throw new Error('KAD_WEB_APP_URL is missing');
   const url = new URL(configured);
-  const liveMode = Deno.env.get('MERCADO_PAGO_LIVE_MODE') === 'true';
   const localDevelopment =
     (url.hostname === 'localhost' || url.hostname === '127.0.0.1') && !liveMode;
   if (url.protocol !== 'https:' && !localDevelopment) {
@@ -134,6 +146,14 @@ export function paymentReturnUrl(checkoutId: string): string {
   url.hash = '';
   url.searchParams.set('checkout', checkoutId);
   return url.toString();
+}
+
+export function paymentReturnUrl(checkoutId: string): string {
+  return buildPaymentReturnUrl(
+    Deno.env.get('KAD_WEB_APP_URL')?.trim(),
+    checkoutId,
+    Deno.env.get('MERCADO_PAGO_LIVE_MODE') === 'true'
+  );
 }
 
 export function paymentWebhookUrl(): string {

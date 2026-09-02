@@ -34,6 +34,7 @@ import {
   getCurrentUser,
   initializeSupabase,
   loadPublishedContent,
+  loadRemoteCheckoutStatus,
   loadQuestionComments,
   loadQuestionCommunityAccuracy,
   loadRemoteEssayDocuments,
@@ -140,6 +141,7 @@ const ui: UiState = {
   simulationTimer: null,
   essayTimer: null,
   checkoutId: '',
+  checkoutProgress: null,
   recoveryStatus: currentRoute().pathname === '/nova-senha' ? 'checking' : 'idle',
   checkoutTimer: null,
   authStoryIndex: 0,
@@ -293,7 +295,7 @@ function resolveView(route: Route, state: SiteState): ViewModel {
   if (pathname === '/perfil') return profileView(state);
   if (pathname === '/perfil/desempenho') return performanceView(state);
   if (pathname === '/perfil/editar') return profileEditView(state);
-  if (pathname === '/perfil/planos') return plansView(state, params);
+  if (pathname === '/perfil/planos') return plansView(state, params, ui.checkoutProgress);
   if (pathname === '/perfil/feedback') return feedbackView(state);
   if (pathname === '/perfil/senha') return passwordView(state);
   if (pathname === '/perfil/excluir') return deleteView(state);
@@ -431,16 +433,33 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
   if (!validId || !state.auth.userId || ui.checkoutId === checkoutId) return;
   const userId = state.auth.userId;
   ui.checkoutId = checkoutId;
+  ui.checkoutProgress = { status: 'checking' };
+  render();
   let attempts = 0;
   const poll = async () => {
     attempts += 1;
+    const checkout = await loadRemoteCheckoutStatus(checkoutId).catch(() => null);
+    if (checkout) ui.checkoutProgress = checkout;
     const subscription = await loadRemoteSubscription(userId).catch(() => null);
     if (subscription) store.update((draft) => { draft.subscription = subscription; });
-    if (subscription?.plan === 'diamond') {
+    if (checkout?.status === 'approved' && subscription?.plan === 'diamond') {
       toast('Pagamento confirmado. Seu acesso Diamond foi atualizado.');
+      render();
       return;
     }
-    if (attempts < 5) ui.checkoutTimer = setTimeout(poll, 3000);
+    if (checkout && ['failed', 'canceled', 'expired'].includes(checkout.status)) {
+      toast(checkout.status === 'expired'
+        ? 'Este checkout expirou. Inicie uma nova tentativa.'
+        : checkout.status === 'canceled'
+          ? 'O checkout foi cancelado.'
+          : checkout.reason === 'configuration_missing'
+            ? 'O pagamento não está configurado neste ambiente.'
+            : 'O pagamento não foi aprovado. Você pode tentar novamente.');
+      render();
+      return;
+    }
+    render();
+    if (attempts < 20) ui.checkoutTimer = setTimeout(poll, 3000);
   };
   void poll();
 }
@@ -1301,11 +1320,21 @@ document.addEventListener('click', async (event) => {
     }
     const cycle = target.dataset.cycle;
     if (!isBillingCycle(cycle)) return;
-    if (target instanceof HTMLButtonElement) target.disabled = true;
+    const originalContent = target instanceof HTMLButtonElement ? target.innerHTML : '';
+    if (target instanceof HTMLButtonElement) {
+      target.disabled = true;
+      target.setAttribute('aria-busy', 'true');
+      target.textContent = 'Preparando checkout…';
+    }
     const result = await createSubscriptionCheckout(cycle);
     if (result.ok) globalThis.location.assign(result.checkoutUrl);
     else {
-      if (target instanceof HTMLButtonElement) target.disabled = false;
+      if (target instanceof HTMLButtonElement) {
+        target.disabled = false;
+        target.removeAttribute('aria-busy');
+        target.innerHTML = originalContent;
+        hydrateIcons(target);
+      }
       toast(result.offline ? 'O pagamento ainda não está configurado neste ambiente.' : result.message);
     }
     return;

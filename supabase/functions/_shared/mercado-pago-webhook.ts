@@ -67,3 +67,10 @@ export function webhookProcessingOutcome(correlated: boolean): {
     ? { processed: true, errorCode: null }
     : { processed: false, errorCode: 'not_correlated' };
 }
+
+export function paymentStatusReason(providerStatus: string): string | null {
+  if (providerStatus === 'rejected') return 'payment_rejected';
+  if (providerStatus === 'refunded') return 'payment_refunded';
+  if (providerStatus === 'charged_back') return 'payment_chargeback';
+  return null;
+}

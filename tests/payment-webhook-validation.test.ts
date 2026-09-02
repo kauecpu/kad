@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   checkoutMatchesProviderSubscription,
   parseMercadoPagoWebhookBody,
+  paymentStatusReason,
   webhookEnvironmentMatches,
 } from '../supabase/functions/_shared/mercado-pago-webhook.ts';
 
@@ -40,6 +41,13 @@ test('aceita somente o formato minimo e tipado do webhook do Mercado Pago', () =
   );
 });
 
+test('traduz estados financeiros terminais sem expor payloads do provedor', () => {
+  assert.equal(paymentStatusReason('approved'), null);
+  assert.equal(paymentStatusReason('rejected'), 'payment_rejected');
+  assert.equal(paymentStatusReason('refunded'), 'payment_refunded');
+  assert.equal(paymentStatusReason('charged_back'), 'payment_chargeback');
+});
+
 test('valida o ambiente do webhook de forma fechada', () => {
   assert.equal(webhookEnvironmentMatches('false', false), true);
   assert.equal(webhookEnvironmentMatches('true', true), true);
@@ -53,4 +61,3 @@ test('nao correlaciona um checkout ja vinculado a outra assinatura', () => {
   assert.equal(checkoutMatchesProviderSubscription('preapproval-1', 'preapproval-1'), true);
   assert.equal(checkoutMatchesProviderSubscription('preapproval-2', 'preapproval-1'), false);
 });
-

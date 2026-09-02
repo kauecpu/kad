@@ -2,7 +2,7 @@ import { getCatalog } from '../data/catalog.ts';
 import { escapeHtml, formatCount, formatPercent, formatTimer, groupPerformance, normalizeText, questionsPerformance } from '../core/utils.ts';
 import { avatar, badge, button, card, emptyState, icon, metricRing, passwordField, progress, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
-import type { SiteState, ViewModel } from '../types/domain.ts';
+import type { CheckoutProgress, SiteState, ViewModel } from '../types/domain.ts';
 
 type ViewParams = Record<string, string | undefined>;
 
@@ -145,7 +145,11 @@ export function goalView(state: SiteState): ViewModel {
   };
 }
 
-export function plansView(state: SiteState, params: ViewParams = {}): ViewModel {
+export function plansView(
+  state: SiteState,
+  params: ViewParams = {},
+  checkoutProgress: CheckoutProgress | null = null
+): ViewModel {
   const plans = [
     { name: 'Básico', price: 'Grátis', period: '', cycle: '', features: ['Questões ilimitadas', 'Correção e gabarito comentado'], featured: false },
     { name: 'Diamond mensal', price: 'R$ 14,99', period: '/mês', cycle: 'monthly', features: ['Tudo do Básico', 'Simulados personalizados', 'Desempenho por disciplina', 'Revisão de erros e favoritas'], featured: false },
@@ -153,10 +157,30 @@ export function plansView(state: SiteState, params: ViewParams = {}): ViewModel 
     { name: 'Diamond anual', price: 'R$ 149,99', period: '/ano', cycle: 'annual', features: ['Tudo do Diamond', 'Economia de 17%', 'Cobrança anual', 'Cancele quando quiser'], featured: false },
   ];
   const premium = state.subscription.plan === 'diamond' && ['active', 'past_due', 'canceled'].includes(state.subscription.status);
+  const checkoutFeedback = params.checkout ? (() => {
+    if (checkoutProgress?.status === 'approved' || premium) {
+      return { tone: 'success', iconName: 'Check', title: 'Pagamento confirmado', message: 'Seu acesso Diamond foi atualizado.' };
+    }
+    if (checkoutProgress?.status === 'expired') {
+      return { tone: 'warning', iconName: 'Clock3', title: 'Checkout expirado', message: 'Inicie uma nova tentativa quando quiser continuar.' };
+    }
+    if (checkoutProgress?.status === 'canceled') {
+      return { tone: 'warning', iconName: 'CircleX', title: 'Checkout cancelado', message: 'Nenhuma nova cobrança foi confirmada.' };
+    }
+    if (checkoutProgress?.status === 'failed') {
+      return checkoutProgress.reason === 'configuration_missing'
+        ? { tone: 'danger', iconName: 'TriangleAlert', title: 'Pagamento indisponível neste ambiente', message: 'A configuração do checkout precisa ser concluída pela equipe do KAD.' }
+        : { tone: 'danger', iconName: 'CircleX', title: 'Pagamento não aprovado', message: 'Seu plano não foi alterado. Tente novamente ou use outra forma de pagamento.' };
+    }
+    if (checkoutProgress?.status === 'pending') {
+      return { tone: 'warning', iconName: 'Clock3', title: 'Aguardando pagamento', message: 'O Mercado Pago ainda não confirmou a cobrança. Você pode atualizar esta página depois.' };
+    }
+    return { tone: 'warning', iconName: 'LoaderCircle', title: 'Confirmando pagamento', message: 'Consultando o status seguro no servidor.' };
+  })() : null;
   return {
     title: 'Planos e assinatura',
     subtitle: premium ? 'Seu acesso Diamond está ativo' : 'Escolha o acesso ideal para sua preparação',
-    content: `${stackHeader('Planos e assinatura', 'Benefícios claros, sem esconder condições')}${params.checkout ? card(`<div class="detail-panel"><span class="badge badge--warning">${icon('Clock3')} Confirmando pagamento</span><p class="muted">O acesso será atualizado assim que o Mercado Pago confirmar a cobrança.</p></div>`) : ''}${premium ? card(`<div class="detail-panel"><div class="contest-card__heading"><div><p class="eyebrow">SEU PLANO</p><h2>KAD Diamond</h2></div>${badge(state.subscription.autoRenew ? 'Ativo' : 'Renovação cancelada', state.subscription.autoRenew ? 'success' : 'warning')}</div><p class="muted">${state.subscription.renewsAt ? `Acesso disponível até ${new Intl.DateTimeFormat('pt-BR').format(new Date(state.subscription.renewsAt))}.` : 'Acesso premium confirmado pelo servidor.'}</p><div class="welcome__actions">${button('Atualizar assinatura', { action: 'refresh-subscription', variant: 'secondary', iconName: 'RotateCcw' })}${state.subscription.autoRenew ? button('Cancelar renovação', { action: 'cancel-subscription', variant: 'danger' }) : ''}</div></div>`) : ''}<div class="plan-grid">${plans.map((plan) => card(`<div class="contest-card__heading"><h2>${plan.name}</h2>${plan.featured ? badge('Recomendado', 'accent') : plan.name === 'Básico' ? badge(state.subscription.plan === 'basic' ? 'Seu plano' : 'Grátis') : ''}</div><p class="plan-price">${plan.price} <span>${plan.period}</span></p><ul class="benefit-list">${plan.features.map((feature) => `<li>${icon('Check')}${feature}</li>`).join('')}</ul>${plan.name === 'Básico' ? button('Plano atual', { disabled: true, variant: 'secondary', className: 'full-width' }) : button(premium ? 'Diamond ativo' : 'Continuar para assinatura', { action: 'start-checkout', iconName: 'Crown', className: 'full-width', disabled: premium, attrs: `data-cycle="${plan.cycle}"` })}`, `plan-card ${plan.featured ? 'is-featured' : ''}`)).join('')}</div>${card(`<div class="detail-panel"><span class="badge badge--success">${icon('ShieldCheck')} Pagamento seguro</span><p class="muted">O checkout é criado pela função protegida do KAD e aberto somente quando o endereço pertence ao Mercado Pago. Nenhum dado de pagamento passa por este site.</p></div>`)}`,
+    content: `${stackHeader('Planos e assinatura', 'Benefícios claros, sem esconder condições')}${checkoutFeedback ? card(`<div class="detail-panel"><span class="badge badge--${checkoutFeedback.tone}">${icon(checkoutFeedback.iconName)} ${checkoutFeedback.title}</span><p class="muted">${checkoutFeedback.message}</p></div>`) : ''}${premium ? card(`<div class="detail-panel"><div class="contest-card__heading"><div><p class="eyebrow">SEU PLANO</p><h2>KAD Diamond</h2></div>${badge(state.subscription.autoRenew ? 'Ativo' : 'Renovação cancelada', state.subscription.autoRenew ? 'success' : 'warning')}</div><p class="muted">${state.subscription.renewsAt ? `Acesso disponível até ${new Intl.DateTimeFormat('pt-BR').format(new Date(state.subscription.renewsAt))}.` : 'Acesso premium confirmado pelo servidor.'}</p><div class="welcome__actions">${button('Atualizar assinatura', { action: 'refresh-subscription', variant: 'secondary', iconName: 'RotateCcw' })}${state.subscription.autoRenew ? button('Cancelar renovação', { action: 'cancel-subscription', variant: 'danger' }) : ''}</div></div>`) : ''}<div class="plan-grid">${plans.map((plan) => card(`<div class="contest-card__heading"><h2>${plan.name}</h2>${plan.featured ? badge('Recomendado', 'accent') : plan.name === 'Básico' ? badge(state.subscription.plan === 'basic' ? 'Seu plano' : 'Grátis') : ''}</div><p class="plan-price">${plan.price} <span>${plan.period}</span></p><ul class="benefit-list">${plan.features.map((feature) => `<li>${icon('Check')}${feature}</li>`).join('')}</ul>${plan.name === 'Básico' ? button('Plano atual', { disabled: true, variant: 'secondary', className: 'full-width' }) : button(premium ? 'Diamond ativo' : 'Continuar para assinatura', { action: 'start-checkout', iconName: 'Crown', className: 'full-width', disabled: premium, attrs: `data-cycle="${plan.cycle}"` })}`, `plan-card ${plan.featured ? 'is-featured' : ''}`)).join('')}</div>${card(`<div class="detail-panel"><span class="badge badge--success">${icon('ShieldCheck')} Pagamento seguro</span><p class="muted">O checkout é criado pela função protegida do KAD e aberto somente quando o endereço pertence ao Mercado Pago. Nenhum dado de pagamento passa por este site.</p></div>`)}`,
   };
 }
 

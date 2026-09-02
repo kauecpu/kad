@@ -146,6 +146,7 @@ export type UiState = {
   simulationTimer: ReturnType<typeof setInterval> | null;
   essayTimer: ReturnType<typeof setInterval> | null;
   checkoutId: string;
+  checkoutProgress: CheckoutProgress | null;
   recoveryStatus: 'idle' | 'checking' | 'ready' | 'invalid';
   checkoutTimer: ReturnType<typeof setTimeout> | null;
   authStoryIndex: number;
@@ -155,6 +156,11 @@ export type UiState = {
   flashcardRevealId: string | null;
   essaySyncTimer: ReturnType<typeof setTimeout> | null;
   simulationSyncTimer: ReturnType<typeof setTimeout> | null;
+};
+
+export type CheckoutProgress = {
+  status: 'checking' | 'creating' | 'pending' | 'approved' | 'failed' | 'canceled' | 'expired';
+  reason?: string | null;
 };
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;

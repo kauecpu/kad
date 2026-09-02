@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import {
   checkoutReference,
+  isMercadoPagoTestPayerEmail,
   MercadoPagoApiError,
   mercadoPagoRequest,
   paymentPlan,
@@ -9,6 +10,7 @@ import {
   paymentWebhookUrl,
 } from '../_shared/mercado-pago.ts';
 import {
+  classifyCheckoutFailure,
   decideCheckoutAction,
   isTrustedCheckoutUrl,
   type OpenCheckout,
@@ -52,11 +54,7 @@ function mercadoPagoPayerEmail(userEmail: string) {
   }
 
   const testPayerEmail = Deno.env.get('MERCADO_PAGO_TEST_PAYER_EMAIL')?.trim();
-  if (
-    !testPayerEmail ||
-    testPayerEmail.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testPayerEmail)
-  ) {
+  if (!isMercadoPagoTestPayerEmail(testPayerEmail)) {
     throw new Error('MERCADO_PAGO_TEST_PAYER_EMAIL is invalid');
   }
   return testPayerEmail;
@@ -224,6 +222,7 @@ Deno.serve(async (request) => {
               : new Date(openCheckout.expires_at).getTime() <= Date.now()
                 ? 'expired'
                 : 'canceled',
+          status_reason: 'checkout_replaced',
         })
         .eq('id', openCheckout.id);
       if (closeError) throw closeError;
@@ -279,6 +278,7 @@ Deno.serve(async (request) => {
           provider_subscription_id: providerSubscription.id,
           checkout_url: providerSubscription.init_point,
           status: 'pending',
+          status_reason: null,
         })
         .eq('id', checkout.id);
       if (updateError) throw updateError;
@@ -293,13 +293,15 @@ Deno.serve(async (request) => {
         origin
       );
     } catch (error) {
+      const statusReason = classifyCheckoutFailure(error);
       await admin
         .from('payment_checkout_sessions')
-        .update({ status: 'failed' })
+        .update({ status: 'failed', status_reason: statusReason })
         .eq('id', checkout.id);
       throw error;
     }
   } catch (error) {
+    const statusReason = classifyCheckoutFailure(error);
     console.error(
       'create-payment-checkout failed',
       error instanceof MercadoPagoApiError
@@ -309,8 +311,13 @@ Deno.serve(async (request) => {
           : error
     );
     return jsonResponse(
-      { error: 'Unable to create checkout', code: 'checkout_unavailable' },
-      502,
+      {
+        error: 'Unable to create checkout',
+        code: statusReason === 'configuration_missing'
+          ? 'server_not_configured'
+          : 'checkout_unavailable',
+      },
+      statusReason === 'configuration_missing' ? 500 : 502,
       origin
     );
   } finally {
