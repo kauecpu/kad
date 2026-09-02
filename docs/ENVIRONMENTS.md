@@ -67,11 +67,11 @@ Auth, Storage, tabelas, usuários e Edge Functions são próprios de cada projet
 Segredos de funções ficam no painel do respectivo ambiente. O app, o site e o
 painel administrativo recebem somente chaves publicáveis.
 
-As Edge Functions de pagamento continuam somente na produção. Elas não devem ser
-publicadas na homologação até existirem credenciais de teste próprias do provedor;
-credenciais reais nunca podem ser reutilizadas nesse ambiente. A leitura pública e
-o bloqueio de dados privados foram verificados; o teste completo de login e escrita
-com conta descartável ainda depende de um e-mail de homologação controlado.
+As Edge Functions de pagamento estão publicadas na homologação para validar código,
+JWT e banco, mas permanecem operacionalmente bloqueadas: nenhum segredo personalizado
+do Mercado Pago está configurado nesse projeto. Credenciais reais nunca podem ser
+reutilizadas nesse ambiente. O fluxo financeiro completo só deve começar depois que
+existirem credenciais e comprador próprios de teste, além de uma conta KAD descartável.
 
 ## Limitação conhecida
 

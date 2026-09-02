@@ -61,6 +61,14 @@ const paymentHardeningMigration = readFileSync(
   'utf8'
 );
 
+const paymentDiagnosticsMigration = readFileSync(
+  new NodeURL(
+    '../supabase/migrations/20260902040533_payment_checkout_diagnostics.sql',
+    import.meta.url
+  ),
+  'utf8'
+);
+
 const feedbackMigration = readFileSync(
   new NodeURL('../supabase/migrations/20260816010000_user_feedback_inbox.sql', import.meta.url),
   'utf8'
@@ -258,6 +266,22 @@ test('checkout financeiro usa rate limiting concorrente no banco antes do proved
   const creationPosition = paymentCheckout.indexOf("'/preapproval'");
   assert.ok(limiterPosition >= 0 && limiterPosition < cancellationPosition);
   assert.ok(limiterPosition < creationPosition);
+});
+
+test('checkout expõe somente estado sanitizado ao próprio usuário', () => {
+  assert.match(paymentDiagnosticsMigration, /add column if not exists status_reason text/);
+  assert.match(paymentDiagnosticsMigration, /public\.get_payment_checkout_status\(p_checkout_id uuid\)/);
+  assert.match(paymentDiagnosticsMigration, /checkout\.user_id = \(select auth\.uid\(\)\)/);
+  assert.match(
+    paymentDiagnosticsMigration,
+    /grant execute on function public\.get_payment_checkout_status\(uuid\)[\s\S]*to authenticated/
+  );
+  assert.doesNotMatch(
+    paymentDiagnosticsMigration,
+    /grant select[\s\S]*payment_checkout_sessions[\s\S]*authenticated/
+  );
+  assert.match(paymentCheckout, /classifyCheckoutFailure/);
+  assert.match(paymentCheckout, /status_reason: statusReason/);
 });
 
 test('crédito de pagamento é imutável e estados de estorno são terminais', () => {
