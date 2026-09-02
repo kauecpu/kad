@@ -15,6 +15,7 @@ import {
   StudyMomentumCard,
 } from '@/components/home-study-momentum';
 import { Avatar } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { FeaturedCard } from '@/components/ui/featured-card';
 import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -96,6 +97,16 @@ export function HomeContent() {
       : undefined,
   });
   const primaryVisual = getHomePrimaryVisual(primaryAction);
+  const primaryActionLabel =
+    primaryAction.route === '/meta'
+      ? 'Definir minha meta'
+      : primaryAction.route === '/perfil/desempenho/questoes?tipo=wrong'
+        ? 'Revisar erros'
+        : primaryAction.route === '/questoes/desafio'
+          ? 'Começar desafio'
+          : primaryAction.route === '/questoes/simulado'
+            ? 'Continuar simulado'
+            : 'Ver resultado';
   const studyMomentum = useMemo(
     () =>
       buildStudyMomentum({
@@ -139,6 +150,12 @@ export function HomeContent() {
           visual="faceted"
           artwork={<KadCardArtwork variant="stack" />}
           tone={primaryVisual.tone}
+          accessory={(
+            <Badge
+              label={primaryAction.eyebrow}
+              tone={primaryVisual.tone === 'achievement' ? 'energy' : 'accent'}
+            />
+          )}
           icon={
             primaryAction.route === '/meta'
               ? 'navigate-outline'
@@ -153,7 +170,7 @@ export function HomeContent() {
           title={primaryAction.title}
           description={primaryAction.description}
           motionFeedback
-          actionLabel="Abrir próximo passo">
+          actionLabel={primaryActionLabel}>
           {primaryAction.progress !== undefined ? (
             <ProgressBar
               value={primaryAction.progress}

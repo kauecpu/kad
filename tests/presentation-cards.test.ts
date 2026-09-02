@@ -49,11 +49,12 @@ test('a arte facetada usa tokens e permanece decorativa', () => {
   assert.doesNotMatch(cardArtwork, /#[0-9A-Fa-f]{6}/);
 });
 
-test('o card de montar simulado mantém estados e CTA dentro da nova superfície', () => {
-  assert.match(simulations, /<FeaturedCard/);
-  assert.match(simulations, /Verificando seu plano para montar simulados/);
-  assert.match(simulations, /Conhecer planos com simulados personalizados/);
+test('o montador de simulado usa uma bancada neutra com estados e CTA explícitos', () => {
+  assert.match(simulations, /styles\.builderCard/);
+  assert.match(simulations, /<Button/);
+  assert.match(simulations, /disabled=\{subscriptionLoading\}/);
   assert.match(simulations, /canUseSimulations[\s\S]*?Configurar prova[\s\S]*?Conhecer planos/);
+  assert.doesNotMatch(simulations, /<FeaturedCard|KadCardArtwork/);
 });
 
 test('o perfil preserva conta e plano sem a decoração do antigo dossiê', () => {
@@ -73,14 +74,15 @@ test('o perfil preserva conta e plano sem a decoração do antigo dossiê', () =
   assert.doesNotMatch(profile, /<DossierSection index=/);
 });
 
-test('o explorador de questões reúne modo e busca em um card acessível', () => {
-  assert.match(questions, /<FeaturedCard/);
-  assert.match(questions, /Escolha como estudar/);
+test('o explorador de questões reúne foco, busca e desafio sem um hero promocional', () => {
+  assert.match(questions, /styles\.studyTools/);
+  assert.match(questions, /Escolha seu foco/);
   assert.match(questions, /<Segmented options=\{STUDY_OPTIONS\}/);
-  assert.match(questions, /accessibilityLabel="Procurar questões"/);
+  assert.match(questions, /accessibilityLabel="Buscar questões no banco"/);
+  assert.match(questions, /accessibilityLabel="Começar desafio rápido de três questões"/);
   assert.doesNotMatch(questions, /styles\.filterIcon/);
   assert.match(questions, /styles\.itemSeparator/);
-  assert.doesNotMatch(questions, /<Card/);
+  assert.doesNotMatch(questions, /<FeaturedCard|KadCardArtwork/);
 });
 
 test('os demais destaques usam a mesma família sem substituir o cartão de perfil', () => {
@@ -90,15 +92,18 @@ test('os demais destaques usam a mesma família sem substituir o cartão de perf
   );
   assert.match(concursos, /<FeaturedCard[\s\S]*?title=\{targetRole\}/);
   assert.match(ranking, /<FeaturedCard[\s\S]*?tone="achievement"/);
-  assert.match(trails, /<FeaturedCard[\s\S]*?heroTrack\?\.name/);
+  assert.match(trails, /styles\.journeyLead/);
   assert.match(essays, /<FeaturedCard[\s\S]*?Badge label="Recomendado"/);
   assert.doesNotMatch(profile, /FeaturedCard/);
 });
 
-test('o destaque principal usa a assinatura facetada em cada jornada', () => {
-  for (const screen of [home, questions, concursos, simulations, trails, essays]) {
+test('a assinatura facetada fica restrita às jornadas que realmente pedem um destaque forte', () => {
+  for (const screen of [home, concursos, essays]) {
     assert.match(screen, /visual="faceted"/);
     assert.match(screen, /artwork=\{<KadCardArtwork variant="/);
+  }
+  for (const screen of [questions, simulations, trails]) {
+    assert.doesNotMatch(screen, /visual="faceted"|KadCardArtwork/);
   }
   assert.match(ranking, /tone="achievement"/);
   assert.doesNotMatch(ranking, /visual="faceted"/);

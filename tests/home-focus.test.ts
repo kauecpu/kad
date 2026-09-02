@@ -68,7 +68,13 @@ test('o prazo é compacto e só aparece com inscrição aberta e data real', () 
   assert.match(home, /focusConcurso\?\.status === 'aberto' && focusConcurso\.registrationEnd/);
   assert.match(home, /focusDeadlineCandidate\?\.tone !== 'neutral'/);
   assert.match(home, /styles\.deadlineAlert/);
-  assert.doesNotMatch(home, /goalCard|roleCard|formatSalaryShort|<Badge/);
+  assert.doesNotMatch(home, /goalCard|roleCard|formatSalaryShort/);
+
+  const deadlineBlock = home.slice(
+    home.indexOf('{focusConcurso && focusDeadline ? ('),
+    home.indexOf('</ScrollView>')
+  );
+  assert.doesNotMatch(deadlineBlock, /<Badge/);
 });
 
 test('as seções permanecem abaixo do título principal na hierarquia semântica', () => {

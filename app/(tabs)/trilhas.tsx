@@ -17,9 +17,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
-import { FeaturedCard } from '@/components/ui/featured-card';
-import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
-import { ProgressBar } from '@/components/ui/progress-bar';
 import { SearchField } from '@/components/ui/search-field';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Section } from '@/components/ui/section';
@@ -227,11 +224,10 @@ export default function TrailsScreen() {
     [questions, track],
   );
   const activeLevel = levels.find((level) => level.number === selectedLevel) ?? levels[0];
-  const currentMetrics = useMemo(() => trailMetrics(levels, answers), [answers, levels]);
   const recommendedTrack = recommendedPack
     ? CONCURSO_TRACKS.find((item) => item.id === recommendedPack.id)
     : undefined;
-  const heroTrack = recommendedTrack ?? track;
+  const heroTrack = track ?? recommendedTrack;
   const heroLevels = useMemo(
     () => (heroTrack ? availableLevelsForTrack(heroTrack, questions) : []),
     [heroTrack, questions]
@@ -294,13 +290,6 @@ export default function TrailsScreen() {
     );
   }
 
-  const trackType = track
-    ? track.kind === 'discipline'
-      ? 'Disciplina'
-      : track.kind === 'area'
-        ? 'Área'
-        : 'Concurso'
-    : undefined;
   const heroActionLabel = !heroTrack
     ? 'Escolher trilha'
     : heroMetrics.answered === 0
@@ -317,30 +306,38 @@ export default function TrailsScreen() {
         ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xxxl }]}
         showsVerticalScrollIndicator={false}>
-        <View style={styles.intro}>
-          <View style={styles.introIcon}>
-            <Ionicons name="map-outline" size={22} color={colors.primary} />
+        <View
+          style={[
+            styles.journeyLead,
+            { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+          ]}>
+          <View style={styles.journeyLeadHeader}>
+            <View style={[styles.journeyLeadIcon, { backgroundColor: colors.primarySoft }]}>
+              <Ionicons
+                name={heroTrack?.icon ?? 'navigate-outline'}
+                size={22}
+                color={colors.primary}
+              />
+            </View>
+            <View style={styles.journeyLeadCopy}>
+              <View style={styles.journeyLeadTitleRow}>
+                <Text style={[styles.journeyLeadTitle, { color: colors.text }]}>
+                  {heroTrack?.name ?? 'Escolha sua primeira trilha'}
+                </Text>
+                {heroIsRecommendation && profile.targetRole ? (
+                  <Badge label="Recomendada" tone="energy" />
+                ) : null}
+              </View>
+              <Text style={[styles.journeyLeadDescription, { color: colors.textMuted }]}>
+                {heroTrack
+                  ? heroIsRecommendation && profile.targetRole
+                    ? `Um caminho de estudo alinhado à sua meta de ${profile.targetRole}.`
+                    : `${heroMetrics.total} ${heroMetrics.total === 1 ? 'questão' : 'questões'} em ${heroLevels.length} ${heroLevels.length === 1 ? 'nível' : 'níveis'}.`
+                  : 'Escolha um concurso, uma área ou uma disciplina para começar.'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.introText}>
-            <Text style={[styles.introTitle, { color: colors.text }]}>Estude com uma sequência clara</Text>
-            <Text style={[styles.introDescription, { color: colors.textMuted }]}>Escolha uma trilha, acompanhe o que já respondeu e veja seu desempenho sem misturar as duas métricas.</Text>
-          </View>
-        </View>
 
-        <FeaturedCard
-          icon={heroTrack?.icon ?? 'navigate-outline'}
-          title={heroTrack?.name ?? 'Escolha sua primeira trilha'}
-          description={
-            heroTrack
-              ? heroIsRecommendation && profile.targetRole
-                ? `Esta trilha combina com sua meta de ${profile.targetRole}.`
-                : `${heroMetrics.total} ${heroMetrics.total === 1 ? 'questão disponível' : 'questões disponíveis'} em ${heroLevels.length} ${heroLevels.length === 1 ? 'nível' : 'níveis'}.`
-              : 'Escolha um concurso, uma área ou uma disciplina para começar.'
-          }
-          intensity="strong"
-          visual="faceted"
-          artwork={<KadCardArtwork variant="layers" />}
-        >
           <View style={[styles.heroFooter, isDesktop && styles.heroFooterDesktop]}>
             {heroTrack ? (
               <View style={styles.heroMetrics}>
@@ -368,7 +365,7 @@ export default function TrailsScreen() {
               style={isDesktop ? styles.heroButtonDesktop : undefined}
             />
           </View>
-        </FeaturedCard>
+        </View>
 
         <View
           onLayout={(event) => setSelectorOffset(event.nativeEvent.layout.y)}
@@ -424,40 +421,6 @@ export default function TrailsScreen() {
               )}
             </Section>
 
-            {track && trackType ? (
-              <Card style={styles.trackSummary}>
-                <View style={styles.trackHeader}>
-                  <View style={styles.trackIcon}>
-                    <Ionicons name={track.icon} size={22} color={colors.primary} />
-                  </View>
-                  <View style={styles.trackText}>
-                    <Text style={[styles.trackName, { color: colors.text }]}>{track.name}</Text>
-                    <Text style={[styles.trackSubtitle, { color: colors.textMuted }]}>{track.subtitle}</Text>
-                  </View>
-                  <Badge label={trackType} tone="neutral" />
-                </View>
-
-                <View style={styles.summaryMetrics}>
-                  <View style={styles.summaryMetric}>
-                    <Text style={[styles.summaryMetricValue, { color: colors.primary }]}>
-                      {currentMetrics.answered}/{currentMetrics.total}
-                    </Text>
-                    <Text style={[styles.summaryMetricLabel, { color: colors.textMuted }]}>questões respondidas</Text>
-                  </View>
-                  <View style={styles.summaryMetric}>
-                    <Text style={[styles.summaryMetricValue, { color: colors.primary }]}>
-                      {currentMetrics.answered > 0 ? `${Math.round(currentMetrics.accuracy)}%` : '—'}
-                    </Text>
-                    <Text style={[styles.summaryMetricLabel, { color: colors.textMuted }]}>percentual de acertos</Text>
-                  </View>
-                </View>
-                <ProgressBar
-                  value={currentMetrics.progress}
-                  color={colors.primary}
-                  label={`${currentMetrics.answered} de ${currentMetrics.total} questões respondidas em ${track.name}`}
-                />
-              </Card>
-            ) : null}
           </View>
 
           <View style={styles.levelColumn}>
@@ -622,11 +585,30 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     gap: Spacing.lg,
   },
-  intro: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  introIcon: { width: 28, height: 46, alignItems: 'center', justifyContent: 'center' },
-  introText: { flex: 1, gap: 3 },
-  introTitle: { fontSize: FontSize.heading + 1, fontWeight: FontWeight.bold },
-  introDescription: { fontSize: FontSize.small, lineHeight: 19, maxWidth: 720 },
+  journeyLead: {
+    gap: Spacing.lg,
+    padding: Spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.lg,
+  },
+  journeyLeadHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
+  journeyLeadIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  journeyLeadCopy: { flex: 1, minWidth: 0, gap: Spacing.xs },
+  journeyLeadTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.sm },
+  journeyLeadTitle: {
+    flexShrink: 1,
+    fontSize: FontSize.title,
+    lineHeight: 29,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.35,
+  },
+  journeyLeadDescription: { maxWidth: 680, fontSize: FontSize.small, lineHeight: 19 },
   heroFooter: { gap: Spacing.lg },
   heroFooterDesktop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroMetrics: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
@@ -652,16 +634,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   searchEmptyText: { fontSize: FontSize.small },
-  trackSummary: { gap: Spacing.lg },
-  trackHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  trackIcon: { width: 26, height: 44, alignItems: 'center', justifyContent: 'center' },
-  trackText: { flex: 1, minWidth: 0, gap: 2 },
-  trackName: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
-  trackSubtitle: { fontSize: FontSize.small, lineHeight: 18 },
-  summaryMetrics: { flexDirection: 'row', gap: Spacing.lg },
-  summaryMetric: { flex: 1, minWidth: 0, gap: 2 },
-  summaryMetricValue: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
-  summaryMetricLabel: { fontSize: FontSize.tiny, lineHeight: 16 },
   chooseState: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xxxl },
   chooseIcon: {
     width: 48,
