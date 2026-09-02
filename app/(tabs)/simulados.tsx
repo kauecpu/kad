@@ -5,9 +5,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { FeaturedCard } from '@/components/ui/featured-card';
-import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SearchField } from '@/components/ui/search-field';
 import { Section } from '@/components/ui/section';
@@ -229,25 +228,17 @@ export default function SimulationsScreen() {
           </Pressable>
         ) : null}
 
-        <FeaturedCard
-          disabled={subscriptionLoading}
-          onPress={
-            canUseSimulations ? () => router.push('/questoes/simulado/configurar') : openPlans
-          }
-          accessibilityLabel={
-            subscriptionLoading
-              ? 'Verificando seu plano para montar simulados'
-              : canUseSimulations
-                ? 'Montar simulado personalizado'
-                : 'Conhecer planos com simulados personalizados'
-          }
-          icon="options"
-          title="Monte seu simulado"
-          description="Escolha conteúdo, quantidade de questões e tempo de prova."
-          intensity="strong"
-          visual="faceted"
-          artwork={<KadCardArtwork variant="ribbon" />}
-          accessory={(
+        <Card style={styles.builderCard}>
+          <View style={styles.builderHeader}>
+            <View style={[styles.builderIcon, { backgroundColor: colors.primarySoft }]}>
+              <Ionicons name="options" size={21} color={colors.primary} />
+            </View>
+            <View style={styles.builderCopy}>
+              <Text style={[styles.builderTitle, { color: colors.text }]}>Monte seu simulado</Text>
+              <Text style={[styles.builderDescription, { color: colors.textMuted }]}>
+                Escolha conteúdo, quantidade e tempo de prova.
+              </Text>
+            </View>
             <Badge
               label={
                 subscriptionLoading
@@ -265,16 +256,27 @@ export default function SimulationsScreen() {
               }
               tone={canUseSimulations ? 'success' : 'warning'}
             />
-          )}
-          actionLabel={
-            subscriptionLoading
-              ? 'Aguarde um instante'
-              : canUseSimulations
-                ? 'Configurar prova'
-                : 'Conhecer planos'
-          }
-          compact
-        />
+          </View>
+
+          <View style={[styles.builderDivider, { backgroundColor: colors.border }]} />
+
+          <Button
+            label={
+              subscriptionLoading
+                ? 'Verificando seu plano'
+                : canUseSimulations
+                  ? 'Configurar prova'
+                  : 'Conhecer planos'
+            }
+            icon={canUseSimulations ? 'arrow-forward' : 'lock-closed-outline'}
+            iconMotion={canUseSimulations ? 'forward' : undefined}
+            onPress={
+              canUseSimulations ? () => router.push('/questoes/simulado/configurar') : openPlans
+            }
+            disabled={subscriptionLoading}
+            fullWidth
+          />
+        </Card>
 
         {!query && recommendedPack ? (
           <Section title={profile.targetRole ? 'Para sua meta' : 'Para você'}>
@@ -382,6 +384,24 @@ const styles = StyleSheet.create({
   resumeBody: { flex: 1, gap: 2 },
   resumeTitle: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
   resumeDescription: { fontSize: FontSize.small, lineHeight: 18 },
+  builderCard: { gap: Spacing.lg },
+  builderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+  },
+  builderIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  builderCopy: { flex: 1, minWidth: 180, gap: 3 },
+  builderTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
+  builderDescription: { fontSize: FontSize.small, lineHeight: 18 },
+  builderDivider: { height: StyleSheet.hairlineWidth },
   packList: { gap: Spacing.sm + 2 },
   packCard: {
     minHeight: 82,

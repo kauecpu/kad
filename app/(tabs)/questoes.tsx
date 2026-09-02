@@ -4,8 +4,6 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FeaturedCard } from '@/components/ui/featured-card';
-import { KadCardArtwork } from '@/components/ui/kad-card-artwork';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
@@ -191,32 +189,68 @@ export default function QuestionsScreen() {
 
   const listHeader = () => (
     <View style={styles.listHeader}>
-      <FeaturedCard
-        icon="compass-outline"
-        title="Escolha como estudar"
-        description="Navegue por matéria ou encontre uma questão específica."
-        intensity="strong"
-        visual="faceted"
-        artwork={<KadCardArtwork variant="wave" />}
-        compact>
+      <View
+        style={[
+          styles.studyTools,
+          { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+        ]}>
+        <View style={styles.studyToolsIntro}>
+          <View style={[styles.studyToolsIcon, { backgroundColor: colors.primarySoft }]}>
+            <Ionicons name="compass-outline" size={21} color={colors.primary} />
+          </View>
+          <View style={styles.studyToolsCopy}>
+            <Text style={[styles.studyToolsTitle, { color: colors.text }]}>Escolha seu foco</Text>
+            <Text style={[styles.studyToolsDescription, { color: colors.textMuted }]}>
+              Continue por matéria ou comece uma prática rápida.
+            </Text>
+          </View>
+        </View>
+
         <Segmented options={STUDY_OPTIONS} value={studyMode} onChange={setStudyMode} />
-        <Pressable
-          onPress={() => router.push('/questoes/buscar')}
-          accessibilityRole="button"
-          accessibilityLabel="Procurar questões"
-          style={({ pressed }) => [
-            styles.searchEntry,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            pressed && styles.searchEntryPressed,
-          ]}>
-          <Ionicons name="search" size={18} color={colors.primary} />
-          <Text style={[styles.searchEntryText, { color: colors.textMuted }]}>Procurar questões</Text>
-          <Ionicons name="options-outline" size={17} color={colors.textSubtle} />
-        </Pressable>
-      </FeaturedCard>
+
+        <View style={styles.quickActions}>
+          <Pressable
+            onPress={() => router.push('/questoes/buscar')}
+            accessibilityRole="button"
+            accessibilityLabel="Buscar questões no banco"
+            style={({ pressed }) => [
+              styles.quickAction,
+              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+              pressed && styles.quickActionPressed,
+            ]}>
+            <Ionicons name="search" size={18} color={colors.info} />
+            <View style={styles.quickActionCopy}>
+              <Text style={[styles.quickActionTitle, { color: colors.text }]}>Buscar no banco</Text>
+              <Text style={[styles.quickActionHint, { color: colors.textMuted }]}>Use filtros</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/questoes/desafio')}
+            accessibilityRole="button"
+            accessibilityLabel="Começar desafio rápido de três questões"
+            style={({ pressed }) => [
+              styles.quickAction,
+              { backgroundColor: colors.energySoft, borderColor: colors.energyStrong },
+              pressed && styles.quickActionPressed,
+            ]}>
+            <Ionicons name="flash-outline" size={18} color={colors.energy} />
+            <View style={styles.quickActionCopy}>
+              <Text style={[styles.quickActionTitle, { color: colors.text }]}>Desafio rápido</Text>
+              <Text style={[styles.quickActionHint, { color: colors.textMuted }]}>3 questões</Text>
+            </View>
+            <Ionicons name="play" size={17} color={colors.energy} />
+          </Pressable>
+        </View>
+      </View>
+
       <View style={styles.sectionHeading}>
         <Text style={[styles.sectionLabel, { color: colors.text }]}>
-          {studyMode === 'discipline' ? 'Escolha uma disciplina' : 'Escolha um concurso'}
+          {studyMode === 'discipline' ? 'Disciplinas' : 'Concursos e áreas'}
+        </Text>
+        <Text style={[styles.sectionCount, { color: colors.textMuted }]}>
+          {studyItems.length} {studyItems.length === 1 ? 'opção' : 'opções'}
         </Text>
       </View>
     </View>
@@ -287,29 +321,63 @@ const styles = StyleSheet.create({
   listHeader: {
     gap: Spacing.lg,
   },
-  searchEntry: {
+  studyTools: {
+    gap: Spacing.lg,
+    padding: Spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.lg,
+  },
+  studyToolsIntro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  studyToolsIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studyToolsCopy: { flex: 1, minWidth: 0, gap: 3 },
+  studyToolsTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
+  studyToolsDescription: { fontSize: FontSize.small, lineHeight: 18 },
+  quickActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  quickAction: {
+    minWidth: 150,
+    minHeight: 56,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    height: 44,
     paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm,
     borderWidth: 1,
+    borderRadius: Radius.md,
   },
-  searchEntryPressed: {
+  quickActionPressed: {
     opacity: 0.82,
     transform: [{ scale: 0.995 }],
   },
-  searchEntryText: {
-    flex: 1,
-    fontSize: FontSize.body,
-    fontWeight: FontWeight.medium,
-  },
+  quickActionCopy: { flex: 1, minWidth: 0, gap: 2 },
+  quickActionTitle: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
+  quickActionHint: { fontSize: FontSize.tiny },
   sectionLabel: {
     fontSize: FontSize.heading,
     fontWeight: FontWeight.semibold,
   },
-  sectionHeading: { marginBottom: Spacing.sm },
+  sectionCount: { fontSize: FontSize.small, fontWeight: FontWeight.medium },
+  sectionHeading: {
+    marginBottom: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
