@@ -137,16 +137,53 @@ export function isMercadoPagoTestPayerEmail(value: unknown): value is string {
     && /^[^\s@]+@testuser\.com$/i.test(value);
 }
 
+export type MercadoPagoAccountMode = 'test' | 'production';
+
+/** Account safety is independent of the live_mode reported by the provider. */
+export function mercadoPagoAccountMode(
+  configuredAccountMode: string | undefined,
+  configuredLiveMode: string | undefined
+): MercadoPagoAccountMode {
+  if (configuredLiveMode !== 'true' && configuredLiveMode !== 'false') {
+    throw new Error('MERCADO_PAGO_LIVE_MODE must be explicitly configured');
+  }
+  if (configuredAccountMode !== 'test' && configuredAccountMode !== 'production') {
+    throw new Error('MERCADO_PAGO_ACCOUNT_MODE must be explicitly configured');
+  }
+  if (configuredAccountMode === 'production' && configuredLiveMode !== 'true') {
+    throw new Error('Production accounts require MERCADO_PAGO_LIVE_MODE=true');
+  }
+  return configuredAccountMode;
+}
+
+export function selectMercadoPagoPayerEmail(
+  userEmail: string,
+  testPayerEmail: string | undefined,
+  configuredAccountMode: string | undefined,
+  configuredLiveMode: string | undefined
+): string {
+  const accountMode = mercadoPagoAccountMode(configuredAccountMode, configuredLiveMode);
+  if (accountMode === 'production') return userEmail;
+  const payerEmail = testPayerEmail?.trim();
+  if (!isMercadoPagoTestPayerEmail(payerEmail)) {
+    throw new Error('MERCADO_PAGO_TEST_PAYER_EMAIL is invalid');
+  }
+  return payerEmail;
+}
+
 export function buildPaymentReturnUrl(
   configured: string | undefined,
   checkoutId: string,
-  liveMode: boolean
+  accountMode: MercadoPagoAccountMode
 ): string {
+  if (accountMode !== 'test' && accountMode !== 'production') {
+    throw new Error('Invalid Mercado Pago account mode');
+  }
   if (!configured) throw new Error('KAD_WEB_APP_URL is missing');
   const url = new URL(configured);
   const localDevelopment =
-    (url.hostname === 'localhost' || url.hostname === '127.0.0.1') && !liveMode;
-  if (url.protocol !== 'https:' && !localDevelopment) {
+    (url.hostname === 'localhost' || url.hostname === '127.0.0.1') && accountMode === 'test';
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && localDevelopment)) {
     throw new Error('KAD_WEB_APP_URL must use HTTPS');
   }
   url.pathname = `${url.pathname.replace(/\/$/, '')}/perfil/planos`;
@@ -160,7 +197,10 @@ export function paymentReturnUrl(checkoutId: string): string {
   return buildPaymentReturnUrl(
     Deno.env.get('KAD_WEB_APP_URL')?.trim(),
     checkoutId,
-    Deno.env.get('MERCADO_PAGO_LIVE_MODE') === 'true'
+    mercadoPagoAccountMode(
+      Deno.env.get('MERCADO_PAGO_ACCOUNT_MODE'),
+      Deno.env.get('MERCADO_PAGO_LIVE_MODE')
+    )
   );
 }
 

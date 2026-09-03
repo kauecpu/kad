@@ -2,12 +2,12 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import {
   checkoutReference,
-  isMercadoPagoTestPayerEmail,
   MercadoPagoApiError,
   mercadoPagoRequest,
   paymentPlan,
   paymentReturnUrl,
   paymentWebhookUrl,
+  selectMercadoPagoPayerEmail,
 } from '../_shared/mercado-pago.ts';
 import {
   classifyCheckoutFailure,
@@ -48,17 +48,12 @@ function requiredSupabaseConfiguration() {
 }
 
 function mercadoPagoPayerEmail(userEmail: string) {
-  const liveMode = Deno.env.get('MERCADO_PAGO_LIVE_MODE')?.trim();
-  if (liveMode === 'true') return userEmail;
-  if (liveMode !== 'false') {
-    throw new Error('MERCADO_PAGO_LIVE_MODE must be explicitly configured');
-  }
-
-  const testPayerEmail = Deno.env.get('MERCADO_PAGO_TEST_PAYER_EMAIL')?.trim();
-  if (!isMercadoPagoTestPayerEmail(testPayerEmail)) {
-    throw new Error('MERCADO_PAGO_TEST_PAYER_EMAIL is invalid');
-  }
-  return testPayerEmail;
+  return selectMercadoPagoPayerEmail(
+    userEmail,
+    Deno.env.get('MERCADO_PAGO_TEST_PAYER_EMAIL'),
+    Deno.env.get('MERCADO_PAGO_ACCOUNT_MODE'),
+    Deno.env.get('MERCADO_PAGO_LIVE_MODE')
+  );
 }
 
 async function cancelPendingProviderSubscription(providerSubscriptionId: string) {
