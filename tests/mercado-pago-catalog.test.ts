@@ -24,15 +24,15 @@ test('catálogo do Mercado Pago aceita somente plano e ciclo definidos no servid
 
 test('retorno de pagamento exige HTTPS fora do desenvolvimento local', () => {
   assert.equal(
-    buildPaymentReturnUrl('https://app.kadconcursos.com.br', checkoutId, true),
+    buildPaymentReturnUrl('https://app.kadconcursos.com.br', checkoutId, 'production'),
     `https://app.kadconcursos.com.br/perfil/planos?checkout=${checkoutId}`
   );
   assert.equal(
-    buildPaymentReturnUrl('http://127.0.0.1:5179', checkoutId, false),
+    buildPaymentReturnUrl('http://127.0.0.1:5179', checkoutId, 'test'),
     `http://127.0.0.1:5179/perfil/planos?checkout=${checkoutId}`
   );
   assert.throws(
-    () => buildPaymentReturnUrl('http://app.kadconcursos.com.br', checkoutId, false),
+    () => buildPaymentReturnUrl('http://app.kadconcursos.com.br', checkoutId, 'test'),
     /must use HTTPS/
   );
 });

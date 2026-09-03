@@ -74,17 +74,27 @@ logs ou Pull Requests:
 ```text
 MERCADO_PAGO_ACCESS_TOKEN=<credencial privada do ambiente>
 MERCADO_PAGO_WEBHOOK_SECRET=<assinatura secreta do webhook>
-MERCADO_PAGO_LIVE_MODE=false
+MERCADO_PAGO_ACCOUNT_MODE=test
+MERCADO_PAGO_LIVE_MODE=true
 MERCADO_PAGO_TEST_PAYER_EMAIL=test_user_...@testuser.com
 KAD_WEB_APP_URL=https://app.exemplo.com
 ALLOWED_WEB_ORIGINS=https://app.exemplo.com
 ```
 
-Em produção, altere `MERCADO_PAGO_LIVE_MODE` para `true`. `KAD_WEB_APP_URL` precisa usar
-HTTPS. `ALLOWED_WEB_ORIGINS` aceita uma lista separada por vírgulas quando houver mais de
-uma origem oficial.
+`MERCADO_PAGO_ACCOUNT_MODE` escolhe explicitamente `test` ou `production` para as
+proteções do comprador e do retorno. `MERCADO_PAGO_LIVE_MODE` deve corresponder ao
+booleano do recurso consultado na API e do webhook assinado, não ao nome da conta.
+Na homologação de Assinaturas com vendedor de teste, a consulta direta comprovou
+`live_mode=true`; por isso esse é o exemplo acima. Não infira o valor pelo prefixo
+da credencial e não aceite os dois ambientes.
 
-Somente com `MERCADO_PAGO_LIVE_MODE=false`, o código aceita retorno HTTP em
+Em produção, configure `MERCADO_PAGO_ACCOUNT_MODE=production` e
+`MERCADO_PAGO_LIVE_MODE=true`, com as credenciais da aplicação de produção.
+Configuração ausente ou inválida impede iniciar checkout. `KAD_WEB_APP_URL` precisa
+usar HTTPS. `ALLOWED_WEB_ORIGINS` aceita uma lista separada por vírgulas quando houver
+mais de uma origem oficial.
+
+Somente com `MERCADO_PAGO_ACCOUNT_MODE=test`, o código aceita retorno HTTP em
 loopback para testes locais. Isso não comprova que o Mercado Pago aceita a URL:
 essa exigência deve ser verificada no checkout sandbox. Nunca publique a prévia
 em produção para contornar a falta de um endereço HTTPS de homologação.
@@ -103,7 +113,15 @@ mistos ou outro crédito válido permanecem sem inferência automática.
 Em homologação, `MERCADO_PAGO_TEST_PAYER_EMAIL` deve ser uma conta Comprador criada na
 área de testes do Mercado Pago e usar o domínio reservado `testuser.com`. Vendedor e
 comprador devem pertencer ao mesmo país e ao conjunto de testes da mesma integração.
-O código recusa um e-mail comum quando `MERCADO_PAGO_LIVE_MODE=false`.
+O código recusa um e-mail comum quando `MERCADO_PAGO_ACCOUNT_MODE=test`, mesmo com
+`MERCADO_PAGO_LIVE_MODE=true`. O retorno local não aceita protocolos diferentes de
+HTTP/HTTPS, nem hosts externos em HTTP.
+
+Na atualização de uma instalação existente, cadastre primeiro o modo de conta
+comprovado, publique `create-payment-checkout` com o novo adaptador e só então
+ajuste `MERCADO_PAGO_LIVE_MODE` ao valor consultado no provedor. Não mude apenas
+`live_mode` mantendo a versão antiga do checkout: ela usava esse mesmo valor para
+escolher o comprador e liberar o retorno local.
 
 O backend envia a URL pública de `mercado-pago-webhook` no campo `notification_url`
 durante a criação da assinatura. Esse é o modo exigido para notificações de Assinaturas.
