@@ -39,3 +39,18 @@ test('logs financeiros removem identificadores e rótulos fora do contrato', () 
     providerCode: 'invalid_provider_code',
   });
 });
+
+test('diagnóstico do webhook diferencia rejeições sem incluir assinatura ou payload', () => {
+  for (const category of ['invalid_webhook', 'invalid_signature', 'unexpected_environment']) {
+    const details = paymentFailureDetails({
+      operation: 'webhook_process',
+      category,
+      startedAt: Date.now(),
+      eventType: 'payment',
+    });
+    assert.equal(details.category, category);
+    assert.equal(details.eventType, 'payment');
+    assert.equal('signature' in details, false);
+    assert.equal('payload' in details, false);
+  }
+});
