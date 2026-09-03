@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(71);
+select plan(80);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values
@@ -643,6 +643,36 @@ select is(
   (select status_reason from public.payment_checkout_sessions where id = '20000000-0000-4000-8000-000000000003'),
   'payment_chargeback', 'renewal cancellation cannot replace a chargeback reason'
 );
+
+-- Synthetic legacy rows: terminal evidence exists but the reason was never stored.
+update public.payment_checkout_sessions set status_reason=null
+where id='20000000-0000-4000-8000-000000000002';
+select public.sync_mercado_pago_subscription('subscription-2', 'pending');
+select is((select status from public.payment_checkout_sessions where id='20000000-0000-4000-8000-000000000002'),
+  'canceled', 'legacy refund without reason is not reopened');
+select is((select status_reason from public.payment_checkout_sessions where id='20000000-0000-4000-8000-000000000002'),
+  'payment_refunded', 'legacy refund reason is recovered from immutable evidence');
+update public.payment_checkout_sessions set status_reason=null, status='pending'
+where id='20000000-0000-4000-8000-000000000003';
+select public.sync_mercado_pago_subscription('subscription-3', 'authorized');
+select is((select status_reason from public.payment_checkout_sessions where id='20000000-0000-4000-8000-000000000003'),
+  'payment_chargeback', 'legacy chargeback incorrectly pending is recovered');
+select is((select status from public.subscriptions where user_id='10000000-0000-4000-8000-000000000003'),
+  'expired', 'legacy chargeback recovery does not grant access');
+select ok(not has_function_privilege('anon', 'private.legacy_mercado_pago_checkout_reason(uuid)', 'EXECUTE'),
+  'anon cannot invoke legacy helper');
+select ok(not has_function_privilege('authenticated', 'private.legacy_mercado_pago_checkout_reason(uuid)', 'EXECUTE'),
+  'authenticated cannot invoke legacy helper');
+select ok(not has_function_privilege('service_role', 'private.legacy_mercado_pago_checkout_reason(uuid)', 'EXECUTE'),
+  'service role has no unnecessary legacy helper grant');
+-- A later genuinely approved payment is distinct from replaying a reversed payment.
+select public.apply_mercado_pago_payment('20000000-0000-4000-8000-000000000002',
+  'payment-new-after-refund', 'subscription-2', 'approved', 1499, 'BRL', now(), now());
+select public.sync_mercado_pago_subscription('subscription-2', 'authorized');
+select is((select status from public.payment_checkout_sessions where id='20000000-0000-4000-8000-000000000002'),
+  'approved', 'a genuinely new payment is not blocked by a previous refund');
+select ok((select status_reason is null from public.payment_checkout_sessions where id='20000000-0000-4000-8000-000000000002'),
+  'new approved payment does not inherit an old refund reason');
 
 set local role authenticated;
 set local request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';

@@ -6,6 +6,7 @@ import { buildSignupMetadata } from '../core/auth-profile.ts';
 import { isEssayDocument, isSimulationSession } from '../core/user-sync.ts';
 import { createPasswordSecurity } from '../core/password-security.ts';
 import { subscriptionFromRemoteRecord } from '../core/subscription.ts';
+import { ownedPaymentAuthorization } from '../core/payment-actions.ts';
 import { mapPublishedConcursos, mapPublishedQuestions } from './published-content.ts';
 import type {
   AlternativeId,
@@ -269,11 +270,19 @@ function trustedCheckoutUrl(value: unknown): value is string {
   }
 }
 
-export async function createSubscriptionCheckout(billingCycle: BillingCycle): Promise<CheckoutResult> {
+export async function createSubscriptionCheckout(
+  billingCycle: BillingCycle, userId: string, isCurrent: () => boolean,
+): Promise<CheckoutResult> {
   const remote = await client();
   if (!remote) return { ok: false, offline: true };
+  const headers = await ownedPaymentAuthorization(userId, isCurrent, async () => {
+    const { data, error } = await remote.auth.getSession();
+    return error ? null : data.session;
+  });
+  if (!headers) return { ok: false, code: 'session_changed', message: 'Sua sessão mudou. Entre novamente antes de continuar.' };
   const { data, error } = await remote.functions.invoke('create-payment-checkout', {
     body: { plan: 'diamond', billingCycle },
+    headers,
   });
   if (error || !trustedCheckoutUrl(data?.checkoutUrl)) {
     let code: string | undefined;
@@ -350,10 +359,17 @@ export async function reconcileRemoteCheckout(checkoutId: string): Promise<Check
   };
 }
 
-export async function cancelRemoteSubscription(): Promise<OfflineResult | FailureResult | SuccessResult> {
+export async function cancelRemoteSubscription(
+  userId: string, isCurrent: () => boolean,
+): Promise<OfflineResult | FailureResult | SuccessResult> {
   const remote = await client();
   if (!remote) return { ok: false, offline: true };
-  const { error } = await remote.functions.invoke('cancel-subscription', { body: {} });
+  const headers = await ownedPaymentAuthorization(userId, isCurrent, async () => {
+    const { data, error } = await remote.auth.getSession();
+    return error ? null : data.session;
+  });
+  if (!headers) return { ok: false, code: 'session_changed', message: 'Sua sessão mudou. Entre novamente antes de continuar.' };
+  const { error } = await remote.functions.invoke('cancel-subscription', { body: {}, headers });
   if (!error) return { ok: true };
   let code: string | undefined;
   const context = typeof error === 'object' && error !== null && 'context' in error

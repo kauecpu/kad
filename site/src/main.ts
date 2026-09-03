@@ -20,6 +20,7 @@ import { displayNameFromMetadata } from './core/auth-profile.ts';
 import { classifyBackendState, type BackendState } from './core/backend-state.ts';
 import { subscriptionHasAccess } from './core/subscription.ts';
 import { checkoutProgressAfterPolling, createCheckoutRequestScope, withPaymentTimeout } from './core/payment-polling.ts';
+import { createPaymentActionScope } from './core/payment-actions.ts';
 import { randomId } from './core/utils.ts';
 import { levelTracker, recordSiteLevelActivity, siteLevelEventId } from './core/levels.ts';
 import { hydrateIcons } from './ui/icons.ts';
@@ -128,6 +129,16 @@ const loadedCommunityKeys = new Set<string>();
 const loadingCommunityKeys = new Set<string>();
 const levelReviewReady = new Set<string>();
 const checkoutRequestScope = createCheckoutRequestScope();
+const paymentActionScope = createPaymentActionScope(() => {
+  const route = currentRoute();
+  return { userId: store.getState().auth.userId, route: `${route.pathname}${route.search}` };
+}, () => {
+  // A read started before a manual mutation must not undo its acknowledged state.
+  checkoutRequestScope.clear();
+  if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
+  ui.checkoutTimer = null;
+  ui.checkoutId = '';
+});
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -210,6 +221,7 @@ function openNavigation(trigger: HTMLElement): void {
 }
 
 async function hydrateAuthenticatedUser(user: { id: string; email?: string | null; user_metadata?: { name?: unknown; full_name?: unknown } }): Promise<void> {
+  paymentActionScope.clear();
   await levelTracker.selectOwner(user.id);
   store.switchOwner(user.id);
   const [remote, subscription, profile, essays, simulations, flashcards] = await Promise.all([
@@ -581,6 +593,7 @@ function hydrateQuestionCommunity(): void {
 }
 
 function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void {
+  paymentActionScope.sync();
   welcomeNavigationCleanup?.();
   welcomeNavigationCleanup = null;
   const route = currentRoute();
@@ -1369,6 +1382,7 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'sign-out') {
+    paymentActionScope.clear();
     await signOut();
     await levelTracker.selectOwner(null);
     store.switchOwner(null);
@@ -1387,22 +1401,30 @@ document.addEventListener('click', async (event) => {
     }
     const cycle = target.dataset.cycle;
     if (!isBillingCycle(cycle)) return;
+    const request = paymentActionScope.begin();
+    if (!request.userId) return;
     const originalContent = target instanceof HTMLButtonElement ? target.innerHTML : '';
     if (target instanceof HTMLButtonElement) {
       target.disabled = true;
       target.setAttribute('aria-busy', 'true');
       target.textContent = 'Preparando checkout…';
     }
-    const result = await createSubscriptionCheckout(cycle);
+    const result = await withPaymentTimeout(createSubscriptionCheckout(cycle, request.userId, request.isCurrent))
+      .catch(() => ({ ok: false as const, offline: false, message: 'Não foi possível confirmar a abertura do pagamento. Consulte sua assinatura antes de tentar novamente.' }))
+      .finally(() => {
+        if (target instanceof HTMLButtonElement && target.isConnected) {
+          target.disabled = false;
+          target.removeAttribute('aria-busy');
+          target.innerHTML = originalContent;
+          hydrateIcons(target);
+        }
+      });
+    if (!request.isCurrent()) return;
+    request.finish();
     if (result.ok) globalThis.location.assign(result.checkoutUrl);
     else {
-      if (target instanceof HTMLButtonElement) {
-        target.disabled = false;
-        target.removeAttribute('aria-busy');
-        target.innerHTML = originalContent;
-        hydrateIcons(target);
-      }
       toast(result.offline ? 'O pagamento ainda não está configurado neste ambiente.' : result.message);
+      render();
     }
     return;
   }
@@ -1416,27 +1438,43 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'refresh-subscription') {
-    if (!state.auth.userId) return;
-    const subscription = await loadRemoteSubscription(state.auth.userId).catch(() => null);
+    const request = paymentActionScope.begin();
+    if (!request.userId) return;
+    const subscription = await withPaymentTimeout(loadRemoteSubscription(request.userId)).catch(() => null);
+    if (!request.isCurrent()) return;
+    request.finish();
     if (subscription) {
       store.update((draft) => { draft.subscription = subscription; });
       toast('Assinatura atualizada.');
-    } else toast('Não foi possível atualizar a assinatura agora.');
+    } else {
+      toast('Não foi possível atualizar a assinatura agora.');
+      render();
+    }
     return;
   }
   if (action === 'cancel-subscription') {
+    if (!state.auth.userId) return;
     if (!globalThis.confirm('Cancelar a renovação? Seu acesso continua até o fim do período já pago.')) return;
-    const result = await cancelRemoteSubscription();
+    const request = paymentActionScope.begin();
+    if (!request.userId) return;
+    const result = await withPaymentTimeout(cancelRemoteSubscription(request.userId, request.isCurrent))
+      .catch(() => ({ ok: false as const, message: 'Não foi possível confirmar o cancelamento. Consulte sua assinatura antes de tentar novamente.' }));
+    if (!request.isCurrent()) return;
     if (result.ok) {
-      if (!state.auth.userId) return;
       store.update((draft) => {
         draft.subscription.autoRenew = false;
         if (subscriptionHasAccess(draft.subscription)) draft.subscription.status = 'canceled';
       });
-      const subscription = await loadRemoteSubscription(state.auth.userId).catch(() => null);
+      const subscription = await withPaymentTimeout(loadRemoteSubscription(request.userId)).catch(() => null);
+      if (!request.isCurrent()) return;
+      request.finish();
       if (subscription) store.update((draft) => { draft.subscription = subscription; });
       toast('Renovação cancelada.');
-    } else toast(result.message ?? 'Não foi possível cancelar agora.');
+    } else {
+      request.finish();
+      toast(result.message ?? 'Não foi possível cancelar agora.');
+      render();
+    }
   }
 });
 
@@ -1533,7 +1571,10 @@ globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change
 });
 globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener('change', startAuthStoryTimer);
 
-subscribeRouter(() => render({ routeChanged: true }));
+subscribeRouter(() => {
+  paymentActionScope.clear();
+  render({ routeChanged: true });
+});
 store.subscribe(() => render());
 levelTracker.subscribe(() => render());
 void levelTracker.selectOwner(null);
