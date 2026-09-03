@@ -21,6 +21,15 @@ import { classifyBackendState, type BackendState } from './core/backend-state.ts
 import { subscriptionHasAccess } from './core/subscription.ts';
 import { checkoutProgressAfterPolling, createCheckoutRequestScope, withPaymentTimeout } from './core/payment-polling.ts';
 import { createPaymentActionScope } from './core/payment-actions.ts';
+import {
+  authRouteWithCheckout,
+  checkoutReturnFromRoute,
+  checkoutReturnPath,
+  clearCheckoutReturn,
+  readCheckoutReturn,
+  rememberCheckoutReturn,
+  validateCheckoutReturn,
+} from './core/checkout-return.ts';
 import { randomId } from './core/utils.ts';
 import { levelTracker, recordSiteLevelActivity, siteLevelEventId } from './core/levels.ts';
 import { hydrateIcons } from './ui/icons.ts';
@@ -29,6 +38,7 @@ import { emptyState, icon } from './ui/components.ts';
 import { updateMetadata } from './services/metadata.ts';
 import {
   cancelRemoteSubscription,
+  completeEmailConfirmationCallback,
   completePasswordRecoveryCallback,
   createQuestionComment,
   createSubscriptionCheckout,
@@ -38,6 +48,7 @@ import {
   getCurrentUser,
   initializeSupabase,
   loadPublishedContent,
+  loadLatestOpenCheckout,
   loadRemoteCheckoutStatus,
   reconcileRemoteCheckout,
   loadQuestionComments,
@@ -129,6 +140,11 @@ const loadedCommunityKeys = new Set<string>();
 const loadingCommunityKeys = new Set<string>();
 const levelReviewReady = new Set<string>();
 const checkoutRequestScope = createCheckoutRequestScope();
+const checkoutReturnStorage = (() => {
+  try { return globalThis.sessionStorage; } catch { return null; }
+})();
+let checkoutDiscoveryOwner = '';
+let checkoutDiscoveryVersion = 0;
 const paymentActionScope = createPaymentActionScope(() => {
   const route = currentRoute();
   return { userId: store.getState().auth.userId, route: `${route.pathname}${route.search}` };
@@ -277,8 +293,8 @@ function notFoundView(): ViewModel {
 function resolveView(route: Route, state: SiteState): ViewModel {
   const { pathname, params } = route;
   if (pathname === '/') return welcomeView();
-  if (pathname === '/entrar') return authView('entrar');
-  if (pathname === '/cadastro') return authView('cadastro');
+  if (pathname === '/entrar') return authView('entrar', { returnTo: validateCheckoutReturn(params.returnTo) ?? undefined });
+  if (pathname === '/cadastro') return authView('cadastro', { returnTo: validateCheckoutReturn(params.returnTo) ?? undefined });
   if (pathname === '/recuperar-senha') return recoveryView('request');
   if (pathname === '/confirmar-email') return recoveryView('confirmation', params);
   if (pathname === '/nova-senha') return recoveryView('new-password', { ...params, recoveryStatus: ui.recoveryStatus });
@@ -446,10 +462,39 @@ function startPageTimers(route: Route, state: SiteState): void {
 }
 
 function maybeConfirmCheckout(route: Route, state: SiteState): void {
-  const checkoutId = route.pathname === '/perfil/planos' ? route.params.checkout : '';
-  const validId = typeof checkoutId === 'string'
-    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutId);
-  if (!validId || !state.auth.userId) {
+  if (route.pathname !== '/perfil/planos' && checkoutDiscoveryOwner) {
+    checkoutDiscoveryVersion += 1;
+    checkoutDiscoveryOwner = '';
+  }
+  const returnTarget = checkoutReturnFromRoute(route);
+  const checkoutId = returnTarget ? route.params.checkout : '';
+  if (returnTarget && !state.auth.userId) {
+    rememberCheckoutReturn(checkoutReturnStorage, returnTarget);
+    checkoutRequestScope.clear();
+    if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
+    ui.checkoutTimer = null;
+    ui.checkoutId = '';
+    ui.checkoutProgress = null;
+    navigate(authRouteWithCheckout('/entrar', returnTarget), { replace: true });
+    return;
+  }
+  if (!returnTarget || !state.auth.userId) {
+    if (route.pathname === '/perfil/planos' && state.auth.userId
+      && checkoutDiscoveryOwner !== state.auth.userId) {
+      const ownerId = state.auth.userId;
+      const discoveryVersion = ++checkoutDiscoveryVersion;
+      checkoutDiscoveryOwner = ownerId;
+      void loadLatestOpenCheckout().then((checkout) => {
+        const current = currentRoute();
+        if (!checkout || discoveryVersion !== checkoutDiscoveryVersion
+          || store.getState().auth.userId !== ownerId
+          || current.pathname !== '/perfil/planos' || current.params.checkout) return;
+        const target = checkoutReturnPath(checkout.checkoutId);
+        if (!target) return;
+        rememberCheckoutReturn(checkoutReturnStorage, target);
+        navigate(target, { replace: true });
+      }).catch(() => {});
+    }
     checkoutRequestScope.clear();
     if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
     ui.checkoutTimer = null;
@@ -457,6 +502,7 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
     ui.checkoutProgress = null;
     return;
   }
+  rememberCheckoutReturn(checkoutReturnStorage, returnTarget);
   if (ui.checkoutId === checkoutId && checkoutRequestScope.matches(checkoutId, state.auth.userId)) return;
   if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
   ui.checkoutTimer = null;
@@ -485,6 +531,15 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
       if (!isCurrent()) return;
       if (!refresh.ok) {
         const refreshCode = 'code' in refresh ? refresh.code : undefined;
+        if (refreshCode === 'checkout_not_found') {
+          clearCheckoutReturn(checkoutReturnStorage);
+          ui.checkoutTimer = null;
+          ui.checkoutId = '';
+          ui.checkoutProgress = null;
+          toast('Não foi possível recuperar esta compra nesta conta.');
+          navigate('/perfil/planos', { replace: true });
+          return;
+        }
         if (refreshCode !== 'checkout_refresh_rate_limited') {
           lastRefreshReason = refreshCode === 'server_not_configured'
             ? 'configuration_missing'
@@ -503,12 +558,14 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
     if (subscription) store.update((draft) => { draft.subscription = subscription; });
     if (checkout?.status === 'approved' && subscriptionHasAccess(subscription ?? store.getState().subscription)) {
       ui.checkoutTimer = null;
+      clearCheckoutReturn(checkoutReturnStorage);
       toast('Pagamento confirmado. Seu acesso foi atualizado.');
       render();
       return;
     }
     if (checkout && ['failed', 'canceled', 'expired'].includes(checkout.status)) {
       ui.checkoutTimer = null;
+      clearCheckoutReturn(checkoutReturnStorage);
       render();
       return;
     }
@@ -694,8 +751,9 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
     updateFormMessage(form, 'Entrando...');
     const result = await signIn(values.email, values.password);
     if (result.ok) {
+      const returnTarget = readCheckoutReturn(checkoutReturnStorage, currentRoute().params.returnTo);
       await hydrateAuthenticatedUser(result.user);
-      navigate('/inicio', { replace: true });
+      navigate(returnTarget ?? '/inicio', { replace: true });
     } else if (result.offline) updateFormMessage(form, 'O acesso à conta não está disponível neste ambiente. Você ainda pode continuar como visitante.', 'error');
     else updateFormMessage(form, result.message, 'error');
     return;
@@ -706,8 +764,9 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       updateFormMessage(form, 'As senhas precisam ser iguais.', 'error');
       return;
     }
+    const returnTarget = readCheckoutReturn(checkoutReturnStorage, currentRoute().params.returnTo);
     updateFormMessage(form, 'Criando sua conta...');
-    const result = await signUp({ name: values.name, email: values.email, password: values.password });
+    const result = await signUp({ name: values.name, email: values.email, password: values.password, returnTo: returnTarget ?? undefined });
     if (result.ok) {
       const user = result.user;
       if (result.authenticated && user) {
@@ -721,7 +780,11 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
         });
         await hydrateAuthenticatedUser(user);
       }
-      navigate(result.requiresConfirmation ? `/confirmar-email?email=${encodeURIComponent(values.email)}` : '/onboarding', { replace: true });
+      const confirmationParams = new URLSearchParams({ email: values.email });
+      if (returnTarget) confirmationParams.set('returnTo', returnTarget);
+      navigate(result.requiresConfirmation
+        ? `/confirmar-email?${confirmationParams}`
+        : returnTarget ?? '/onboarding', { replace: true });
     } else if (result.offline) updateFormMessage(form, 'A criação de conta não está disponível neste ambiente. Você ainda pode continuar como visitante.', 'error');
     else updateFormMessage(form, result.message, 'error');
     return;
@@ -736,8 +799,9 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
   if (formName === 'confirmation') {
     const result = await verifyEmailOtp(values.email, values.code);
     if (result.ok) {
+      const returnTarget = readCheckoutReturn(checkoutReturnStorage, currentRoute().params.returnTo);
       await hydrateAuthenticatedUser(result.user);
-      navigate('/onboarding', { replace: true });
+      navigate(returnTarget ?? '/onboarding', { replace: true });
     } else updateFormMessage(form, result.offline ? 'A confirmação de conta não está disponível neste ambiente.' : result.message, 'error');
     return;
   }
@@ -1107,7 +1171,8 @@ document.addEventListener('click', async (event) => {
     const email = form?.elements.namedItem('email');
     if (!(form instanceof HTMLFormElement) || !(email instanceof HTMLInputElement) || !email.value) return;
     updateFormMessage(form, 'Reenviando...');
-    const result = await resendEmailConfirmation(email.value);
+    const returnTarget = readCheckoutReturn(checkoutReturnStorage, currentRoute().params.returnTo);
+    const result = await resendEmailConfirmation(email.value, returnTarget ?? undefined);
     updateFormMessage(form, result.ok ? 'Novo código enviado. Confira seu e-mail.' : result.offline ? 'A conexão com a conta não está disponível.' : result.message, result.ok ? 'success' : 'error');
     return;
   }
@@ -1383,6 +1448,9 @@ document.addEventListener('click', async (event) => {
   }
   if (action === 'sign-out') {
     paymentActionScope.clear();
+    checkoutDiscoveryVersion += 1;
+    checkoutDiscoveryOwner = '';
+    clearCheckoutReturn(checkoutReturnStorage);
     await signOut();
     await levelTracker.selectOwner(null);
     store.switchOwner(null);
@@ -1601,6 +1669,22 @@ const recoveryBootstrap = currentRoute().pathname === '/nova-senha'
     })
   : Promise.resolve();
 
+const confirmationBootstrap = currentRoute().pathname === '/confirmar-email'
+  ? completeEmailConfirmationCallback(globalThis.location.href).then(async (result) => {
+      if (!result) return;
+      if (!result.ok) {
+        const form = document.querySelector<HTMLFormElement>('[data-form="confirmation"]');
+        if (form) updateFormMessage(form, result.offline
+          ? 'A confirmação de conta não está disponível neste ambiente.'
+          : result.message, 'error');
+        return;
+      }
+      const returnTarget = readCheckoutReturn(checkoutReturnStorage, currentRoute().params.returnTo);
+      await hydrateAuthenticatedUser(result.user);
+      navigate(returnTarget ?? '/onboarding', { replace: true });
+    })
+  : Promise.resolve();
+
 void initializeSupabase().then((configured) => {
   if (!configured || !supabaseConfigured) {
     backendState = classifyBackendState({ configured: false, loading: false, loadedFromRemote: false });
@@ -1609,7 +1693,7 @@ void initializeSupabase().then((configured) => {
   }
   backendState = classifyBackendState({ configured: true, loading: true, loadedFromRemote: false });
   render();
-  recoveryBootstrap.then(() => getCurrentUser()).then(async (user) => {
+  Promise.all([recoveryBootstrap, confirmationBootstrap]).then(() => getCurrentUser()).then(async (user) => {
     if (!user) return;
     await hydrateAuthenticatedUser(user);
   });

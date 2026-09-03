@@ -7,6 +7,7 @@ import { isEssayDocument, isSimulationSession } from '../core/user-sync.ts';
 import { createPasswordSecurity } from '../core/password-security.ts';
 import { subscriptionFromRemoteRecord } from '../core/subscription.ts';
 import { ownedPaymentAuthorization } from '../core/payment-actions.ts';
+import { confirmationRouteWithCheckout } from '../core/checkout-return.ts';
 import { mapPublishedConcursos, mapPublishedQuestions } from './published-content.ts';
 import type {
   AlternativeId,
@@ -18,6 +19,7 @@ import type {
   FlashcardDeck,
   FlashcardReview,
   Question,
+  RecoverableCheckout,
   SiteComment,
   SiteCommunityAccuracy,
   SiteSimulationSession,
@@ -128,17 +130,52 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     : { ok: true, user: data.user };
 }
 
-export async function signUp({ name, email, password }: { name: string; email: string; password: string }): Promise<SignUpResult> {
+export async function signUp({ name, email, password, returnTo }: { name: string; email: string; password: string; returnTo?: string }): Promise<SignUpResult> {
   const remote = await client();
   if (!remote) return { ok: false, offline: true };
+  const confirmationRoute = confirmationRouteWithCheckout(returnTo);
   const { data, error } = await remote.auth.signUp({
     email,
     password,
-    options: { data: buildSignupMetadata(name) },
+    options: {
+      data: buildSignupMetadata(name),
+      emailRedirectTo: new URL(confirmationRoute, globalThis.location.origin).toString(),
+    },
   });
   return error
     ? { ok: false, message: 'Não foi possível criar a conta agora.' }
     : { ok: true, user: data.user, requiresConfirmation: !data.session, authenticated: Boolean(data.session) };
+}
+
+export async function completeEmailConfirmationCallback(callbackUrl: string): Promise<AuthResult | null> {
+  const remote = await client();
+  if (!remote) return { ok: false, offline: true };
+  let callback: URL;
+  try {
+    callback = new URL(callbackUrl);
+  } catch {
+    return null;
+  }
+  if (callback.origin !== globalThis.location.origin || callback.pathname !== '/confirmar-email') return null;
+  const code = callback.searchParams.get('code');
+  const tokenHash = callback.searchParams.get('token_hash');
+  const type = callback.searchParams.get('type');
+  let data: { user: User | null } | null = null;
+  let error: unknown = null;
+  if (code) {
+    const result = await remote.auth.exchangeCodeForSession(code);
+    data = result.data;
+    error = result.error;
+  } else if (tokenHash && (type === 'email' || type === 'signup')) {
+    const result = await remote.auth.verifyOtp({ token_hash: tokenHash, type: 'email' });
+    data = result.data;
+    error = result.error;
+  } else {
+    return null;
+  }
+  return error || !data?.user
+    ? { ok: false, message: 'Este link de confirmação é inválido ou expirou.' }
+    : { ok: true, user: data.user };
 }
 
 export async function verifyEmailOtp(email: string, token: string): Promise<AuthResult> {
@@ -150,10 +187,14 @@ export async function verifyEmailOtp(email: string, token: string): Promise<Auth
     : { ok: true, user: data.user };
 }
 
-export async function resendEmailConfirmation(email: string): Promise<OfflineResult | FailureResult | SuccessResult> {
+export async function resendEmailConfirmation(email: string, returnTo?: string): Promise<OfflineResult | FailureResult | SuccessResult> {
   const remote = await client();
   if (!remote) return { ok: false, offline: true };
-  const { error } = await remote.auth.resend({ type: 'signup', email });
+  const { error } = await remote.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: new URL(confirmationRouteWithCheckout(returnTo), globalThis.location.origin).toString() },
+  });
   return error
     ? { ok: false, message: 'Não foi possível reenviar o código agora.' }
     : { ok: true };
@@ -320,6 +361,21 @@ export async function loadRemoteCheckoutStatus(checkoutId: string): Promise<Chec
   }
   return {
     status: row.status as CheckoutProgress['status'],
+    reason: typeof row.status_reason === 'string' ? row.status_reason : null,
+  };
+}
+
+export async function loadLatestOpenCheckout(): Promise<RecoverableCheckout | null> {
+  const remote = await client();
+  if (!remote) return null;
+  const { data, error } = await remote.rpc('get_latest_open_payment_checkout');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row.checkout_id !== 'string'
+    || !['creating', 'pending', 'expired'].includes(row.status)) return null;
+  return {
+    checkoutId: row.checkout_id,
+    status: row.status as RecoverableCheckout['status'],
     reason: typeof row.status_reason === 'string' ? row.status_reason : null,
   };
 }

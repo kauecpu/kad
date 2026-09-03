@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(29);
+select plan(35);
 
 select has_table('public', 'questions', 'questions table exists');
 select has_table('private', 'editorial_import_batches', 'private import batches table exists');
@@ -89,6 +89,45 @@ select ok(
 select ok(
   not has_table_privilege('authenticated', 'public.payment_webhook_events', 'SELECT'),
   'authenticated cannot read payment webhook events'
+);
+
+select has_function(
+  'public',
+  'get_latest_open_payment_checkout',
+  array[]::text[],
+  'checkout recovery RPC exists'
+);
+select ok(
+  has_function_privilege(
+    'authenticated',
+    'public.get_latest_open_payment_checkout()',
+    'EXECUTE'
+  ),
+  'authenticated may recover its latest open checkout'
+);
+select ok(
+  not has_function_privilege(
+    'anon',
+    'public.get_latest_open_payment_checkout()',
+    'EXECUTE'
+  ),
+  'anon cannot recover checkout sessions'
+);
+select ok(
+  (select prosecdef from pg_proc where oid = 'public.get_latest_open_payment_checkout()'::regprocedure),
+  'checkout recovery RPC is security definer'
+);
+select ok(
+  coalesce(
+    (select array_to_string(proconfig, ',') from pg_proc where oid = 'public.get_latest_open_payment_checkout()'::regprocedure),
+    ''
+  ) like '%search_path=""%',
+  'checkout recovery RPC has an empty fixed search path'
+);
+select ok(
+  (select pg_get_functiondef('public.get_latest_open_payment_checkout()'::regprocedure))
+    like '%checkout.user_id = (select auth.uid())%',
+  'checkout recovery RPC is explicitly scoped to auth.uid'
 );
 
 select has_index(

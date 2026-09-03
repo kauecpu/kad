@@ -201,9 +201,10 @@ function authShowcase(): string {
     </aside>`;
 }
 
-export function authView(kind: AuthViewKind = 'entrar'): ViewModel {
+export function authView(kind: AuthViewKind = 'entrar', params: Record<string, string | undefined> = {}): ViewModel {
   const copy = authCopy[kind] ?? authCopy.entrar;
   const signup = kind === 'cadastro';
+  const returnQuery = params.returnTo ? `?returnTo=${encodeURIComponent(params.returnTo)}` : '';
   return {
     title: copy.title,
     description: copy.description,
@@ -213,8 +214,8 @@ export function authView(kind: AuthViewKind = 'entrar'): ViewModel {
         ${authShowcase()}
         ${card(`
           <nav class="auth-mode-switch" aria-label="Escolha como acessar">
-            <a href="/entrar" data-route="/entrar" class="${signup ? '' : 'is-active'}" ${signup ? '' : 'aria-current="page"'}>Entrar</a>
-            <a href="/cadastro" data-route="/cadastro" class="${signup ? 'is-active' : ''}" ${signup ? 'aria-current="page"' : ''}>Criar conta</a>
+            <a href="/entrar${returnQuery}" data-route="/entrar${returnQuery}" class="${signup ? '' : 'is-active'}" ${signup ? '' : 'aria-current="page"'}>Entrar</a>
+            <a href="/cadastro${returnQuery}" data-route="/cadastro${returnQuery}" class="${signup ? 'is-active' : ''}" ${signup ? 'aria-current="page"' : ''}>Criar conta</a>
           </nav>
           <div class="auth-card__heading">
             <h1>${copy.title}</h1>
@@ -240,7 +241,7 @@ export function recoveryView(kind: RecoveryViewKind = 'request', params: Record<
   const description = isNewPassword
     ? 'Defina uma nova senha segura para sua conta.'
     : isConfirmation
-      ? 'Use o código enviado para concluir seu cadastro.'
+      ? 'Abra o link enviado por e-mail ou use o código de 6 dígitos, quando disponível.'
       : 'Enviaremos as instruções para o endereço cadastrado.';
   const formName = isNewPassword ? 'new-password' : isConfirmation ? 'confirmation' : 'recovery';
   if (isNewPassword && params.recoveryStatus !== 'ready') {
@@ -264,7 +265,7 @@ export function recoveryView(kind: RecoveryViewKind = 'request', params: Record<
           ${passwordField({ id: 'new-password-confirmation', label: 'Confirmar nova senha', name: 'passwordConfirmation', autocomplete: 'new-password' })}
         ` : `
           <div class="field"><label for="recovery-email">E-mail</label><input class="input" id="recovery-email" name="email" type="email" autocomplete="email" value="${escapeHtml(params.email ?? '')}" required /></div>
-          ${isConfirmation ? `<div class="field"><label for="confirmation-code">Código de 6 dígitos</label><input class="input" id="confirmation-code" name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required /></div>` : ''}
+          ${isConfirmation ? `<div class="field"><label for="confirmation-code">Código de 6 dígitos (se estiver no e-mail)</label><input class="input" id="confirmation-code" name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required /></div>` : ''}
         `}
         <p class="form-message" data-form-message></p>
         ${button(isNewPassword ? 'Salvar nova senha' : isConfirmation ? 'Confirmar código' : 'Enviar instruções', { type: 'submit', size: 'lg', className: 'full-width' })}

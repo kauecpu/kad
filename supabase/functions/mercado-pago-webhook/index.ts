@@ -315,6 +315,12 @@ Deno.serve(async (request) => {
   const eventType = body?.type;
   const webhookSecret = Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET')?.trim();
   if (!body || !resourceId || !eventType || !webhookSecret) {
+    logPaymentFailure({
+      operation: 'webhook_process',
+      category: 'invalid_webhook',
+      startedAt: requestStartedAt,
+      eventType,
+    });
     return Response.json({ error: 'Invalid webhook' }, { status: 400 });
   }
 
@@ -325,10 +331,22 @@ Deno.serve(async (request) => {
     secret: webhookSecret,
   });
   if (!signatureIsValid) {
+    logPaymentFailure({
+      operation: 'webhook_process',
+      category: 'invalid_signature',
+      startedAt: requestStartedAt,
+      eventType,
+    });
     return Response.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
   if (!webhookEnvironmentMatches(Deno.env.get('MERCADO_PAGO_LIVE_MODE'), body.live_mode)) {
+    logPaymentFailure({
+      operation: 'webhook_process',
+      category: 'unexpected_environment',
+      startedAt: requestStartedAt,
+      eventType,
+    });
     return Response.json({ error: 'Unexpected environment' }, { status: 401 });
   }
   if (!isSupportedMercadoPagoEventType(eventType)) {

@@ -163,6 +163,8 @@ export type CheckoutProgress = {
   reason?: string | null;
 };
 
+export type RecoverableCheckout = CheckoutProgress & { checkoutId: string };
+
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 export type Store = {

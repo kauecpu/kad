@@ -38,6 +38,13 @@ guarda uma categoria sanitizada em `status_reason`, permitindo distinguir falha 
 configuração, credencial recusada, erro do provedor e pagamento recusado sem persistir
 respostas, e-mails ou segredos.
 
+Se o retorno chegar sem uma sessão KAD ativa, o site preserva somente o destino interno
+exato `/perfil/planos?checkout=<uuid>`, solicita autenticação e retoma a consulta depois
+do login ou da confirmação de e-mail. Um usuário já autenticado também pode recuperar
+apenas sua tentativa Mercado Pago mais recente ainda aberta por meio de uma RPC filtrada
+por `auth.uid()`. URLs externas, parâmetros adicionais e tentativas de outro usuário são
+rejeitados.
+
 ## Configuração do Supabase
 
 Confira o histórico antes de aplicar migrations financeiras pendentes, inclusive
@@ -125,7 +132,9 @@ subscription_authorized_payment
 
 ## Pendências para as lojas
 
-Evidências e bloqueios atuais: [homologação integrada de 03/09/2026](PAYMENT-HOMOLOGATION-2026-09-03-INTEGRATED.md).
+Evidências e bloqueios atuais:
+[homologação integrada de 03/09/2026](PAYMENT-HOMOLOGATION-2026-09-03-INTEGRATED.md)
+e [recuperação do retorno de checkout](PAYMENT-HOMOLOGATION-2026-09-03-RETURN-RECOVERY.md).
 
 Para lançar assinaturas nos aplicativos será necessário cadastrar os produtos nas lojas,
 integrar o SDK de compra compatível com Expo Development Build, validar recibos no
