@@ -55,6 +55,11 @@ test('mensagens distinguem pendência, indisponibilidade, configuração e rejei
   assert.equal(checkoutFeedbackFor({ status: 'pending', reason: null }, basic)?.title, 'Aguardando pagamento');
   assert.equal(checkoutFeedbackFor({ status: 'unavailable', reason: 'provider_unavailable' }, basic)?.canRetry, true);
   assert.equal(checkoutFeedbackFor({ status: 'failed', reason: 'configuration_missing' }, basic)?.title, 'Pagamento indisponível neste ambiente');
+  for (const reason of ['configuration_missing', 'provider_credentials_rejected']) {
+    const feedback = checkoutFeedbackFor({ status: 'unavailable', reason }, basic);
+    assert.equal(feedback?.title, 'Pagamento indisponível neste ambiente');
+    assert.equal(feedback?.canRetry, false);
+  }
   assert.equal(checkoutFeedbackFor({ status: 'failed', reason: 'payment_rejected' }, basic)?.title, 'Pagamento não aprovado');
 });
 
@@ -64,7 +69,7 @@ test('aprovação só aparece concluída depois que o acesso foi liberado', () =
     plan: 'diamond' as const,
     status: 'active' as const,
     autoRenew: true,
-    renewsAt: '2026-10-01T00:00:00.000Z',
+    renewsAt: new Date(Date.now() + 86_400_000).toISOString(),
   };
   assert.equal(checkoutFeedbackFor({ status: 'approved', reason: null }, basic)?.canRetry, true);
   assert.equal(checkoutFeedbackFor({ status: 'approved', reason: null }, active)?.canRetry, false);

@@ -1,0 +1,7 @@
+-- Historical mirror of the timestamp assigned by Supabase MCP in staging.
+-- Canonical source: 20260902150000_payment_checkout_reconciliation.sql (PR #84).
+-- Remote source matched that file exactly (normalized line endings).
+-- Statements MD5: 111997d58883e8a438a5e5e230c0f497.
+-- The canonical version was also recorded as applied, without deleting history
+-- or rerunning its SQL after the newer atomic-status fix.
+-- Intentionally no SQL: fresh databases execute the canonical migration once.

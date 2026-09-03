@@ -1,5 +1,9 @@
 # Homologação do checkout web — Mercado Pago
 
+> Relatório histórico do PR #84. A continuação, com publicação em homologação,
+> testes reais de PostgreSQL e bloqueios atualizados, está em
+> [PAYMENT-HOMOLOGATION-2026-09-03.md](PAYMENT-HOMOLOGATION-2026-09-03.md).
+
 ## Resultado desta execução
 
 O código do checkout web e do backend foi concluído sem alterar produção e sem criar

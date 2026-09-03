@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(49);
+select plan(71);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values
@@ -39,7 +39,7 @@ select
   1499,
   'BRL',
   'pending',
-  '2030-01-01T00:00:00Z'::timestamptz
+  (transaction_timestamp() + interval '30 days')
 from generate_series(1, 5) as cases(test_case);
 
 insert into public.payment_checkout_sessions (
@@ -64,7 +64,7 @@ select
   1499,
   'BRL',
   'pending',
-  '2030-01-01T00:00:00Z'::timestamptz
+  (transaction_timestamp() + interval '30 days')
 from (values (8), (9)) as cases(test_case);
 
 select ok(
@@ -358,7 +358,7 @@ select is(
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000001',
   'payment-a', 'subscription-1', 'approved', 1499, 'BRL',
-  '2026-08-01T10:00:00Z', '2026-08-01T10:01:00Z'
+  (transaction_timestamp() - interval '2 days' + interval '0 minutes'), (transaction_timestamp() - interval '2 days' + interval '1 minutes')
 );
 create temporary table original_periods as
 select user_id, current_period_end
@@ -366,7 +366,7 @@ from public.subscriptions;
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000001',
   'payment-a', 'subscription-1', 'approved', 1499, 'BRL',
-  '2026-08-01T10:00:00Z', '2026-08-01T10:02:00Z'
+  (transaction_timestamp() - interval '2 days' + interval '0 minutes'), (transaction_timestamp() - interval '2 days' + interval '2 minutes')
 );
 select is(
   (select current_period_end from public.subscriptions where user_id = '10000000-0000-4000-8000-000000000001'),
@@ -397,17 +397,17 @@ select is(
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000002',
   'payment-b', 'subscription-2', 'approved', 1499, 'BRL',
-  '2026-08-01T10:00:00Z', '2026-08-01T10:01:00Z'
+  (transaction_timestamp() - interval '2 days' + interval '0 minutes'), (transaction_timestamp() - interval '2 days' + interval '1 minutes')
 );
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000002',
   'payment-b', 'subscription-2', 'refunded', 1499, 'BRL',
-  '2026-08-01T10:00:00Z', '2026-08-02T10:01:00Z'
+  (transaction_timestamp() - interval '2 days' + interval '0 minutes'), (transaction_timestamp() - interval '1 days' + interval '1 minutes')
 );
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000002',
   'payment-b', 'subscription-2', 'approved', 1499, 'BRL',
-  '2026-08-01T10:00:00Z', '2026-08-03T10:01:00Z'
+  (transaction_timestamp() - interval '2 days' + interval '0 minutes'), (transaction_timestamp() - interval '0 days' + interval '1 minutes')
 );
 select is(
   (select terminal_status from public.payment_transactions where provider_payment_id = 'payment-b'),
@@ -429,17 +429,17 @@ select cmp_ok(
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000003',
   'payment-c', 'subscription-3', 'approved', 1499, 'BRL',
-  '2026-08-01T10:00:00Z', '2026-08-01T10:01:00Z'
+  (transaction_timestamp() - interval '2 days' + interval '0 minutes'), (transaction_timestamp() - interval '2 days' + interval '1 minutes')
 );
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000003',
   'payment-c', 'subscription-3', 'charged_back', 1499, 'BRL',
-  '2026-08-01T10:00:00Z', '2026-08-02T10:01:00Z'
+  (transaction_timestamp() - interval '2 days' + interval '0 minutes'), (transaction_timestamp() - interval '1 days' + interval '1 minutes')
 );
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000003',
   'payment-c', 'subscription-3', 'approved', 1499, 'BRL',
-  '2026-08-01T10:00:00Z', '2026-08-03T10:01:00Z'
+  (transaction_timestamp() - interval '2 days' + interval '0 minutes'), (transaction_timestamp() - interval '0 days' + interval '1 minutes')
 );
 select is(
   (select terminal_status from public.payment_transactions where provider_payment_id = 'payment-c'),
@@ -455,12 +455,16 @@ select is(
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000004',
   'payment-d', 'subscription-4', 'rejected', 1499, 'BRL',
-  null, '2026-08-01T10:01:00Z'
+  null, (transaction_timestamp() - interval '2 days' + interval '1 minutes')
+);
+select is(
+  (select status_reason from public.payment_checkout_sessions where id = '20000000-0000-4000-8000-000000000004'),
+  'payment_rejected', 'rejection reason is written atomically with payment status'
 );
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000004',
   'payment-d', 'subscription-4', 'approved', 1499, 'BRL',
-  '2026-08-02T10:00:00Z', '2026-08-02T10:01:00Z'
+  (transaction_timestamp() - interval '1 days' + interval '0 minutes'), (transaction_timestamp() - interval '1 days' + interval '1 minutes')
 );
 select is(
   (select status from public.subscriptions where user_id = '10000000-0000-4000-8000-000000000004'),
@@ -475,12 +479,12 @@ select ok(
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000005',
   'payment-e', 'subscription-5', 'approved', 1499, 'BRL',
-  '2026-08-02T10:00:00Z', '2026-08-02T10:01:00Z'
+  (transaction_timestamp() - interval '1 days' + interval '0 minutes'), (transaction_timestamp() - interval '1 days' + interval '1 minutes')
 );
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000005',
   'payment-e', 'subscription-5', 'rejected', 1499, 'BRL',
-  null, '2026-08-01T10:01:00Z'
+  null, (transaction_timestamp() - interval '2 days' + interval '1 minutes')
 );
 select is(
   (select provider_status from public.payment_transactions where provider_payment_id = 'payment-e'),
@@ -496,12 +500,12 @@ select is(
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000008',
   'payment-old-refund', 'subscription-8', 'approved', 1499, 'BRL',
-  '2026-08-02T10:00:00Z', '2026-08-02T10:01:00Z'
+  (transaction_timestamp() - interval '1 days' + interval '0 minutes'), (transaction_timestamp() - interval '1 days' + interval '1 minutes')
 );
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000008',
   'payment-old-refund', 'subscription-8', 'refunded', 1499, 'BRL',
-  '2026-08-02T10:00:00Z', '2026-08-01T10:01:00Z'
+  (transaction_timestamp() - interval '1 days' + interval '0 minutes'), (transaction_timestamp() - interval '2 days' + interval '1 minutes')
 );
 select is(
   (
@@ -525,12 +529,12 @@ select is(
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000009',
   'payment-old-chargeback', 'subscription-9', 'approved', 1499, 'BRL',
-  '2026-08-02T10:00:00Z', '2026-08-02T10:01:00Z'
+  (transaction_timestamp() - interval '1 days' + interval '0 minutes'), (transaction_timestamp() - interval '1 days' + interval '1 minutes')
 );
 select public.apply_mercado_pago_payment(
   '20000000-0000-4000-8000-000000000009',
   'payment-old-chargeback', 'subscription-9', 'charged_back', 1499, 'BRL',
-  '2026-08-02T10:00:00Z', '2026-08-01T10:01:00Z'
+  (transaction_timestamp() - interval '1 days' + interval '0 minutes'), (transaction_timestamp() - interval '2 days' + interval '1 minutes')
 );
 select is(
   (
@@ -579,6 +583,109 @@ select throws_ok(
   'Payment terminal marker is immutable',
   'terminal payment state cannot be cleared'
 );
+
+select ok(
+  (select not claimed from public.claim_payment_checkout_reconciliation(
+    '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002'
+  )),
+  'reconciliation cannot claim another user checkout'
+);
+select ok(
+  (select not claimed from public.claim_payment_checkout_reconciliation(
+    '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001'
+  )),
+  'terminal checkout is not queried again at the provider'
+);
+select throws_ok(
+  $$select public.apply_mercado_pago_payment('20000000-0000-4000-8000-000000000001',
+    'wrong-amount', 'subscription-1', 'approved', 1, 'BRL', now(), now())$$,
+  'P0001', 'Payment amount does not match checkout', 'divergent amount is rejected'
+);
+select throws_ok(
+  $$select public.apply_mercado_pago_payment('20000000-0000-4000-8000-000000000001',
+    'wrong-currency', 'subscription-1', 'approved', 1499, 'USD', now(), now())$$,
+  'P0001', 'Payment amount does not match checkout', 'divergent currency is rejected'
+);
+select throws_ok(
+  $$select public.apply_mercado_pago_payment('20000000-0000-4000-8000-000000000001',
+    'wrong-subscription', 'subscription-2', 'approved', 1499, 'BRL', now(), now())$$,
+  'P0001', 'Subscription correlation failed', 'divergent subscription is rejected'
+);
+select throws_ok(
+  $$select public.apply_mercado_pago_payment('20000000-0000-4000-8000-000000000002',
+    'payment-a', 'subscription-2', 'approved', 1499, 'BRL', now(), now())$$,
+  'P0001', 'Payment correlation failed', 'payment cannot be credited to a second checkout'
+);
+
+select is(
+  (select status_reason from public.payment_checkout_sessions where id = '20000000-0000-4000-8000-000000000002'),
+  'payment_refunded', 'late approval cannot erase a refund reason'
+);
+select is(
+  (select status_reason from public.payment_checkout_sessions where id = '20000000-0000-4000-8000-000000000003'),
+  'payment_chargeback', 'late approval cannot erase a chargeback reason'
+);
+select ok(
+  (select status_reason is null from public.payment_checkout_sessions where id = '20000000-0000-4000-8000-000000000005'),
+  'old rejected observation cannot change an approved checkout reason'
+);
+select public.sync_mercado_pago_subscription('subscription-2', 'pending');
+select is(
+  (select status from public.payment_checkout_sessions where id = '20000000-0000-4000-8000-000000000002'),
+  'canceled', 'preapproval cannot reopen a refunded checkout'
+);
+select is(
+  (select status_reason from public.payment_checkout_sessions where id = '20000000-0000-4000-8000-000000000002'),
+  'payment_refunded', 'preapproval cannot replace a refund reason'
+);
+select public.sync_mercado_pago_subscription('subscription-3', 'canceled');
+select is(
+  (select status_reason from public.payment_checkout_sessions where id = '20000000-0000-4000-8000-000000000003'),
+  'payment_chargeback', 'renewal cancellation cannot replace a chargeback reason'
+);
+
+set local role authenticated;
+set local request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
+select is(
+  (select count(*)::integer from public.get_payment_checkout_status('20000000-0000-4000-8000-000000000001')),
+  1, 'authenticated user can read their checkout via the scoped RPC'
+);
+select is(
+  (select count(*)::integer from public.get_payment_checkout_status('20000000-0000-4000-8000-000000000002')),
+  0, 'authenticated user cannot read another user checkout via the RPC'
+);
+select is(
+  (select count(user_id)::integer from public.subscriptions where user_id = '10000000-0000-4000-8000-000000000001'),
+  1, 'RLS exposes the owner subscription'
+);
+select is(
+  (select count(user_id)::integer from public.subscriptions where user_id = '10000000-0000-4000-8000-000000000002'),
+  0, 'RLS hides other user subscriptions'
+);
+select throws_ok(
+  $$update public.subscriptions set status = 'active'$$,
+  '42501', 'permission denied for table subscriptions', 'client cannot grant subscription access'
+);
+select throws_ok(
+  $$select * from public.payment_checkout_sessions$$,
+  '42501', 'permission denied for table payment_checkout_sessions', 'client cannot bypass checkout RPC'
+);
+select throws_ok(
+  $$select public.apply_mercado_pago_payment('20000000-0000-4000-8000-000000000001',
+    'client-forged', 'subscription-1', 'approved', 1499, 'BRL', now(), now())$$,
+  '42501', 'permission denied for function apply_mercado_pago_payment', 'client cannot forge payment approval'
+);
+set local request.jwt.claim.sub = '';
+select is(
+  (select count(*)::integer from public.get_payment_checkout_status('20000000-0000-4000-8000-000000000001')),
+  0, 'empty authenticated identity cannot see a checkout'
+);
+set local role anon;
+select throws_ok(
+  $$select * from public.get_payment_checkout_status('20000000-0000-4000-8000-000000000001')$$,
+  '42501', 'permission denied for function get_payment_checkout_status', 'anon cannot query checkout status'
+);
+reset role;
 
 select * from finish();
 rollback;
