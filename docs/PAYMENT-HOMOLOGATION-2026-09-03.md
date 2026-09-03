@@ -1,5 +1,9 @@
 # Pagamentos web — continuação da homologação
 
+Registro histórico do PR #85. Para o login CLI concluído, configuração parcial de
+homologação, correções adicionais e 80 asserts pgTAP, consulte
+[a continuação integrada](PAYMENT-HOMOLOGATION-2026-09-03-INTEGRATED.md).
+
 ## Resultado
 
 **Homologação integrada do Mercado Pago ainda bloqueada; correções e validação do

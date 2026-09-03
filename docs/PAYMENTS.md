@@ -2,10 +2,12 @@
 
 ## Escopo desta entrega
 
-O checkout de produção foi preparado para os planos Platina e Diamante na versão web. O preço e o
-período são definidos exclusivamente no backend; o aplicativo nunca envia o valor a ser
-cobrado. O Mercado Pago hospeda a coleta de Pix e cartão, então o KAD não recebe nem
-armazena dados completos do cartão.
+A integração de checkout web está implementada, mas a compra sandbox ainda não foi
+homologada de ponta a ponta. O preço e o período são definidos exclusivamente no
+backend; o aplicativo nunca envia o valor a ser cobrado. O Mercado Pago hospeda a
+coleta do meio de pagamento, então o KAD não recebe nem armazena dados completos do
+cartão. A disponibilidade de Pix depende da modalidade de Assinaturas e do ambiente;
+não tratá-la como comprovada antes do teste com o provedor.
 
 Os aplicativos Android e iOS não abrem o checkout web. Compras de conteúdo digital
 dentro dos apps precisam ser implementadas com Google Play Billing e Apple In-App
@@ -38,8 +40,11 @@ respostas, e-mails ou segredos.
 
 ## Configuração do Supabase
 
-Aplique as migrations financeiras versionadas, inclusive
-`20260902150000_payment_checkout_reconciliation.sql`, e publique estas Edge Functions:
+Confira o histórico antes de aplicar migrations financeiras pendentes, inclusive
+`20260902150000_payment_checkout_reconciliation.sql`,
+`20260903014225_payment_atomic_status_reason.sql` e
+`20260903043158_payment_legacy_terminal_compatibility.sql`.
+Não reaplique versões antigas sobre funções mais novas. As Edge Functions são:
 
 ```text
 create-payment-checkout
@@ -72,6 +77,22 @@ Em produção, altere `MERCADO_PAGO_LIVE_MODE` para `true`. `KAD_WEB_APP_URL` pr
 HTTPS. `ALLOWED_WEB_ORIGINS` aceita uma lista separada por vírgulas quando houver mais de
 uma origem oficial.
 
+Somente com `MERCADO_PAGO_LIVE_MODE=false`, o código aceita retorno HTTP em
+loopback para testes locais. Isso não comprova que o Mercado Pago aceita a URL:
+essa exigência deve ser verificada no checkout sandbox. Nunca publique a prévia
+em produção para contornar a falta de um endereço HTTPS de homologação.
+
+As ações manuais do site (consultar, cancelar e iniciar checkout) são vinculadas
+à conta, rota e tentativa que as iniciaram. Logout, troca de conta, navegação,
+retry e timeout invalidam respostas antigas; mutações usam a sessão capturada do
+proprietário, ainda verificada pelo backend. Timeout não desfaz uma requisição já
+recebida pelo servidor: consulte a assinatura antes de repetir uma operação.
+
+A compatibilidade de registros legados recupera motivos ausentes somente quando
+as transações correlacionadas comprovam estorno ou contestação sem ambiguidade.
+Não altera transações, períodos pagos ou regras de crédito; casos com motivos
+mistos ou outro crédito válido permanecem sem inferência automática.
+
 Em homologação, `MERCADO_PAGO_TEST_PAYER_EMAIL` deve ser uma conta Comprador criada na
 área de testes do Mercado Pago e usar o domínio reservado `testuser.com`. Vendedor e
 comprador devem pertencer ao mesmo país e ao conjunto de testes da mesma integração.
@@ -91,7 +112,8 @@ subscription_authorized_payment
 ## Validação antes de cobrar
 
 - Use credenciais e usuários de teste do Mercado Pago em um projeto de homologação.
-- Confirme Pix e cartão aprovado, rejeitado, pendente, cancelamento, renovação e estorno.
+- Confirme cartão aprovado, rejeitado, pendente, cancelamento, renovação e estorno.
+- Teste Pix somente se suportado pela modalidade e pelo ambiente; documente a limitação.
 - Reenvie o mesmo webhook e verifique que o período não é estendido novamente.
 - Confirme que preço/moeda divergentes são rejeitados e que outro usuário não consegue
   consultar ou cancelar a assinatura.
@@ -102,6 +124,8 @@ subscription_authorized_payment
   dos textos legais/comerciais pelo responsável do KAD.
 
 ## Pendências para as lojas
+
+Evidências e bloqueios atuais: [homologação integrada de 03/09/2026](PAYMENT-HOMOLOGATION-2026-09-03-INTEGRATED.md).
 
 Para lançar assinaturas nos aplicativos será necessário cadastrar os produtos nas lojas,
 integrar o SDK de compra compatível com Expo Development Build, validar recibos no

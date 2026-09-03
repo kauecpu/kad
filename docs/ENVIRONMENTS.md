@@ -68,10 +68,16 @@ Segredos de funções ficam no painel do respectivo ambiente. O app, o site e o
 painel administrativo recebem somente chaves publicáveis.
 
 As Edge Functions de pagamento estão publicadas na homologação para validar código,
-JWT e banco, mas permanecem operacionalmente bloqueadas: nenhum segredo personalizado
-do Mercado Pago está configurado nesse projeto. Credenciais reais nunca podem ser
-reutilizadas nesse ambiente. O fluxo financeiro completo só deve começar depois que
-existirem credenciais e comprador próprios de teste, além de uma conta KAD descartável.
+JWT e banco. Em 03/09/2026 foram confirmados o login administrativo do CLI e os
+parâmetros de teste: `MERCADO_PAGO_LIVE_MODE=false`, `KAD_WEB_APP_URL` e
+`ALLOWED_WEB_ORIGINS` para a prévia local exata `http://127.0.0.1:5182`.
+Ainda faltam `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_WEBHOOK_SECRET` e
+`MERCADO_PAGO_TEST_PAYER_EMAIL`; portanto a compra permanece bloqueada.
+Credenciais reais nunca podem ser reutilizadas nesse ambiente.
+O fluxo financeiro completo exige vendedor/comprador de teste e contas KAD
+descartáveis com confirmação de e-mail. A aceitação do retorno local pelo provedor
+ainda precisa ser validada; se exigir HTTPS, preparar uma prévia de homologação.
+Consulte [o registro integrado](PAYMENT-HOMOLOGATION-2026-09-03-INTEGRATED.md).
 
 ## Limitação conhecida
 
