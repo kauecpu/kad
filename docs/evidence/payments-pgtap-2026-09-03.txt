@@ -1,0 +1,76 @@
+Environment: npaoyezfwmgauirrlyog (staging), PostgreSQL 17
+Method: pgTAP via authenticated Supabase MCP, BEGIN/ROLLBACK, test-only fixtures.
+This is a database integration test, not a Mercado Pago sandbox purchase.
+
+1..71
+ok 1 - anon cannot claim provider reconciliation
+ok 2 - authenticated cannot bypass reconciliation rate limits
+ok 3 - service_role can claim provider reconciliation
+ok 4 - first provider reconciliation is claimed
+ok 5 - immediate duplicate reconciliation is rate limited
+ok 6 - anon cannot execute the payment reconciliation RPC
+ok 7 - authenticated cannot execute the payment reconciliation RPC
+ok 8 - service_role can execute the payment reconciliation RPC
+ok 9 - service_role can read checkout sessions for payment Edge Functions
+ok 10 - service_role can create checkout sessions for payment Edge Functions
+ok 11 - service_role can update checkout sessions for payment Edge Functions
+ok 12 - service_role has no excess checkout-session privileges
+ok 13 - service_role can read subscriptions for checkout and cancellation
+ok 14 - service_role must change subscriptions through hardened RPCs
+ok 15 - service_role can read signed webhook events
+ok 16 - service_role can record signed webhook events
+ok 17 - service_role can mark signed webhook events as processed
+ok 18 - service_role has no excess webhook-event privileges
+ok 19 - service_role has no direct payment-transaction privileges
+ok 20 - first checkout request acquires the PostgreSQL lease
+ok 21 - a concurrent checkout request cannot acquire the same user lease
+ok 22 - concurrent checkout receives a retry delay
+ok 23 - first provider checkout attempt is allowed
+ok 24 - checkout attempt inside the cooldown is denied
+ok 25 - cooldown returns the exact Retry-After delay
+ok 26 - five checkout creations are allowed inside the rolling window
+ok 27 - the sixth checkout creation is denied
+ok 28 - denied attempts do not increment the provider-call counter
+ok 29 - approved to approved does not grant a second period
+ok 30 - approved payment records its immutable credit marker
+ok 31 - canceling renewal does not rewrite an approved checkout
+ok 32 - canceling renewal marks the subscription without revoking paid access
+ok 33 - canceling renewal preserves the paid period end
+ok 34 - approved to refunded to approved preserves the terminal refund
+ok 35 - refund expires the subscription
+ok 36 - refund removes remaining access immediately
+ok 37 - approved to charged back to approved preserves the terminal chargeback
+ok 38 - chargeback expires the subscription
+ok 39 - rejection reason is written atomically with payment status
+ok 40 - a rejected payment can later be approved for the first time
+ok 41 - first real approval after rejection grants exactly one credit
+ok 42 - older provider observation cannot regress the payment status
+ok 43 - older provider observation cannot revoke valid access
+ok 44 - an older terminal refund observation is still absorbing
+ok 45 - an older terminal refund observation expires access
+ok 46 - an older terminal chargeback observation is still absorbing
+ok 47 - an older terminal chargeback observation expires access
+ok 48 - rate limit state has RLS enabled as defense in depth
+ok 49 - credited payments cannot have their marker cleared
+ok 50 - terminal payment state cannot be cleared
+ok 51 - reconciliation cannot claim another user checkout
+ok 52 - terminal checkout is not queried again at the provider
+ok 53 - divergent amount is rejected
+ok 54 - divergent currency is rejected
+ok 55 - divergent subscription is rejected
+ok 56 - payment cannot be credited to a second checkout
+ok 57 - late approval cannot erase a refund reason
+ok 58 - late approval cannot erase a chargeback reason
+ok 59 - old rejected observation cannot change an approved checkout reason
+ok 60 - preapproval cannot reopen a refunded checkout
+ok 61 - preapproval cannot replace a refund reason
+ok 62 - renewal cancellation cannot replace a chargeback reason
+ok 63 - authenticated user can read their checkout via the scoped RPC
+ok 64 - authenticated user cannot read another user checkout via the RPC
+ok 65 - RLS exposes the owner subscription
+ok 66 - RLS hides other user subscriptions
+ok 67 - client cannot grant subscription access
+ok 68 - client cannot bypass checkout RPC
+ok 69 - client cannot forge payment approval
+ok 70 - empty authenticated identity cannot see a checkout
+ok 71 - anon cannot query checkout status

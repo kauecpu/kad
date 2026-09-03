@@ -11,9 +11,6 @@ import {
   type PaymentReconciliationTarget,
 } from '../_shared/mercado-pago-reconciliation.ts';
 import {
-  paymentStatusReason,
-} from '../_shared/mercado-pago-webhook.ts';
-import {
   classifyCheckoutFailure,
 } from '../_shared/payment-checkout.ts';
 import {
@@ -197,22 +194,6 @@ Deno.serve(async (request) => {
       });
       if (paymentError) throw paymentError;
     }
-
-    const latestPayment = authorizedPayments[0];
-    const reason = latestPayment
-      ? paymentStatusReason(latestPayment.providerStatus)
-      : ['cancelled', 'canceled'].includes(providerSubscription.status)
-        ? 'subscription_canceled'
-        : null;
-    let reasonUpdate = admin
-      .from('payment_checkout_sessions')
-      .update({ status_reason: reason })
-      .eq('id', target.checkoutId);
-    if (latestPayment?.providerStatus === 'rejected') {
-      reasonUpdate = reasonUpdate.neq('status', 'approved');
-    }
-    const { error: reasonError } = await reasonUpdate;
-    if (reasonError) throw reasonError;
 
     const { data: refreshed, error: refreshedError } = await admin
       .from('payment_checkout_sessions')

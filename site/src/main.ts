@@ -19,6 +19,7 @@ import { mergeEssayDocuments, mergeSimulationSessions, nextSyncTimestamp, touchS
 import { displayNameFromMetadata } from './core/auth-profile.ts';
 import { classifyBackendState, type BackendState } from './core/backend-state.ts';
 import { subscriptionHasAccess } from './core/subscription.ts';
+import { checkoutProgressAfterPolling, createCheckoutRequestScope, withPaymentTimeout } from './core/payment-polling.ts';
 import { randomId } from './core/utils.ts';
 import { levelTracker, recordSiteLevelActivity, siteLevelEventId } from './core/levels.ts';
 import { hydrateIcons } from './ui/icons.ts';
@@ -126,6 +127,7 @@ let navigationTrigger: HTMLElement | null = null;
 const loadedCommunityKeys = new Set<string>();
 const loadingCommunityKeys = new Set<string>();
 const levelReviewReady = new Set<string>();
+const checkoutRequestScope = createCheckoutRequestScope();
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -436,16 +438,18 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
   const validId = typeof checkoutId === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutId);
   if (!validId || !state.auth.userId) {
+    checkoutRequestScope.clear();
     if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
     ui.checkoutTimer = null;
     ui.checkoutId = '';
     ui.checkoutProgress = null;
     return;
   }
-  if (ui.checkoutId === checkoutId) return;
+  if (ui.checkoutId === checkoutId && checkoutRequestScope.matches(checkoutId, state.auth.userId)) return;
   if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
   ui.checkoutTimer = null;
   const userId = state.auth.userId;
+  const isLatestRequest = checkoutRequestScope.begin(checkoutId, userId);
   ui.checkoutId = checkoutId;
   ui.checkoutProgress = { status: 'checking' };
   render();
@@ -453,15 +457,16 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
   let lastRefreshReason: string | null = null;
   const isCurrent = () => {
     const activeRoute = currentRoute();
-    return ui.checkoutId === checkoutId
+    return isLatestRequest() && ui.checkoutId === checkoutId
       && store.getState().auth.userId === userId
       && activeRoute.pathname === '/perfil/planos'
       && activeRoute.params.checkout === checkoutId;
   };
   const poll = async () => {
+    if (!isCurrent()) return;
     attempts += 1;
     if (attempts === 1 || attempts === 11) {
-      const refresh = await reconcileRemoteCheckout(checkoutId).catch(() => ({
+      const refresh = await withPaymentTimeout(reconcileRemoteCheckout(checkoutId)).catch(() => ({
         ok: false as const,
         code: 'checkout_refresh_unavailable',
       }));
@@ -478,8 +483,8 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
       }
     }
     const [checkout, subscription] = await Promise.all([
-      loadRemoteCheckoutStatus(checkoutId).catch(() => null),
-      loadRemoteSubscription(userId).catch(() => null),
+      withPaymentTimeout(loadRemoteCheckoutStatus(checkoutId)).catch(() => null),
+      withPaymentTimeout(loadRemoteSubscription(userId)).catch(() => null),
     ]);
     if (!isCurrent()) return;
     if (checkout) ui.checkoutProgress = checkout;
@@ -497,9 +502,7 @@ function maybeConfirmCheckout(route: Route, state: SiteState): void {
     }
     if (attempts >= 20) {
       ui.checkoutTimer = null;
-      ui.checkoutProgress = lastRefreshReason
-        ? { status: 'unavailable', reason: lastRefreshReason }
-        : { status: 'pending', reason: checkout?.reason ?? null };
+      ui.checkoutProgress = checkoutProgressAfterPolling(checkout, lastRefreshReason);
       render();
       return;
     }
@@ -1404,6 +1407,7 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'retry-checkout') {
+    checkoutRequestScope.clear();
     if (ui.checkoutTimer) clearTimeout(ui.checkoutTimer);
     ui.checkoutTimer = null;
     ui.checkoutId = '';

@@ -63,6 +63,15 @@ export function checkoutFeedbackFor(
     };
   }
   if (
+    progress.reason === 'configuration_missing' ||
+    progress.reason === 'provider_credentials_rejected'
+  ) {
+    return {
+      tone: 'danger', iconName: 'TriangleAlert', title: 'Pagamento indisponível neste ambiente',
+      message: 'A equipe do KAD precisa concluir a configuração do pagamento.', canRetry: false,
+    };
+  }
+  if (
     progress.status === 'unavailable' ||
     progress.reason === 'provider_rate_limited' ||
     progress.reason === 'provider_unavailable' ||
@@ -70,16 +79,7 @@ export function checkoutFeedbackFor(
   ) {
     return {
       tone: 'warning', iconName: 'CloudOff', title: 'Não foi possível atualizar agora',
-      message: 'Seu plano não foi alterado. Tente consultar o pagamento novamente.', canRetry: true,
-    };
-  }
-  if (
-    progress.reason === 'configuration_missing' ||
-    progress.reason === 'provider_credentials_rejected'
-  ) {
-    return {
-      tone: 'danger', iconName: 'TriangleAlert', title: 'Pagamento indisponível neste ambiente',
-      message: 'A equipe do KAD precisa concluir a configuração do pagamento.', canRetry: false,
+      message: 'Não conseguimos confirmar o estado atual. Tente consultar o pagamento novamente.', canRetry: true,
     };
   }
   if (progress.status === 'failed') {

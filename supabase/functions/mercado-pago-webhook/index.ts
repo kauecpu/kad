@@ -11,7 +11,6 @@ import {
   isSupportedMercadoPagoEventType,
   type MercadoPagoWebhookBody,
   parseMercadoPagoWebhookBody,
-  paymentStatusReason,
   webhookProcessingOutcome,
   webhookEnvironmentMatches,
 } from '../_shared/mercado-pago-webhook.ts';
@@ -154,13 +153,6 @@ async function applyPayment({
     p_provider_observed_at: providerObservedAt,
   });
   if (error) throw error;
-  let reasonUpdate = admin
-    .from('payment_checkout_sessions')
-    .update({ status_reason: paymentStatusReason(providerStatus) })
-    .eq('id', checkout.id);
-  if (providerStatus === 'rejected') reasonUpdate = reasonUpdate.neq('status', 'approved');
-  const { error: reasonError } = await reasonUpdate;
-  if (reasonError) throw reasonError;
 }
 
 async function processPreapproval(
@@ -203,14 +195,6 @@ async function processPreapproval(
     p_provider_status: subscription.status,
   });
   if (syncError) throw syncError;
-  const subscriptionReason = ['cancelled', 'canceled'].includes(subscription.status)
-    ? 'subscription_canceled'
-    : null;
-  const { error: reasonError } = await admin
-    .from('payment_checkout_sessions')
-    .update({ status_reason: subscriptionReason })
-    .eq('id', checkout.id);
-  if (reasonError) throw reasonError;
   return true;
 }
 
