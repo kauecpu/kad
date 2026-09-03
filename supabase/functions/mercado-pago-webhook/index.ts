@@ -113,6 +113,7 @@ async function findCheckout(
     ) {
       return data;
     }
+    return null; // An explicit conflicting checkout reference must not fall back to another owner.
   }
   if (!providerSubscriptionId) return null;
   const { data, error } = await admin
@@ -199,12 +200,14 @@ async function processPreapproval(
   }
 
   if (!checkout.provider_subscription_id) {
-    const { error: correlationError } = await admin
+    const { data: boundCheckout, error: correlationError } = await admin
       .from('payment_checkout_sessions')
       .update({ provider_subscription_id: resourceId })
       .eq('id', checkout.id)
-      .is('provider_subscription_id', null);
-    if (correlationError) throw correlationError;
+      .is('provider_subscription_id', null)
+      .select('id')
+      .maybeSingle();
+    if (correlationError || !boundCheckout) throw new Error('Subscription correlation changed');
   }
   const { error: syncError } = await admin.rpc('sync_mercado_pago_subscription', {
     p_provider_subscription_id: resourceId,

@@ -6,6 +6,7 @@ create function public.sync_mercado_pago_subscription(
 returns void language plpgsql security definer set search_path = '' as $$
 declare
   checkout public.payment_checkout_sessions%rowtype;
+  matched boolean := false;
 begin
   if p_provider_observed_at is null or p_provider_status is null
      or p_provider_status not in ('pending','authorized','paused','cancelled','canceled') then
@@ -15,12 +16,14 @@ begin
     where provider = 'mercado_pago' and provider_subscription_id = p_provider_subscription_id
     order by id for update
   loop
+    matched := true;
     if checkout.subscription_observed_at > p_provider_observed_at then return; end if;
     if checkout.subscription_observed_at = p_provider_observed_at
        and checkout.subscription_observed_status is distinct from p_provider_status then
       raise exception 'Conflicting subscription snapshots';
     end if;
   end loop;
+  if not matched then raise exception 'Unknown provider subscription'; end if;
   perform private.sync_mercado_pago_subscription(p_provider_subscription_id,p_provider_status);
   update public.payment_checkout_sessions set subscription_observed_at = p_provider_observed_at,
     subscription_observed_status = p_provider_status
