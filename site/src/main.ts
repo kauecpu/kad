@@ -1644,6 +1644,26 @@ subscribeRouter(() => {
   render({ routeChanged: true });
 });
 store.subscribe(() => render());
+let subscriptionRefreshPending = false;
+async function refreshSubscriptionOnReturn(): Promise<void> {
+  const observation = paymentActionScope.observe();
+  const userId = observation.userId;
+  const previous = store.getState().subscription;
+  if (!userId || !observation.isCurrent() || subscriptionRefreshPending || document.visibilityState !== 'visible') return;
+  subscriptionRefreshPending = true;
+  try {
+    const subscription = await withPaymentTimeout(loadRemoteSubscription(userId));
+    if (subscription && observation.isCurrent() && store.getState().subscription === previous) {
+      store.update((draft) => { draft.subscription = subscription; });
+    }
+  } catch {
+    // Keep the existing error/retry flow; never manufacture a successful refresh.
+  } finally {
+    subscriptionRefreshPending = false;
+  }
+}
+document.addEventListener('visibilitychange', () => { void refreshSubscriptionOnReturn(); });
+globalThis.addEventListener('focus', () => { void refreshSubscriptionOnReturn(); });
 levelTracker.subscribe(() => render());
 void levelTracker.selectOwner(null);
 applyTheme();

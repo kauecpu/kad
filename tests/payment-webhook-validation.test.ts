@@ -7,6 +7,8 @@ import {
   parseMercadoPagoWebhookBody,
   paymentStatusReason,
   webhookEnvironmentMatches,
+  signedWebhookResourceId,
+  webhookStructureFailure,
 } from '../supabase/functions/_shared/mercado-pago-webhook.ts';
 
 test('aceita somente o formato minimo e tipado do webhook do Mercado Pago', () => {
@@ -40,6 +42,24 @@ test('aceita somente o formato minimo e tipado do webhook do Mercado Pago', () =
     parseMercadoPagoWebhookBody({ type: 'payment', live_mode: false, data: { id: {} } }),
     null
   );
+});
+
+test('subscription envelope does not invent absent live_mode; resource verification remains mandatory', () => {
+  for (const type of ['subscription_preapproval', 'subscription_authorized_payment']) {
+    const body = { type, data: { id: 'resource-1' }, action: 'updated' };
+    assert.equal(parseMercadoPagoWebhookBody(body)?.live_mode, undefined);
+    assert.equal(parseMercadoPagoWebhookBody({ ...body, live_mode: 'true' }), null);
+  }
+  assert.equal(webhookEnvironmentMatches('true', undefined), false);
+  assert.equal(webhookStructureFailure({ type: 'payment' }), 'missing_environment');
+});
+
+test('resource must be bound to the signed query, without duplicate or body conflicts', () => {
+  const body = { type: 'payment', live_mode: true, data: { id: 'abc' } };
+  assert.equal(signedWebhookResourceId(new URL('https://example.invalid?data.id=abc'), body), 'abc');
+  for (const query of ['', '?data.id=other', '?data.id=abc&data_id=other', '?data.id=abc&data.id=other', '?data.id=../abc']) {
+    assert.equal(signedWebhookResourceId(new URL(`https://example.invalid${query}`), body), null);
+  }
 });
 
 test('traduz estados financeiros terminais sem expor payloads do provedor', () => {

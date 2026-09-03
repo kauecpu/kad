@@ -3,6 +3,19 @@ import test from 'node:test';
 import { createPaymentActionScope, ownedPaymentAuthorization } from '../src/core/payment-actions.ts';
 import { createCheckoutRequestScope, withPaymentTimeout } from '../src/core/payment-polling.ts';
 
+test('background refresh cannot interrupt cancellation or overwrite a later result', () => {
+  const scope = createPaymentActionScope(() => ({ userId: 'a', route: '/perfil/planos' }));
+  const background = scope.observe();
+  assert.equal(background.isCurrent(),true);
+  const cancellation = scope.begin();
+  assert.equal(background.isCurrent(),false);
+  assert.equal(scope.observe().isCurrent(),false);
+  assert.equal(cancellation.isCurrent(),true);
+  cancellation.finish();
+  assert.equal(background.isCurrent(),false);
+  assert.equal(scope.observe().isCurrent(),true);
+});
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(done => { resolve = done; });

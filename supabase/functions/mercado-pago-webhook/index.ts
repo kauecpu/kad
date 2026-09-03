@@ -4,13 +4,15 @@ import {
   amountInCents,
   checkoutIdFromReference,
   mercadoPagoRequest,
+  mercadoPagoAccountMode,
   validateWebhookSignature,
 } from '../_shared/mercado-pago.ts';
 import {
   checkoutMatchesProviderSubscription,
   isSupportedMercadoPagoEventType,
-  type MercadoPagoWebhookBody,
   parseMercadoPagoWebhookBody,
+  signedWebhookResourceId,
+  webhookStructureFailure,
   webhookProcessingOutcome,
   webhookEnvironmentMatches,
 } from '../_shared/mercado-pago-webhook.ts';
@@ -23,8 +25,11 @@ type CheckoutRow = {
 
 type MercadoPagoPreapproval = {
   id?: unknown;
+  collector_id?: unknown;
+  live_mode?: unknown;
   external_reference?: unknown;
   status?: unknown;
+  last_modified?: unknown;
   auto_recurring?: {
     transaction_amount?: unknown;
     currency_id?: unknown;
@@ -45,6 +50,8 @@ type MercadoPagoAuthorizedPayment = {
 
 type MercadoPagoPayment = {
   id?: unknown;
+  collector_id?: unknown;
+  live_mode?: unknown;
   external_reference?: unknown;
   transaction_amount?: unknown;
   currency_id?: unknown;
@@ -59,18 +66,25 @@ type MercadoPagoChargeback = {
   payments?: unknown;
 };
 
-function resourceIdFrom(request: Request, body: MercadoPagoWebhookBody) {
-  const url = new URL(request.url);
-  return (
-    url.searchParams.get('data.id') ??
-    url.searchParams.get('data_id') ??
-    (body.data?.id === undefined ? null : String(body.data.id))
-  );
+class WebhookEnvironmentError extends Error {}
+
+type ProviderContext = { sellerId: string; liveMode: boolean | undefined };
+
+async function providerContext(liveMode: boolean | undefined): Promise<ProviderContext> {
+  const mode = mercadoPagoAccountMode(Deno.env.get('MERCADO_PAGO_ACCOUNT_MODE'), Deno.env.get('MERCADO_PAGO_LIVE_MODE'));
+  const seller = await mercadoPagoRequest<{ id?: unknown; tags?: unknown }>('/users/me');
+  if (!seller.id || !Array.isArray(seller.tags)
+    || seller.tags.includes('test_user') !== (mode === 'test')) throw new Error('Provider account mismatch');
+  return { sellerId: String(seller.id), liveMode };
 }
 
-function queryDataId(request: Request) {
-  const url = new URL(request.url);
-  return url.searchParams.get('data.id') ?? url.searchParams.get('data_id');
+function verifyProviderResource(resource: { collector_id?: unknown; live_mode?: unknown }, context: ProviderContext) {
+  if (String(resource.collector_id) !== context.sellerId) throw new Error('Provider seller mismatch');
+  const liveMode = resource.live_mode ?? context.liveMode;
+  if (typeof liveMode !== 'boolean') throw new WebhookEnvironmentError('environment_unverifiable');
+  if (!webhookEnvironmentMatches(Deno.env.get('MERCADO_PAGO_LIVE_MODE'), liveMode)) {
+    throw new WebhookEnvironmentError('unexpected_environment');
+  }
 }
 
 function safeTimestamp(value: unknown): string | null {
@@ -157,7 +171,8 @@ async function applyPayment({
 
 async function processPreapproval(
   admin: SupabaseClient,
-  resourceId: string
+  resourceId: string,
+  context: ProviderContext
 ): Promise<boolean> {
   const subscription = await mercadoPagoRequest<MercadoPagoPreapproval>(
     `/preapproval/${encodeURIComponent(resourceId)}`
@@ -165,6 +180,7 @@ async function processPreapproval(
   if (subscription.id !== resourceId || typeof subscription.status !== 'string') {
     throw new Error('Invalid provider subscription resource');
   }
+  verifyProviderResource(subscription, context);
   const checkout = await findCheckout(admin, subscription.external_reference, resourceId);
   if (!checkout) return false;
 
@@ -193,6 +209,7 @@ async function processPreapproval(
   const { error: syncError } = await admin.rpc('sync_mercado_pago_subscription', {
     p_provider_subscription_id: resourceId,
     p_provider_status: subscription.status,
+    p_provider_observed_at: safeTimestamp(subscription.last_modified),
   });
   if (syncError) throw syncError;
   return true;
@@ -200,7 +217,8 @@ async function processPreapproval(
 
 async function processAuthorizedPayment(
   admin: SupabaseClient,
-  resourceId: string
+  resourceId: string,
+  context: ProviderContext
 ): Promise<boolean> {
   const invoice = await mercadoPagoRequest<MercadoPagoAuthorizedPayment>(
     `/authorized_payments/${encodeURIComponent(resourceId)}`
@@ -213,7 +231,7 @@ async function processAuthorizedPayment(
       : null;
   const providerStatus =
     typeof invoice.payment?.status === 'string' ? invoice.payment.status : null;
-  if (!providerSubscriptionId || !providerPaymentId || !providerStatus) {
+  if (String(invoice.id) !== resourceId || !providerSubscriptionId || !providerPaymentId || !providerStatus) {
     throw new Error('Invalid authorized payment resource');
   }
   const checkout = await findCheckout(
@@ -222,24 +240,33 @@ async function processAuthorizedPayment(
     providerSubscriptionId
   );
   if (!checkout) return false;
+  const payment = await mercadoPagoRequest<MercadoPagoPayment>(`/v1/payments/${encodeURIComponent(providerPaymentId)}`);
+  if (String(payment.id) !== providerPaymentId
+    || checkoutIdFromReference(payment.external_reference) !== checkout.id
+    || amountInCents(payment.transaction_amount) !== amountInCents(invoice.transaction_amount)
+    || payment.currency_id !== invoice.currency_id || typeof payment.status !== 'string') {
+    throw new Error('Authorized payment correlation failed');
+  }
+  verifyProviderResource(payment, { ...context, liveMode: undefined });
   await applyPayment({
     admin,
     checkout,
     providerSubscriptionId,
     providerPaymentId,
-    providerStatus,
+    providerStatus: payment.status,
     transactionAmount: invoice.transaction_amount,
     currency: invoice.currency_id,
-    paidAt: safeTimestamp(invoice.debit_date),
+    paidAt: safeTimestamp(payment.date_approved) ?? safeTimestamp(invoice.debit_date),
     providerObservedAt:
-      safeTimestamp(invoice.last_modified) ?? safeTimestamp(invoice.date_created),
+      safeTimestamp(payment.date_last_updated) ?? safeTimestamp(invoice.last_modified),
   });
   return true;
 }
 
 async function processPayment(
   admin: SupabaseClient,
-  resourceId: string
+  resourceId: string,
+  context: ProviderContext
 ): Promise<boolean> {
   const payment = await mercadoPagoRequest<MercadoPagoPayment>(
     `/v1/payments/${encodeURIComponent(resourceId)}`
@@ -249,6 +276,8 @@ async function processPayment(
       ? String(payment.id)
       : null;
   const providerStatus = typeof payment.status === 'string' ? payment.status : null;
+  if (providerPaymentId !== resourceId || !providerStatus) throw new Error('Invalid provider payment resource');
+  verifyProviderResource(payment, { ...context, liveMode: undefined });
   const checkout = await findCheckout(admin, payment.external_reference);
   if (!providerPaymentId || !providerStatus || !checkout?.provider_subscription_id) {
     return false;
@@ -272,7 +301,8 @@ async function processPayment(
 
 async function processChargeback(
   admin: SupabaseClient,
-  resourceId: string
+  resourceId: string,
+  context: ProviderContext
 ): Promise<boolean> {
   const chargeback = await mercadoPagoRequest<MercadoPagoChargeback>(
     `/v1/chargebacks/${encodeURIComponent(resourceId)}`
@@ -296,7 +326,7 @@ async function processChargeback(
 
   let correlated = false;
   for (const paymentId of paymentIds) {
-    correlated = (await processPayment(admin, paymentId)) || correlated;
+    correlated = (await processPayment(admin, paymentId, context)) || correlated;
   }
   return correlated;
 }
@@ -310,24 +340,26 @@ Deno.serve(async (request) => {
     );
   }
 
-  const body = parseMercadoPagoWebhookBody(await request.json().catch(() => null));
-  const resourceId = body ? resourceIdFrom(request, body) : null;
+  const rawBody: unknown = await request.json().catch(() => null);
+  const body = parseMercadoPagoWebhookBody(rawBody);
+  const resourceId = body ? signedWebhookResourceId(new URL(request.url), body) : null;
   const eventType = body?.type;
   const webhookSecret = Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET')?.trim();
-  if (!body || !resourceId || !eventType || !webhookSecret) {
+  if (!body || !resourceId || !eventType) {
     logPaymentFailure({
       operation: 'webhook_process',
-      category: 'invalid_webhook',
+      category: !body ? webhookStructureFailure(rawBody) : 'unsigned_or_conflicting_resource',
       startedAt: requestStartedAt,
       eventType,
     });
     return Response.json({ error: 'Invalid webhook' }, { status: 400 });
   }
+  if (!webhookSecret) return Response.json({ error: 'Server configuration is incomplete' }, { status: 500 });
 
   const signatureIsValid = await validateWebhookSignature({
     signature: request.headers.get('x-signature'),
     requestId: request.headers.get('x-request-id'),
-    dataId: queryDataId(request),
+    dataId: resourceId,
     secret: webhookSecret,
   });
   if (!signatureIsValid) {
@@ -340,7 +372,7 @@ Deno.serve(async (request) => {
     return Response.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
-  if (!webhookEnvironmentMatches(Deno.env.get('MERCADO_PAGO_LIVE_MODE'), body.live_mode)) {
+  if (body.live_mode !== undefined && !webhookEnvironmentMatches(Deno.env.get('MERCADO_PAGO_LIVE_MODE'), body.live_mode)) {
     logPaymentFailure({
       operation: 'webhook_process',
       category: 'unexpected_environment',
@@ -362,65 +394,49 @@ Deno.serve(async (request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const providerEventKey = `${eventType}:${body.id ?? request.headers.get('x-request-id') ?? resourceId}`;
-
-  const { data: existingEvent, error: existingEventError } = await admin
-    .from('payment_webhook_events')
-    .select('processed')
-    .eq('provider_event_key', providerEventKey)
-    .maybeSingle();
-  if (existingEventError) {
-    return Response.json({ error: 'Unable to record webhook' }, { status: 500 });
-  }
-  if (existingEvent?.processed) return Response.json({ ok: true });
-
-  const { error: eventError } = await admin.from('payment_webhook_events').upsert({
-    provider_event_key: providerEventKey,
-    event_type: eventType,
-    action: body.action ?? null,
-    resource_id: resourceId,
-    live_mode: body.live_mode ?? null,
-    processed: false,
-    error_code: null,
-    processed_at: null,
-  });
-  if (eventError) {
-    return Response.json({ error: 'Unable to record webhook' }, { status: 500 });
-  }
-
+  let processingToken: string | null = null;
   try {
+    const context = await providerContext(body.live_mode);
+    // For missing subscription environment, do not persist a guessed value.
+    // Resource validation below is required before acknowledging the delivery.
+    const { data: claim, error: claimError } = await admin.rpc('claim_payment_webhook', {
+      p_event_key: providerEventKey, p_event_type: eventType, p_action: body.action ?? null,
+      p_resource_id: resourceId, p_live_mode: body.live_mode ?? null,
+    }).single<{ outcome: string; token: string | null }>();
+    if (claimError || !claim) throw new Error('Unable to claim webhook');
+    if (claim.outcome === 'duplicate') return Response.json({ ok: true, outcome: 'duplicate' });
+    if (claim.outcome !== 'claimed') return Response.json({ error: 'Webhook in progress', outcome: 'busy' }, { status: 503, headers: { 'Retry-After': '120' } });
+    processingToken = claim.token;
     let correlated = false;
     if (eventType === 'subscription_preapproval') {
-      correlated = await processPreapproval(admin, resourceId);
+      correlated = await processPreapproval(admin, resourceId, context);
     } else if (eventType === 'subscription_authorized_payment') {
-      correlated = await processAuthorizedPayment(admin, resourceId);
+      correlated = await processAuthorizedPayment(admin, resourceId, context);
     } else if (eventType === 'payment') {
-      correlated = await processPayment(admin, resourceId);
+      correlated = await processPayment(admin, resourceId, context);
     } else if (eventType === 'topic_chargebacks_wh') {
-      correlated = await processChargeback(admin, resourceId);
+      correlated = await processChargeback(admin, resourceId, context);
     }
 
     const outcome = webhookProcessingOutcome(correlated);
-    const { error: processedError } = await admin
-      .from('payment_webhook_events')
-      .update({
-        processed: outcome.processed,
-        processed_at: outcome.processed ? new Date().toISOString() : null,
-        error_code: outcome.errorCode,
-      })
-      .eq('provider_event_key', providerEventKey);
-    if (processedError) throw processedError;
-    return Response.json({ ok: true });
+    const { data: finished, error: processedError } = await admin.rpc('finish_payment_webhook', {
+      p_event_key: providerEventKey, p_token: processingToken,
+      p_processed: outcome.processed, p_error_code: outcome.errorCode,
+    });
+    if (processedError || !finished) throw new Error('Unable to finish webhook');
+    return Response.json({ ok: correlated, outcome: correlated ? 'processed' : 'not_correlated' },
+      { status: correlated ? 200 : 503 });
   } catch (error) {
     logPaymentFailure({
       operation: 'webhook_process',
-      category: 'processing_failed',
+      category: error instanceof WebhookEnvironmentError ? error.message : 'processing_failed',
       startedAt: requestStartedAt,
       eventType,
     });
-    await admin
-      .from('payment_webhook_events')
-      .update({ error_code: 'processing_failed' })
-      .eq('provider_event_key', providerEventKey);
-    return Response.json({ error: 'Webhook processing failed' }, { status: 500 });
+    if (processingToken) await admin.rpc('finish_payment_webhook', {
+      p_event_key: providerEventKey, p_token: processingToken,
+      p_processed: false, p_error_code: 'processing_failed',
+    });
+    return Response.json({ error: 'Webhook processing failed' }, { status: error instanceof WebhookEnvironmentError ? 401 : 500 });
   }
 });

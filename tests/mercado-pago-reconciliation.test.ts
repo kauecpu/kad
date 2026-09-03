@@ -28,7 +28,7 @@ test('aceita assinatura correlacionada por id, referência, valor e moeda', () =
     external_reference: reference,
     status: 'authorized',
     auto_recurring: { transaction_amount: 14.99, currency_id: 'BRL' },
-  }, target), { status: 'authorized' });
+  }, target), { status: 'authorized', observedAt: null });
 
   assert.equal(reconcileProviderSubscription({
     id: target.providerSubscriptionId,
