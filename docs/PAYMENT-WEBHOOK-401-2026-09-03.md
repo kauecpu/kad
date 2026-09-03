@@ -64,9 +64,47 @@ O coletor temporário das asserções pgTAP só concedeu INSERT nos próprios re
 de teste aos papéis usados na simulação; tabela, permissões e fixtures foram
 desfeitas pelo rollback. Nenhuma permissão financeira foi alterada.
 
-Ainda é obrigatório comprovar a entrega oficial 2xx e seu segundo reenvio idempotente,
-comparar novamente contagens e período e conferir o CI.
+O CI `Qualidade` do commit `2d44c28` foi concluído com sucesso (execução 198).
+Ainda é obrigatório comprovar a entrega oficial 2xx e seu segundo reenvio idempotente
+e comparar novamente contagens e período.
 Testes locais ou diagnóstico da API não substituem essa evidência.
+
+## Simulação oficial autorizada — 03/09/2026, 11:10:03 UTC
+
+Após login na conta vendedora de teste, o painel confirmou a aplicação sandbox
+esperada. O detalhe do evento histórico mostrava 401 e não oferecia uma ação de
+reenvio. O usuário autorizou separadamente o uso de **Simular notificação**; esse
+teste não é apresentado como reenvio da entrega histórica.
+
+Foi enviada uma única simulação de `payment` com o identificador do pagamento
+já aprovado, exclusivamente para o endpoint de homologação
+`https://npaoyezfwmgauirrlyog.supabase.co/functions/v1/mercado-pago-webhook`.
+O seletor do painel chama esse destino de **URL de produção**, mas o projeto
+Supabase é o de homologação autorizado. Nenhuma configuração foi salva no painel.
+
+Evidências sanitizadas:
+
+- o simulador exibiu `live_mode: false` no corpo gerado, mesmo com esse destino;
+- a resposta exibida foi `401 - Unauthorized`;
+- a invocação do Supabase confirmou HTTP 401 às `11:10:03 UTC`;
+- o log da função às `08:10:03` no fuso local mostrou
+  `category=unexpected_environment`, `eventType=payment`, `durationMs=2`;
+- como a verificação de ambiente ocorre depois do HMAC, a assinatura passou;
+- depois do teste: 1 checkout, 1 transação, 1 assinatura, 0 eventos de webhook;
+- o período Diamond continua em `2026-10-03T07:52:25Z`, sem novo crédito.
+
+O `false` enviado pelo simulador não equivale ao `true` do pagamento consultado
+diretamente na API. Não houve troca de segredo, mudança do ambiente esperado,
+aceitação dos dois ambientes nem segunda simulação para forçar uma resposta 2xx.
+Esse resultado comprova a recusa de um evento assinado de ambiente divergente,
+não a homologação positiva da compra existente.
+
+Permanece necessária uma nova entrega do evento original pelo provedor, por
+tentativa automática ou mecanismo de reenvio confirmado pelo suporte do Mercado
+Pago. Um contato com suporte depende de autorização específica; nenhuma mensagem
+foi enviada. O PR permanece em rascunho e não está liberado para produção.
+
+Referência: [simulador oficial de notificações](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/payment-notifications).
 
 ## Publicação e rollback
 
