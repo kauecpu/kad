@@ -288,4 +288,3 @@ $$;
 revoke all on function private.apply_mercado_pago_payment(
   uuid, text, text, text, integer, text, timestamptz, timestamptz
 ) from public;
-
