@@ -22,9 +22,9 @@ export const paymentMigrations = [
   '20260902150000_payment_checkout_reconciliation.sql',
   '20260903014225_payment_atomic_status_reason.sql',
   '20260903043158_payment_legacy_terminal_compatibility.sql',
-  '20260903160000_payment_webhook_claims.sql',
-  '20260903161000_payment_lifecycle_ordering.sql',
-  '20260903162000_subscription_observed_state.sql',
+  '20260903220504_payment_webhook_claims.sql',
+  '20260903220508_payment_lifecycle_ordering.sql',
+  '20260903220512_subscription_observed_state.sql',
 ];
 
 export async function paymentSetupSql(): Promise<string> {

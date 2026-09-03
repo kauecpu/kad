@@ -8,9 +8,9 @@ Este trabalho usa apenas a homologação `npaoyezfwmgauirrlyog`. Não libera pro
 | Item | Estado nesta revisão | Pendência |
 | --- | --- | --- |
 | Recebimento | Parcial: entrega original aceita e correlacionada | Repetição original depois da alteração |
-| Crédito duplicado | Parcial: testes locais aprovados; teste multissessão no CI | Confirmar CI e repetição original |
+| Crédito duplicado | Parcial: testes locais e multissessão aprovados | Repetição original após publicação |
 | 400 em assinaturas | Parcial | Obter estrutura da entrega histórica; provar ambiente de preapproval quando ausente |
-| Ciclo da assinatura | Parcial: testes isolados aprovados | CI e publicação controlada em homologação |
+| Ciclo da assinatura | Concluído no escopo de testes isolados | Não substitui operações reais no provedor nem auditoria de todas as permissões premium |
 
 ## 1. Entrega original do Mercado Pago
 
@@ -87,16 +87,21 @@ todos os 400 históricos com base apenas em exemplos sintéticos.
 - Handler real capturado pelo Deno, rede substituída: 11 testes HTTP aprovados.
   Cobertura: 400, 401, 405, pagamento, duplicado, falha e retomada, sem correlação,
   fatura com ambiente resolvido pelo pagamento, preapproval, vendedor/ID incorretos.
+- Cancelamento: 5 testes HTTP aprovados, incluindo timeout, resposta divergente e
+  falha de persistência. Nenhuma solicitação de cancelamento foi feita ao provedor.
 - PostgreSQL local PGlite: reserva, expiração de reserva, token antigo, identidade
   conflitante, repetição de pagamento, renovação, pendente, recusado, aprovação
   posterior, ordem, cancelamento, expiração, preço/moeda e isolamento.
 - PGlite executa comandos em uma conexão. Não o apresentamos como teste de
   concorrência entre sessões. O workflow `Payment regression` usa PostgreSQL 17
-  descartável e 13 conexões sobrepostas para pagamento e notificação.
-- Antes das migrações novas, 80 asserções pgTAP passaram na homologação dentro de
-  transação com rollback. Nenhuma fixture permaneceu.
-- Raiz: 446 testes, tipos e lint aprovados. Site: tipos, testes e build aprovados.
+  descartável e 13 conexões sobrepostas para pagamento e notificação. Passou:
+  um crédito para 13 pagamentos simultâneos e uma reserva para 13 tentativas.
+- Após as três migrações, 80 asserções de segurança e 15 de ciclo passaram na
+  homologação em transações com rollback. Nenhuma fixture permaneceu.
+- Raiz: 446 testes, tipos e lint aprovados. Site: 73 testes, tipos e build aprovados.
   Verificação Deno das quatro funções financeiras aprovada.
+- CI do commit `bd0576c`: [Payment regression](https://github.com/kauecpu/kad/actions/runs/33811146171)
+  e [Qualidade](https://github.com/kauecpu/kad/actions/runs/33811146178) aprovados.
 
 Os testes não substituem um reenvio original aceito. A RPC de leitura protege o
 estado exibido; este PR não constitui auditoria de todas as permissões de recursos
@@ -108,12 +113,34 @@ Antes da publicação, a homologação tinha webhook v13 (`verify_jwt=false`),
 checkout v12, cancelamento v11 e conciliação v9 (três com JWT ativo).
 Comparação com main: as últimas três funções coincidem; o webhook carregava a
 versão antiga do módulo compartilhado de conta/ambiente. Sua lógica de recebimento
-coincidia com a base. A nova publicação deve incluir os módulos compartilhados.
+coincidia com a base. A publicação incluiu os módulos compartilhados.
 
-Ordem: aplicar as três migrações `20260903160000`, `20260903161000` e
-`20260903162000`; verificar os testes SQL; publicar webhook, conciliação e
-cancelamento com seus módulos. Não publicar checkout ou site sem necessidade.
-Registrar as versões efetivas depois da publicação. CI e publicação ainda pendentes.
+Em 03/09/2026, às 22:05 UTC, foram aplicadas as migrações
+`20260903220504_payment_webhook_claims`, `20260903220508_payment_lifecycle_ordering`
+e `20260903220512_subscription_observed_state`. Os nomes locais acompanham as
+versões geradas na homologação. Os 95 testes SQL passaram antes da publicação.
+
+Às 22:40–22:41 UTC foram publicadas e relidas integralmente:
+
+| Função | Versão | JWT do gateway |
+| --- | --- | --- |
+| mercado-pago-webhook | 14 | Desabilitado; HMAC obrigatório |
+| reconcile-payment-checkout | 10 | Habilitado |
+| cancel-subscription | 12 | Habilitado |
+
+Todos os arquivos publicados coincidem com o código local, incluindo módulos
+compartilhados. Checkout v12 não foi alterado. O site não foi publicado.
+
+Após a publicação, requisições negativas ao destino de homologação retornaram
+405 para GET, 400 para corpo vazio de campos, 401 para HMAC inválido e 401 para
+chamadas sem JWT às duas funções protegidas. Ambiente divergente foi coberto nos
+testes HTTP isolados; não fabricamos assinatura para simular entrega original.
+
+A conferência final manteve 1 checkout, 1 transação, 1 assinatura e 1 evento,
+com fim do período em `2026-10-03 07:52:25 UTC` e zero usuários sintéticos.
+A entrega original descrita acima ocorreu antes desta publicação. Falta uma nova
+entrega original aceita pela v14 e sua repetição sem crédito adicional. O PR #89
+permanece em rascunho; nenhuma dessas verificações libera produção.
 
 Rollback sem apagar dados: restaurar as três funções ao conteúdo da base
 `8c17497`, mantendo JWT apenas desabilitado no webhook. Restaurar a definição de
