@@ -88,7 +88,7 @@ export default function TopicPlayerScreen() {
   const current = questions[Math.min(index, Math.max(0, questions.length - 1))];
   const isFirst = index === 0;
   const isLast = index >= questions.length - 1;
-  const hasAnsweredCurrent = Boolean(answers[current.id]);
+  const hasAnsweredCurrent = Boolean(current && answers[current.id]);
   const showPreviousAction = !isFirst;
   const showForwardAction = hasAnsweredCurrent;
   const showFooter = showPreviousAction || showForwardAction;

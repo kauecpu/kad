@@ -376,7 +376,8 @@ test('tentativas de questões são corrigidas no banco sem escrita direta do cli
 });
 
 test('aplicativo envia somente a questão e a alternativa para a RPC de correção', () => {
-  assert.match(remoteUserData, /supabase\.rpc\('record_question_attempt'/);
+  assert.match(remoteUserData, /client\.rpc\('record_question_attempt'/);
+  assert.match(remoteUserData, /const client = supabase/);
   assert.match(remoteUserData, /p_question_id: question\.id/);
   assert.match(remoteUserData, /p_selected: selected/);
   assert.doesNotMatch(
