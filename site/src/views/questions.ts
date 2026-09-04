@@ -16,7 +16,19 @@ import type { Question, SiteState, UiState, ViewModel } from '../types/domain.ts
 
 type ViewParams = Record<string, string | undefined>;
 type AnswerStatus = 'unanswered' | 'correct' | 'wrong' | 'favorites' | undefined;
-type QuestionUiState = Pick<UiState, 'questionIndex' | 'visitedQuestionIds'>;
+type QuestionUiState = Pick<UiState, 'questionIndex' | 'visitedQuestionIds' | 'studySyncMessage' | 'studyReady'>;
+const sessions = new WeakMap<QuestionUiState, { key: string; catalog: Question[]; questions: Question[] }>();
+export function resetQuestionSession(ui: QuestionUiState): void { sessions.delete(ui); }
+
+function sessionQuestions(state: SiteState, params: ViewParams, ui: QuestionUiState): Question[] {
+  const key = JSON.stringify(params);
+  const catalog = getCatalog().questions;
+  const existing = sessions.get(ui);
+  if (existing?.key === key && existing.catalog === catalog) return existing.questions;
+  const questions = questionsForSession(params, state);
+  sessions.set(ui, { key, catalog, questions });
+  return questions;
+}
 
 function questionResultCard(question: Question, state: SiteState): string {
   const answer = state.answers[question.id];
@@ -174,7 +186,7 @@ export function questionsForSession(params: ViewParams, state: SiteState): Quest
 }
 
 export function questionSessionView(state: SiteState, params: ViewParams, ui: QuestionUiState): ViewModel {
-  const questions = questionsForSession(params, state);
+  const questions = sessionQuestions(state, params, ui);
   const index = clamp(ui.questionIndex ?? 0, 0, Math.max(0, questions.length - 1));
   const question = questions[index];
   const title = params.challenge ? 'Desafio rápido' : params.topic || params.discipline || 'Sessão de questões';
@@ -194,7 +206,11 @@ export function questionSessionView(state: SiteState, params: ViewParams, ui: Qu
     const statusIcon = correct ? icon('CheckCircle2') : wrong ? icon('XCircle') : '';
     return `<button class="option ${selected ? 'is-selected' : ''} ${correct ? 'is-correct' : ''} ${wrong ? 'is-wrong' : ''}" type="button" data-action="answer-question" data-question-id="${escapeHtml(question.id)}" data-alternative="${escapeHtml(alternative.id)}" ${answer ? 'disabled' : ''}><span class="option__letter">${escapeHtml(alternative.id)}</span><span>${escapeHtml(alternative.text)}</span>${statusIcon}</button>`;
   }).join('');
-  const map = questions.map((item, mapIndex) => {
+  const mapStart = Math.max(0, index - 20);
+  const mapEnd = Math.min(questions.length, mapStart + 41);
+  const mapIndexes = [...new Set([0, ...Array.from({ length: mapEnd - mapStart }, (_, n) => mapStart + n), questions.length - 1])].sort((a, b) => a - b);
+  const map = mapIndexes.map((mapIndex) => {
+    const item = questions[mapIndex];
     const answered = Boolean(state.answers[item.id]);
     const skipped = !answered && mapIndex !== index && ui.visitedQuestionIds.has(item.id);
     const stateLabel = answered ? ', respondida' : skipped ? ', pulada' : '';
@@ -225,7 +241,8 @@ export function questionSessionView(state: SiteState, params: ViewParams, ui: Qu
             <button class="icon-button" type="button" data-action="toggle-favorite" data-question-id="${escapeHtml(question.id)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${icon(favorite ? 'BookmarkCheck' : 'Bookmark')}</button>
           </div>
           <p class="question-statement">${escapeHtml(question.statement)}</p>
-          <div class="options">${options}</div>
+          <fieldset ${ui.studyReady === false ? 'disabled' : ''} style="border:0;padding:0;margin:0;min-width:0"><legend class="sr-only">Alternativas</legend><div class="options">${options}</div></fieldset>
+          ${ui.studySyncMessage ? `<p role="status">${escapeHtml(ui.studySyncMessage)}</p>${button('Sincronizar progresso', { action: 'sync-study', variant: 'ghost' })}` : ''}
           ${answer ? `<div class="explanation"><strong>${answer.isCorrect ? 'Resposta correta' : `Resposta incorreta · gabarito ${question.correct}`}</strong><p>${escapeHtml(question.explanation)}</p>${communityAccuracy ? `<small>${formatPercent(communityAccuracy.accuracy)} de acerto entre ${communityAccuracy.totalAnswers} ${communityAccuracy.totalAnswers === 1 ? 'resposta registrada' : 'respostas registradas'}.</small>` : ''}</div>` : ''}
           <div class="study-controls">
             ${button('Anterior', { action: 'previous-question', variant: 'secondary', iconName: 'ArrowLeft', disabled: index === 0 })}

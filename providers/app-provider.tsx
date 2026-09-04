@@ -26,6 +26,8 @@ import {
 } from '@/lib/local-user-data-keys';
 import { eraseLocalUserData } from '@/lib/local-user-data';
 import { protectedStorage } from '@/lib/protected-storage';
+import { createAppStudySync } from '@/lib/study-sync';
+import { studySyncMessage } from '@/contracts/study-sync';
 import {
   DEFAULT_WEEKLY_QUESTION_GOAL,
   mergeQuestionActivityCounts,
@@ -52,8 +54,6 @@ import {
 import { supabase } from '@/lib/supabase';
 import {
   loadRemoteStudyData,
-  removeRemoteAnswer,
-  saveRemoteAnswer,
   setRemoteFavorite,
   setRemoteSavedConcurso,
 } from '@/lib/remote-user-data';
@@ -144,6 +144,9 @@ const INITIAL_STATE: AppState = {
 type AppContextValue = AppDataState & {
   /** Falso até o estado salvo em disco ser carregado. */
   hydrated: boolean;
+  studyReady: boolean;
+  studySyncMessage: string;
+  retryStudySync: () => Promise<void>;
   performance: Performance;
   isPremium: boolean;
   dailyQuestionsAnswered: number;
@@ -299,6 +302,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { record: recordLevel, consumeReview, clear: clearLevel } = useLevels();
   const { session, isLoading: authLoading } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
+  const studySync = useMemo(() => createAppStudySync(), []);
+  const [studyState, setStudyState] = useState(studySync.getState);
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
   const [themeResetVersion, setThemeResetVersion] = useState(0);
   const [subscriptionRefreshing, setSubscriptionRefreshing] = useState(false);
@@ -322,6 +327,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const ownerId = userId ?? 'guest';
   const storageKey = authLoading ? null : `${STORAGE_KEY_PREFIX}:${ownerId}`;
   const hydrated = storageKey !== null && hydratedStorageKey === storageKey;
+  const studyReady = hydrated && studyState.ready && studyState.owner === userId;
+  useEffect(() => studySync.subscribe(() => {
+    const snapshot = studySync.getState();
+    setStudyState(snapshot);
+    if (snapshot.ready && subscriptionOwnerRef.current === snapshot.owner) {
+      setState(current => ({ ...current, answers: snapshot.answers,
+        questionActivityByDate: mergeQuestionActivityCounts(current.questionActivityByDate, snapshot.answers) }));
+    }
+  }), [studySync]);
+  useEffect(() => {
+    if (!hydrated) return;
+    void studySync.selectOwner(userId, state.answers);
+    // The owner's legacy cache seeds the journal once, not after every answer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, userId, studySync]);
+  useEffect(() => {
+    const listener = ReactNativeAppState.addEventListener('change', status => {
+      if (status === 'active') void studySync.sync();
+    });
+    const retry = setInterval(() => {
+      if (ReactNativeAppState.currentState === 'active' && studySync.getState().pending) void studySync.sync();
+    }, 30_000);
+    return () => { listener.remove(); clearInterval(retry); studySync.dispose(); };
+  }, [studySync]);
   const subscriptionLoading = subscriptionIsLoading({
     authLoading,
     userId,
@@ -505,7 +534,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 targetRole: data.target_role || undefined,
               }
             : current.profile,
-          answers: studyData.answers,
           questionActivityByDate: mergeQuestionActivityCounts(
             current.questionActivityByDate,
             studyData.answers
@@ -571,6 +599,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const answerQuestion = useCallback((question: Question, selected: AlternativeId) => {
     if (!question.alternatives.some(option => option.id === selected)) return;
+    if (!studyReady || studySync.getState().owner !== userId || !studySync.answer({
+      questionId: question.id, subject: question.subject, selected,
+      isCorrect: selected === question.correct, answeredAt: new Date().toISOString(),
+    })) return;
     recordLevel({ id: levelEventId(), kind: 'question', itemId: question.id, selected, isCorrect: selected === question.correct, reviewed: consumeReview(question.id), occurredAt: new Date().toISOString() });
     setState((current) => {
       const answeredAt = new Date();
@@ -599,8 +631,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ),
       };
     });
-    if (userId) saveRemoteAnswer(question, selected).catch(() => {});
-  }, [userId, recordLevel, consumeReview]);
+  }, [userId, recordLevel, consumeReview, studyReady, studySync]);
 
   const setWeeklyQuestionGoal = useCallback((goal: number) => {
     setState((current) => ({
@@ -610,14 +641,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetQuestion = useCallback((questionId: string) => {
+    if (!studyReady || studySync.getState().owner !== userId) return;
+    studySync.reset(questionId);
     setState((current) => {
       if (!current.answers[questionId]) return current;
       const answers = { ...current.answers };
       delete answers[questionId];
       return { ...current, answers };
     });
-    if (userId) removeRemoteAnswer(userId, questionId).catch(() => {});
-  }, [userId]);
+  }, [userId, studyReady, studySync]);
 
   const toggleFavoriteQuestion = useCallback((questionId: string) => {
     const favorite = !state.favoriteQuestionIds.includes(questionId);
@@ -643,9 +675,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state.favoriteQuestionIds, userId]);
 
   const resetProgress = useCallback(() => {
+    if (!studyReady || studySync.getState().owner !== userId) return;
+    studySync.reset();
     setState((current) => ({ ...current, answers: {}, questionActivityByDate: {} }));
-    if (userId) removeRemoteAnswer(userId).catch(() => {});
-  }, [userId]);
+  }, [userId, studyReady, studySync]);
 
   const updateProfile = useCallback(
     async (patch: Partial<UserProfile>) => {
@@ -734,14 +767,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state.savedConcursos, userId]);
 
   const deleteAccount = useCallback(async () => {
+    studySync.invalidate();
+    await studySync.flush();
     setHydratedStorageKey(null);
     setState({ ...INITIAL_STATE });
     setThemeResetVersion((current) => current + 1);
     await eraseLocalUserData(ownerId);
     await clearLevel();
-  }, [clearLevel, ownerId]);
+  }, [clearLevel, ownerId, studySync]);
 
-  const performance = useMemo(() => computePerformance(state.answers), [state.answers]);
+  const performance = useMemo(() => computePerformance(studyReady ? state.answers : {}), [state.answers, studyReady]);
   const isPremium = subscriptionHasVerifiedAccess({
     userId,
     loading: subscriptionLoading,
@@ -754,13 +789,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       profile: state.profile,
       subscription: state.subscription,
-      answers: state.answers,
+      answers: studyReady ? state.answers : {},
       favoriteQuestionIds: state.favoriteQuestionIds,
       dailyQuestionUsage: state.dailyQuestionUsage,
       questionActivityByDate: state.questionActivityByDate,
       weeklyQuestionGoal: state.weeklyQuestionGoal,
       savedConcursos: state.savedConcursos,
       hydrated,
+      studyReady,
+      studySyncMessage: studySyncMessage(studyState),
+      retryStudySync: studySync.sync,
       performance,
       isPremium,
       subscriptionLoading,
@@ -790,6 +828,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       state.weeklyQuestionGoal,
       state.savedConcursos,
       hydrated,
+      studyReady,
+      studyState,
+      studySync,
       performance,
       isPremium,
       subscriptionLoading,

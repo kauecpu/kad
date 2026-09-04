@@ -15,6 +15,9 @@ import {
   withDeckCounts,
 } from './core/flashcards.ts';
 import { recordAnswer, store } from './core/store.ts';
+import { studySync, studyJournalKey } from './core/study-sync.ts';
+import { captureStudyDraft } from './ui/study-draft.ts';
+import { studySyncMessage } from '../../contracts/study-sync.ts';
 import { mergeEssayDocuments, mergeSimulationSessions, nextSyncTimestamp, touchSimulationSession } from './core/user-sync.ts';
 import { displayNameFromMetadata } from './core/auth-profile.ts';
 import { classifyBackendState, type BackendState } from './core/backend-state.ts';
@@ -61,7 +64,6 @@ import {
   loadRemoteSubscription,
   removeRemoteCard,
   removeRemoteDeck,
-  removeRemoteAnswer,
   requestPasswordRecovery,
   resendEmailConfirmation,
   saveRemoteCard,
@@ -74,7 +76,7 @@ import {
   signIn,
   signOut,
   signUp,
-  saveRemoteAnswer,
+  watchStudySession,
   setRemoteFavorite,
   setRemoteSavedConcurso,
   setQuestionCommentLiked,
@@ -92,6 +94,7 @@ import {
   questionSessionView,
   questionsIndexView,
   quickChallengeView,
+  resetQuestionSession,
   reviewView,
   searchView,
 } from './views/questions.ts';
@@ -236,10 +239,13 @@ function openNavigation(trigger: HTMLElement): void {
   });
 }
 
+let studyHydrationVersion = 0;
+let renderedStudyOwner: string | null | undefined;
 async function hydrateAuthenticatedUser(user: { id: string; email?: string | null; user_metadata?: { name?: unknown; full_name?: unknown } }): Promise<void> {
+  const hydrationVersion = ++studyHydrationVersion;
   paymentActionScope.clear();
-  await levelTracker.selectOwner(user.id);
   store.switchOwner(user.id);
+  void levelTracker.selectOwner(user.id);
   const [remote, subscription, profile, essays, simulations, flashcards] = await Promise.all([
     loadRemoteStudyData(user.id).catch(() => null),
     loadRemoteSubscription(user.id).catch(() => null),
@@ -248,7 +254,7 @@ async function hydrateAuthenticatedUser(user: { id: string; email?: string | nul
     loadRemoteSimulationSessions(user.id).catch(() => []),
     loadRemoteFlashcards(user.id).catch(() => ({ decks: [], cards: [], reviews: [] })),
   ]);
-  if (store.getOwnerId() !== user.id) return;
+  if (store.getOwnerId() !== user.id || hydrationVersion !== studyHydrationVersion) return;
   const local = store.getState();
   const mergedSimulations = mergeSimulationSessions(
     local.simulations.current ? [local.simulations.current, ...local.simulations.history] : local.simulations.history,
@@ -263,7 +269,6 @@ async function hydrateAuthenticatedUser(user: { id: string; email?: string | nul
     draft.profile.name = displayNameFromMetadata(user.user_metadata, draft.profile.name);
     if (profile) draft.profile = { ...draft.profile, ...profile, email: user.email ?? draft.profile.email };
     if (remote) {
-      draft.answers = remote.answers;
       draft.favorites = remote.favorites;
       draft.savedConcursos = remote.savedConcursos;
     }
@@ -639,6 +644,7 @@ function hydrateQuestionCommunity(): void {
     loadQuestionComments(questionId, userId),
     loadQuestionCommunityAccuracy(questionId),
   ]).then(([comments, accuracy]) => {
+    if (store.getOwnerId() !== userId) return;
     loadedCommunityKeys.add(key);
     store.update((draft) => {
       draft.comments[questionId] = comments;
@@ -656,6 +662,7 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
   const route = currentRoute();
   const routeKey = `${route.pathname}${route.search}`;
   if (routeKey !== ui.lastRouteKey) {
+    resetQuestionSession(ui);
     ui.questionIndex = 0;
     ui.visitedQuestionIds = new Set();
     routeChanged = true;
@@ -677,7 +684,11 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
         state,
         backendState,
       });
+  const restoreStudyDraft = !routeChanged && renderedStudyOwner === store.getOwnerId()
+    ? captureStudyDraft(root) : () => {};
+  renderedStudyOwner = store.getOwnerId();
   root.innerHTML = layout;
+  restoreStudyDraft();
   hydrateIcons(root);
   updateMetadata({
     title: view.title,
@@ -857,6 +868,9 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
         state.profile.name,
         values.comment.trim(),
       );
+      if (store.getOwnerId() !== state.auth.userId) return;
+      const visibleForm = document.querySelector<HTMLFormElement>('form[data-form="question-comment"]');
+      if (visibleForm?.dataset.questionId === questionId) visibleForm.reset();
       store.update((draft) => {
         draft.comments[questionId] = [comment, ...(draft.comments[questionId] ?? []).filter((item) => item.id !== comment.id)];
       });
@@ -1029,6 +1043,10 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       }
     }
     await levelTracker.clear();
+    studySync.invalidate();
+    await studySync.flush();
+    globalThis.localStorage.removeItem(studyJournalKey(state.auth.userId ?? 'guest'));
+    selectedStudyOwner = undefined;
     store.reset();
     toast(state.auth.userId ? 'Sua conta foi excluída.' : 'Os dados locais foram apagados.');
     navigate('/', { replace: true });
@@ -1186,22 +1204,27 @@ document.addEventListener('click', async (event) => {
     const selected = target.dataset.alternative;
     const question = getCatalog().questions.find((item) => item.id === target.dataset.questionId);
     if (!question || !isAlternativeId(selected)) return;
+    if (studySync.getState().owner !== state.auth.userId || !studySync.answer({
+      questionId: question.id, subject: question.subject, selected,
+      isCorrect: selected === question.correct, answeredAt: new Date().toISOString(),
+    })) return;
     store.update((draft) => recordAnswer(draft, question, selected));
     recordSiteLevelActivity({ id: siteLevelEventId('question'), kind: 'question', itemId: question.id, selected, isCorrect: selected === question.correct, reviewed: levelReviewReady.delete(question.id), occurredAt: new Date().toISOString() });
-    if (state.auth.userId) saveRemoteAnswer(question.id, selected).catch(() => {});
     announcer.textContent = selected === question.correct ? 'Resposta correta.' : `Resposta incorreta. Gabarito ${question.correct}.`;
     return;
   }
   if (action === 'retry-question') {
     const questionId = target.dataset.questionId;
     if (!questionId) return;
+    if (!studySync.getState().ready || studySync.getState().owner !== state.auth.userId) return;
     const previous = state.answers[questionId];
     const question = getCatalog().questions.find(item => item.id === questionId);
     if (previous && !previous.isCorrect && question?.explanation) levelReviewReady.add(questionId);
     store.update((draft) => { delete draft.answers[questionId]; });
-    if (state.auth.userId) removeRemoteAnswer(state.auth.userId, questionId).catch(() => {});
+    studySync.reset(questionId);
     return;
   }
+  if (action === 'sync-study') { await studySync.sync(); return; }
   if (action === 'toggle-favorite') {
     const id = target.dataset.questionId;
     if (!id) return;
@@ -1447,6 +1470,7 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'sign-out') {
+    studyHydrationVersion++;
     paymentActionScope.clear();
     checkoutDiscoveryVersion += 1;
     checkoutDiscoveryOwner = '';
@@ -1643,7 +1667,6 @@ subscribeRouter(() => {
   paymentActionScope.clear();
   render({ routeChanged: true });
 });
-store.subscribe(() => render());
 let subscriptionRefreshPending = false;
 async function refreshSubscriptionOnReturn(): Promise<void> {
   const observation = paymentActionScope.observe();
@@ -1664,6 +1687,33 @@ async function refreshSubscriptionOnReturn(): Promise<void> {
 }
 document.addEventListener('visibilitychange', () => { void refreshSubscriptionOnReturn(); });
 globalThis.addEventListener('focus', () => { void refreshSubscriptionOnReturn(); });
+let selectedStudyOwner: string | null | undefined;
+function selectStudyOwner(): void {
+  const owner = store.getOwnerId();
+  if (selectedStudyOwner === owner) return;
+  selectedStudyOwner = owner;
+  ui.visitedQuestionIds.clear();
+  resetQuestionSession(ui);
+  ui.questionIndex = 0;
+  levelReviewReady.clear();
+  void studySync.selectOwner(owner, store.getState().answers);
+}
+studySync.subscribe(() => {
+  const snapshot = studySync.getState();
+  if (snapshot.owner !== store.getOwnerId()) return;
+  if (!ui.studyReady && snapshot.ready) resetQuestionSession(ui);
+  ui.studySyncMessage = studySyncMessage(snapshot);
+  ui.studyReady = snapshot.ready;
+  if (snapshot.ready) store.update(draft => { draft.answers = snapshot.answers; });
+  else render();
+});
+store.subscribe(() => { selectStudyOwner(); render(); });
+selectStudyOwner();
+globalThis.addEventListener('online', () => { void studySync.sync(); });
+globalThis.addEventListener('focus', () => { void studySync.sync(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void studySync.sync();
+});
 levelTracker.subscribe(() => render());
 void levelTracker.selectOwner(null);
 applyTheme();
@@ -1712,11 +1762,21 @@ void initializeSupabase().then((configured) => {
     return;
   }
   backendState = classifyBackendState({ configured: true, loading: true, loadedFromRemote: false });
-  render();
-  Promise.all([recoveryBootstrap, confirmationBootstrap]).then(() => getCurrentUser()).then(async (user) => {
-    if (!user) return;
-    await hydrateAuthenticatedUser(user);
+  void watchStudySession(user => {
+    if (user && store.getOwnerId() !== user.id) void hydrateAuthenticatedUser(user);
+    if (!user && store.getOwnerId()) {
+      studyHydrationVersion++;
+      store.switchOwner(null);
+      void levelTracker.selectOwner(null);
+      toast('Sua sessão terminou. Entre novamente para sincronizar seu progresso.');
+    }
   });
+  render();
+  const bootstrapVersion = studyHydrationVersion;
+  Promise.all([recoveryBootstrap, confirmationBootstrap]).then(() => getCurrentUser()).then(async (user) => {
+    if (!user || bootstrapVersion !== studyHydrationVersion) return;
+    await hydrateAuthenticatedUser(user);
+  }).catch(() => toast('Não foi possível verificar sua sessão. Tente entrar novamente.'));
   loadPublishedContent()
     .then((content) => {
       replacePublishedCatalog(content);

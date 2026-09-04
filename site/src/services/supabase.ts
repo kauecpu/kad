@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
+import { ownedStudyRequest } from '@/contracts/study-request.ts';
 import { resolvePublicSupabaseConfig } from '@/contracts/deployment-environment.ts';
 import { parseRecoveryCallback } from '../core/auth-callback.ts';
 import { signOutLocally } from '../core/auth-actions.ts';
@@ -233,14 +234,39 @@ export async function loadRemoteStudyData(userId: string): Promise<RemoteStudyDa
   };
 }
 
-export async function saveRemoteAnswer(questionId: string, selected: AlternativeId): Promise<void> {
+export async function saveRemoteAnswer(userId: string, questionId: string, selected: AlternativeId): Promise<void> {
   const remote = await client();
-  if (!remote) return;
-  const { error } = await remote.rpc('record_question_attempt', {
+  if (!remote) throw new Error('Study unavailable');
+  const { error } = await ownedStudyRequest(userId, remote.auth, (authorization, signal) => remote.rpc('record_question_attempt', {
     p_question_id: questionId,
     p_selected: selected,
-  });
+  }).setHeader('Authorization', authorization).abortSignal(signal));
   if (error) throw error;
+}
+
+export async function loadRemoteStudyAnswers(userId: string): Promise<Record<string, SiteAnswer>> {
+  const remote = await client();
+  if (!remote) throw new Error('Study unavailable');
+  const { data, error } = await ownedStudyRequest(userId, remote.auth, (authorization, signal) => remote
+    .from('question_attempts').select('question_id, subject, selected, is_correct, answered_at')
+    .eq('user_id', userId).setHeader('Authorization', authorization).abortSignal(signal));
+  if (error) throw error;
+  return Object.fromEntries((data ?? []).map(a => [a.question_id, {
+    questionId: a.question_id, subject: a.subject, selected: a.selected,
+    isCorrect: a.is_correct, answeredAt: a.answered_at,
+  }]));
+}
+
+export async function watchStudySession(onChange: (user: User | null) => void): Promise<() => void> {
+  const remote = await client();
+  if (!remote) return () => {};
+  const { data } = remote.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
+      // Leave the auth callback before handlers start any SDK request.
+      setTimeout(() => onChange(session?.user ?? null), 0);
+    }
+  });
+  return () => data.subscription.unsubscribe();
 }
 
 export async function recordRemoteLevelActivity(userId: string, event: Record<string, unknown> | null): Promise<{ totalXp: number }> {
@@ -256,12 +282,12 @@ export async function recordRemoteLevelActivity(userId: string, event: Record<st
 
 export async function removeRemoteAnswer(userId: string, questionId: string): Promise<void> {
   const remote = await client();
-  if (!remote) return;
-  const { error } = await remote
+  if (!remote) throw new Error('Study unavailable');
+  const { error } = await ownedStudyRequest(userId, remote.auth, (authorization, signal) => remote
     .from('question_attempts')
     .delete()
     .eq('user_id', userId)
-    .eq('question_id', questionId);
+    .eq('question_id', questionId).setHeader('Authorization', authorization).abortSignal(signal));
   if (error) throw error;
 }
 

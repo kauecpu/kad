@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { ownedStudyRequest } from '@/contracts/study-request';
 import type { AnswerRecord, Question } from '@/types';
 
 export type RemoteStudyData = {
@@ -6,6 +7,19 @@ export type RemoteStudyData = {
   favoriteQuestionIds: string[];
   savedConcursos: string[];
 };
+
+export async function loadRemoteAnswers(userId: string): Promise<Record<string, AnswerRecord>> {
+  const client = supabase;
+  if (!client) throw new Error('Study unavailable');
+  const { data, error } = await ownedStudyRequest(userId, client.auth, (authorization, signal) => client
+    .from('question_attempts').select('question_id, subject, selected, is_correct, answered_at')
+    .eq('user_id', userId).setHeader('Authorization', authorization).abortSignal(signal));
+  if (error) throw error;
+  return Object.fromEntries((data ?? []).map(a => [a.question_id, {
+    questionId: a.question_id, subject: a.subject, selected: a.selected as AnswerRecord['selected'],
+    isCorrect: a.is_correct, answeredAt: a.answered_at,
+  }]));
+}
 
 export async function loadRemoteStudyData(userId: string): Promise<RemoteStudyData> {
   if (!supabase) return { answers: {}, favoriteQuestionIds: [], savedConcursos: [] };
@@ -48,20 +62,25 @@ export async function loadRemoteStudyData(userId: string): Promise<RemoteStudyDa
   };
 }
 
-export async function saveRemoteAnswer(question: Question, selected: string) {
-  if (!supabase) return;
-  const { error } = await supabase.rpc('record_question_attempt', {
-    p_question_id: question.id,
-    p_selected: selected,
-  });
+export async function saveRemoteAnswer(userId: string, question: Pick<Question, 'id'>, selected: string) {
+  const client = supabase;
+  if (!client) throw new Error('Study unavailable');
+  const { error } = await ownedStudyRequest(userId, client.auth, (authorization, signal) =>
+    client.rpc('record_question_attempt', {
+      p_question_id: question.id,
+      p_selected: selected,
+    }).setHeader('Authorization', authorization).abortSignal(signal));
   if (error) throw error;
 }
 
 export async function removeRemoteAnswer(userId: string, questionId?: string) {
-  if (!supabase) return;
-  let query = supabase.from('question_attempts').delete().eq('user_id', userId);
-  if (questionId) query = query.eq('question_id', questionId);
-  const { error } = await query;
+  const client = supabase;
+  if (!client) throw new Error('Study unavailable');
+  const { error } = await ownedStudyRequest(userId, client.auth, (authorization, signal) => {
+    let query = client.from('question_attempts').delete().eq('user_id', userId);
+    if (questionId) query = query.eq('question_id', questionId);
+    return query.setHeader('Authorization', authorization).abortSignal(signal);
+  });
   if (error) throw error;
 }
 
