@@ -138,6 +138,8 @@ export type ViewModel = {
 };
 
 export type UiState = {
+  studySyncMessage?: string;
+  studyReady?: boolean;
   questionIndex: number;
   visitedQuestionIds: Set<string>;
   lastRouteKey: string;

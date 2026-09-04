@@ -22,6 +22,7 @@ import {
 } from '@/lib/study-interactions';
 import type { AlternativeId, AnswerRecord, Difficulty, Question } from '@/types';
 import { useLevels } from '@/providers/levels-provider';
+import { useApp } from '@/providers/app-provider';
 
 type QuestionCardProps = {
   question: Question;
@@ -50,6 +51,7 @@ function QuestionCardComponent({
 }: QuestionCardProps) {
   const { colors } = useTheme();
   const { markReview } = useLevels();
+  const { studyReady, studySyncMessage, retryStudySync } = useApp();
   const [pendingSelection, setPendingSelection] = useState<AlternativeId | null>(null);
   const [showExplanation, setShowExplanation] = useState(true);
   const answerGate = useRef(createStudyActionGate());
@@ -146,7 +148,7 @@ function QuestionCardComponent({
           icon="paper-plane-outline"
           iconMotion="forward"
           onPress={handleAnswer}
-          disabled={!pendingSelection}
+          disabled={!pendingSelection || !studyReady}
           fullWidth
         />
       ) : (
@@ -214,6 +216,8 @@ function QuestionCardComponent({
           <QuestionComments questionId={question.id} />
         </View>
       )}
+      <Text accessibilityLiveRegion="polite" style={[styles.meta, { color: colors.textMuted }]}>{studySyncMessage}</Text>
+      <Button label="Sincronizar progresso" variant="secondary" onPress={() => void retryStudySync()} />
     </View>
   );
 }

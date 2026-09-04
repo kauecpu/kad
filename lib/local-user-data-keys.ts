@@ -11,6 +11,7 @@ export const ESSAY_DRAFT_PREFIX = '@kad/essay-draft/';
 export const FLASHCARDS_STORAGE_KEY_PREFIX = '@kad/flashcards/v1';
 export const LEVELS_STORAGE_KEY_PREFIX = '@kad/levels/v1';
 export const levelsStorageKey = (ownerId: string) => `${LEVELS_STORAGE_KEY_PREFIX}:${ownerId}`;
+export const studyStorageKey = (ownerId: string) => `@kad/study-journal/v1:${ownerId}`;
 
 const GUEST_MODE_KEY = '@kad/auth/guest-mode/v1';
 const ONBOARDING_PREFIX = '@kad/onboarding/completed/v1/';
@@ -49,6 +50,7 @@ export function localUserDataInventory(ownerId: string, physicalKeys: readonly s
     simulationHistoryKey(ownerId),
     flashcardsStorageKey(ownerId),
     levelsStorageKey(ownerId),
+    studyStorageKey(ownerId),
     ...physicalKeys.filter((key) => isOwnerEssayKey(key, ownerId)),
     ...protectedLogicalKeys.filter((key) => isOwnerEssayKey(key, ownerId)),
   ]);
