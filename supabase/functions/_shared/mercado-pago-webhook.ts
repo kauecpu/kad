@@ -2,7 +2,7 @@ export type MercadoPagoWebhookBody = {
   id?: string | number;
   action?: string;
   type: string;
-  live_mode: boolean;
+  live_mode?: boolean;
   data?: { id?: string | number };
 };
 
@@ -37,7 +37,11 @@ function isSafeEventLabel(value: unknown, maxLength: number): value is string {
 /** Converte o payload externo em um formato estrito antes de qualquer gravação. */
 export function parseMercadoPagoWebhookBody(value: unknown): MercadoPagoWebhookBody | null {
   if (!isRecord(value)) return null;
-  if (!isSafeEventLabel(value.type, 80) || typeof value.live_mode !== 'boolean') return null;
+  if (!isSafeEventLabel(value.type, 80)) return null;
+  const subscriptionTopic = value.type === 'subscription_preapproval'
+    || value.type === 'subscription_authorized_payment';
+  // Absence is not false: subscription handlers must resolve it from the API.
+  if (typeof value.live_mode !== 'boolean' && !(subscriptionTopic && value.live_mode === undefined)) return null;
   if (!isOptionalResourceId(value.id)) return null;
   if (value.action !== undefined && !isSafeEventLabel(value.action, 120)) return null;
   if (value.data !== undefined) {
@@ -47,10 +51,29 @@ export function parseMercadoPagoWebhookBody(value: unknown): MercadoPagoWebhookB
   return value as MercadoPagoWebhookBody;
 }
 
+/** Never process an ID supplied only by the unsigned JSON body. */
+export function signedWebhookResourceId(url: URL, body: MercadoPagoWebhookBody): string | null {
+  const ids = [...url.searchParams.getAll('data.id'), ...url.searchParams.getAll('data_id')];
+  const id = ids[0];
+  if (!id || !/^[A-Za-z0-9_-]{1,200}$/.test(id) || ids.some((value) => value !== id)) return null;
+  if (body.data?.id !== undefined && String(body.data.id).toLowerCase() !== id.toLowerCase()) return null;
+  return id;
+}
+
+export function webhookStructureFailure(value: unknown): string {
+  if (!isRecord(value)) return 'body_not_object';
+  if (!isSafeEventLabel(value.type, 80)) return 'invalid_event_type';
+  if (value.live_mode === undefined) return 'missing_environment';
+  if (typeof value.live_mode !== 'boolean') return 'invalid_environment_type';
+  if (!isOptionalResourceId(value.id)) return 'invalid_notification_id';
+  if (value.action !== undefined && !isSafeEventLabel(value.action, 120)) return 'invalid_action';
+  return 'invalid_resource_structure';
+}
+
 /** Uma configuração ausente ou inválida nunca aceita eventos de qualquer ambiente. */
 export function webhookEnvironmentMatches(
   configuredLiveMode: string | undefined,
-  eventLiveMode: boolean
+  eventLiveMode: unknown
 ): boolean {
   if (configuredLiveMode !== 'true' && configuredLiveMode !== 'false') return false;
   return eventLiveMode === (configuredLiveMode === 'true');

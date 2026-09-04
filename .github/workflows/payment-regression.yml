@@ -1,0 +1,35 @@
+name: Payment regression
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  payment-regression:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: kad_payment_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Real PostgreSQL concurrent sessions
+        run: node --no-warnings scripts/test-payment-concurrency.mjs
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: kad_payment_test
+      - name: Webhook HTTP contracts (isolated provider mocks)
+        run: npx --yes deno@2.2.6 test --allow-env supabase/functions/mercado-pago-webhook/index.test.ts supabase/functions/cancel-subscription/index.test.ts

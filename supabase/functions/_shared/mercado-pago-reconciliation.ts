@@ -12,6 +12,7 @@ export type PaymentReconciliationTarget = {
 
 export type ReconciledProviderSubscription = {
   status: string;
+  observedAt: string | null;
 };
 
 export type ReconciledAuthorizedPayment = {
@@ -70,7 +71,7 @@ export function reconcileProviderSubscription(
   ) {
     return null;
   }
-  return { status };
+  return { status, observedAt: safeTimestamp(value.last_modified) };
 }
 
 /**

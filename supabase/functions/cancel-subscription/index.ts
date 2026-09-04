@@ -82,16 +82,23 @@ Deno.serve(async (request) => {
       );
     }
 
-    await mercadoPagoRequest(
+    const confirmed = await mercadoPagoRequest<{ id?: unknown; status?: unknown; last_modified?: unknown }>(
       `/preapproval/${encodeURIComponent(subscription.provider_subscription_id)}`,
       {
         method: 'PUT',
         body: JSON.stringify({ status: 'canceled' }),
       }
     );
+    if (confirmed.id !== subscription.provider_subscription_id
+      || !['canceled', 'cancelled'].includes(String(confirmed.status))
+      || typeof confirmed.last_modified !== 'string'
+      || Number.isNaN(Date.parse(confirmed.last_modified))) {
+      throw new Error('Provider did not confirm cancellation');
+    }
     const { error: syncError } = await admin.rpc('sync_mercado_pago_subscription', {
       p_provider_subscription_id: subscription.provider_subscription_id,
-      p_provider_status: 'canceled',
+      p_provider_status: confirmed.status,
+      p_provider_observed_at: confirmed.last_modified,
     });
     if (syncError) throw syncError;
 

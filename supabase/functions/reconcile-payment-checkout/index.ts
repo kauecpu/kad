@@ -172,6 +172,7 @@ Deno.serve(async (request) => {
     const { error: subscriptionError } = await admin.rpc('sync_mercado_pago_subscription', {
       p_provider_subscription_id: target.providerSubscriptionId,
       p_provider_status: providerSubscription.status,
+      p_provider_observed_at: providerSubscription.observedAt,
     });
     if (subscriptionError) throw subscriptionError;
 

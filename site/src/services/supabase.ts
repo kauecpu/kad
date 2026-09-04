@@ -6,7 +6,7 @@ import { signOutLocally } from '../core/auth-actions.ts';
 import { buildSignupMetadata } from '../core/auth-profile.ts';
 import { isEssayDocument, isSimulationSession } from '../core/user-sync.ts';
 import { createPasswordSecurity } from '../core/password-security.ts';
-import { subscriptionFromRemoteRecord } from '../core/subscription.ts';
+import { subscriptionFromRemoteRecord, type RemoteSubscriptionRecord } from '../core/subscription.ts';
 import { ownedPaymentAuthorization } from '../core/payment-actions.ts';
 import { confirmationRouteWithCheckout } from '../core/checkout-return.ts';
 import { mapPublishedConcursos, mapPublishedQuestions } from './published-content.ts';
@@ -313,10 +313,8 @@ export async function loadRemoteSubscription(userId: string): Promise<Subscripti
   const remote = await client();
   if (!remote || !userId) return null;
   const { data, error } = await remote
-    .from('subscriptions')
-    .select('plan, billing_cycle, provider, status, started_at, current_period_end, cancel_at_period_end')
-    .eq('user_id', userId)
-    .maybeSingle();
+    .rpc('get_current_subscription')
+    .maybeSingle<RemoteSubscriptionRecord>();
   if (error) throw error;
   return subscriptionFromRemoteRecord(data);
 }
