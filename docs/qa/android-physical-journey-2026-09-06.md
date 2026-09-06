@@ -18,6 +18,10 @@ Execução: Expo Go compatível com SDK 54, via USB/ADB
 - envio do aplicativo ao segundo plano e retomada na tela anterior;
 - botão Voltar do Android funcionando na navegação testada;
 - campos de login, teclado e ocultação de senha acessíveis no aparelho;
+- autenticação com uma conta KAD válida;
+- persistência da sessão após fechamento forçado e reabertura;
+- manutenção da sessão e da navegação durante perda e restauração da conexão;
+- saída da conta com confirmação e permanência deslogada após reabrir;
 - ausência de travamento ou estouro visual nas telas percorridas.
 
 ### Defeito encontrado e corrigido
@@ -30,9 +34,15 @@ A tela agora aguarda o carregamento, congela o conjunto somente quando existem
 questões e apresenta estados explícitos de carregamento, erro, nova tentativa e
 conteúdo vazio.
 
+Depois do primeiro login, as telas protegidas eram removidas corretamente, mas as
+telas de autenticação ainda tentavam redirecionar de forma imperativa. Isso gerava
+um aviso de estado de navegação inválido no Android. O redirecionamento duplicado
+foi removido: o `Stack.Protected` retorna para a rota raiz e ela escolhe onboarding
+ou início conforme o estado da conta.
+
 ### Verificações automáticas
 
-- suíte completa: 460 testes aprovados;
+- suíte completa: 460 testes aprovados após a correção de navegação;
 - verificação de tipos: aprovada;
 - lint: aprovado;
 - testes específicos do Desafio rápido: 3 aprovados.
@@ -42,6 +52,9 @@ conteúdo vazio.
 - O ambiente remoto conectado respondeu com zero questões publicadas. A jornada de
   conteúdo foi validada no corpus local de demonstração, mas a publicação de conteúdo
   remoto precisa ser tratada antes da liberação.
-- Login real, expiração de sessão e troca entre duas contas ainda exigem que uma conta
-  KAD válida seja autenticada manualmente no aparelho. Nenhuma credencial foi coletada
-  ou registrada neste relatório.
+- A sincronização de nível retornou “Nível indisponível” porque as migrações de
+  flashcards e níveis ainda não estavam aplicadas na homologação. As duas migrações
+  foram aplicadas e a função autenticada `record_level_activity` ficou disponível;
+  falta repetir a leitura no aparelho com a conta autenticada.
+- Expiração de sessão e troca entre duas contas ainda exigem uma segunda conta KAD
+  válida. Nenhuma credencial foi coletada ou registrada neste relatório.
