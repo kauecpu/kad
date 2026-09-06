@@ -65,7 +65,7 @@ test('páginas internas mantêm um único título e explicam o modo visitante', 
   assert.match(contextualNavigation, /stack-header__context/);
 
   const visitor = createStore(memoryStorage()).getState();
-  const level = { owner: null, status: 'ready' as const, progress: levelProgress(0), pending: 0, storageError: false };
+  const level = { owner: null, status: 'ready' as const, progress: levelProgress(0), pending: 0, storageError: false, achievements: [], notices: [] };
   assert.equal(profileView(visitor, level).subtitle, 'Dados salvos neste navegador');
   assert.match(profileView(visitor, level).content, /Nível 0 de 100/);
   visitor.auth = { mode: 'authenticated', userId: 'user-a' };

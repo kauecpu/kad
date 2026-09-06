@@ -16,7 +16,6 @@ import type {
   ThemePreference,
 } from '@/types';
 import type { EssayTopic } from '@/data/essay-topics';
-import type { RankingParticipantSeed } from '@/data/ranking';
 
 export type {
   AlternativeId,
@@ -35,7 +34,6 @@ export type {
   Subscription,
   ThemePreference,
   EssayTopic,
-  RankingParticipantSeed,
 };
 
 export type AuthMode = 'visitor' | 'authenticated';
@@ -119,7 +117,6 @@ export type SiteCatalog = {
   essayTopics: EssayTopic[];
   packs: ConcursoPack[];
   questions: Question[];
-  rankingParticipants: RankingParticipantSeed[];
 };
 
 export type Route = {

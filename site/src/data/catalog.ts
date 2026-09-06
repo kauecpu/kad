@@ -3,7 +3,6 @@ import { DISCIPLINES } from '../../../data/disciplines.ts';
 import { ESSAY_TOPICS } from '../../../data/essay-topics.ts';
 import { CONCURSO_PACKS } from '../../../data/exam-concursos.ts';
 import { QUESTIONS } from '../../../data/questions.ts';
-import { RANKING_PARTICIPANTS } from '../../../data/ranking.ts';
 import { buildQuestionPacks } from '../core/question-catalog.ts';
 import type { Concurso, Question, SiteCatalog } from '../types/domain.ts';
 
@@ -17,7 +16,6 @@ export const staticCatalog: Readonly<SiteCatalog> = Object.freeze({
   essayTopics: ESSAY_TOPICS,
   packs: CONCURSO_PACKS,
   questions: QUESTIONS,
-  rankingParticipants: RANKING_PARTICIPANTS,
 });
 
 let liveCatalog: SiteCatalog = {

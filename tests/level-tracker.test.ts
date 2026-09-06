@@ -74,3 +74,45 @@ test('explicit data deletion clears guest XP but ordinary answer reset has no tr
   await reloaded.selectOwner(null);
   assert.equal(reloaded.getState().progress?.totalXp, 0);
 });
+
+test('offline unlock is announced after server confirmation and consumed durably', async () => {
+  let offline = true;
+  const disk = storage();
+  const tracker = createLevelTracker(disk, async () => {
+    if (offline) throw new Error('offline');
+    return {
+      totalXp: 10,
+      awardedXp: 10,
+      level: 0,
+      achievements: [],
+      newAchievements: [{ key: 'primeiro_passo', category: 'questions', title: 'Primeiro passo', description: 'Responda sua primeira questão.', icon: 'footsteps-outline', unlockedAt: event.occurredAt }],
+    };
+  });
+  await tracker.selectOwner('a');
+  await tracker.record(event);
+  await tracker.sync();
+  assert.equal(tracker.getState().notices.length, 0);
+  offline = false;
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await tracker.sync();
+  assert.equal(tracker.getState().notices[0]?.achievements[0]?.key, 'primeiro_passo');
+  await tracker.consumeNotice('answer-1');
+  assert.equal(tracker.getState().notices.length, 0);
+  const reloaded = createLevelTracker(disk, async () => ({ totalXp: 10 }));
+  await reloaded.selectOwner('a');
+  assert.equal(reloaded.getState().notices.length, 0);
+});
+
+test('troca de conta não entrega aviso de uma resposta antiga', async () => {
+  let resolveA!: (value: { totalXp: number; awardedXp: number }) => void;
+  const tracker = createLevelTracker(storage(), async owner => owner === 'a'
+    ? new Promise(resolve => { resolveA = resolve; })
+    : { totalXp: 0, awardedXp: 0 });
+  const selecting = tracker.selectOwner('a');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await tracker.selectOwner('b');
+  resolveA({ totalXp: 10, awardedXp: 10 });
+  await selecting;
+  assert.equal(tracker.getState().owner, 'b');
+  assert.equal(tracker.getState().notices.length, 0);
+});

@@ -123,9 +123,10 @@ test('apresentação pública usa somente conteúdo real e não exibe mascotes d
   assert.doesNotMatch(view, /82%|\+12 questões|acerto esta semana|ritmo de hoje/);
 });
 
-test('ranking e trilhas toleram questões sem dificuldade', async () => {
+test('ranking não inventa participantes e trilhas toleram questões sem dificuldade', async () => {
   const explore = await source('src/views/explore.ts');
-  assert.match(explore, /question\?\.difficulty/);
+  assert.match(explore, /Sem dados fictícios/);
+  assert.doesNotMatch(explore, /localRankingScore|rankingParticipants|DEMONSTRAÇÃO/);
   assert.match(explore, /left\.difficulty \?/);
 });
 
@@ -272,7 +273,8 @@ test('hierarquia interna prioriza cabeçalho compacto, ação e revelação prog
   assert.match(questions, /class="filter-disclosure"/);
   assert.doesNotMatch(flashcards, /class="creation-panel" open/);
   assert.match(profile, /class="library-primary"/);
-  assert.match(explore, /RANKING KAD · DEMONSTRAÇÃO/);
+  assert.match(explore, /eyebrow: 'RANKING KAD'/);
+  assert.doesNotMatch(explore, /DEMONSTRAÇÃO|Dados demonstrativos/);
   assert.match(styles, /\.workspace-hero \{[^}]+min-height: 0/);
   assert.match(styles, /\.question-search-panel__primary/);
 });

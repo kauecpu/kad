@@ -106,7 +106,7 @@ test('gravações concorrentes do mesmo proprietário compartilham uma única ch
   assert.equal(randomCalls, 3, 'uma chave e dois nonces devem ser gerados');
 });
 
-test('ciphertext adulterado falha fechado sem retornar conteúdo', async () => {
+test('ciphertext adulterado falha fechado, é descartado e não derruba o app', async () => {
   const storage = memoryStore();
   const protectedStorage = createProtectedStorage({
     storage,
@@ -121,7 +121,33 @@ test('ciphertext adulterado falha fechado sem retornar conteúdo', async () => {
   envelope.ciphertext = `${envelope.ciphertext.slice(0, -1)}${last === '0' ? '1' : '0'}`;
   storage.values.set(physicalKey, JSON.stringify(envelope));
 
-  await assert.rejects(() => protectedStorage.getItem(logicalKey, 'user-a', validJson));
+  assert.equal(await protectedStorage.getItem(logicalKey, 'user-a', validJson), null);
+  assert.equal(storage.values.has(physicalKey), false);
+});
+
+test('ciphertext de uma chave anterior é descartado e pode ser recriado', async () => {
+  const storage = memoryStore();
+  const oldKeys = memoryStore();
+  const logicalKey = '@kad/study-journal/v1:user-a';
+  const previousSession = createProtectedStorage({
+    storage,
+    keyStore: oldKeys,
+    randomBytes: deterministicRandom(),
+  });
+  await previousSession.setItem(logicalKey, 'user-a', JSON.stringify({ answers: ['q1'] }));
+
+  const currentSession = createProtectedStorage({
+    storage,
+    keyStore: memoryStore(),
+    randomBytes: deterministicRandom(),
+  });
+
+  assert.equal(await currentSession.getItem(logicalKey, 'user-a', validJson), null);
+  assert.equal(storage.values.has(protectedPhysicalKey(logicalKey)), false);
+
+  const replacement = JSON.stringify({ answers: ['q1', 'q2'] });
+  await currentSession.setItem(logicalKey, 'user-a', replacement);
+  assert.equal(await currentSession.getItem(logicalKey, 'user-a', validJson), replacement);
 });
 
 test('migração valida, verifica e só então remove o texto antigo', async () => {
