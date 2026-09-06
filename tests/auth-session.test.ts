@@ -23,13 +23,8 @@ test('a tela de nova senha permanece montada quando a recuperacao cria a sessao'
   assert.doesNotMatch(rootLayout, /routeAccess\.passwordRecovery/);
   assert.doesNotMatch(rootLayout, /if \(isLoading \|\| !hydrated\)/);
   assert.match(rootLayout, /StyleSheet\.absoluteFill/);
-  assert.match(loginScreen, /!authLinkChecking &&/);
-  assert.match(loginScreen, /!recoveryReady &&/);
-  assert.match(loginScreen, /pathname === '\/auth\/login'/);
-  assert.match(
-    confirmationScreen,
-    /pathname === '\/auth\/confirmar-email'/
-  );
+  assert.doesNotMatch(loginScreen, /router\.replace\(route\)/);
+  assert.doesNotMatch(confirmationScreen, /router\.replace\(route\)/);
 });
 
 test('a rota raiz permanece como âncora e redireciona sessões para o início', () => {
@@ -100,8 +95,9 @@ test('o e-mail de confirmação fica somente em memória e o valor legado é rem
 test('o primeiro login apresenta o KAD uma vez antes de abrir o inicio', () => {
   assert.match(rootLayout, /<Stack\.Screen name="onboarding"/);
   assert.match(welcomeScreen, /getPostAuthRoute\(session\.user\.id\)/);
-  assert.match(loginScreen, /getPostAuthRoute\(session\.user\.id\)/);
-  assert.match(confirmationScreen, /getPostAuthRoute\(session\.user\.id\)/);
+  assert.doesNotMatch(loginScreen, /getPostAuthRoute/);
+  assert.doesNotMatch(confirmationScreen, /getPostAuthRoute/);
+  assert.doesNotMatch(signupScreen, /router\.replace\('\/onboarding'\)/);
   assert.match(onboardingScreen, /horizontal/);
   assert.match(onboardingScreen, /pagingEnabled/);
   assert.match(onboardingScreen, /markOnboardingComplete\(session\.user\.id\)/);

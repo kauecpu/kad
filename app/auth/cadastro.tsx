@@ -99,7 +99,6 @@ export default function SignUpScreen() {
       router.replace('/auth/confirmar-email');
       return;
     }
-    router.replace('/onboarding');
   };
 
   return (
