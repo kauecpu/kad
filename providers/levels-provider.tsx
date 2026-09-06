@@ -1,14 +1,22 @@
 import * as Crypto from 'expo-crypto';
 import { createContext, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { AppState } from 'react-native';
-import { createLevelTracker, levelActivityPayload, type LevelState } from '@/contracts/level-tracker';
+import { createLevelTracker, levelActivityPayload, type LevelRemoteResult, type LevelState } from '@/contracts/level-tracker';
 import type { LevelActivity } from '@/contracts/levels';
 import { protectedStorage } from '@/lib/protected-storage';
 import { levelsStorageKey } from '@/lib/local-user-data-keys';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 
-type LevelsContextValue = { state: LevelState; record: (event: LevelActivity) => void; retry: () => void; clear: () => Promise<void>; markReview: (id: string) => void; consumeReview: (id: string) => boolean };
+type LevelsContextValue = {
+  state: LevelState;
+  record: (event: LevelActivity) => void;
+  retry: () => void;
+  clear: () => Promise<void>;
+  consumeNotice: (id: string) => void;
+  markReview: (id: string) => void;
+  consumeReview: (id: string) => boolean;
+};
 const Context = createContext<LevelsContextValue | null>(null);
 export const levelEventId = () => Crypto.randomUUID();
 export function LevelsProvider({ children }: { children: ReactNode }) {
@@ -25,7 +33,7 @@ export function LevelsProvider({ children }: { children: ReactNode }) {
     if (auth.session?.user.id !== account) throw new Error('Account changed');
     const { data, error } = await supabase.rpc('record_level_activity', { p_event: levelActivityPayload(event) });
     if (error) throw error;
-    return data;
+    return data as LevelRemoteResult;
   }), []);
   const state = useSyncExternalStore(tracker.subscribe, tracker.getState, tracker.getState);
   useEffect(() => {
@@ -41,11 +49,20 @@ export function LevelsProvider({ children }: { children: ReactNode }) {
     record: (event: LevelActivity) => { if (!isLoading && tracker.getState().owner === owner) void tracker.record(event); },
     retry: () => { if (tracker.getState().storageError) void tracker.selectOwner(owner); else void tracker.sync(); },
     clear: () => tracker.clear(),
+    consumeNotice: (id: string) => { void tracker.consumeNotice(id); },
     markReview: (id: string) => { reviewReady.current.add(id); },
     consumeReview: (id: string) => { const ready = reviewReady.current.has(id); reviewReady.current.delete(id); return ready; },
   }), [isLoading, owner, tracker]);
   const value = useMemo<LevelsContextValue>(() => ({ ...actions,
-    state: state.owner === owner && !isLoading ? state : { owner, status: 'loading', progress: null, pending: 0, storageError: false },
+    state: state.owner === owner && !isLoading ? state : {
+      owner,
+      status: 'loading',
+      progress: null,
+      pending: 0,
+      storageError: false,
+      achievements: [],
+      notices: [],
+    },
   }), [actions, isLoading, owner, state]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

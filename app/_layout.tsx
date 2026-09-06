@@ -18,6 +18,7 @@ import { ConcursosProvider } from '@/providers/concursos-provider';
 import { QuestionsProvider } from '@/providers/questions-provider';
 import { FlashcardsProvider } from '@/providers/flashcards-provider';
 import { LevelsProvider } from '@/providers/levels-provider';
+import { GamificationFeedback } from '@/components/gamification-feedback';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -138,6 +139,7 @@ export default function RootLayout() {
                     <SimulationProvider>
                       <SearchProvider>
                         <RootNavigator />
+                        <GamificationFeedback />
                       </SearchProvider>
                     </SimulationProvider>
                   </FlashcardsProvider>

@@ -38,6 +38,7 @@ import { buildStudyMomentum } from '@/lib/study-momentum';
 import { useApp } from '@/providers/app-provider';
 import { useConcursos } from '@/providers/concursos-provider';
 import { useSimulation } from '@/providers/simulation-provider';
+import { NextAchievementCard } from '@/components/next-achievement-card';
 
 export function HomeContent() {
   const { colors } = useTheme();
@@ -246,6 +247,8 @@ export function HomeContent() {
             </View>
           </View>
         </View>
+
+        <NextAchievementCard />
 
         <Section title="Seu ritmo">
           <StudyMomentumCard

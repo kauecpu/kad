@@ -1,26 +1,19 @@
-import { useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Ionicons from '@/components/ui/app-icon';
-import { Chip } from '@/components/ui/chip';
 import { FeaturedCard } from '@/components/ui/featured-card';
 import { Segmented, type SegmentedOption } from '@/components/ui/segmented';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { cardShadow, CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } from '@/constants/theme';
-import { RANKING_PARTICIPANTS, type RankingPeriod } from '@/data/ranking';
+import { RANKING_PERIOD_LABELS, type RankingPeriod } from '@/data/ranking';
 import { useTheme } from '@/hooks/use-theme';
 import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
-import { buildRanking, localRankingScore, type RankingEntry } from '@/lib/ranking';
-import { useApp } from '@/providers/app-provider';
-import { useQuestions } from '@/providers/questions-provider';
+import { loadRanking, updateRankingOptIn } from '@/lib/remote-gamification';
+import { rankingInitials, type RankingEntry, type RankingSnapshot } from '@/lib/ranking';
+import { useAuth } from '@/providers/auth-provider';
 
 const PERIOD_OPTIONS: SegmentedOption<RankingPeriod>[] = [
   { value: 'today', label: 'Hoje' },
@@ -28,367 +21,97 @@ const PERIOD_OPTIONS: SegmentedOption<RankingPeriod>[] = [
   { value: 'all', label: 'Geral' },
 ];
 
-const PODIUM_ORDER = [2, 1, 3];
-
-function initialsFor(name: string): string {
-  const initials = name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toLocaleUpperCase('pt-BR') ?? '')
-    .join('');
-  return initials || 'VC';
-}
-
 export default function RankingScreen() {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const openMenu = useOpenAppDrawer();
-  const { answers, profile } = useApp();
-  const { questions, packs } = useQuestions();
+  const { session } = useAuth();
   const [period, setPeriod] = useState<RankingPeriod>('today');
-  const [packId, setPackId] = useState('all');
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [rulesExpanded, setRulesExpanded] = useState(false);
-  const isDesktop = width >= 760;
-  const selectedPack = packs.find((pack) => pack.id === packId);
+  const [snapshot, setSnapshot] = useState<RankingSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const localScore = useMemo(
-    () => localRankingScore({
-      answers,
-      questions,
-      packs,
-      period,
-      packId,
-    }),
-    [answers, packId, packs, period, questions],
-  );
+  const refresh = useCallback(async () => {
+    if (!session) { setSnapshot(null); setLoading(false); return; }
+    setLoading(true);
+    setError(null);
+    try { setSnapshot(await loadRanking(period)); }
+    catch { setError('Não foi possível carregar o ranking agora.'); }
+    finally { setLoading(false); }
+  }, [period, session]);
 
-  const ranking = useMemo(() => buildRanking({
-    participants: RANKING_PARTICIPANTS,
-    period,
-    packId,
-    currentUser: {
-      id: 'current-user',
-      name: profile.name || 'Você',
-      username: profile.username ? `@${profile.username}` : '@voce',
-      initials: initialsFor(profile.name || 'Você'),
-      points: localScore.points,
-      correct: localScore.correct,
-      accuracy: Math.round(localScore.accuracy),
-      streak: 0,
-    },
-  }), [localScore, packId, period, profile.name, profile.username]);
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
 
-  const podium = ranking.slice(0, 3);
-  const remaining = ranking.slice(3);
-  const currentUser = ranking.find((entry) => entry.isCurrentUser);
-  const periodLabel = period === 'today' ? 'hoje' : period === 'month' ? 'neste mês' : 'no geral';
+  const toggleParticipation = async (enabled: boolean) => {
+    if (!snapshot || saving) return;
+    setSaving(true);
+    setError(null);
+    try { await updateRankingOptIn(enabled); await refresh(); }
+    catch { setError('Não foi possível salvar sua participação.'); }
+    finally { setSaving(false); }
+  };
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ScreenHeader
-        title="Ranking"
-        subtitle="Sua constância também merece destaque"
-        onMenu={openMenu}
-        right={(
-          <Pressable
-            onPress={() => setRulesExpanded((current) => !current)}
-            accessibilityRole="button"
-            accessibilityLabel={rulesExpanded ? 'Ocultar regras do ranking' : 'Mostrar regras do ranking'}
-            accessibilityState={{ expanded: rulesExpanded }}
-            style={({ pressed }) => [
-              styles.headerAction,
-              { backgroundColor: colors.surfaceAlt, opacity: pressed ? 0.65 : 1 },
-            ]}>
-            <Ionicons name="information-circle-outline" size={21} color={colors.text} />
-          </Pressable>
-        )}
-      />
+      <ScreenHeader title="Ranking" subtitle="XP confirmado pelo estudo" onMenu={openMenu} />
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xxxl }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.period}>
+          <Text style={[styles.label, { color: colors.textSubtle }]}>PERÍODO</Text>
+          <Segmented options={PERIOD_OPTIONS} value={period} onChange={setPeriod} animated />
+        </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xxxl }]}
-        showsVerticalScrollIndicator={false}>
-        <FeaturedCard
-          icon="trophy"
-          title="Suba no ranking"
-          description={`Acerte questões, some pontos e acompanhe sua posição ${periodLabel}.`}
-          tone="achievement"
-        />
-
-        {rulesExpanded ? (
-          <View style={[styles.rulesPanel, { backgroundColor: colors.warningSoft, borderColor: colors.warning }]}>
-            <Ionicons name="shield-checkmark-outline" size={21} color={colors.warning} />
-            <View style={styles.rulesCopy}>
-              <Text style={[styles.rulesTitle, { color: colors.text }]}>Como esta prévia funciona</Text>
-              <Text style={[styles.rulesText, { color: colors.textMuted }]}>
-                Seus pontos usam as respostas salvas neste aparelho. Os outros participantes são dados demonstrativos até o ranking ganhar backend próprio.
-              </Text>
+        {!session ? <Empty icon="person-outline" title="Entre para participar" description="O ranking usa apenas XP confirmado na sua conta." />
+          : loading && !snapshot ? <View accessibilityRole="progressbar" accessibilityLabel="Carregando ranking" style={styles.loading}><ActivityIndicator color={colors.primary} /><Text style={[styles.muted, { color: colors.textMuted }]}>Carregando classificação…</Text></View>
+          : error && !snapshot ? <View style={[styles.error, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]} accessibilityRole="alert"><Text style={[styles.muted, { color: colors.text }]}>{error}</Text><Pressable onPress={() => void refresh()} accessibilityRole="button" style={[styles.retry, { borderColor: colors.borderStrong }]}><Text style={[styles.retryText, { color: colors.text }]}>Tentar novamente</Text></Pressable></View>
+          : snapshot ? <>
+            <View style={[styles.privacy, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.privacyCopy}><Text style={[styles.privacyTitle, { color: colors.text }]}>Aparecer no ranking</Text><Text style={[styles.muted, { color: colors.textMuted }]}>Exibe somente nome, usuário, XP, nível e posição.</Text></View>
+              <Switch value={snapshot.currentUser?.isPublic ?? false} onValueChange={toggleParticipation} disabled={saving} accessibilityLabel="Participar do ranking público" trackColor={{ false: colors.surfaceSunken, true: colors.primarySoft }} thumbColor={snapshot.currentUser?.isPublic ? colors.primary : colors.textSubtle} />
             </View>
-          </View>
-        ) : null}
-
-        <View style={[styles.controls, isDesktop && styles.controlsDesktop]}>
-          <View style={styles.periodControl}>
-            <Text style={[styles.controlLabel, { color: colors.textSubtle }]}>PERÍODO</Text>
-            <Segmented
-              options={PERIOD_OPTIONS}
-              value={period}
-              onChange={setPeriod}
-              animated
-            />
-          </View>
-          <View style={styles.filterControl}>
-            <Text style={[styles.controlLabel, { color: colors.textSubtle }]}>RECORTE</Text>
-            <Pressable
-              onPress={() => setFiltersExpanded((current) => !current)}
-              accessibilityRole="button"
-              accessibilityLabel={filtersExpanded ? 'Ocultar concursos' : 'Filtrar ranking por concurso'}
-              accessibilityState={{ expanded: filtersExpanded }}
-              style={({ pressed }) => [
-                styles.filterButton,
-                {
-                  backgroundColor: selectedPack ? colors.primarySoft : colors.surfaceAlt,
-                  borderColor: selectedPack ? colors.borderStrong : colors.border,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}>
-              <Ionicons name="funnel-outline" size={17} color={selectedPack ? colors.primary : colors.textMuted} />
-              <Text style={[styles.filterButtonText, { color: selectedPack ? colors.primary : colors.text }]} numberOfLines={1}>
-                {selectedPack?.name ?? 'Todos os concursos'}
-              </Text>
-              <Ionicons name={filtersExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSubtle} />
-            </Pressable>
-          </View>
-        </View>
-
-        {filtersExpanded ? (
-          <View style={[styles.filterPanel, { backgroundColor: colors.surfaceAlt }]}>
-            <View style={styles.filterPanelHeader}>
-              <View>
-                <Text style={[styles.filterPanelTitle, { color: colors.text }]}>Escolha o concurso</Text>
-                <Text style={[styles.filterPanelDescription, { color: colors.textMuted }]}>O pódio e a lista mudam imediatamente.</Text>
-              </View>
-              {selectedPack ? (
-                <Pressable
-                  onPress={() => setPackId('all')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Limpar filtro de concurso"
-                  hitSlop={8}>
-                  <Text style={[styles.clearFilter, { color: colors.primary }]}>Limpar</Text>
-                </Pressable>
-              ) : null}
-            </View>
-            <View style={styles.filterOptions}>
-              <Chip label="Todos" selected={packId === 'all'} onPress={() => setPackId('all')} />
-              {packs.map((pack) => (
-                <Chip
-                  key={pack.id}
-                  label={pack.name}
-                  icon={pack.icon as keyof typeof Ionicons.glyphMap}
-                  selected={packId === pack.id}
-                  onPress={() => setPackId(pack.id)}
-                />
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.sectionHeading}>
-          <View>
-            <Text style={[styles.sectionEyebrow, { color: colors.primary }]}>TOP 3</Text>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Pódio {selectedPack ? `· ${selectedPack.name}` : 'geral'}</Text>
-          </View>
-          <View style={[styles.updatedPill, { backgroundColor: colors.successSoft }]}>
-            <Ionicons name="phone-portrait-outline" size={13} color={colors.success} />
-            <Text style={[styles.updatedText, { color: colors.success }]}>Prévia local</Text>
-          </View>
-        </View>
-
-        <View style={styles.podium}>
-          {PODIUM_ORDER.map((place) => {
-            const entry = podium[place - 1];
-            return entry ? <PodiumPlace key={entry.id} entry={entry} place={place} /> : null;
-          })}
-        </View>
-
-        {currentUser ? <YourPosition entry={currentUser} /> : null}
-
-        <View style={styles.listHeading}>
-          <Text style={[styles.listTitle, { color: colors.text }]}>Classificação</Text>
-          <Text style={[styles.listCount, { color: colors.textSubtle }]}>{ranking.length} participantes</Text>
-        </View>
-
-        <View style={[styles.rankingList, { borderColor: colors.border }]}>
-          {remaining.map((entry, index) => (
-            <RankingRow key={entry.id} entry={entry} showDivider={index < remaining.length - 1} />
-          ))}
-        </View>
+            {error ? <Text accessibilityRole="alert" style={[styles.inlineError, { color: colors.danger }]}>{error}</Text> : null}
+            {snapshot.currentUser ? <YourPosition entry={snapshot.currentUser} period={period} /> : null}
+            <View style={styles.heading}><View><Text style={[styles.label, { color: colors.primary }]}>CLASSIFICAÇÃO</Text><Text style={[styles.title, { color: colors.text }]}>Destaques {RANKING_PERIOD_LABELS[period]}</Text></View><Text style={[styles.count, { color: colors.textSubtle }]}>{snapshot.totalParticipants} participantes</Text></View>
+            {snapshot.entries.length ? <View style={[styles.list, { backgroundColor: colors.surface, borderColor: colors.border }, cardShadow(colors.shadow, 1)]}>{snapshot.entries.map((entry, index) => <RankingRow key={`${entry.username ?? entry.name}:${entry.rank}`} entry={entry} divider={index < snapshot.entries.length - 1} />)}</View>
+              : <Empty icon="trophy-outline" title="Ranking começando" description="Ainda não há participantes públicos neste período." />}
+          </> : null}
       </ScrollView>
     </View>
   );
 }
 
-function PodiumPlace({ entry, place }: { entry: RankingEntry; place: number }) {
+function Empty({ icon, title, description }: { icon: keyof typeof Ionicons.glyphMap; title: string; description: string }) {
   const { colors } = useTheme();
-  const first = place === 1;
-  const placeColor = first ? '#F8CE62' : place === 2 ? '#C6CFDB' : '#D69562';
-  const trophyColor = first ? '#B77900' : place === 2 ? '#7A8797' : '#A95D2C';
-
-  return (
-    <View
-      accessibilityLabel={`${place}º lugar, ${entry.name}, ${entry.points} pontos`}
-      style={[
-        styles.podiumPlace,
-        first && styles.podiumPlaceFirst,
-        { backgroundColor: colors.surface, borderColor: first ? colors.warning : colors.border },
-        cardShadow(colors.shadow, first ? 2 : 1),
-      ]}>
-      <View style={[styles.placeBadge, { backgroundColor: placeColor }]}>
-        <Text style={styles.placeBadgeText}>{place}</Text>
-      </View>
-      <Ionicons name="trophy" size={20} color={trophyColor} accessible={false} />
-      <View style={[styles.podiumAvatar, { backgroundColor: first ? colors.warningSoft : colors.primarySoft }]}>
-        <Text style={[styles.podiumInitials, { color: first ? colors.warning : colors.primary }]}>{entry.initials}</Text>
-      </View>
-      <Text style={[styles.podiumName, { color: colors.text }]} numberOfLines={1}>{entry.name.split(' ')[0]}</Text>
-      <Text style={[styles.podiumPoints, { color: colors.text }]}>{entry.points}</Text>
-      <Text style={[styles.podiumPointsLabel, { color: colors.textSubtle }]}>pontos</Text>
-    </View>
-  );
+  return <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name={icon} size={30} color={colors.textSubtle} /><Text style={[styles.emptyTitle, { color: colors.text }]}>{title}</Text><Text style={[styles.muted, { color: colors.textMuted }]}>{description}</Text></View>;
 }
 
-function YourPosition({ entry }: { entry: RankingEntry }) {
+function YourPosition({ entry, period }: { entry: RankingEntry & { isPublic: boolean }; period: RankingPeriod }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.yourPosition, { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong }]}>
-      <View style={[styles.yourRank, { backgroundColor: colors.primary }]}>
-        <Text style={[styles.yourRankValue, { color: colors.onPrimary }]}>#{entry.rank}</Text>
-      </View>
-      <View style={styles.yourPositionCopy}>
-        <Text style={[styles.yourPositionLabel, { color: colors.primary }]}>SUA POSIÇÃO</Text>
-        <Text style={[styles.yourPositionName, { color: colors.text }]} numberOfLines={1}>{entry.name}</Text>
-        <Text style={[styles.yourPositionMeta, { color: colors.textMuted }]}>
-          {entry.correct} acertos · {entry.accuracy}% de aproveitamento
-        </Text>
-      </View>
-      <View style={styles.yourPositionScore}>
-        <Text style={[styles.yourScoreValue, { color: colors.primary }]}>{entry.points}</Text>
-        <Text style={[styles.yourScoreLabel, { color: colors.textSubtle }]}>pontos</Text>
-      </View>
-    </View>
-  );
-}
-
-function RankingRow({ entry, showDivider }: { entry: RankingEntry; showDivider: boolean }) {
-  const { colors } = useTheme();
-  return (
-    <View
-      accessibilityLabel={`${entry.rank}º lugar, ${entry.name}, ${entry.points} pontos`}
-      style={[
-        styles.rankingRow,
-        entry.isCurrentUser && { backgroundColor: colors.primarySoft },
-        showDivider && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
-      ]}>
-      <Text style={[styles.rowRank, { color: entry.isCurrentUser ? colors.primary : colors.textSubtle }]}>#{entry.rank}</Text>
-      <View style={[styles.rowAvatar, { backgroundColor: entry.isCurrentUser ? colors.primary : colors.surfaceAlt }]}>
-        <Text style={[styles.rowInitials, { color: entry.isCurrentUser ? colors.onPrimary : colors.textMuted }]}>{entry.initials}</Text>
-      </View>
-      <View style={styles.rowIdentity}>
-        <View style={styles.rowNameLine}>
-          <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>{entry.name}</Text>
-          {entry.isCurrentUser ? (
-            <View style={[styles.youPill, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.youPillText, { color: colors.onPrimary }]}>VOCÊ</Text>
-            </View>
-          ) : null}
+    <FeaturedCard
+      icon="trophy-outline"
+      title={`#${entry.rank} · ${entry.name}`}
+      description={`Sua posição ${entry.isPublic ? 'pública' : 'estimada'} ${RANKING_PERIOD_LABELS[period]}`}
+      tone="achievement"
+      compact
+      accessibilityLabel={`Sua posição ${RANKING_PERIOD_LABELS[period]}: ${entry.rank}, com ${entry.points} XP`}>
+      <View style={styles.yoursSummary}>
+        <Text style={[styles.muted, { color: colors.textMuted }]}>Nível {entry.level} · {entry.activityCount} atividades válidas</Text>
+        <View style={styles.score}>
+          <Text style={[styles.scoreValue, { color: colors.energy }]}>{entry.points.toLocaleString('pt-BR')}</Text>
+          <Text style={[styles.scoreLabel, { color: colors.textSubtle }]}>XP</Text>
         </View>
-        <Text style={[styles.rowMeta, { color: colors.textSubtle }]} numberOfLines={1}>
-          {entry.username} · {entry.accuracy}% acerto
-        </Text>
       </View>
-      <View style={styles.rowScore}>
-        <Text style={[styles.rowScoreValue, { color: colors.text }]}>{entry.points}</Text>
-        <Text style={[styles.rowScoreLabel, { color: colors.textSubtle }]}>pts</Text>
-      </View>
-    </View>
+    </FeaturedCard>
   );
+}
+
+function RankingRow({ entry, divider }: { entry: RankingEntry; divider: boolean }) {
+  const { colors } = useTheme();
+  const identity = entry.username ? `@${entry.username} · nível ${entry.level}` : `Nível ${entry.level}`;
+  return <View accessible accessibilityLabel={`${entry.rank}º lugar, ${entry.name}, ${entry.points} XP, nível ${entry.level}`} style={[styles.row, divider && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}><Text style={[styles.rowRank, { color: colors.textSubtle }]}>#{entry.rank}</Text><View style={[styles.avatar, { backgroundColor: entry.rank <= 3 ? colors.warningSoft : colors.surfaceAlt }]}><Text style={[styles.avatarText, { color: entry.rank <= 3 ? colors.warning : colors.textMuted }]}>{rankingInitials(entry.name)}</Text></View><View style={styles.identity}><Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>{entry.name}</Text><Text style={[styles.muted, { color: colors.textSubtle }]} numberOfLines={1}>{identity}</Text></View><View style={styles.score}><Text style={[styles.rowScore, { color: colors.text }]}>{entry.points.toLocaleString('pt-BR')}</Text><Text style={[styles.scoreLabel, { color: colors.textSubtle }]}>XP</Text></View></View>;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  headerAction: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    width: '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
-    alignSelf: 'center',
-    padding: Spacing.md,
-    gap: Spacing.lg,
-  },
-  rulesPanel: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
-  rulesCopy: { flex: 1, gap: 3 },
-  rulesTitle: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
-  rulesText: { fontSize: FontSize.small, lineHeight: 19 },
-  controls: { gap: Spacing.md },
-  controlsDesktop: { flexDirection: 'row', alignItems: 'flex-end' },
-  periodControl: { flex: 1, gap: Spacing.xs },
-  filterControl: { flex: 1, gap: Spacing.xs },
-  controlLabel: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 0.8 },
-  filterButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
-  filterButtonText: { flex: 1, fontSize: FontSize.small, fontWeight: FontWeight.semibold },
-  filterPanel: { gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.lg },
-  filterPanelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
-  filterPanelTitle: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  filterPanelDescription: { marginTop: 2, fontSize: FontSize.tiny },
-  clearFilter: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
-  filterOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  sectionHeading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: Spacing.md },
-  sectionEyebrow: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 1 },
-  sectionTitle: { marginTop: 2, fontSize: FontSize.title, fontWeight: FontWeight.bold, letterSpacing: -0.4 },
-  updatedPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.pill },
-  updatedText: { fontSize: FontSize.tiny, fontWeight: FontWeight.semibold },
-  podium: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm },
-  podiumPlace: { flex: 1, minWidth: 0, minHeight: 152, alignItems: 'center', gap: 3, paddingHorizontal: Spacing.xs, paddingVertical: Spacing.md, borderWidth: 1, borderRadius: Radius.lg },
-  podiumPlaceFirst: { minHeight: 182, paddingTop: Spacing.lg },
-  placeBadge: { position: 'absolute', top: -9, minWidth: 23, height: 23, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill },
-  placeBadgeText: { color: '#17120A', fontSize: FontSize.tiny, fontWeight: FontWeight.bold },
-  podiumAvatar: { width: 46, height: 46, marginTop: Spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill },
-  podiumInitials: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
-  podiumName: { width: '100%', fontSize: FontSize.small, fontWeight: FontWeight.bold, textAlign: 'center' },
-  podiumPoints: { marginTop: 3, fontSize: FontSize.heading, fontWeight: FontWeight.bold },
-  podiumPointsLabel: { fontSize: FontSize.tiny },
-  yourPosition: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.lg, borderWidth: 1 },
-  yourRank: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.md },
-  yourRankValue: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  yourPositionCopy: { flex: 1, minWidth: 0, gap: 2 },
-  yourPositionLabel: { fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.8 },
-  yourPositionName: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  yourPositionMeta: { fontSize: FontSize.tiny },
-  yourPositionScore: { alignItems: 'flex-end' },
-  yourScoreValue: { fontSize: FontSize.title, fontWeight: FontWeight.bold },
-  yourScoreLabel: { fontSize: FontSize.tiny },
-  listHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  listTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
-  listCount: { fontSize: FontSize.tiny },
-  rankingList: { overflow: 'hidden', borderWidth: 1, borderRadius: Radius.lg },
-  rankingRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md },
-  rowRank: { width: 28, fontSize: FontSize.small, fontWeight: FontWeight.bold },
-  rowAvatar: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill },
-  rowInitials: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold },
-  rowIdentity: { flex: 1, minWidth: 0, gap: 2 },
-  rowNameLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  rowName: { flexShrink: 1, fontSize: FontSize.small, fontWeight: FontWeight.bold },
-  rowMeta: { fontSize: FontSize.tiny },
-  youPill: { paddingHorizontal: 5, paddingVertical: 2, borderRadius: Radius.pill },
-  youPillText: { fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 0.5 },
-  rowScore: { alignItems: 'flex-end' },
-  rowScoreValue: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  rowScoreLabel: { fontSize: FontSize.tiny },
+  screen: { flex: 1 }, content: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', padding: Spacing.lg, gap: Spacing.lg }, period: { gap: Spacing.xs }, label: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 0.8 }, loading: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: Spacing.md }, muted: { fontSize: FontSize.small, lineHeight: 19 }, error: { minHeight: 80, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, gap: Spacing.md }, retry: { minHeight: 44, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: Radius.sm, paddingHorizontal: Spacing.md }, retryText: { fontSize: FontSize.small, fontWeight: FontWeight.semibold }, inlineError: { fontSize: FontSize.small, fontWeight: FontWeight.semibold }, privacy: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: Spacing.md, borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md }, privacyCopy: { flex: 1, gap: 3 }, privacyTitle: { fontSize: FontSize.body, fontWeight: FontWeight.bold }, yoursSummary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md }, heading: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: Spacing.md }, title: { marginTop: 3, fontSize: FontSize.title, fontWeight: FontWeight.bold }, count: { fontSize: FontSize.tiny }, list: { borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.lg, overflow: 'hidden' }, row: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md }, rowRank: { width: 34, fontSize: FontSize.small, fontWeight: FontWeight.bold, textAlign: 'center' }, avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' }, avatarText: { fontSize: FontSize.small, fontWeight: FontWeight.bold }, identity: { minWidth: 0, flex: 1, gap: 3 }, rowName: { fontSize: FontSize.body, fontWeight: FontWeight.semibold }, score: { alignItems: 'flex-end' }, scoreValue: { fontSize: FontSize.heading, fontWeight: FontWeight.bold, fontVariant: ['tabular-nums'] }, rowScore: { fontSize: FontSize.body, fontWeight: FontWeight.bold, fontVariant: ['tabular-nums'] }, scoreLabel: { fontSize: FontSize.tiny, fontWeight: FontWeight.medium }, empty: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.xl }, emptyTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
 });
