@@ -1,5 +1,5 @@
 import Ionicons from '@/components/ui/app-icon';
-import { usePathname, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -23,7 +23,6 @@ import {
   isValidEmailOtp,
   normalizeEmailOtp,
 } from '@/lib/auth-security';
-import { getPostAuthRoute } from '@/lib/onboarding';
 import { useAuth } from '@/providers/auth-provider';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,14 +30,10 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ConfirmEmailScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const pathname = usePathname();
   const router = useRouter();
   const {
     pendingVerificationEmail,
-    authLinkChecking,
-    recoveryReady,
     resendEmailConfirmation,
-    session,
     verifyEmailCode,
   } = useAuth();
   const [email, setEmail] = useState(pendingVerificationEmail ?? '');
@@ -57,25 +52,6 @@ export default function ConfirmEmailScreen() {
     setEmail((current) => current || pendingVerificationEmail);
     setResendSeconds((current) => current || EMAIL_OTP_RESEND_SECONDS);
   }, [pendingVerificationEmail]);
-
-  useEffect(() => {
-    let active = true;
-
-    if (
-      session &&
-      !authLinkChecking &&
-      !recoveryReady &&
-      pathname === '/auth/confirmar-email'
-    ) {
-      void getPostAuthRoute(session.user.id).then((route) => {
-        if (active) router.replace(route);
-      });
-    }
-
-    return () => {
-      active = false;
-    };
-  }, [authLinkChecking, pathname, recoveryReady, router, session]);
 
   useEffect(() => {
     if (resendSeconds <= 0) return;
