@@ -103,7 +103,7 @@ const SECTIONS: LegalSection[] = [
     title: 'Suspensão, encerramento e exclusão',
     paragraphs: [
       'O acesso poderá ser suspenso ou encerrado em caso de violação destes Termos, risco de segurança, fraude, obrigação legal ou descontinuação do serviço. Quando adequado e permitido, o usuário será informado e poderá contestar a medida pelo canal de atendimento.',
-      'Você pode excluir dados locais no modo visitante ou solicitar a exclusão da conta autenticada pelas configurações do Perfil. A exclusão é permanente, ressalvada a conservação estritamente necessária para cumprir obrigação legal, prevenir fraude ou exercer direitos, conforme a Política de Privacidade.',
+      'Você pode excluir dados locais no modo visitante ou solicitar a exclusão da conta autenticada em Configurações. A exclusão é permanente, ressalvada a conservação estritamente necessária para cumprir obrigação legal, prevenir fraude ou exercer direitos, conforme a Política de Privacidade.',
     ],
   },
   {

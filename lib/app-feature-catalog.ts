@@ -23,7 +23,8 @@ export type AppFeatureIcon =
   | 'create-outline'
   | 'library-outline'
   | 'layers-outline'
-  | 'person-outline';
+  | 'person-outline'
+  | 'settings-outline';
 
 export type AppFeature = {
   id: AppFeatureId;
@@ -132,17 +133,17 @@ export const APP_FEATURES = [
     id: 'profile',
     group: 'account',
     title: 'Perfil',
-    description: 'Conta, preferências e desempenho',
+    description: 'Identidade, progresso e conquistas',
     href: '/perfil',
     icon: 'person-outline',
     presentation: 'row',
   },
 ] as const satisfies ReadonlyArray<AppFeature>;
 
-export type AppDrawerHref = '/inicio' | AppFeature['href'];
+export type AppDrawerHref = '/inicio' | '/configuracoes' | AppFeature['href'];
 
 export type AppDrawerItem = {
-  id: 'home' | AppFeatureId;
+  id: 'home' | 'settings' | AppFeatureId;
   group: AppDrawerGroupId;
   title: string;
   href: AppDrawerHref;
@@ -183,6 +184,13 @@ export const APP_DRAWER_ITEMS: ReadonlyArray<AppDrawerItem> = [
     href: feature.href,
     icon: feature.icon,
   })),
+  {
+    id: 'settings',
+    group: 'account',
+    title: 'Configurações',
+    href: '/configuracoes',
+    icon: 'settings-outline',
+  },
 ];
 
 export function drawerItemsForGroup(group: AppDrawerGroupId): ReadonlyArray<AppDrawerItem> {

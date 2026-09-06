@@ -57,16 +57,16 @@ test('o montador de simulado usa uma bancada neutra com estados e CTA explícito
   assert.doesNotMatch(simulations, /<FeaturedCard|KadCardArtwork/);
 });
 
-test('o perfil preserva conta e plano sem a decoração do antigo dossiê', () => {
-  assert.match(profile, /Conta, plano e preferências/);
-  assert.match(profile, /styles\.identityHeader/);
+test('o perfil concentra identidade e progresso sem controles administrativos', () => {
+  assert.match(profile, /Identidade, progresso e conquistas/);
+  assert.match(profile, /SEU PERFIL PÚBLICO/);
   assert.match(profile, /styles\.identityAvatar/);
-  assert.match(profile, /styles\.identityStorageNote/);
-  assert.match(profile, /Sua preparação fica salva só aqui/);
   assert.match(profile, /backgroundColor: colors\.primary/);
   assert.match(profile, /accessibilityLabel=\{primaryAction\.label\}/);
   assert.match(profile, /accessibilityHint=\{primaryAction\.description\}/);
-  assert.match(profile, /subscription\.plan === 'diamond'/);
+  assert.match(profile, /Posição no ranking/);
+  assert.match(profile, /router\.push\('\/configuracoes'\)/);
+  assert.doesNotMatch(profile, /Alterar senha|Excluir conta|Gerenciar plano|Tema do app/);
   assert.doesNotMatch(
     profile,
     /LinearGradient|IDENTIDADE KAD|identityBrandGlow|identityRail|primaryActionGradient|Dossiê do candidato/

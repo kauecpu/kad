@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Ionicons from '@/components/ui/app-icon';
@@ -11,7 +11,7 @@ import { cardShadow, CONTENT_MAX_WIDTH, FontSize, FontWeight, Radius, Spacing } 
 import { RANKING_PERIOD_LABELS, type RankingPeriod } from '@/data/ranking';
 import { useTheme } from '@/hooks/use-theme';
 import { useOpenAppDrawer } from '@/hooks/use-open-app-drawer';
-import { loadRanking, updateRankingOptIn } from '@/lib/remote-gamification';
+import { loadRanking } from '@/lib/remote-gamification';
 import { rankingInitials, type RankingEntry, type RankingSnapshot } from '@/lib/ranking';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -25,11 +25,11 @@ export default function RankingScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const openMenu = useOpenAppDrawer();
+  const router = useRouter();
   const { session } = useAuth();
   const [period, setPeriod] = useState<RankingPeriod>('today');
   const [snapshot, setSnapshot] = useState<RankingSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -42,15 +42,6 @@ export default function RankingScreen() {
   }, [period, session]);
 
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
-
-  const toggleParticipation = async (enabled: boolean) => {
-    if (!snapshot || saving) return;
-    setSaving(true);
-    setError(null);
-    try { await updateRankingOptIn(enabled); await refresh(); }
-    catch { setError('Não foi possível salvar sua participação.'); }
-    finally { setSaving(false); }
-  };
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -65,10 +56,14 @@ export default function RankingScreen() {
           : loading && !snapshot ? <View accessibilityRole="progressbar" accessibilityLabel="Carregando ranking" style={styles.loading}><ActivityIndicator color={colors.primary} /><Text style={[styles.muted, { color: colors.textMuted }]}>Carregando classificação…</Text></View>
           : error && !snapshot ? <View style={[styles.error, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]} accessibilityRole="alert"><Text style={[styles.muted, { color: colors.text }]}>{error}</Text><Pressable onPress={() => void refresh()} accessibilityRole="button" style={[styles.retry, { borderColor: colors.borderStrong }]}><Text style={[styles.retryText, { color: colors.text }]}>Tentar novamente</Text></Pressable></View>
           : snapshot ? <>
-            <View style={[styles.privacy, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={styles.privacyCopy}><Text style={[styles.privacyTitle, { color: colors.text }]}>Aparecer no ranking</Text><Text style={[styles.muted, { color: colors.textMuted }]}>Exibe somente nome, usuário, XP, nível e posição.</Text></View>
-              <Switch value={snapshot.currentUser?.isPublic ?? false} onValueChange={toggleParticipation} disabled={saving} accessibilityLabel="Participar do ranking público" trackColor={{ false: colors.surfaceSunken, true: colors.primarySoft }} thumbColor={snapshot.currentUser?.isPublic ? colors.primary : colors.textSubtle} />
-            </View>
+            <Pressable
+              onPress={() => router.push('/configuracoes')}
+              accessibilityRole="button"
+              accessibilityLabel="Gerenciar privacidade do ranking nas configurações"
+              style={({ pressed }) => [styles.privacy, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.78 }]}>
+              <View style={styles.privacyCopy}><Text style={[styles.privacyTitle, { color: colors.text }]}>Privacidade do ranking</Text><Text style={[styles.muted, { color: colors.textMuted }]}>Sua participação é controlada nas Configurações.</Text></View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+            </Pressable>
             {error ? <Text accessibilityRole="alert" style={[styles.inlineError, { color: colors.danger }]}>{error}</Text> : null}
             {snapshot.currentUser ? <YourPosition entry={snapshot.currentUser} period={period} /> : null}
             <View style={styles.heading}><View><Text style={[styles.label, { color: colors.primary }]}>CLASSIFICAÇÃO</Text><Text style={[styles.title, { color: colors.text }]}>Destaques {RANKING_PERIOD_LABELS[period]}</Text></View><Text style={[styles.count, { color: colors.textSubtle }]}>{snapshot.totalParticipants} participantes</Text></View>

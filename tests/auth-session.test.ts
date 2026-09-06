@@ -13,7 +13,7 @@ const loginScreen = source('../app/auth/login.tsx');
 const signupScreen = source('../app/auth/cadastro.tsx');
 const confirmationScreen = source('../app/auth/confirmar-email.tsx');
 const onboardingScreen = source('../app/onboarding.tsx');
-const profileScreen = source('../app/(tabs)/perfil.tsx');
+const settingsScreen = source('../app/(tabs)/configuracoes.tsx');
 const onboardingStorage = source('../lib/onboarding.ts');
 const authProvider = source('../providers/auth-provider.tsx');
 const supabaseClient = source('../lib/supabase.ts');
@@ -56,9 +56,9 @@ test('callback móvel usa o flow id correlacionado e não reprocessa links', () 
 });
 
 test('sair da conta usa uma confirmação compatível com a web', () => {
-  assert.match(profileScreen, /Platform\.OS === 'web'/);
-  assert.match(profileScreen, /globalThis\.confirm/);
-  assert.match(profileScreen, /void performSignOut\(\)/);
+  assert.match(settingsScreen, /Platform\.OS === 'web'/);
+  assert.match(settingsScreen, /globalThis\.confirm/);
+  assert.match(settingsScreen, /void performSignOut\(\)/);
 });
 
 test('cadastro solicita nome, e-mail, senha e confirmação da senha', () => {

@@ -12,6 +12,7 @@ function source(path: string) {
 const tabsLayout = source('../app/(tabs)/_layout.tsx');
 const rankTab = source('../app/(tabs)/rank.tsx');
 const rankingScreen = source('../app/(tabs)/ranking.tsx');
+const settingsScreen = source('../app/(tabs)/configuracoes.tsx');
 const rankingData = source('../data/ranking.ts');
 
 test('ranking aceita somente a projeção pública esperada', () => {
@@ -38,11 +39,12 @@ test('iniciais não dependem de um identificador interno', () => {
   assert.equal(rankingInitials(''), 'K');
 });
 
-test('a tela usa backend, opt-in, estados reais e nenhum participante fictício', () => {
+test('a tela usa backend, estados reais e nenhum participante fictício', () => {
   assert.match(rankingScreen, /loadRanking/);
-  assert.match(rankingScreen, /updateRankingOptIn/);
   assert.match(rankingScreen, /Ranking começando/);
   assert.match(rankingScreen, /Não foi possível carregar/);
+  assert.match(settingsScreen, /updateRankingOptIn/);
+  assert.match(settingsScreen, /Participar do ranking público/);
   assert.doesNotMatch(rankingScreen + rankingData, /Ana Tavares|stablePackFactor|Prévia local|dados demonstrativos/);
 });
 

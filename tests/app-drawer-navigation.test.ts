@@ -27,7 +27,7 @@ test('o drawer apresenta todas as áreas na ordem e nos grupos aprovados', () =>
   );
   assert.deepEqual(
     APP_DRAWER_ITEMS.map(({ title }) => title),
-    ['Início', 'Questões', 'Concursos', 'Simulados', 'Ranking', 'Trilhas', 'Redação', 'Biblioteca', 'Flashcards', 'Perfil']
+    ['Início', 'Questões', 'Concursos', 'Simulados', 'Ranking', 'Trilhas', 'Redação', 'Biblioteca', 'Flashcards', 'Perfil', 'Configurações']
   );
   assert.deepEqual(
     drawerItemsForGroup('study').map(({ title }) => title),
@@ -38,7 +38,7 @@ test('o drawer apresenta todas as áreas na ordem e nos grupos aprovados', () =>
     ['Concursos', 'Redação', 'Biblioteca', 'Flashcards']
   );
   assert.deepEqual(drawerItemsForGroup('progress').map(({ title }) => title), ['Ranking']);
-  assert.deepEqual(drawerItemsForGroup('account').map(({ title }) => title), ['Perfil']);
+  assert.deepEqual(drawerItemsForGroup('account').map(({ title }) => title), ['Perfil', 'Configurações']);
 });
 
 test('a largura ocupa 84% no celular e respeita o máximo de 336 dp', () => {
@@ -51,6 +51,7 @@ test('o destaque acompanha rotas canônicas, descendentes e o alias antigo', () 
   assert.equal(isDrawerRouteActive('/inicio', '/inicio'), true);
   assert.equal(isDrawerRouteActive('/questoes/Português', '/questoes'), true);
   assert.equal(isDrawerRouteActive('/perfil/editar', '/perfil'), true);
+  assert.equal(isDrawerRouteActive('/configuracoes', '/configuracoes'), true);
   assert.equal(isDrawerRouteActive('/rank', '/ranking'), true);
   assert.equal(isDrawerRouteActive('/simulados', '/questoes'), false);
 });
@@ -121,14 +122,14 @@ test('todas as áreas de primeiro nível permanecem dentro do Drawer', () => {
   const layout = source('../app/(tabs)/_layout.tsx');
   const rootLayout = source('../app/_layout.tsx');
 
-  for (const route of ['ranking', 'trilhas', 'redacao', 'biblioteca', 'flashcards', 'perfil']) {
+  for (const route of ['ranking', 'trilhas', 'redacao', 'biblioteca', 'flashcards', 'perfil', 'configuracoes']) {
     assert.match(layout, new RegExp(`<Drawer\\.Screen name="${route}"`));
     assert.doesNotMatch(rootLayout, new RegExp(`<Stack\\.Screen name="${route}(?:/index)?"`));
   }
 });
 
 test('áreas de primeiro nível usam menu; fluxos internos continuam usando voltar', () => {
-  for (const route of ['ranking', 'trilhas', 'flashcards', 'perfil']) {
+  for (const route of ['ranking', 'trilhas', 'flashcards', 'perfil', 'configuracoes']) {
     const screen = source(`../app/(tabs)/${route}.tsx`);
     assert.match(screen, /useOpenAppDrawer\(\)/, `${route} deve abrir a navegação principal`);
     assert.match(screen, /onMenu=\{openMenu\}/, `${route} deve mostrar o botão de menu`);
