@@ -1,56 +1,21 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { QuestionCard } from '@/components/question-card';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { StackHeader } from '@/components/ui/stack-header';
-import { CONTENT_MAX_WIDTH, Spacing } from '@/constants/theme';
+import { CONTENT_MAX_WIDTH, FontSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { findStudyPackForConcurso, sortConcursos } from '@/lib/concursos';
-import { questionsForPack, recommendPackForGoal } from '@/lib/simulations';
-import { normalizeSearchText } from '@/lib/text';
+import { sortConcursos } from '@/lib/concursos';
+import { buildQuickChallenge } from '@/lib/quick-challenge';
 import { useApp } from '@/providers/app-provider';
 import { useConcursos } from '@/providers/concursos-provider';
 import { useQuestions } from '@/providers/questions-provider';
-import type { AnswerRecord, Concurso, ConcursoPack, Question } from '@/types';
-
-const CHALLENGE_SIZE = 3;
-
-function buildChallenge(
-  targetRole: string | undefined,
-  focusedConcurso: Concurso | undefined,
-  answers: Record<string, AnswerRecord>,
-  questions: Question[],
-  packs: ConcursoPack[],
-): Question[] {
-  const goal = normalizeSearchText(targetRole ?? '');
-  const exactMatches = goal
-    ? questions.filter((question) => normalizeSearchText(question.role) === goal)
-    : [];
-  const concursoPack = focusedConcurso
-    ? findStudyPackForConcurso(focusedConcurso, packs)
-    : undefined;
-  const goalPack = !focusedConcurso ? recommendPackForGoal(packs, targetRole) : undefined;
-  const packQuestions = concursoPack
-    ? questionsForPack(concursoPack, questions)
-    : goalPack
-      ? questionsForPack(goalPack, questions)
-      : [];
-  const pool = focusedConcurso
-    ? packQuestions
-    : exactMatches.length >= CHALLENGE_SIZE
-      ? exactMatches
-      : packQuestions.length >= CHALLENGE_SIZE
-        ? packQuestions
-        : questions;
-
-  return [...pool]
-    .sort((a, b) => Number(Boolean(answers[a.id])) - Number(Boolean(answers[b.id])))
-    .slice(0, CHALLENGE_SIZE);
-}
+import type { Question } from '@/types';
 
 export default function QuickChallengeScreen() {
   const { colors } = useTheme();
@@ -64,7 +29,13 @@ export default function QuickChallengeScreen() {
     resetQuestion,
   } = useApp();
   const { concursos } = useConcursos();
-  const { questions: availableQuestions, packs } = useQuestions();
+  const {
+    questions: availableQuestions,
+    packs,
+    loading,
+    error,
+    refresh,
+  } = useQuestions();
   const focusedConcurso = sortConcursos(
     concursos.filter(
       (concurso) =>
@@ -72,11 +43,53 @@ export default function QuickChallengeScreen() {
     ),
     'deadline'
   )[0];
-  const [questions] = useState(() =>
-    buildChallenge(profile.targetRole, focusedConcurso, answers, availableQuestions, packs)
-  );
+  const [questions, setQuestions] = useState<Question[] | null>(null);
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (loading || questions !== null || availableQuestions.length === 0) return;
+    setQuestions(
+      buildQuickChallenge(
+        profile.targetRole,
+        focusedConcurso,
+        answers,
+        availableQuestions,
+        packs,
+      ),
+    );
+  }, [answers, availableQuestions, focusedConcurso, loading, packs, profile.targetRole, questions]);
+
+  const initializing = loading || (questions === null && availableQuestions.length > 0);
+
+  if (!questions || questions.length === 0) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <StackHeader title="Desafio rápido" onBack={() => router.back()} center />
+        {initializing ? (
+          <View
+            style={styles.loading}
+            accessibilityRole="progressbar"
+            accessibilityLabel="Carregando desafio rápido">
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textMuted }]}>Preparando questões…</Text>
+          </View>
+        ) : (
+          <EmptyState
+            icon={error ? 'cloud-offline-outline' : 'reader-outline'}
+            title={error ? 'Não foi possível carregar as questões' : 'Desafio em preparação'}
+            description={
+              error
+                ? 'Confira sua conexão e tente novamente.'
+                : 'Ainda não há questões publicadas para este desafio.'
+            }
+            actionLabel={error ? 'Tentar novamente' : 'Voltar'}
+            onAction={error ? () => void refresh() : () => router.back()}
+          />
+        )}
+      </View>
+    );
+  }
 
   const current = questions[index];
   const isFirst = index === 0;
@@ -156,6 +169,17 @@ export default function QuickChallengeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    padding: Spacing.xl,
+  },
+  loadingText: {
+    fontSize: FontSize.body,
+    textAlign: 'center',
+  },
   progressArea: {
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,
