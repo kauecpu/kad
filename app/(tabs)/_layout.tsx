@@ -40,6 +40,7 @@ export default function MainLayout() {
       <Drawer.Screen name="biblioteca" options={{ title: 'Biblioteca' }} />
       <Drawer.Screen name="flashcards" options={{ title: 'Flashcards' }} />
       <Drawer.Screen name="perfil" options={{ title: 'Perfil' }} />
+      <Drawer.Screen name="configuracoes" options={{ title: 'Configurações' }} />
       <Drawer.Screen name="explorar" options={{ title: 'Explorar' }} />
       <Drawer.Screen name="rank" options={{ title: 'Ranking antigo' }} />
     </Drawer>

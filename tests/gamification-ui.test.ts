@@ -11,6 +11,7 @@ const gallery = source('../components/achievement-gallery.tsx');
 const feedback = source('../components/gamification-feedback.tsx');
 const nextAchievement = source('../components/next-achievement-card.tsx');
 const ranking = source('../app/(tabs)/ranking.tsx');
+const settings = source('../app/(tabs)/configuracoes.tsx');
 
 test('galeria oferece filtros, progresso numérico e rótulos acessíveis', () => {
   assert.match(gallery, /ACHIEVEMENT_CATEGORIES\.map/);
@@ -35,10 +36,11 @@ test('início mostra próxima conquista como ação acessível', () => {
   assert.match(nextAchievement, /ProgressBar/);
 });
 
-test('ranking possui carregamento, vazio, erro e privacidade explícita', () => {
+test('ranking possui carregamento, vazio, erro e leva a privacidade para configurações', () => {
   assert.match(ranking, /accessibilityRole="progressbar"/);
   assert.match(ranking, /Ranking começando/);
   assert.match(ranking, /Não foi possível carregar/);
-  assert.match(ranking, /Aparecer no ranking/);
-  assert.match(ranking, /Participar do ranking público/);
+  assert.match(ranking, /Privacidade do ranking/);
+  assert.match(ranking, /router\.push\('\/configuracoes'\)/);
+  assert.match(settings, /Participar do ranking público/);
 });

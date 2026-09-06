@@ -11,7 +11,7 @@ import {
 
 const source = (path: string) => readFileSync(new NodeURL(path, import.meta.url), 'utf8');
 const feedbackScreen = source('../app/perfil/feedback.tsx');
-const profileScreen = source('../app/(tabs)/perfil.tsx');
+const settingsScreen = source('../app/(tabs)/configuracoes.tsx');
 const feedbackApi = source('../lib/feedback.ts');
 const adminApp = source('../admin/src/app.tsx');
 const adminLayout = source('../admin/src/layout/admin-layout.tsx');
@@ -50,7 +50,7 @@ test('aplicativo envia somente pela RPC autenticada e informa contexto não sens
   assert.match(feedbackScreen, /Platform\.OS/);
   assert.match(feedbackScreen, /Não inclua senha, dados bancários/);
   assert.match(feedbackScreen, /!session/);
-  assert.match(profileScreen, /router\.push\('\/perfil\/feedback'\)/);
+  assert.match(settingsScreen, /router\.push\('\/perfil\/feedback'\)/);
 });
 
 test('painel expõe fila, filtros e os três estados de triagem', () => {

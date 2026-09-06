@@ -110,7 +110,7 @@ const SECTIONS: LegalSection[] = [
       'Informações sobre compartilhamento e sobre a possibilidade de negar ou revogar consentimento.',
       'Eliminação de dados tratados com consentimento, quando cabível, e revisão de decisões automatizadas que afetem seus interesses.',
     ],
-    note: 'Você já pode editar parte do perfil, apagar dados locais e solicitar a exclusão da conta no aplicativo. Os demais pedidos serão recebidos pelo canal formal de privacidade após sua publicação.',
+    note: 'Você já pode editar parte do perfil, apagar dados locais e solicitar a exclusão da conta em Configurações. Os demais pedidos serão recebidos pelo canal formal de privacidade após sua publicação.',
   },
   {
     title: 'Armazenamento no navegador, pagamentos e métricas',

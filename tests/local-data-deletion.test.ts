@@ -9,13 +9,13 @@ function source(path: string) {
 
 const appProvider = source('../providers/app-provider.tsx');
 const simulationProvider = source('../providers/simulation-provider.tsx');
-const profile = source('../app/(tabs)/perfil.tsx');
+const settings = source('../app/(tabs)/configuracoes.tsx');
 const deleteAccount = source('../app/perfil/excluir-conta.tsx');
 const localData = source('../lib/local-user-data.ts');
 
 test('as duas ações destrutivas reutilizam a limpeza local centralizada', () => {
   assert.match(appProvider, /await eraseLocalUserData\(ownerId\)/);
-  assert.match(profile, /clearSimulationData\(\), deleteAccount\(\)/);
+  assert.match(settings, /clearSimulationData\(\), deleteAccount\(\)/);
   assert.match(deleteAccount, /clearSimulationData\(\), deleteAccount\(\)/);
   assert.match(localData, /localUserDataInventory\(ownerId, physicalKeys\)/);
   assert.match(localData, /protectedStorage\.deleteOwnerKey\(ownerId\)/);
