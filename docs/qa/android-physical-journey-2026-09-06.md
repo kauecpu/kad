@@ -22,6 +22,7 @@ Execução: Expo Go compatível com SDK 54, via USB/ADB
 - persistência da sessão após fechamento forçado e reabertura;
 - manutenção da sessão e da navegação durante perda e restauração da conexão;
 - saída da conta com confirmação e permanência deslogada após reabrir;
+- carregamento do nível e do progresso de XP no perfil após novo login;
 - ausência de travamento ou estouro visual nas telas percorridas.
 
 ### Defeito encontrado e corrigido
@@ -40,6 +41,11 @@ um aviso de estado de navegação inválido no Android. O redirecionamento dupli
 foi removido: o `Stack.Protected` retorna para a rota raiz e ela escolhe onboarding
 ou início conforme o estado da conta.
 
+A sincronização de nível retornava “Nível indisponível” porque as migrações de
+flashcards e níveis ainda não estavam aplicadas na homologação. Depois da aplicação
+das duas migrações, um novo login no Moto G15 carregou corretamente “Nível 0 de 100”
+e “0 / 150 XP” no perfil.
+
 ### Verificações automáticas
 
 - suíte completa: 460 testes aprovados após a correção de navegação;
@@ -52,9 +58,5 @@ ou início conforme o estado da conta.
 - O ambiente remoto conectado respondeu com zero questões publicadas. A jornada de
   conteúdo foi validada no corpus local de demonstração, mas a publicação de conteúdo
   remoto precisa ser tratada antes da liberação.
-- A sincronização de nível retornou “Nível indisponível” porque as migrações de
-  flashcards e níveis ainda não estavam aplicadas na homologação. As duas migrações
-  foram aplicadas e a função autenticada `record_level_activity` ficou disponível;
-  falta repetir a leitura no aparelho com a conta autenticada.
 - Expiração de sessão e troca entre duas contas ainda exigem uma segunda conta KAD
   válida. Nenhuma credencial foi coletada ou registrada neste relatório.
