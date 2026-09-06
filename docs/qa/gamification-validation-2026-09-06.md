@@ -5,6 +5,7 @@
 - `npm test`: 480 testes aprovados, sem falhas, pulos ou cancelamentos.
 - `npm run typecheck`: aprovado.
 - `npm run lint`: aprovado.
+- `npm --prefix site run check`: 76 testes aprovados, tipagem e build aprovados.
 - Migration executada em PostgreSQL isolado por meio dos testes PGlite.
 - `git diff --check`: aprovado.
 - Consultores de segurança e desempenho do ambiente atual foram lidos como linha de base. A migration nova não foi aplicada ao projeto remoto.

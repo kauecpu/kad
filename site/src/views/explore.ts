@@ -5,7 +5,6 @@ import {
   formatCount,
   formatCurrency,
   formatDate,
-  formatPercent,
   matchesPack,
   normalizeText,
   questionsPerformance,
@@ -17,8 +16,6 @@ import { stackHeader } from '../ui/layout.ts';
 import type { Concurso, ConcursoPack, Question, SiteState, ViewModel } from '../types/domain.ts';
 
 type ViewParams = Record<string, string | undefined>;
-type RankingPeriod = 'today' | 'month' | 'all';
-type LocalRankingScore = { points: number; correct: number; accuracy: number };
 
 function contestCard(concurso: Concurso, state: SiteState): string {
   const saved = state.savedConcursos.includes(concurso.id);
@@ -100,58 +97,19 @@ export function concursoDetailView(id: string, state: SiteState): ViewModel {
   };
 }
 
-function localRankingScore(state: SiteState, questions: Question[], period: RankingPeriod, pack?: ConcursoPack): LocalRankingScore {
-  const now = new Date();
-  const records = Object.values(state.answers).filter((answer) => {
-    const date = new Date(answer.answeredAt);
-    if (period === 'today' && date.toDateString() !== now.toDateString()) return false;
-    if (period === 'month' && (date.getMonth() !== now.getMonth() || date.getFullYear() !== now.getFullYear())) return false;
-    const question = questions.find((item) => item.id === answer.questionId);
-    return !pack || matchesPack(question, pack);
-  });
-  const points = records.reduce((sum, answer) => {
-    if (!answer.isCorrect) return sum;
-    const question = questions.find((item) => item.id === answer.questionId);
-    return sum + (question?.difficulty ? { Fácil: 1, Média: 2, Difícil: 3 }[question.difficulty] : 1);
-  }, 0);
-  const correct = records.filter((answer) => answer.isCorrect).length;
-  return { points, correct, accuracy: records.length ? (correct / records.length) * 100 : 0 };
-}
-
-export function rankingView(state: SiteState, params: ViewParams = {}): ViewModel {
-  const { questions, packs, rankingParticipants } = getCatalog();
-  const requestedPeriod = params.period;
-  const period: RankingPeriod = requestedPeriod === 'today' || requestedPeriod === 'all' ? requestedPeriod : 'month';
-  const pack = packs.find((item) => item.id === params.packId);
-  const local = localRankingScore(state, questions, period, pack);
-  const factor = period === 'today' ? 0.07 : period === 'month' ? 1 : 6.5;
-  const entries = rankingParticipants.map((participant) => ({
-    id: participant.id,
-    name: participant.name,
-    username: participant.username,
-    points: Math.round(participant.basePoints.month * factor * (pack ? (participant.specialties.includes(pack.id) ? 0.56 : 0.22) : 1)),
-    accuracy: participant.accuracy,
-    streak: participant.streak,
-    current: false,
-  }));
-  entries.push({ id: 'current-user', name: state.profile.name, username: state.profile.username || '@voce', points: local.points, accuracy: local.accuracy, streak: 1, current: true });
-  entries.sort((left, right) => right.points - left.points || right.accuracy - left.accuracy);
-  const ranked = entries.map((item, index) => ({ ...item, rank: index + 1 }));
-  const podium = ranked.slice(0, 3);
+export function rankingView(_state: SiteState, _params: ViewParams = {}): ViewModel {
   return {
     title: 'Ranking',
-    subtitle: 'Sua constância também merece destaque',
+    subtitle: 'Pontuação confirmada, participação opcional',
     content: `
       ${workspaceHero({
         id: 'ranking-overview',
-        eyebrow: 'RANKING KAD · DEMONSTRAÇÃO',
-        title: 'Suba no ranking estudando com consistência.',
-        description: 'Os participantes exibidos são demonstrativos. Seus próprios pontos são calculados a partir da atividade salva neste ambiente.',
-        actions: `${badge('Dados demonstrativos', 'warning', 'Info')}${button('Responder questões', { route: '/questoes', iconName: 'TrendingUp' })}`,
+        eyebrow: 'RANKING KAD',
+        title: 'O ranking agora usa somente atividade confirmada.',
+        description: 'A versão web não mostra participantes demonstrativos. Consulte o ranking no aplicativo KAD depois de entrar na sua conta e escolha se deseja aparecer publicamente.',
+        actions: `${badge('Sem dados fictícios', 'success', 'ShieldCheck')}${button('Continuar estudando', { route: '/questoes', iconName: 'TrendingUp' })}`,
       })}
-      <div class="toolbar"><div class="segmented" aria-label="Período do ranking">${[['today', 'Hoje'], ['month', 'Este mês'], ['all', 'Geral']].map(([value, label]) => `<button type="button" data-action="ranking-period" data-period="${value}" class="${period === value ? 'is-active' : ''}">${label}</button>`).join('')}</div><select class="select" style="width:auto" data-action="ranking-pack" aria-label="Filtrar ranking por concurso"><option value="">Todos os concursos</option>${packs.map((item) => `<option value="${item.id}" ${pack?.id === item.id ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
-      <div class="podium">${podium.map((entry, index) => `<div class="podium-card ${index === 0 ? 'podium-card--first' : ''}">${avatar(entry.name, index === 0 ? 'md' : 'sm')}<strong>${escapeHtml(entry.name)}</strong><span>${escapeHtml(entry.username)}</span><b>${entry.points} pts</b>${badge(`#${entry.rank}`, index === 0 ? 'warning' : 'neutral')}</div>`).join('')}</div>
-      ${card(`<table class="ranking-table"><thead><tr><th>Posição</th><th>Candidato</th><th>Sequência</th><th>Acerto</th><th>Pontos</th></tr></thead><tbody>${ranked.map((entry) => `<tr class="${entry.current ? 'is-current' : ''}"><td><strong>#${entry.rank}</strong></td><td><div class="rank-user">${avatar(entry.name, 'sm')}<span><strong>${escapeHtml(entry.name)}</strong><br /><span class="subtle">${escapeHtml(entry.username)}</span></span></div></td><td>${entry.streak} dias</td><td>${formatPercent(entry.accuracy)}</td><td><strong>${entry.points}</strong></td></tr>`).join('')}</tbody></table>`, 'table-panel')}
+      ${emptyState('Ranking disponível no aplicativo', 'A posição é calculada pelo servidor nos períodos de hoje, mês e todos os tempos. Usuários sem opt-in continuam privados.', { route: '/questoes', actionLabel: 'Responder questões', iconName: 'Trophy' })}
     `,
   };
 }
