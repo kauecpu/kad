@@ -160,9 +160,16 @@ export function createProtectedStorage({
       const physicalKey = protectedPhysicalKey(logicalKey);
       const protectedValue = await storage.getItem(physicalKey);
       if (protectedValue !== null) {
-        const plaintext = await decrypt(logicalKey, ownerId, protectedValue);
-        if (!validateLegacy(plaintext)) throw new Error('protected-storage-invalid-plaintext');
-        return plaintext;
+        try {
+          const plaintext = await decrypt(logicalKey, ownerId, protectedValue);
+          if (!validateLegacy(plaintext)) throw new Error('protected-storage-invalid-plaintext');
+          return plaintext;
+        } catch {
+          // A browser session may outlive an older encryption key. Treat an
+          // unreadable value as unavailable instead of crashing the app, and
+          // remove it so the next successful write can rebuild it safely.
+          await storage.removeItem(physicalKey).catch(() => {});
+        }
       }
 
       const legacyValue = await storage.getItem(logicalKey);
