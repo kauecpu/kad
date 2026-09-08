@@ -1260,6 +1260,32 @@ button.list-row:hover { background: var(--surface-alt); }
 .public-shell--landing .landing-hero__lead { color: #b1b1ad; }
 .public-shell--landing .landing-hero__proof { border-color: rgba(255,255,255,.22); color: #a6a6a2; }
 
+/* The public presentation uses the same section map at every viewport. The
+   compact strip remains touch-scrollable on phones, so no topic disappears. */
+.public-shell--landing .public-section-nav { gap: clamp(14px, 2.5vw, 34px); }
+.public-shell--landing .public-section-nav a { color: var(--text-muted); font-size: .74rem; letter-spacing: .05em; text-transform: uppercase; }
+.public-shell--landing .public-section-nav a:hover,
+.public-shell--landing .public-section-nav a.is-active { color: var(--text); }
+.public-shell--landing .public-section-nav a.is-active { border-bottom-color: var(--accent); }
+.public-shell--landing .landing-hero { display: block; max-width: none; margin: 0; padding: 0; }
+.public-shell--landing .landing-section { scroll-margin-top: 24px; }
+.public-shell--landing .landing-section--plans .landing-section__inner { grid-template-columns: 1fr; }
+.public-shell--landing .landing-section--plans .landing-section__heading { max-width: 680px; }
+.public-shell--landing .landing-plans { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.public-shell--landing .landing-plans article { min-width: 0; }
+
+@media (max-width: 1000px) {
+  .public-shell--landing .landing-plans { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .public-shell--landing .public-header { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; }
+  .public-shell--landing .public-section-nav { display: flex; grid-column: 1 / -1; grid-row: 2; width: 100%; justify-content: flex-start; gap: 18px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 0 0 5px; scrollbar-width: thin; }
+  .public-shell--landing .public-section-nav a { flex: 0 0 auto; min-height: 38px; padding-block: 6px 4px; }
+  .public-shell--landing .landing-section { scroll-margin-top: 64px; }
+  .public-shell--landing .landing-plans { grid-template-columns: 1fr; }
+}
+
 /* KAD internal v4 · ambiente de estudo
    Neutral surfaces are the desk. Purple explains direction. Yellow marks the
    current step. Support colors only describe information, success or risk. */
