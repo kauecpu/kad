@@ -86,8 +86,7 @@ export function welcomeView(): ViewModel {
               </div>
             </div>
             <aside class="landing-hero__signal" aria-label="O essencial do KAD">
-              <div class="landing-hero__signal-mark" aria-hidden="true">${kadSignalMark({ className: 'kad-signal--hero' })}</div>
-              <p class="landing-hero__signal-label">O essencial para uma preparação consistente</p>
+              <p class="landing-hero__signal-label">${kadSignalMark({ className: 'kad-signal--signal' })}<span>O essencial para uma preparação consistente</span></p>
               <ul class="landing-hero__pillars">
                 <li><span>01</span><strong>Questões</strong><small>Prática por foco</small></li>
                 <li><span>02</span><strong>Simulados</strong><small>Treino de prova</small></li>
@@ -97,7 +96,7 @@ export function welcomeView(): ViewModel {
           </div>
         </section>
 
-        <section class="landing-section landing-section--surface" id="kad-about" aria-labelledby="kad-about-title">
+        <section class="landing-section landing-section--surface landing-section--about" id="kad-about" aria-labelledby="kad-about-title">
           <div class="landing-section__inner">
             <div class="landing-section__heading"><p class="eyebrow">O KAD</p><h2 id="kad-about-title">Um ambiente de estudos que organiza o caminho, não só o conteúdo.</h2></div>
             <div class="landing-about">
@@ -185,7 +184,6 @@ export function welcomeView(): ViewModel {
           </div>
         </section>
 
-        <section class="landing-final" aria-labelledby="landing-final-title"><div><p class="eyebrow">QUANDO ESTIVER PRONTO</p><h2 id="landing-final-title">Seu próximo passo pode começar por uma questão.</h2></div>${button('Criar minha conta', { action: 'open-public-auth', size: 'lg', attrs: 'data-auth-mode="signup"' })}</section>
         <footer class="landing-footer"><div><h2>Comece por uma questão.</h2>${button('Criar minha conta', { action: 'open-public-auth', attrs: 'data-auth-mode="signup"' })}</div><div><strong>KAD Concursos</strong><a href="/termos" data-route="/termos">Termos de Uso</a><a href="/privacidade" data-route="/privacidade">Privacidade</a><em>Estude com direção.</em></div></footer>
       </div>
       ${publicAuthDialog()}`,

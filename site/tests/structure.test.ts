@@ -119,6 +119,9 @@ test('apresentação pública usa somente conteúdo real e não exibe mascotes d
   ]);
   assert.equal(assets.length, 1);
   assert.match(view, /landing-hero__signal/);
+  assert.match(view, /kad-signal--signal/);
+  assert.match(view, /landing-section--about/);
+  assert.doesNotMatch(view, /landing-final|landing-hero__signal-mark/);
   assert.doesNotMatch(`${view}${explore}`, /kad-mascot-/);
   assert.doesNotMatch(view, /82%|\+12 questões|acerto esta semana|ritmo de hoje/);
 });
@@ -305,6 +308,8 @@ test('página pública usa navegação por seções, tema e acesso em janela', a
   assert.match(main, /aria-current', 'location'/);
   assert.match(styles, /\.public-shell--landing \.public-section-nav/);
   assert.match(styles, /\.public-shell--landing \.landing-plans \{[\s\S]+grid-template-columns: repeat\(3/);
+  assert.match(styles, /\.public-shell--landing \.landing-section--about \.landing-benefits/);
+  assert.match(styles, /\.public-shell--landing \.landing-hero__signal::before \{ content: none; \}/);
   assert.match(styles, /\.public-auth-dialog::backdrop/);
 });
 
