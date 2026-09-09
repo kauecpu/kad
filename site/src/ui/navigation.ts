@@ -5,7 +5,7 @@ export type NavigationItem = {
 };
 
 export type NavigationGroup = {
-  id: 'study' | 'prepare' | 'track';
+  id: 'study' | 'prepare' | 'track' | 'account';
   label: string;
   items: readonly NavigationItem[];
 };
@@ -38,6 +38,14 @@ export const navigationGroups: readonly NavigationGroup[] = [
       { href: '/ranking', label: 'Ranking', icon: 'Trophy' },
     ],
   },
+  {
+    id: 'account',
+    label: 'Conta',
+    items: [
+      { href: '/perfil', label: 'Perfil', icon: 'UserRound' },
+      { href: '/configuracoes', label: 'Configurações', icon: 'Settings' },
+    ],
+  },
 ] as const;
 
 export const mobilePrimaryNavigation: readonly NavigationItem[] = [
@@ -51,7 +59,6 @@ export const mobileSecondaryNavigation: readonly NavigationItem[] = [
   ...navigationGroups.flatMap((group) => group.items).filter(
     (item) => !mobilePrimaryNavigation.some((primary) => primary.href === item.href),
   ),
-  { href: '/perfil', label: 'Perfil', icon: 'User' },
 ] as const;
 
 export function isNavigationItemActive(href: string, pathname: string): boolean {

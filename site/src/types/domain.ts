@@ -16,6 +16,8 @@ import type {
   ThemePreference,
 } from '@/types';
 import type { EssayTopic } from '@/data/essay-topics';
+import type { RankingPeriod } from '../../../data/ranking';
+import type { RankingSnapshot } from '../../../lib/ranking';
 
 export type {
   AlternativeId,
@@ -34,6 +36,8 @@ export type {
   Subscription,
   ThemePreference,
   EssayTopic,
+  RankingPeriod,
+  RankingSnapshot,
 };
 
 export type AuthMode = 'visitor' | 'authenticated';
@@ -163,6 +167,13 @@ export type CheckoutProgress = {
 };
 
 export type RecoverableCheckout = CheckoutProgress & { checkoutId: string };
+
+export type RankingUiState = {
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  snapshot: RankingSnapshot | null;
+  error: string;
+  savingPreference: boolean;
+};
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 

@@ -1,6 +1,9 @@
 User-agent: *
 Allow: /
 Disallow: /perfil/
+Disallow: /perfil
+Disallow: /configuracoes
+Disallow: /ranking
 Disallow: /simulados/em-andamento
 Disallow: /simulados/resultado
 Disallow: /questoes/sessao

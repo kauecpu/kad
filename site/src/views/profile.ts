@@ -1,10 +1,12 @@
 import { getCatalog } from '../data/catalog.ts';
-import { escapeHtml, formatCount, formatPercent, formatTimer, groupPerformance, normalizeText, questionsPerformance } from '../core/utils.ts';
+import { escapeHtml, formatCount, formatDate, formatPercent, formatTimer, groupPerformance, normalizeText, questionsPerformance } from '../core/utils.ts';
 import { avatar, badge, button, card, emptyState, icon, metricRing, passwordField, progress, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
-import type { CheckoutProgress, SiteState, ViewModel } from '../types/domain.ts';
+import { achievementIconName } from '../ui/gamification.ts';
+import type { CheckoutProgress, RankingUiState, SiteState, ViewModel } from '../types/domain.ts';
 import type { LevelState } from '../../../contracts/level-tracker.ts';
 import { LEVEL_MILESTONES, LEVEL_RULES, levelColor } from '../../../contracts/levels.ts';
+import { ACHIEVEMENT_CATEGORIES, type AchievementCategory } from '../../../contracts/achievements.ts';
 import { checkoutFeedbackFor } from '../core/payment.ts';
 import { subscriptionHasAccess, subscriptionPlanName } from '../core/subscription.ts';
 
@@ -108,31 +110,94 @@ function levelModule(levelState: LevelState): string {
   </section>`;
 }
 
-export function profileView(state: SiteState, levelState: LevelState): ViewModel {
-  const { questions } = getCatalog();
+const IDLE_RANKING: RankingUiState = { status: 'idle', snapshot: null, error: '', savingPreference: false };
+
+function settingRow([iconName, label, description, route]: string[], danger = false): string {
+  return `<button class="settings-row ${danger ? 'settings-row--danger' : ''}" type="button" data-route="${route}"><span class="settings-row__icon">${icon(iconName)}</span><span class="settings-row__copy"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(description)}</span></span>${icon('ArrowRight')}</button>`;
+}
+
+function achievementGallery(levelState: LevelState, requestedCategory = 'all'): string {
+  const selected = ACHIEVEMENT_CATEGORIES.some((category) => category.value === requestedCategory)
+    ? requestedCategory as AchievementCategory | 'all'
+    : 'all';
+  const unlocked = levelState.achievements.filter((item) => item.unlockedAt).length;
+  const items = levelState.achievements.filter((item) => selected === 'all' || item.category === selected);
+  if (!levelState.achievements.length && levelState.status === 'loading') {
+    return `<section class="achievement-gallery achievement-gallery--status" aria-busy="true"><span class="level-spinner" aria-hidden="true"></span><p>Carregando suas conquistas…</p></section>`;
+  }
+  if (!levelState.achievements.length) {
+    return `<section class="achievement-gallery achievement-gallery--status"><span class="level-status-icon">${icon('Award')}</span><div><h2>Conquistas indisponíveis</h2><p>Seu progresso não foi substituído por dados demonstrativos. Tente sincronizar novamente.</p></div></section>`;
+  }
+  return `<section class="achievement-gallery" aria-labelledby="achievements-title">
+    <header class="achievement-gallery__heading"><div><p class="eyebrow">CONQUISTAS</p><h2 id="achievements-title">${unlocked} de ${levelState.achievements.length} desbloqueadas</h2></div><span class="achievement-gallery__counter">${icon('Trophy')}<strong>${unlocked}</strong></span></header>
+    ${levelState.owner === null ? '<p class="achievement-gallery__guest">Conquistas de visitante ficam somente neste navegador.</p>' : ''}
+    <nav class="achievement-filters" aria-label="Filtrar conquistas">${ACHIEVEMENT_CATEGORIES.map((category) => `<button type="button" data-route="/perfil?conquistas=${category.value}" class="${selected === category.value ? 'is-active' : ''}" aria-pressed="${selected === category.value}">${escapeHtml(category.label)}</button>`).join('')}</nav>
+    <div class="achievement-list">${items.map((item) => {
+      const complete = Boolean(item.unlockedAt);
+      const progressValue = Math.round(item.progress * 100);
+      return `<article class="achievement-item ${complete ? 'is-unlocked' : ''}" aria-label="${escapeHtml(item.title)}. ${escapeHtml(item.description)}. ${complete ? 'Desbloqueada' : `${item.value} de ${item.threshold}`}">
+        <span class="achievement-item__icon">${icon(achievementIconName(item.icon))}</span>
+        <div class="achievement-item__copy"><div><h3>${escapeHtml(item.title)}</h3>${complete ? icon('CircleCheck') : ''}</div><p>${escapeHtml(item.description)}</p>
+        ${complete ? `<small class="achievement-item__date">Desbloqueada em ${formatDate(item.unlockedAt!)}</small>` : `<small>${item.value.toLocaleString('pt-BR')} de ${item.threshold.toLocaleString('pt-BR')}</small>${progress(progressValue, `Progresso de ${item.title}`)}`}</div>
+      </article>`;
+    }).join('')}</div>
+  </section>`;
+}
+
+function profileRankingPosition(ranking: RankingUiState, authenticated: boolean): string {
+  if (!authenticated) return `<button class="profile-ranking" type="button" data-route="/entrar"><span class="profile-ranking__icon">${icon('Trophy')}</span><span><small>Posição no ranking</small><strong>Entre para acompanhar</strong><span>O ranking usa somente XP confirmado.</span></span>${icon('ArrowRight')}</button>`;
+  if (ranking.status === 'loading' || ranking.status === 'idle') return `<div class="profile-ranking" role="status" aria-busy="true"><span class="level-spinner" aria-hidden="true"></span><span><small>Posição no ranking</small><strong>Carregando…</strong></span></div>`;
+  const position = ranking.snapshot?.currentUser;
+  return `<button class="profile-ranking" type="button" data-route="/ranking?period=all"><span class="profile-ranking__icon">${icon('Trophy')}</span><span><small>Posição no ranking</small><strong>${position ? `#${position.rank}` : 'Ainda não disponível'}</strong><span>${position ? `${position.points.toLocaleString('pt-BR')} XP no ranking geral` : 'Sua posição aparecerá quando houver atividade confirmada.'}</span></span>${icon('ArrowRight')}</button>`;
+}
+
+export function profileView(state: SiteState, levelState: LevelState, ranking: RankingUiState = IDLE_RANKING, params: ViewParams = {}): ViewModel {
   const performance = questionsPerformance(state.answers);
-  const settings = [
-    ['Target', 'Minha meta', state.profile.targetRole || 'Definir cargo ou área', '/meta'],
-    ['BarChart3', 'Desempenho', formatCount(performance.total, 'questão respondida', 'questões respondidas'), '/perfil/desempenho'],
-    ['Bookmark', 'Concursos salvos', formatCount(state.savedConcursos.length, 'oportunidade', 'oportunidades'), '/concursos/salvos'],
-    ['Crown', 'Plano e acesso', subscriptionPlanName(state.subscription.plan), '/perfil/planos'],
-  ];
-  const settingRow = ([iconName, label, description, route]: string[], danger = false) => `<button class="settings-row ${danger ? 'settings-row--danger' : ''}" type="button" data-route="${route}"><span class="settings-row__icon">${icon(iconName)}</span><span class="settings-row__copy"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(description)}</span></span>${icon('ArrowRight')}</button>`;
   return {
-    title: 'Meu KAD',
-    subtitle: state.auth.mode === 'authenticated' ? 'Dossiê do candidato' : 'Dados salvos neste navegador',
-    content: `<div class="study-settings">
-      <section class="profile-identity" aria-label="Identidade da conta">${avatar(state.profile.name, 'md', state.profile.avatarUri)}<div class="profile-identity__copy"><div class="question-meta">${badge(state.auth.mode === 'authenticated' ? 'Conta sincronizada' : 'Modo visitante', state.auth.mode === 'authenticated' ? 'success' : 'warning')}${badge(subscriptionPlanName(state.subscription.plan).replace('KAD ', '').replace('Plano ', ''), 'accent')}</div><h2>${escapeHtml(state.profile.name)}</h2><p>${escapeHtml(state.profile.email || state.profile.username || 'Seus dados estão salvos neste navegador')}</p></div>${button('Editar perfil', { route: '/perfil/editar', variant: 'secondary', iconName: 'Settings' })}</section>
+    title: 'Meu perfil',
+    subtitle: 'Identidade, progresso e conquistas',
+    content: `<div class="study-settings profile-workspace">
+      <section class="profile-identity" aria-label="Identidade da conta">${avatar(state.profile.name, 'md', state.profile.avatarUri)}<div class="profile-identity__copy"><p class="eyebrow">SEU PERFIL PÚBLICO</p><h2>${escapeHtml(state.profile.name)}</h2>${state.auth.mode === 'authenticated' && state.profile.username ? `<strong class="profile-identity__username">@${escapeHtml(state.profile.username)}</strong>` : ''}<p>${escapeHtml(state.profile.targetRole || 'Meta de concurso ainda não definida')}</p><div class="question-meta">${badge(state.auth.mode === 'authenticated' ? 'Conta sincronizada' : 'Modo visitante', state.auth.mode === 'authenticated' ? 'success' : 'warning')}${badge(subscriptionPlanName(state.subscription.plan).replace('KAD ', '').replace('Plano ', ''), 'accent')}</div></div>${button('Editar perfil', { route: '/perfil/editar', variant: 'secondary', iconName: 'PenLine' })}</section>
 
       ${levelModule(levelState)}
+      ${achievementGallery(levelState, params.conquistas)}
 
-      <div class="settings-sections">
-        <section class="settings-section"><header><p class="eyebrow">ESTUDO</p><h2>Minha preparação</h2></header><div>${settings.slice(0, 3).map((item) => settingRow(item)).join('')}</div></section>
-        <section class="settings-section"><header><p class="eyebrow">ACESSO</p><h2>Plano e desempenho</h2></header><div>${settingRow(settings[3])}${settingRow(['BarChart3', 'Estatísticas', 'Acompanhe seu progresso por matéria', '/perfil/desempenho'])}</div></section>
-        <section class="settings-section"><header><p class="eyebrow">PREFERÊNCIAS</p><h2>Experiência</h2></header><div><button class="settings-row" type="button" data-action="toggle-theme"><span class="settings-row__icon">${icon('Sun')}</span><span class="settings-row__copy"><strong>Aparência</strong><span>Alternar entre tema claro e escuro</span></span>${icon('ArrowRight')}</button>${settingRow(['MessageCircle', 'Fale com o KAD', 'Envie sugestões e comentários', '/perfil/feedback'])}</div></section>
-        <section class="settings-section"><header><p class="eyebrow">SEGURANÇA</p><h2>Conta e privacidade</h2></header><div>${settingRow(['KeyRound', 'Alterar senha', state.auth.mode === 'authenticated' ? 'Atualize seu acesso' : 'Disponível para contas conectadas', '/perfil/senha'])}<button class="settings-row" type="button" data-action="sign-out"><span class="settings-row__icon">${icon('LogOut')}</span><span class="settings-row__copy"><strong>${state.auth.mode === 'authenticated' ? 'Sair da conta' : 'Encerrar modo visitante'}</strong><span>Voltar à página inicial</span></span>${icon('ArrowRight')}</button>${settingRow(['Trash2', state.auth.mode === 'authenticated' ? 'Excluir conta' : 'Apagar dados deste navegador', 'Esta ação exige confirmação', '/perfil/excluir'], true)}</div></section>
-      </div>
-      <div class="toolbar__group profile-legal-links"><a class="text-link" href="/termos" data-route="/termos">Termos de Uso</a><span class="subtle" aria-hidden="true">·</span><a class="text-link" href="/privacidade" data-route="/privacidade">Política de Privacidade</a></div>
+      <section class="profile-preparation" aria-labelledby="profile-preparation-title"><h2 id="profile-preparation-title">Minha preparação</h2><div class="profile-preparation__panel">
+        ${settingRow(['Flag', 'Meta de concurso', state.profile.targetRole || 'Escolher minha meta', '/meta'])}
+        <div class="profile-metrics"><button type="button" data-route="/perfil/desempenho"><small>Desempenho</small><strong>${performance.total ? formatPercent(performance.accuracy) : '--'}</strong><span>${formatCount(performance.total, 'questão respondida', 'questões respondidas')}</span></button><button type="button" data-route="/concursos/salvos"><small>Concursos salvos</small><strong>${state.savedConcursos.length}</strong><span>${formatCount(state.savedConcursos.length, 'concurso salvo', 'concursos salvos')}</span></button></div>
+        ${profileRankingPosition(ranking, state.auth.mode === 'authenticated')}
+      </div></section>
+      <button class="profile-settings-shortcut" type="button" data-route="/configuracoes"><span class="profile-settings-shortcut__icon">${icon('Settings')}</span><span><strong>Configurações</strong><small>Conta, aparência, privacidade e assinatura</small></span>${icon('ArrowRight')}</button>
+    </div>`,
+  };
+}
+
+export function settingsView(state: SiteState, ranking: RankingUiState = IDLE_RANKING): ViewModel {
+  const performance = questionsPerformance(state.answers);
+  const isAuthenticated = state.auth.mode === 'authenticated';
+  const rankingEnabled = ranking.snapshot?.currentUser?.isPublic ?? false;
+  const rankingDisabled = ranking.status === 'loading' || ranking.status === 'idle' || ranking.savingPreference;
+  const themeOptions = [
+    ['system', 'Sistema'],
+    ['light', 'Claro'],
+    ['dark', 'Escuro'],
+  ];
+  const themeControl = `<div class="settings-appearance"><div><span class="settings-row__icon">${icon('Contrast')}</span><span><strong>Tema do site</strong><small>Claro, escuro ou igual ao sistema</small></span></div><div class="segmented" role="group" aria-label="Tema do site">${themeOptions.map(([value, label]) => `<button type="button" data-action="theme-preference" data-theme="${value}" class="${state.preferences.theme === value ? 'is-active' : ''}" aria-pressed="${state.preferences.theme === value}">${label}</button>`).join('')}</div><p>${icon('Accessibility')} Animações respeitam a preferência de movimento reduzido do dispositivo.</p></div>`;
+  const rankingControl = isAuthenticated
+    ? `<label class="settings-switch-row"><span class="settings-row__icon">${icon('Trophy')}</span><span class="settings-row__copy"><strong>Participar do ranking</strong><span>Exibe somente nome, usuário, XP, nível e posição.</span></span><input type="checkbox" role="switch" data-action="ranking-opt-in" aria-label="Participar do ranking público" ${rankingEnabled ? 'checked' : ''} ${rankingDisabled ? 'disabled' : ''} /></label>${ranking.error ? `<p class="settings-inline-error" role="alert">${escapeHtml(ranking.error)}</p>` : ''}`
+    : settingRow(['Trophy', 'Participação no ranking', 'Entre na sua conta para controlar sua visibilidade', '/entrar']);
+
+  return {
+    title: 'Configurações',
+    subtitle: 'Conta, privacidade e site',
+    content: `<div class="study-settings settings-workspace">
+      <section class="settings-section"><header><h2>Conta</h2><p>Dados privados e segurança do acesso</p></header><div>${settingRow(['UserRound', 'Dados pessoais', isAuthenticated ? state.profile.email : 'Perfil salvo somente neste navegador', '/perfil/editar'])}${state.profile.phone ? `<div class="settings-static-row"><span class="settings-row__icon">${icon('Phone')}</span><span><strong>Telefone</strong><small>${escapeHtml(state.profile.phone)}</small></span></div>` : ''}${isAuthenticated ? settingRow(['LockKeyhole', 'Alterar senha', 'Atualize sua senha de acesso', '/perfil/senha']) : ''}</div></section>
+      <section class="settings-section"><header><h2>Aparência e acessibilidade</h2></header>${themeControl}</section>
+      <section class="settings-section"><header><h2>Notificações</h2></header><div class="settings-info"><span class="settings-row__icon">${icon('BellOff')}</span><p>O KAD ainda não envia notificações. Quando esse recurso existir, os controles aparecerão aqui.</p></div></section>
+      <section class="settings-section"><header><h2>Privacidade</h2><p>Visibilidade e controle dos seus dados</p></header><div>${rankingControl}${settingRow(['FileText', 'Termos de Uso', 'Regras para utilização do KAD', '/termos'])}${settingRow(['ShieldCheck', 'Política de Privacidade', 'Como seus dados são tratados', '/privacidade'])}${performance.total ? `<button class="settings-row settings-row--warning" type="button" data-action="reset-performance"><span class="settings-row__icon">${icon('RotateCcw')}</span><span class="settings-row__copy"><strong>Zerar desempenho</strong><span>Apaga todas as respostas registradas</span></span></button>` : ''}${settingRow(['Trash2', isAuthenticated ? 'Excluir conta' : 'Apagar dados deste navegador', isAuthenticated ? 'Remove a conta e todos os seus dados' : 'Remove respostas, salvos e preferências locais', '/perfil/excluir'], true)}</div></section>
+      <section class="settings-section"><header><h2>Plano e assinatura</h2></header><div class="settings-plan"><div><strong>${escapeHtml(subscriptionPlanName(state.subscription.plan))}</strong><p>${subscriptionHasAccess(state.subscription) ? 'Acesso premium confirmado pelo servidor.' : 'Questões ilimitadas, sem cobrança e sem prazo.'}</p></div>${button('Gerenciar plano', { route: '/perfil/planos', variant: 'secondary', iconName: 'CreditCard', className: 'full-width' })}</div></section>
+      <section class="settings-section"><header><h2>Ajuda</h2></header><div>${settingRow(['MessageCircle', 'Fale com o KAD', 'Envie uma sugestão, dúvida ou problema', '/perfil/feedback'])}</div></section>
+      <section class="settings-section"><header><h2>Sessão</h2></header><div><button class="settings-row" type="button" data-action="sign-out"><span class="settings-row__icon">${icon('LogOut')}</span><span class="settings-row__copy"><strong>${isAuthenticated ? 'Sair da conta' : 'Sair do modo visitante'}</strong><span>${escapeHtml(state.profile.email || 'Encerrar esta sessão')}</span></span></button></div></section>
     </div>`,
   };
 }
