@@ -26,19 +26,25 @@ export function publicLayout(content: string, { simple = false, dark = false, ba
   return `
     <div class="public-shell ${simple ? 'public-shell--simple' : 'public-shell--landing'}">
       <header class="public-header">
-        <a href="/" data-route="/" class="brand" aria-label="KAD Concursos — página inicial">
-          <img src="/assets/kad-logo.png" alt="KAD Concursos" width="178" height="76" />
-        </a>
-        ${!simple ? `<nav class="public-nav" aria-label="Navegação do site">
-          <a href="#kad-how" data-public-section-target="kad-how">Como funciona</a>
-          <a href="#kad-plans" data-public-section-target="kad-plans">Planos</a>
-        </nav>` : ''}
-        <div class="public-header__actions">
-          ${button(dark ? 'Escuro' : 'Claro', { action: 'toggle-theme', variant: 'ghost', iconName: dark ? 'Moon' : 'Sun', className: 'icon-label-button', attrs: `aria-label="Ativar tema ${dark ? 'claro' : 'escuro'}" aria-pressed="${dark}"` })}
-          ${!simple ? button('Entrar', { action: 'open-public-auth', variant: 'secondary', className: 'public-header__login', attrs: 'data-auth-mode="login"' }) : ''}
+        <div class="public-header__inner">
+          <a href="/" data-route="/" class="brand" aria-label="KAD Concursos — página inicial">
+            <img src="/assets/kad-logo.png" alt="KAD Concursos" width="178" height="76" />
+          </a>
+          ${!simple ? `<nav class="public-section-nav" aria-label="Navegação da apresentação">
+            <a href="#kad-about" data-public-section-target="kad-about">O KAD</a>
+            <a href="#kad-how" data-public-section-target="kad-how">Como funciona</a>
+            <a href="#kad-tools" data-public-section-target="kad-tools">Ferramentas</a>
+            <a href="#kad-contests" data-public-section-target="kad-contests">Concursos</a>
+            <a href="#kad-plans" data-public-section-target="kad-plans">Planos</a>
+            <a href="#kad-faq" data-public-section-target="kad-faq">Dúvidas</a>
+          </nav>` : ''}
+          <div class="public-header__actions">
+            ${button(dark ? 'Escuro' : 'Claro', { action: 'toggle-theme', variant: 'ghost', iconName: dark ? 'Moon' : 'Sun', className: 'icon-label-button', attrs: `aria-label="Ativar tema ${dark ? 'claro' : 'escuro'}" aria-pressed="${dark}"` })}
+            ${!simple ? button('Entrar', { action: 'open-public-auth', variant: 'secondary', className: 'public-header__login', attrs: 'data-auth-mode="login"' }) : ''}
+          </div>
         </div>
       </header>
-      <main id="conteudo" class="public-main" tabindex="-1">${backendStatus(backendState)}${content}</main>
+      <main id="conteudo" class="public-main" tabindex="-1">${simple ? backendStatus(backendState) : ''}${content}</main>
     </div>`;
 }
 
