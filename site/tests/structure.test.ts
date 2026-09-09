@@ -330,6 +330,8 @@ test('página pública usa navegação por seções, tema e acesso em janela', a
   assert.match(styles, /\.public-shell--landing \.landing-section \{ padding-block: 0; scroll-margin-top: 12px; \}/);
   assert.match(styles, /@media \(max-width: 1180px\)[\s\S]+?\.public-shell--landing \.landing-section \{ scroll-margin-top: 64px; \}/);
   assert.match(styles, /\.public-shell--landing \.landing-hero__inner \{[\s\S]+?padding: clamp\(56px, 6vw, 88px\)/);
+  assert.match(styles, /\.public-shell--landing \.landing-hero__copy h1 \{ line-height: \.98; \}/);
+  assert.match(styles, /\.public-shell--landing \.landing-hero__actions \.button \{[\s\S]+border-color: #fff;[\s\S]+box-shadow: 6px 6px 0 #7c5cff/);
   assert.match(styles, /\.public-shell--landing \.landing-faq details \{ padding-block: 12px; \}/);
   assert.match(styles, /\.public-shell--landing \.landing-plan__summary/);
   assert.match(styles, /\.public-shell--landing \.landing-plan__cycles/);

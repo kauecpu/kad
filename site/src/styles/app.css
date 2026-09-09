@@ -1288,6 +1288,18 @@ button.list-row:hover { background: var(--surface-alt); }
 .public-shell--landing .landing-hero__inner {
   padding: clamp(56px, 6vw, 88px) clamp(20px, 4vw, 48px) clamp(72px, 7vw, 104px);
 }
+.public-shell--landing .landing-hero__copy h1 { line-height: .98; }
+.public-shell--landing .landing-hero__actions .button {
+  border-color: #fff;
+  background: transparent;
+  color: #fff;
+  box-shadow: 6px 6px 0 #7c5cff;
+}
+.public-shell--landing .landing-hero__actions .button:hover {
+  border-color: #fff;
+  background: rgba(255,255,255,.08);
+  box-shadow: 3px 3px 0 #7c5cff;
+}
 .public-shell--landing .landing-hero__signal { min-height: clamp(340px, 35vw, 440px); }
 .public-shell--landing .landing-hero__signal { border-left-color: rgba(255, 255, 255, .32); }
 .public-shell--landing .landing-hero__signal::before { content: none; }
@@ -1351,6 +1363,7 @@ button.list-row:hover { background: var(--surface-alt); }
   .public-shell--landing .public-section-nav { display: flex; grid-column: 1 / -1; grid-row: 2; width: 100%; justify-content: flex-start; gap: 18px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 0 0 5px; scrollbar-width: thin; }
   .public-shell--landing .public-section-nav a { flex: 0 0 auto; min-height: 38px; padding-block: 6px 4px; }
   .public-shell--landing .landing-hero__inner { padding-block: 56px 72px; }
+  .public-shell--landing .landing-hero__copy h1 { line-height: .97; }
   .public-shell--landing .landing-hero__signal { min-height: 300px; }
   .public-shell--landing .landing-hero__signal { border-top-color: rgba(255, 255, 255, .32); }
   .public-shell--landing .landing-section--about .landing-benefits { grid-template-columns: 1fr; }
