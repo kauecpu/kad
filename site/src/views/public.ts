@@ -98,10 +98,11 @@ export function welcomeView(): ViewModel {
 
         <section class="landing-section landing-section--surface landing-section--about" id="kad-about" aria-labelledby="kad-about-title">
           <div class="landing-section__inner">
-            <div class="landing-section__heading"><p class="eyebrow">O KAD</p><h2 id="kad-about-title">Um ambiente de estudos que organiza o caminho, não só o conteúdo.</h2></div>
+            <div class="landing-section__heading"><p class="eyebrow">O KAD</p><h2 id="kad-about-title">Um ambiente de estudos que organiza o caminho, não só o conteúdo.</h2><p>Em vez de acumular materiais e decisões soltas, o ambiente conecta objetivo, prática e revisão. Cada sessão parte de uma meta e termina com uma indicação clara do que retomar.</p></div>
             <div class="landing-about">
               <div class="landing-about__copy">
                 <p>O KAD foi pensado para quem estuda para concursos e precisa transformar muitas possibilidades em uma rotina possível. Em vez de espalhar questões, metas e revisões por várias ferramentas, o ambiente reúne cada etapa da preparação em um fluxo mais claro.</p>
+                <p>Mais do que disponibilizar conteúdo, o KAD dá continuidade ao estudo: a meta orienta a prática, os resultados mostram o que merece revisão e o próximo passo permanece visível.</p>
                 <p>Você escolhe onde quer chegar, pratica com contexto e acompanha o que merece atenção. A informação e a próxima ação continuam no centro da experiência.</p>
               </div>
               <div class="landing-benefits" aria-label="Por que estudar pelo KAD">
@@ -115,7 +116,7 @@ export function welcomeView(): ViewModel {
 
         <section class="landing-section" id="kad-how" aria-labelledby="kad-how-title">
           <div class="landing-section__inner">
-            <div class="landing-section__heading"><p class="eyebrow">COMO FUNCIONA</p><h2 id="kad-how-title">Da meta à prática, sem perder o próximo passo.</h2></div>
+            <div class="landing-section__heading"><p class="eyebrow">COMO FUNCIONA</p><h2 id="kad-how-title">Da meta à prática, sem perder o próximo passo.</h2><p>Você define o objetivo da preparação, escolhe como praticar e usa o histórico para ajustar o caminho. O fluxo acompanha desde a construção de base até a rotina de pré-edital e a reta final.</p></div>
             <div class="landing-how">
               <ol class="landing-steps">
                 <li><span>01</span><div><h3>Defina sua direção</h3><p>Escolha um cargo, área ou concurso para organizar sua preparação.</p></div></li>
@@ -136,7 +137,7 @@ export function welcomeView(): ViewModel {
 
         <section class="landing-section landing-section--surface" id="kad-tools" aria-labelledby="kad-tools-title">
           <div class="landing-section__inner">
-            <div class="landing-section__heading"><p class="eyebrow">FERRAMENTAS</p><h2 id="kad-tools-title">Tudo que sustenta uma preparação consistente.</h2></div>
+            <div class="landing-section__heading"><p class="eyebrow">FERRAMENTAS</p><h2 id="kad-tools-title">Tudo que sustenta uma preparação consistente.</h2><p>Cada ferramenta atende a uma etapa concreta: praticar, simular, registrar repertório e revisar. Elas se complementam para que o estudo não dependa de controles espalhados ou de decisões refeitas a cada sessão.</p></div>
             <div class="landing-tools">
               <article>${icon('BookOpen')}<div><h3>Questões</h3><p>Prática por disciplina, banca e concurso, com gabarito no mesmo fluxo.</p></div></article>
               <article>${icon('Timer')}<div><h3>Simulados</h3><p>Sessões objetivas para treinar conteúdo, estratégia e tempo de prova.</p></div></article>
@@ -150,7 +151,7 @@ export function welcomeView(): ViewModel {
 
         <section class="landing-section" id="kad-contests" aria-labelledby="kad-contests-title">
           <div class="landing-section__inner">
-            <div class="landing-section__heading"><p class="eyebrow">CONCURSOS</p><h2 id="kad-contests-title">Encontre uma direção antes de abrir o edital.</h2><p>Reconheça rapidamente áreas, bancas e níveis de escolaridade presentes no catálogo.</p></div>
+            <div class="landing-section__heading"><p class="eyebrow">CONCURSOS</p><h2 id="kad-contests-title">Encontre uma direção antes de abrir o edital.</h2><p>Consulte o catálogo para reconhecer oportunidades por área, banca e escolaridade antes de direcionar sua preparação. Os dados reunidos ajudam a comparar possibilidades, entender o contexto de cada seleção e escolher qual objetivo acompanhar no KAD.</p></div>
             <div class="landing-contests">
               ${featuredContests.map((contest) => `<article>
                 <div class="landing-contest__meta">${badge(statusLabels[contest.status], contest.status === 'aberto' ? 'accent' : 'warning')}<small>${escapeHtml(contest.board)} · ${escapeHtml(contest.levels.join(' e '))}</small></div>
@@ -163,23 +164,42 @@ export function welcomeView(): ViewModel {
 
         <section class="landing-section landing-section--surface landing-section--plans" id="kad-plans" aria-labelledby="kad-plans-title">
           <div class="landing-section__inner">
-            <div class="landing-section__heading"><p class="eyebrow">PLANOS</p><h2 id="kad-plans-title">Comece pelo essencial e avance quando fizer sentido.</h2><p>Condições claras, com os principais benefícios visíveis antes do cadastro.</p></div>
+            <div class="landing-section__heading"><p class="eyebrow">PLANOS</p><h2 id="kad-plans-title">Escolha o nível que acompanha seu momento.</h2><p>Os planos deixam claro o que cada etapa oferece antes do cadastro. Comece com questões e correção sem custo ou avance para simulados, revisões e leituras de desempenho que tornam a rotina mais estratégica.</p></div>
             <div class="landing-plans">
-              <article><div><h3>Básico</h3><p class="landing-plan__price">Grátis</p></div><ul><li>Questões ilimitadas</li><li>Correção e gabarito comentado</li></ul>${button('Criar conta', { action: 'open-public-auth', variant: 'secondary', attrs: 'data-auth-mode="signup"' })}</article>
-              <article><div><h3>Diamond mensal</h3><p class="landing-plan__price">R$ 14,99 <small>/mês</small></p></div><ul><li>Simulados personalizados</li><li>Desempenho por disciplina</li><li>Revisão de erros e favoritas</li></ul>${button('Escolher mensal', { action: 'open-public-auth', variant: 'secondary', attrs: 'data-auth-mode="signup"' })}</article>
-              <article class="landing-plan--featured"><span class="landing-plan__label">Recomendado</span><div><h3>Diamond anual</h3><p class="landing-plan__price">R$ 149,99 <small>/ano</small></p></div><ul><li>Todos os benefícios do Diamond</li><li>Acesso por 12 meses</li><li>Melhores condições</li></ul>${button('Escolher anual', { action: 'open-public-auth', attrs: 'data-auth-mode="signup"' })}</article>
+              <article class="landing-plan landing-plan--basic">
+                <div><h3>Plano Básico</h3><p class="landing-plan__price">Grátis</p></div>
+                <p class="landing-plan__summary">Para quem quer construir constância sem cobrança. Você pratica livremente e confere a correção logo após cada resposta.</p>
+                <ul><li>Questões ilimitadas</li><li>Correção e gabarito comentado</li></ul>
+                <p class="landing-plan__note">O Básico não tem prazo para terminar: use-o no seu ritmo, desde o primeiro dia.</p>
+                ${button('Criar conta gratuita', { action: 'open-public-auth', variant: 'secondary', attrs: 'data-auth-mode="signup"' })}
+              </article>
+              <article class="landing-plan">
+                <div><h3>KAD Platina</h3><p class="landing-plan__price">A partir de R$ 14,99 <small>/mês</small></p></div>
+                <p class="landing-plan__summary">Para transformar prática em estratégia. Além do Básico, ele reúne simulados e indicadores que mostram onde você evoluiu e onde precisa insistir.</p>
+                <ul><li>Tudo o que está no Plano Básico</li><li>Simulados personalizados e cronometrados</li><li>Simulados por concurso e área de estudo</li><li>Desempenho geral e por disciplina</li><li>Revisão de questões erradas, corretas e favoritas</li><li>Indicadores de acerto durante a prática</li></ul>
+                <p class="landing-plan__cycles"><span>Mensal: R$ 14,99</span><span>Trimestral: R$ 39,99 · equivale a R$ 13,33 por mês</span><span>Anual: R$ 149,99 · equivale a R$ 12,50 por mês</span></p>
+                ${button('Ver opções do Platina', { action: 'open-public-auth', variant: 'secondary', attrs: 'data-auth-mode="signup"' })}
+              </article>
+              <article class="landing-plan landing-plan--featured">
+                <span class="landing-plan__label">Disponível</span>
+                <div><h3>KAD Diamante</h3><p class="landing-plan__price">A partir de R$ 14,99 <small>/mês</small></p></div>
+                <p class="landing-plan__summary">O próximo nível da preparação KAD. Nesta primeira definição, ele reúne os mesmos benefícios do KAD Platina, apresentados de forma completa antes da contratação.</p>
+                <ul><li>Tudo o que está no Plano Básico</li><li>Simulados personalizados e cronometrados</li><li>Simulados por concurso e área de estudo</li><li>Desempenho geral e por disciplina</li><li>Revisão de questões erradas, corretas e favoritas</li><li>Indicadores de acerto durante a prática</li></ul>
+                <p class="landing-plan__cycles"><span>Mensal: R$ 14,99</span><span>Trimestral: R$ 39,99 · equivale a R$ 13,33 por mês</span><span>Anual: R$ 149,99 · equivale a R$ 12,50 por mês</span></p>
+                ${button('Ver opções do Diamante', { action: 'open-public-auth', attrs: 'data-auth-mode="signup"' })}
+              </article>
             </div>
           </div>
         </section>
 
         <section class="landing-section landing-faq" id="kad-faq" aria-labelledby="kad-faq-title">
           <div class="landing-section__inner">
-            <div class="landing-section__heading"><p class="eyebrow">DÚVIDAS</p><h2 id="kad-faq-title">Antes de começar.</h2></div>
+            <div class="landing-section__heading"><p class="eyebrow">DÚVIDAS</p><h2 id="kad-faq-title">Antes de começar.</h2><p>Estas respostas explicam como iniciar: criar a conta, acessar o ambiente e entender a diferença entre os planos. A ideia é deixar as escolhas básicas claras antes de você montar a rotina de estudo.</p></div>
             <div class="landing-faq__list">
               <details open><summary>Como começo a estudar pelo KAD?${icon('Plus')}</summary><p>Crie sua conta, escolha uma meta e use as ferramentas para montar uma rotina alinhada ao concurso desejado.</p></details>
               <details><summary>Onde faço meu acesso?${icon('Plus')}</summary><p>Use o botão “Entrar” no topo. Ele abre uma janela simples sem tirar você desta página.</p></details>
               <details><summary>E se eu ainda não tiver cadastro?${icon('Plus')}</summary><p>Na própria janela de acesso, escolha “Criar conta” para começar.</p></details>
-              <details><summary>Como escolho um plano?${icon('Plus')}</summary><p>O plano Básico reúne questões e correção comentada. Os planos Diamond acrescentam simulados personalizados, desempenho e revisão de erros.</p></details>
+              <details><summary>Como escolho um plano?${icon('Plus')}</summary><p>O Plano Básico reúne questões ilimitadas e correção comentada. KAD Platina e KAD Diamante acrescentam simulados, desempenho e revisão; nesta primeira definição, os dois planos premium compartilham os mesmos benefícios.</p></details>
             </div>
           </div>
         </section>

@@ -185,6 +185,8 @@ test('sinal visual do KAD é vetorial, contido e substitui os placeholders rejei
 
   assert.match(brand, /export function kadSignalMark/);
   assert.match(brand, /<svg[\s\S]+viewBox="0 0 64 88"/);
+  assert.match(brand, /class="kad-signal__beam"/);
+  assert.doesNotMatch(brand, /kad-signal__(?:cut|trail)/);
   assert.match(brand, /variant\?: 'color' \| 'mono' \| 'compact'/);
   assert.match(publicView, /kadSignalMark/);
   assert.match(publicView, /landing-hero__pillars/);
@@ -295,6 +297,7 @@ test('página pública usa navegação por seções, tema e acesso em janela', a
     assert.match(publicView, new RegExp(`id="${target}"`));
   }
   assert.match(layout, /class="public-section-nav"/);
+  assert.match(layout, /class="public-header__inner"/);
   assert.match(layout, /className: 'public-header__login'/);
   assert.doesNotMatch(layout, /button\('Entrar',[\s\S]+iconName: 'LogIn'/);
   assert.match(layout, /\$\{simple \? backendStatus\(backendState\) : ''\}\$\{content\}/);
@@ -302,13 +305,40 @@ test('página pública usa navegação por seções, tema e acesso em janela', a
   assert.match(publicView, /data-public-auth-form="login"/);
   assert.match(publicView, /data-public-auth-form="signup"/);
   assert.match(publicView, /data-public-auth-visitor/);
+  assert.match(publicView, /Mais do que disponibilizar conteúdo, o KAD dá continuidade ao estudo/);
+  assert.match(publicView, /Cada sessão parte de uma meta e termina com uma indicação clara do que retomar/);
+  assert.match(publicView, /O fluxo acompanha desde a construção de base até a rotina de pré-edital e a reta final/);
+  assert.match(publicView, /Cada ferramenta atende a uma etapa concreta/);
+  assert.match(publicView, /Os dados reunidos ajudam a comparar possibilidades/);
+  assert.match(publicView, /Os planos deixam claro o que cada etapa oferece antes do cadastro/);
+  assert.match(publicView, /Estas respostas explicam como iniciar/);
+  assert.match(publicView, /KAD Platina/);
+  assert.match(publicView, /KAD Diamante/);
+  assert.match(publicView, /Simulados personalizados e cronometrados/);
+  assert.match(publicView, /Trimestral: R\$ 39,99/);
+  assert.match(publicView, /os mesmos benefícios do KAD Platina/);
   assert.match(layout, /data-action="toggle-theme"/);
   assert.match(main, /setupWelcomeNavigation/);
   assert.match(main, /visitorAccess\.hidden = mode !== 'login'/);
   assert.match(main, /aria-current', 'location'/);
+  assert.match(main, /const resetLandingPosition = currentRoute\(\)\.pathname === '\/'/);
+  assert.match(main, /history\.replaceState\(globalThis\.history\.state, '', `\$\{globalThis\.location\.pathname\}\$\{globalThis\.location\.search\}`\)/);
+  assert.match(main, /requestAnimationFrame\(\(\) => globalThis\.scrollTo\(\{ top: 0, left: 0, behavior: 'auto' \}\)\)/);
   assert.match(styles, /\.public-shell--landing \.public-section-nav/);
   assert.match(styles, /\.public-shell--landing \.landing-plans \{[\s\S]+grid-template-columns: repeat\(3/);
   assert.match(styles, /\.public-shell--landing \.landing-section--about \.landing-benefits/);
+  assert.match(styles, /\.public-shell--landing \.landing-section \{ padding-block: 0; scroll-margin-top: 12px; \}/);
+  assert.match(styles, /@media \(max-width: 1180px\)[\s\S]+?\.public-shell--landing \.landing-section \{ scroll-margin-top: 64px; \}/);
+  assert.match(styles, /\.public-shell--landing \.landing-hero__inner \{[\s\S]+?padding: clamp\(56px, 6vw, 88px\)/);
+  assert.match(styles, /\.public-shell--landing \.landing-faq details \{ padding-block: 12px; \}/);
+  assert.match(styles, /\.public-shell--landing \.landing-plan__summary/);
+  assert.match(styles, /\.public-shell--landing \.landing-plan__cycles/);
+  assert.match(styles, /\.public-shell--landing \.landing-plans article \{[\s\S]+display: flex[\s\S]+flex-direction: column/);
+  assert.match(styles, /\.public-shell--landing \.landing-plan__label \{[\s\S]+top: 0; left: 0/);
+  assert.match(styles, /@media \(max-width: 1180px\)[\s\S]+?\.public-shell--landing \.landing-plans \{ grid-template-columns: repeat\(2/);
+  assert.match(styles, /@media \(max-width: 820px\)[\s\S]+?\.public-shell--landing \.landing-plans \{ grid-template-columns: 1fr; \}/);
+  assert.match(styles, /\.public-shell--landing \.public-header__inner/);
+  assert.match(styles, /\.public-shell--landing \.landing-footer \{[\s\S]+?gap: 42px/);
   assert.match(styles, /\.public-shell--landing \.landing-hero__signal::before \{ content: none; \}/);
   assert.match(styles, /\.public-auth-dialog::backdrop/);
 });

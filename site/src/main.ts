@@ -1132,8 +1132,15 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'toggle-theme') {
+    const resetLandingPosition = currentRoute().pathname === '/' && document.querySelector('.public-shell--landing') instanceof HTMLElement;
+    if (resetLandingPosition && globalThis.location.hash) {
+      globalThis.history.replaceState(globalThis.history.state, '', `${globalThis.location.pathname}${globalThis.location.search}`);
+    }
     const dark = document.documentElement.dataset.theme === 'dark';
     store.update((draft) => { draft.preferences.theme = dark ? 'light' : 'dark'; });
+    if (resetLandingPosition) {
+      globalThis.requestAnimationFrame(() => globalThis.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+    }
     return;
   }
   if (action === 'open-public-auth') {
