@@ -7,7 +7,7 @@ import ts from 'typescript';
 test('return handlers preserve study sync and subscription refresh without crossing accounts', async () => {
   const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
   const start = main.indexOf('let subscriptionRefreshPending = false;');
-  const end = main.indexOf('levelTracker.subscribe(() => render());', start);
+  const end = main.indexOf('levelTracker.subscribe(', start);
   assert.ok(start >= 0 && end > start);
   const source = ts.transpileModule(main.slice(start, end), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },

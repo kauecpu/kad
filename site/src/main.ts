@@ -33,11 +33,13 @@ import {
   rememberCheckoutReturn,
   validateCheckoutReturn,
 } from './core/checkout-return.ts';
-import { randomId } from './core/utils.ts';
+import { escapeHtml, randomId } from './core/utils.ts';
 import { levelTracker, recordSiteLevelActivity, siteLevelEventId } from './core/levels.ts';
 import { hydrateIcons } from './ui/icons.ts';
 import { appLayout, publicLayout } from './ui/layout.ts';
 import { emptyState, icon } from './ui/components.ts';
+import { achievementIconName } from './ui/gamification.ts';
+import type { RankingPeriod } from '../../data/ranking.ts';
 import { updateMetadata } from './services/metadata.ts';
 import {
   cancelRemoteSubscription,
@@ -56,6 +58,7 @@ import {
   reconcileRemoteCheckout,
   loadQuestionComments,
   loadQuestionCommunityAccuracy,
+  loadRemoteRanking,
   loadRemoteEssayDocuments,
   loadRemoteFlashcards,
   loadRemoteProfile,
@@ -82,6 +85,7 @@ import {
   setQuestionCommentLiked,
   supabaseConfigured,
   updateAccountPassword,
+  updateRemoteRankingOptIn,
   updateQuestionComment,
   updateRecoveredPassword,
   uploadRemoteAvatar,
@@ -117,6 +121,7 @@ import {
   plansView,
   profileEditView,
   profileView,
+  settingsView,
 } from './views/profile.ts';
 import {
   flashcardDeckEditorView,
@@ -128,6 +133,7 @@ import type {
   AlternativeId,
   BillingCycle,
   FlashcardRating,
+  RankingUiState,
   Route,
   SiteState,
   UiState,
@@ -142,6 +148,9 @@ let navigationTrigger: HTMLElement | null = null;
 const loadedCommunityKeys = new Set<string>();
 const loadingCommunityKeys = new Set<string>();
 const levelReviewReady = new Set<string>();
+const rankingResources = new Map<string, RankingUiState>();
+let gamificationNoticeElement: HTMLElement | null = null;
+let gamificationNoticeTimer: ReturnType<typeof setTimeout> | null = null;
 const checkoutRequestScope = createCheckoutRequestScope();
 const checkoutReturnStorage = (() => {
   try { return globalThis.sessionStorage; } catch { return null; }
@@ -158,6 +167,81 @@ const paymentActionScope = createPaymentActionScope(() => {
   ui.checkoutTimer = null;
   ui.checkoutId = '';
 });
+
+function rankingPeriod(params: Record<string, string | undefined>): RankingPeriod {
+  return params.period === 'month' || params.period === 'all' ? params.period : 'today';
+}
+
+function rankingResourceKey(userId: string, period: RankingPeriod): string {
+  return `${userId}:${period}`;
+}
+
+function rankingState(userId: string | null, period: RankingPeriod): RankingUiState {
+  if (!userId) return { status: 'idle', snapshot: null, error: '', savingPreference: false };
+  return rankingResources.get(rankingResourceKey(userId, period))
+    ?? { status: 'idle', snapshot: null, error: '', savingPreference: false };
+}
+
+function ensureRanking(userId: string | null, period: RankingPeriod, { force = false }: { force?: boolean } = {}): void {
+  if (!userId) return;
+  const key = rankingResourceKey(userId, period);
+  const existing = rankingResources.get(key);
+  if (!force && existing && existing.status !== 'idle') return;
+  const resource: RankingUiState = {
+    status: 'loading',
+    snapshot: force ? existing?.snapshot ?? null : null,
+    error: '',
+    savingPreference: false,
+  };
+  rankingResources.set(key, resource);
+  void loadRemoteRanking(period).then((snapshot) => {
+    if (rankingResources.get(key) !== resource || store.getState().auth.userId !== userId) return;
+    resource.snapshot = snapshot;
+    resource.status = 'ready';
+    render();
+  }).catch(() => {
+    if (rankingResources.get(key) !== resource || store.getState().auth.userId !== userId) return;
+    resource.status = 'error';
+    resource.error = 'Não foi possível carregar os dados confirmados do ranking.';
+    render();
+  });
+}
+
+function ensureRankingForRoute(route: Route, state: SiteState): void {
+  const userId = state.auth.userId;
+  if (!userId) return;
+  if (route.pathname === '/ranking') ensureRanking(userId, rankingPeriod(route.params));
+  if (route.pathname === '/perfil' || route.pathname === '/configuracoes') ensureRanking(userId, 'all');
+}
+
+function dismissGamificationNotice(): void {
+  gamificationNoticeElement?.remove();
+  gamificationNoticeElement = null;
+  if (gamificationNoticeTimer !== null) clearTimeout(gamificationNoticeTimer);
+  gamificationNoticeTimer = null;
+}
+
+function showGamificationNotice(): void {
+  if (gamificationNoticeElement?.isConnected) return;
+  const notice = levelTracker.getState().notices[0];
+  if (!notice) return;
+  const achievement = notice.achievements[0];
+  const prominent = Boolean(achievement || notice.level);
+  const title = achievement ? 'Conquista desbloqueada' : notice.level ? `Você alcançou o nível ${notice.level}` : `+${notice.xp} XP`;
+  const description = achievement?.description ?? (notice.level ? 'Seu estudo acumulado levou você a um novo nível.' : 'Atividade válida registrada no seu progresso.');
+  const element = document.createElement('aside');
+  element.className = `gamification-notice ${prominent ? 'gamification-notice--prominent' : ''}`;
+  element.setAttribute('role', 'status');
+  element.setAttribute('aria-live', 'polite');
+  element.innerHTML = `<span class="gamification-notice__icon">${icon(achievementIconName(achievement?.icon ?? 'sparkles-outline'))}</span><span class="gamification-notice__copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}${notice.xp > 0 ? ` +${notice.xp} XP confirmados.` : ''}</small></span>${achievement ? '<button type="button" data-action="view-achievements">Ver conquistas</button>' : ''}<button class="gamification-notice__close" type="button" data-action="close-gamification" aria-label="Fechar aviso">${icon('X')}</button>`;
+  gamificationNoticeElement = element;
+  document.body.append(element);
+  hydrateIcons(element);
+  announcer.textContent = `${title}. ${description}`;
+  void levelTracker.consumeNotice(notice.id);
+  const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  gamificationNoticeTimer = setTimeout(dismissGamificationNotice, prominent ? 7000 : reduceMotion ? 900 : 1800);
+}
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -244,6 +328,7 @@ let renderedStudyOwner: string | null | undefined;
 async function hydrateAuthenticatedUser(user: { id: string; email?: string | null; user_metadata?: { name?: unknown; full_name?: unknown } }): Promise<void> {
   const hydrationVersion = ++studyHydrationVersion;
   paymentActionScope.clear();
+  rankingResources.clear();
   store.switchOwner(user.id);
   void levelTracker.selectOwner(user.id);
   const [remote, subscription, profile, essays, simulations, flashcards] = await Promise.all([
@@ -306,7 +391,7 @@ function resolveView(route: Route, state: SiteState): ViewModel {
   if (pathname === '/onboarding') return onboardingView(state);
   if (pathname === '/termos') return legalView('termos');
   if (pathname === '/privacidade') return legalView('privacidade');
-  if (pathname === '/inicio') return homeView(state);
+  if (pathname === '/inicio') return homeView(state, levelTracker.getState());
   if (pathname === '/questoes') return questionsIndexView(state);
   if (pathname === '/questoes/buscar') return searchView(state, params);
   if (pathname === '/questoes/sessao') return questionSessionView(state, params, ui);
@@ -318,7 +403,7 @@ function resolveView(route: Route, state: SiteState): ViewModel {
   if (pathname === '/simulados/configurar') return simulationConfigView(params);
   if (pathname === '/simulados/em-andamento') return simulationPlayerView(state);
   if (pathname === '/simulados/resultado') return simulationResultView(state, params.id);
-  if (pathname === '/ranking') return rankingView(state, params);
+  if (pathname === '/ranking') return rankingView(state, params, rankingState(state.auth.userId, rankingPeriod(params)));
   if (pathname === '/concursos') return concursosView(state, params);
   if (pathname === '/concursos/salvos') return concursosView(state, params, true);
   const concurso = matchRoute('/concursos/:id', pathname);
@@ -332,7 +417,8 @@ function resolveView(route: Route, state: SiteState): ViewModel {
   if (flashcard) return flashcardEditorView(state, flashcard.id);
   const flashcardDeck = matchRoute('/flashcards/baralho/:id', pathname);
   if (flashcardDeck) return flashcardDeckEditorView(state, flashcardDeck.id);
-  if (pathname === '/perfil') return profileView(state, levelTracker.getState());
+  if (pathname === '/perfil') return profileView(state, levelTracker.getState(), rankingState(state.auth.userId, 'all'), params);
+  if (pathname === '/configuracoes') return settingsView(state, rankingState(state.auth.userId, 'all'));
   if (pathname === '/perfil/desempenho') return performanceView(state);
   if (pathname === '/perfil/editar') return profileEditView(state);
   if (pathname === '/perfil/planos') return plansView(state, params, ui.checkoutProgress);
@@ -674,6 +760,7 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
     return;
   }
   applyTheme(state);
+  ensureRankingForRoute(route, state);
   const view: ViewModel = resolveView(route, state);
   const layout = view.layout?.startsWith('public')
     ? publicLayout(view.content, { simple: view.layout === 'public-simple', dark: document.documentElement.dataset.theme === 'dark', backendState })
@@ -1143,6 +1230,21 @@ document.addEventListener('click', async (event) => {
     }
     return;
   }
+  if (action === 'theme-preference') {
+    const preference = target.dataset.theme;
+    if (preference !== 'system' && preference !== 'light' && preference !== 'dark') return;
+    store.update((draft) => { draft.preferences.theme = preference; });
+    return;
+  }
+  if (action === 'close-gamification') {
+    dismissGamificationNotice();
+    return;
+  }
+  if (action === 'view-achievements') {
+    dismissGamificationNotice();
+    navigate('/perfil?conquistas=all');
+    return;
+  }
   if (action === 'open-public-auth') {
     const dialog = document.querySelector<HTMLDialogElement>('[data-public-auth-dialog]');
     if (!dialog) return;
@@ -1182,6 +1284,7 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'continue-visitor' || action === 'skip-onboarding') {
+    rankingResources.clear();
     await levelTracker.selectOwner(null);
     store.switchOwner(null);
     store.update((draft) => {
@@ -1470,6 +1573,54 @@ document.addEventListener('click', async (event) => {
     navigate(`/ranking?${new URLSearchParams(params)}`);
     return;
   }
+  if (action === 'retry-ranking') {
+    if (!state.auth.userId) return;
+    const period = currentRoute().pathname === '/ranking' ? rankingPeriod(currentRoute().params) : 'all';
+    ensureRanking(state.auth.userId, period, { force: true });
+    render();
+    return;
+  }
+  if (action === 'ranking-opt-in') {
+    if (!(target instanceof HTMLInputElement) || !state.auth.userId) return;
+    const userId = state.auth.userId;
+    const resource = rankingResources.get(rankingResourceKey(userId, 'all'));
+    if (!resource || resource.savingPreference) return;
+    const requested = target.checked;
+    resource.savingPreference = true;
+    resource.error = '';
+    render();
+    try {
+      const enabled = await updateRemoteRankingOptIn(requested);
+      if (store.getState().auth.userId !== userId) return;
+      for (const [key, cached] of rankingResources) {
+        if (!key.startsWith(`${userId}:`) || !cached.snapshot?.currentUser) continue;
+        cached.snapshot.currentUser.isPublic = enabled;
+      }
+      toast(enabled ? 'Sua participação pública no ranking foi ativada.' : 'Sua participação pública no ranking foi desativada.');
+    } catch {
+      if (store.getState().auth.userId === userId) resource.error = 'Não foi possível salvar sua participação. Tente novamente.';
+    } finally {
+      if (store.getState().auth.userId === userId) {
+        resource.savingPreference = false;
+        render();
+      }
+    }
+    return;
+  }
+  if (action === 'reset-performance') {
+    if (!globalThis.confirm('Zerar desempenho?\n\nIsso apagará todas as respostas registradas. Não é possível desfazer.')) return;
+    if (!studySync.getState().ready || studySync.getState().owner !== state.auth.userId) {
+      toast('Aguarde o carregamento do progresso antes de zerar o desempenho.');
+      return;
+    }
+    studySync.reset();
+    store.update((draft) => {
+      draft.answers = {};
+      draft.activityByDate = {};
+    });
+    toast('Desempenho zerado.');
+    return;
+  }
   if (action === 'trail-mode') return navigate(`/trilhas?mode=${target.dataset.mode}`);
   if (action === 'retry-level') {
     if (levelTracker.getState().storageError) await levelTracker.selectOwner(state.auth.userId);
@@ -1481,6 +1632,8 @@ document.addEventListener('click', async (event) => {
     paymentActionScope.clear();
     checkoutDiscoveryVersion += 1;
     checkoutDiscoveryOwner = '';
+    rankingResources.clear();
+    dismissGamificationNotice();
     clearCheckoutReturn(checkoutReturnStorage);
     await signOut();
     await levelTracker.selectOwner(null);
@@ -1721,7 +1874,10 @@ globalThis.addEventListener('focus', () => { void studySync.sync(); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') void studySync.sync();
 });
-levelTracker.subscribe(() => render());
+levelTracker.subscribe(() => {
+  render();
+  showGamificationNotice();
+});
 void levelTracker.selectOwner(null);
 applyTheme();
 render({ routeChanged: true });
@@ -1773,6 +1929,8 @@ void initializeSupabase().then((configured) => {
     if (user && store.getOwnerId() !== user.id) void hydrateAuthenticatedUser(user);
     if (!user && store.getOwnerId()) {
       studyHydrationVersion++;
+      rankingResources.clear();
+      dismissGamificationNotice();
       store.switchOwner(null);
       void levelTracker.selectOwner(null);
       toast('Sua sessão terminou. Entre novamente para sincronizar seu progresso.');

@@ -15,7 +15,8 @@ import { filterQuestions, formatCount, matchesPack, questionsPerformance } from 
 import { matchRoute, shouldOpenStudyHome } from '../src/core/router.ts';
 import { questionSessionView, questionsIndexView } from '../src/views/questions.ts';
 import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.ts';
-import { profileView } from '../src/views/profile.ts';
+import { profileView, settingsView } from '../src/views/profile.ts';
+import { rankingView } from '../src/views/explore.ts';
 import { levelProgress } from '../../contracts/levels.ts';
 import { stackHeader } from '../src/ui/layout.ts';
 import {
@@ -66,24 +67,55 @@ test('páginas internas mantêm um único título e explicam o modo visitante', 
 
   const visitor = createStore(memoryStorage()).getState();
   const level = { owner: null, status: 'ready' as const, progress: levelProgress(0), pending: 0, storageError: false, achievements: [], notices: [] };
-  assert.equal(profileView(visitor, level).subtitle, 'Dados salvos neste navegador');
+  assert.equal(profileView(visitor, level).subtitle, 'Identidade, progresso e conquistas');
   assert.match(profileView(visitor, level).content, /Nível 0 de 100/);
+  assert.match(profileView(visitor, level).content, /Modo visitante/);
+  assert.match(settingsView(visitor).content, /Aparência e acessibilidade/);
+  assert.match(settingsView(visitor).content, /Participação no ranking/);
   visitor.auth = { mode: 'authenticated', userId: 'user-a' };
-  assert.equal(profileView(visitor, { ...level, owner: 'user-a' }).subtitle, 'Dossiê do candidato');
+  assert.equal(profileView(visitor, { ...level, owner: 'user-a' }).title, 'Meu perfil');
 });
 
 test('catálogo de navegação preserva rotas, grupos e estado ativo', () => {
-  assert.deepEqual(navigationGroups.map((group) => group.label), ['Estudar', 'Preparar', 'Acompanhar']);
+  assert.deepEqual(navigationGroups.map((group) => group.label), ['Estudar', 'Preparar', 'Acompanhar', 'Conta']);
   assert.equal(mobilePrimaryNavigation.length, 4);
   assert.ok(mobilePrimaryNavigation.every((item) => !mobileSecondaryNavigation.some((secondary) => secondary.href === item.href)));
   assert.ok(mobileSecondaryNavigation.some((item) => item.href === '/concursos'));
   assert.ok(mobileSecondaryNavigation.some((item) => item.href === '/perfil'));
+  assert.ok(mobileSecondaryNavigation.some((item) => item.href === '/configuracoes'));
   assert.equal(isNavigationItemActive('/questoes', '/questoes/disciplina/portugues'), true);
   assert.equal(isNavigationItemActive('/inicio', '/inicio/detalhe'), false);
   assert.equal(isMobileMoreActive('/concursos/tj-sp'), true);
   assert.equal(isMobileMoreActive('/perfil'), true);
+  assert.equal(isMobileMoreActive('/configuracoes'), true);
   assert.equal(isMobileMoreActive('/questoes/buscar'), false);
 });
+
+test('ranking autenticado renderiza somente o snapshot confirmado e escapa identidades', () => {
+  const state = createStore(memoryStorage()).getState();
+  state.auth = { mode: 'authenticated', userId: 'user-a' };
+  const ranking = {
+    status: 'ready' as const,
+    error: '',
+    savingPreference: false,
+    snapshot: {
+      period: 'month' as const,
+      entries: [{ name: '<Aluno>', username: 'aluno', points: 420, level: 3, activityCount: 12, rank: 2 }],
+      currentUser: { name: 'Você', username: 'voce', points: 360, level: 2, activityCount: 9, rank: 4, isPublic: true },
+      totalParticipants: 18,
+      limit: 100,
+      offset: 0,
+    },
+  };
+
+  const view = rankingView(state, { period: 'month' }, ranking);
+  assert.match(view.content, /#4 · Você/);
+  assert.match(view.content, /&lt;Aluno&gt;/);
+  assert.doesNotMatch(view.content, /<Aluno>/);
+  assert.match(view.content, /18 participantes/);
+  assert.match(settingsView(state, ranking).content, /checked/);
+});
+
 test('busca combina palavra-chave, disciplina e pacote sem misturar escopos', () => {
   const { questions, packs } = getCatalog();
   const pack = packs.find((item) => questions.some((question) => matchesPack(question, item)));

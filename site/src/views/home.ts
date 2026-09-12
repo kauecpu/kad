@@ -1,9 +1,12 @@
 import { getCatalog } from '../data/catalog.ts';
 import { escapeHtml, formatCount, formatPercent, localDay, questionsPerformance } from '../core/utils.ts';
 import { badge, button, icon, progress, section, studyNextAction, studyPlanRow } from '../ui/components.ts';
+import { achievementIconName } from '../ui/gamification.ts';
 import type { SiteState, ViewModel } from '../types/domain.ts';
+import type { LevelState } from '../../../contracts/level-tracker.ts';
+import { nextLockedAchievement } from '../../../contracts/achievements.ts';
 
-export function homeView(state: SiteState): ViewModel {
+export function homeView(state: SiteState, levelState?: LevelState): ViewModel {
   const catalog = getCatalog();
   const performance = questionsPerformance(state.answers);
   const weeklyAnswered = Object.values(state.activityByDate).slice(-7).flat().length;
@@ -57,6 +60,10 @@ export function homeView(state: SiteState): ViewModel {
         return `<button class="study-history__row" type="button" data-action="open-question" data-question-id="${escapeHtml(answer.questionId)}"><span class="study-history__status study-history__status--${answer.isCorrect ? 'success' : 'warning'}">${icon(answer.isCorrect ? 'Check' : 'RotateCcw')}</span><span><strong>${escapeHtml(question?.topic ?? answer.subject)}</strong><small>${answer.isCorrect ? 'Concluída' : 'Separada para revisão'} · ${escapeHtml(question?.board ?? 'KAD')}</small></span>${icon('ArrowRight')}</button>`;
       }).join('')}</div>`
     : `<div class="study-empty-line"><span>${icon('BookOpen')}</span><div><strong>Seu histórico começa na primeira resposta.</strong><p>Sem gráficos vazios: quando houver dados, eles aparecem aqui.</p></div></div>`;
+  const nextAchievement = levelState ? nextLockedAchievement(levelState.achievements) : null;
+  const achievementCard = nextAchievement
+    ? `<button class="next-achievement" type="button" data-route="/perfil?conquistas=${nextAchievement.category}" aria-label="Próxima conquista: ${escapeHtml(nextAchievement.title)}. ${nextAchievement.value} de ${nextAchievement.threshold}. Abrir perfil"><span class="next-achievement__icon">${icon(achievementIconName(nextAchievement.icon))}</span><span class="next-achievement__copy"><small>PRÓXIMA CONQUISTA</small><strong>${escapeHtml(nextAchievement.title)}</strong><span>${nextAchievement.value.toLocaleString('pt-BR')} de ${nextAchievement.threshold.toLocaleString('pt-BR')}</span>${progress(nextAchievement.progress * 100, `Progresso de ${nextAchievement.title}`)}</span>${icon('ArrowRight')}</button>`
+    : '';
 
   return {
     title: `Olá, ${firstName}`,
@@ -78,6 +85,8 @@ export function homeView(state: SiteState): ViewModel {
           ${button('Ajustar meta', { route: '/meta', variant: 'ghost', size: 'sm', iconName: 'Settings2' })}
         </aside>
       </div>
+
+      ${achievementCard}
 
       ${section('Um plano curto, em ordem', `<div class="study-plan">${todayPlan}</div>`, {
         eyebrow: 'HOJE',

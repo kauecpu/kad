@@ -13,7 +13,9 @@ import {
 } from '../core/utils.ts';
 import { avatar, badge, button, card, emptyState, icon, progress, section, stat, timelineStep, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
-import type { Concurso, ConcursoPack, Question, SiteState, ViewModel } from '../types/domain.ts';
+import { RANKING_PERIOD_LABELS, type RankingPeriod } from '../../../data/ranking.ts';
+import { rankingInitials, type RankingEntry } from '../../../lib/ranking.ts';
+import type { Concurso, ConcursoPack, Question, RankingUiState, SiteState, ViewModel } from '../types/domain.ts';
 
 type ViewParams = Record<string, string | undefined>;
 
@@ -97,20 +99,69 @@ export function concursoDetailView(id: string, state: SiteState): ViewModel {
   };
 }
 
-export function rankingView(_state: SiteState, _params: ViewParams = {}): ViewModel {
+function rankingRow(entry: RankingEntry): string {
+  const identity = entry.username ? `@${entry.username} · nível ${entry.level}` : `Nível ${entry.level}`;
+  return `<div class="ranking-row" role="listitem" aria-label="${entry.rank}º lugar, ${escapeHtml(entry.name)}, ${entry.points.toLocaleString('pt-BR')} XP, nível ${entry.level}">
+    <strong class="ranking-row__rank">#${entry.rank}</strong>
+    <span class="ranking-row__avatar ranking-row__avatar--${entry.rank <= 3 ? 'podium' : 'default'}" aria-hidden="true">${escapeHtml(rankingInitials(entry.name))}</span>
+    <span class="ranking-row__identity"><strong>${escapeHtml(entry.name)}</strong><small>${escapeHtml(identity)}</small></span>
+    <span class="ranking-row__activity">${formatCount(entry.activityCount, 'atividade válida', 'atividades válidas')}</span>
+    <span class="ranking-row__score"><strong>${entry.points.toLocaleString('pt-BR')}</strong><small>XP</small></span>
+  </div>`;
+}
+
+export function rankingView(state: SiteState, params: ViewParams = {}, ranking: RankingUiState): ViewModel {
+  const period: RankingPeriod = params.period === 'month' || params.period === 'all' ? params.period : 'today';
+  const periodOptions: [RankingPeriod, string][] = [['today', 'Hoje'], ['month', 'Mês'], ['all', 'Geral']];
+  const periodControl = `<div class="ranking-period" aria-label="Período do ranking"><span class="eyebrow">PERÍODO</span><div class="segmented" role="group">${periodOptions.map(([value, label]) => `<button type="button" data-action="ranking-period" data-period="${value}" class="${period === value ? 'is-active' : ''}" aria-pressed="${period === value}">${label}</button>`).join('')}</div></div>`;
+
+  if (state.auth.mode !== 'authenticated') {
+    return {
+      title: 'Ranking',
+      subtitle: 'XP confirmado pelo estudo',
+      content: `<div class="ranking-workspace">${periodControl}${emptyState('Entre para participar', 'O ranking usa apenas XP confirmado na sua conta.', { route: '/entrar', actionLabel: 'Entrar na conta', iconName: 'UserRound' })}</div>`,
+    };
+  }
+
+  if (ranking.status === 'loading' || ranking.status === 'idle') {
+    return {
+      title: 'Ranking',
+      subtitle: 'XP confirmado pelo estudo',
+      content: `<div class="ranking-workspace">${periodControl}<section class="ranking-status" role="status" aria-live="polite" aria-busy="true"><span class="level-spinner" aria-hidden="true"></span><p>Carregando classificação…</p></section></div>`,
+    };
+  }
+
+  if (ranking.status === 'error' && !ranking.snapshot) {
+    return {
+      title: 'Ranking',
+      subtitle: 'XP confirmado pelo estudo',
+      content: `<div class="ranking-workspace">${periodControl}<section class="ranking-status ranking-status--error" role="alert"><span class="level-status-icon">${icon('CloudOff')}</span><div><h2>Não foi possível carregar o ranking agora.</h2><p>${escapeHtml(ranking.error || 'Seu estudo continua salvo. Tente novamente em instantes.')}</p></div>${button('Tentar novamente', { action: 'retry-ranking', variant: 'secondary', iconName: 'RotateCcw' })}</section></div>`,
+    };
+  }
+
+  const snapshot = ranking.snapshot;
+  if (!snapshot) {
+    return {
+      title: 'Ranking',
+      subtitle: 'XP confirmado pelo estudo',
+      content: `<div class="ranking-workspace">${periodControl}${emptyState('Ranking começando', 'Ainda não há classificação disponível neste período.', { route: '/questoes', actionLabel: 'Responder questões', iconName: 'Trophy' })}</div>`,
+    };
+  }
+
+  const current = snapshot.currentUser;
   return {
     title: 'Ranking',
-    subtitle: 'Pontuação confirmada, participação opcional',
-    content: `
-      ${workspaceHero({
-        id: 'ranking-overview',
-        eyebrow: 'RANKING KAD',
-        title: 'O ranking agora usa somente atividade confirmada.',
-        description: 'A versão web não mostra participantes demonstrativos. Consulte o ranking no aplicativo KAD depois de entrar na sua conta e escolha se deseja aparecer publicamente.',
-        actions: `${badge('Sem dados fictícios', 'success', 'ShieldCheck')}${button('Continuar estudando', { route: '/questoes', iconName: 'TrendingUp' })}`,
-      })}
-      ${emptyState('Ranking disponível no aplicativo', 'A posição é calculada pelo servidor nos períodos de hoje, mês e todos os tempos. Usuários sem opt-in continuam privados.', { route: '/questoes', actionLabel: 'Responder questões', iconName: 'Trophy' })}
-    `,
+    subtitle: 'XP confirmado pelo estudo',
+    content: `<div class="ranking-workspace">
+      ${periodControl}
+      <button class="ranking-privacy" type="button" data-route="/configuracoes"><span class="ranking-privacy__icon">${icon('ShieldCheck')}</span><span><strong>Privacidade do ranking</strong><small>Sua participação pública é controlada nas Configurações.</small></span>${icon('ArrowRight')}</button>
+      ${ranking.status === 'error' ? `<p class="ranking-inline-error" role="alert">${escapeHtml(ranking.error)}</p>` : ''}
+      ${current ? `<section class="ranking-position" aria-label="Sua posição ${RANKING_PERIOD_LABELS[period]}: ${current.rank}, com ${current.points} XP"><span class="ranking-position__icon">${icon('Trophy')}</span><div><p class="eyebrow">SUA POSIÇÃO ${RANKING_PERIOD_LABELS[period].toLocaleUpperCase('pt-BR')}</p><h2>#${current.rank} · ${escapeHtml(current.name)}</h2><p>${current.isPublic ? 'Posição pública' : 'Posição estimada e privada'} · nível ${current.level} · ${formatCount(current.activityCount, 'atividade válida', 'atividades válidas')}</p></div><span class="ranking-position__score"><strong>${current.points.toLocaleString('pt-BR')}</strong><small>XP</small></span></section>` : ''}
+      <section class="ranking-classification" aria-labelledby="ranking-list-title">
+        <header><div><p class="eyebrow">CLASSIFICAÇÃO</p><h2 id="ranking-list-title">Destaques ${RANKING_PERIOD_LABELS[period]}</h2></div><span>${formatCount(snapshot.totalParticipants, 'participante', 'participantes')}</span></header>
+        ${snapshot.entries.length ? `<div class="ranking-list" role="list">${snapshot.entries.map(rankingRow).join('')}</div>` : emptyState('Ranking começando', 'Ainda não há participantes públicos neste período.', { route: '/questoes', actionLabel: 'Responder questões', iconName: 'Trophy' })}
+      </section>
+    </div>`,
   };
 }
 

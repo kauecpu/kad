@@ -51,7 +51,7 @@ export function publicLayout(content: string, { simple = false, dark = false, ba
 function experienceArchetype(pathname: string): 'desk' | 'catalog' | 'session' | 'journey' | 'settings' {
   if (/^\/(questoes\/(sessao|desafio)|simulados\/em-andamento|flashcards\/revisar)/.test(pathname)) return 'session';
   if (/^\/(trilhas|ranking|perfil\/desempenho|questoes\/revisar|simulados\/resultado)/.test(pathname)) return 'journey';
-  if (pathname.startsWith('/perfil')) return 'settings';
+  if (pathname.startsWith('/perfil') || pathname === '/configuracoes') return 'settings';
   if (/^\/(questoes|simulados|concursos|redacao|flashcards|biblioteca)/.test(pathname)) return 'catalog';
   return 'desk';
 }
@@ -61,7 +61,7 @@ export function appLayout(content: string, { pathname, title, subtitle, state, b
   const dark = document.documentElement.dataset.theme === 'dark';
   const experience = experienceArchetype(pathname);
   return `
-    <div class="app-shell app-shell--${experience}${pathname.startsWith('/perfil') ? ' app-shell--profile' : ''}" data-study-environment="${experience}">
+    <div class="app-shell app-shell--${experience}${pathname.startsWith('/perfil') || pathname === '/configuracoes' ? ' app-shell--profile' : ''}" data-study-environment="${experience}">
       <aside class="sidebar" id="main-navigation">
         <div class="sidebar__header">
           <a href="/inicio" data-route="/inicio" class="brand brand--sidebar" aria-label="KAD Concursos — início">
@@ -75,13 +75,6 @@ export function appLayout(content: string, { pathname, title, subtitle, state, b
             <div class="sidebar__nav">${group.items.map((item) => navLink(item, pathname)).join('')}</div>
           </section>`).join('')}
         </nav>
-        <div class="sidebar__footer">
-          <a class="profile-summary ${isNavigationItemActive('/perfil', pathname) ? 'is-active' : ''}" href="/perfil" data-route="/perfil" ${isNavigationItemActive('/perfil', pathname) ? 'aria-current="page"' : ''}>
-            ${avatar(profile.name, 'md', profile.avatarUri)}
-            <span><strong>${escapeHtml(profile.name)}</strong><small>${state.auth.mode === 'authenticated' ? 'Conta KAD' : 'Modo visitante'}</small></span>
-            ${icon('ChevronRight')}
-          </a>
-        </div>
       </aside>
       <div class="app-column">
         <header class="topbar">

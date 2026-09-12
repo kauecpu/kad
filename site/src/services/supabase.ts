@@ -10,6 +10,9 @@ import { subscriptionFromRemoteRecord, type RemoteSubscriptionRecord } from '../
 import { ownedPaymentAuthorization } from '../core/payment-actions.ts';
 import { confirmationRouteWithCheckout } from '../core/checkout-return.ts';
 import { mapPublishedConcursos, mapPublishedQuestions } from './published-content.ts';
+import { parseRankingSnapshot, type RankingSnapshot } from '../../../lib/ranking.ts';
+import type { RankingPeriod } from '../../../data/ranking.ts';
+import type { LevelRemoteResult } from '../../../contracts/level-tracker.ts';
 import type {
   AlternativeId,
   BillingCycle,
@@ -269,7 +272,7 @@ export async function watchStudySession(onChange: (user: User | null) => void): 
   return () => data.subscription.unsubscribe();
 }
 
-export async function recordRemoteLevelActivity(userId: string, event: Record<string, unknown> | null): Promise<{ totalXp: number }> {
+export async function recordRemoteLevelActivity(userId: string, event: Record<string, unknown> | null): Promise<LevelRemoteResult> {
   const remote = await client();
   if (!remote) throw new Error('XP indisponível');
   const { data: auth } = await remote.auth.getSession();
@@ -277,7 +280,28 @@ export async function recordRemoteLevelActivity(userId: string, event: Record<st
   const { data, error } = await remote.rpc('record_level_activity', { p_event: event });
   if (error) throw error;
   if (!data || !Number.isSafeInteger(data.totalXp) || data.totalXp < 0) throw new Error('Resposta de XP inválida.');
-  return { totalXp: data.totalXp };
+  return data as LevelRemoteResult;
+}
+
+export async function loadRemoteRanking(period: RankingPeriod, offset = 0): Promise<RankingSnapshot> {
+  const remote = await client();
+  if (!remote) throw new Error('Ranking indisponível');
+  const { data, error } = await remote.rpc('get_ranking', {
+    p_period: period,
+    p_limit: 100,
+    p_offset: offset,
+  });
+  if (error) throw error;
+  return parseRankingSnapshot(data);
+}
+
+export async function updateRemoteRankingOptIn(enabled: boolean): Promise<boolean> {
+  const remote = await client();
+  if (!remote) throw new Error('Preferência de ranking indisponível');
+  const { data, error } = await remote.rpc('set_ranking_opt_in', { p_enabled: enabled });
+  if (error) throw error;
+  if (typeof data !== 'boolean') throw new Error('Não foi possível confirmar a preferência do ranking.');
+  return data;
 }
 
 export async function removeRemoteAnswer(userId: string, questionId: string): Promise<void> {

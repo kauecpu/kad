@@ -66,6 +66,8 @@ test('integrações web reutilizam RPCs seguras e apenas a chave pública', asyn
   assert.match(service, /from\('flashcard_reviews'\)/);
   assert.match(service, /rpc\('sync_essay_document'/);
   assert.match(service, /rpc\('sync_simulation_session'/);
+  assert.match(service, /rpc\('get_ranking'/);
+  assert.match(service, /rpc\('set_ranking_opt_in'/);
   assert.match(service, /from\('question_comments'\)/);
   assert.match(service, /delete-account/);
   assert.doesNotMatch(service, /service_role|SUPABASE_SERVICE/);
@@ -127,8 +129,15 @@ test('apresentação pública usa somente conteúdo real e não exibe mascotes d
 });
 
 test('ranking não inventa participantes e trilhas toleram questões sem dificuldade', async () => {
-  const explore = await source('src/views/explore.ts');
-  assert.match(explore, /Sem dados fictícios/);
+  const [explore, main, service] = await Promise.all([
+    source('src/views/explore.ts'),
+    source('src/main.ts'),
+    source('src/services/supabase.ts'),
+  ]);
+  assert.match(explore, /Ranking começando/);
+  assert.match(explore, /snapshot\.entries/);
+  assert.match(main, /loadRemoteRanking/);
+  assert.match(service, /parseRankingSnapshot/);
   assert.doesNotMatch(explore, /localRankingScore|rankingParticipants|DEMONSTRAÇÃO/);
   assert.match(explore, /left\.difficulty \?/);
 });
@@ -239,8 +248,8 @@ test('correções móveis reservam espaço para navegação e ampliam alvos de t
   assert.match(appStyles, /\.mobile-tabs \{[^}]+height: var\(--mobile-tabs-height\)/);
   assert.match(appStyles, /\.question-map button \{ min-width: 44px; min-height: 44px/);
   assert.match(appStyles, /\.comment__actions button \{[^}]+min-height: 44px/);
-  assert.match(appStyles, /\.profile-legal-links a \{[^}]+min-height: 44px/);
-  assert.match(profile, /profile-legal-links/);
+  assert.match(appStyles, /\.achievement-filters button \{[^}]+min-height: 44px/);
+  assert.match(profile, /achievement-filters/);
 });
 
 test('navegação interna agrupa tarefas e oferece no máximo cinco destinos móveis', async () => {
@@ -251,8 +260,8 @@ test('navegação interna agrupa tarefas e oferece no máximo cinco destinos mó
     source('src/styles/app.css'),
   ]);
 
-  for (const group of ['Estudar', 'Preparar', 'Acompanhar']) assert.match(navigation, new RegExp(`label: '${group}'`));
-  for (const route of ['/questoes', '/simulados', '/trilhas', '/concursos', '/perfil']) assert.match(navigation, new RegExp(`href: '${route}'`));
+  for (const group of ['Estudar', 'Preparar', 'Acompanhar', 'Conta']) assert.match(navigation, new RegExp(`label: '${group}'`));
+  for (const route of ['/questoes', '/simulados', '/trilhas', '/concursos', '/perfil', '/configuracoes']) assert.match(navigation, new RegExp(`href: '${route}'`));
   assert.match(layout, /mobilePrimaryNavigation\.map/);
   assert.match(layout, /<span>Mais<\/span>/);
   assert.match(layout, /sidebar__group/);
@@ -278,7 +287,7 @@ test('hierarquia interna prioriza cabeçalho compacto, ação e revelação prog
   assert.match(questions, /class="filter-disclosure"/);
   assert.doesNotMatch(flashcards, /class="creation-panel" open/);
   assert.match(profile, /class="library-primary"/);
-  assert.match(explore, /eyebrow: 'RANKING KAD'/);
+  assert.match(explore, /class="ranking-workspace"/);
   assert.doesNotMatch(explore, /DEMONSTRAÇÃO|Dados demonstrativos/);
   assert.match(styles, /\.workspace-hero \{[^}]+min-height: 0/);
   assert.match(styles, /\.question-search-panel__primary/);
