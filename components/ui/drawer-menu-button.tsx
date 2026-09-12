@@ -1,5 +1,5 @@
 import Ionicons from '@/components/ui/app-icon';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -10,6 +10,9 @@ type DrawerMenuButtonProps = {
 
 export function DrawerMenuButton({ onPress }: DrawerMenuButtonProps) {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+
+  if (width < 768) return null;
 
   return (
     <Pressable
