@@ -54,7 +54,7 @@ test('rotas canônicas, descendentes e legadas destacam o destino correto', () =
   assert.equal(bottomNavigationDestinationForPath('/perfil/editar'), 'account');
 });
 
-test('a barra usa safe area, alvos acessíveis e folhas modais sem remover o Drawer', () => {
+test('a barra usa safe area, alvos acessíveis e substitui o Drawer no celular', () => {
   const navigation = source('../components/kad-bottom-navigation.tsx');
   const layout = source('../app/(tabs)/_layout.tsx');
 
@@ -66,6 +66,8 @@ test('a barra usa safe area, alvos acessíveis e folhas modais sem remover o Dra
   assert.match(navigation, /onRequestClose=\{onClose\}/);
   assert.match(navigation, /const MIN_TOUCH_TARGET = 48/);
   assert.match(layout, /<KadBottomNavigation \/>/);
-  assert.match(layout, /width < 768/);
+  assert.match(layout, /const isMobile = width < 768/);
+  assert.match(layout, /swipeEnabled: !isMobile/);
+  assert.match(layout, /display: isMobile \? 'none' : 'flex'/);
   assert.match(layout, /<Drawer/);
 });

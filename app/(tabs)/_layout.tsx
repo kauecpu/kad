@@ -13,7 +13,7 @@ export const unstable_settings = {
 export default function MainLayout() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const showBottomNavigation = width < 768;
+  const isMobile = width < 768;
 
   return (
     <View style={styles.shell}>
@@ -22,14 +22,15 @@ export default function MainLayout() {
           drawerContent={(props) => <KadDrawerContent {...props} />}
           screenOptions={{
             headerShown: false,
-            drawerType: 'front',
-            swipeEnabled: true,
+            drawerType: isMobile ? 'front' : 'permanent',
+            swipeEnabled: !isMobile,
             swipeEdgeWidth: 32,
             overlayColor: colors.overlay,
             lazy: true,
             freezeOnBlur: Platform.OS !== 'web',
             drawerStyle: {
-              width: drawerWidth(width),
+              width: isMobile ? 0 : drawerWidth(width),
+              display: isMobile ? 'none' : 'flex',
               backgroundColor: colors.surface,
             },
             sceneStyle: { backgroundColor: colors.background },
@@ -49,7 +50,7 @@ export default function MainLayout() {
           <Drawer.Screen name="rank" options={{ title: 'Ranking antigo' }} />
         </Drawer>
       </View>
-      {showBottomNavigation ? <KadBottomNavigation /> : null}
+      {isMobile ? <KadBottomNavigation /> : null}
     </View>
   );
 }
