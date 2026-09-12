@@ -1,10 +1,8 @@
 import { Drawer } from 'expo-router/drawer';
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { KadBottomNavigation } from '@/components/kad-bottom-navigation';
-import { KadDrawerContent } from '@/components/kad-drawer-content';
 import { useTheme } from '@/hooks/use-theme';
-import { drawerWidth } from '@/lib/app-feature-catalog';
 
 export const unstable_settings = {
   initialRouteName: 'inicio',
@@ -12,25 +10,22 @@ export const unstable_settings = {
 
 export default function MainLayout() {
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
-  const isMobile = width < 768;
 
   return (
     <View style={styles.shell}>
       <View style={styles.content}>
         <Drawer
-          drawerContent={(props) => <KadDrawerContent {...props} />}
+          drawerContent={() => null}
           screenOptions={{
             headerShown: false,
-            drawerType: isMobile ? 'front' : 'permanent',
-            swipeEnabled: !isMobile,
-            swipeEdgeWidth: 32,
+            drawerType: 'front',
+            swipeEnabled: false,
             overlayColor: colors.overlay,
             lazy: true,
             freezeOnBlur: Platform.OS !== 'web',
             drawerStyle: {
-              width: isMobile ? 0 : drawerWidth(width),
-              display: isMobile ? 'none' : 'flex',
+              width: 0,
+              display: 'none',
               backgroundColor: colors.surface,
             },
             sceneStyle: { backgroundColor: colors.background },
@@ -50,7 +45,7 @@ export default function MainLayout() {
           <Drawer.Screen name="rank" options={{ title: 'Ranking antigo' }} />
         </Drawer>
       </View>
-      {isMobile ? <KadBottomNavigation /> : null}
+      <KadBottomNavigation />
     </View>
   );
 }
