@@ -2,6 +2,10 @@ export type AppFeatureGroupId = 'practice' | 'progress' | 'other' | 'account';
 
 export type AppDrawerGroupId = 'study' | 'prepare' | 'progress' | 'account';
 
+export type AppPrimaryDestinationId = 'study' | 'prepare' | 'home' | 'progress' | 'account';
+
+export type AppBottomSheetGroupId = 'study' | 'prepare' | 'account';
+
 export type AppFeatureId =
   | 'questions'
   | 'contests'
@@ -193,6 +197,69 @@ export const APP_DRAWER_ITEMS: ReadonlyArray<AppDrawerItem> = [
   },
 ];
 
+export type AppPrimaryDestination = {
+  id: AppPrimaryDestinationId;
+  title: string;
+  icon: AppFeatureIcon;
+  behavior: 'route' | 'sheet';
+  href?: AppDrawerHref;
+  group?: AppBottomSheetGroupId;
+};
+
+export const APP_PRIMARY_DESTINATIONS: ReadonlyArray<AppPrimaryDestination> = [
+  {
+    id: 'study',
+    title: 'Estudar',
+    icon: 'book-outline',
+    behavior: 'sheet',
+    group: 'study',
+  },
+  {
+    id: 'prepare',
+    title: 'Preparar',
+    icon: 'briefcase-outline',
+    behavior: 'sheet',
+    group: 'prepare',
+  },
+  {
+    id: 'home',
+    title: 'Início',
+    icon: 'home-outline',
+    behavior: 'route',
+    href: '/inicio',
+  },
+  {
+    id: 'progress',
+    title: 'Acompanhar',
+    icon: 'trophy-outline',
+    behavior: 'route',
+    href: '/ranking',
+  },
+  {
+    id: 'account',
+    title: 'Conta',
+    icon: 'person-outline',
+    behavior: 'sheet',
+    group: 'account',
+  },
+];
+
+const BOTTOM_SHEET_ITEM_IDS = {
+  study: ['questions', 'simulations', 'trails'],
+  prepare: ['contests', 'essay', 'flashcards', 'library'],
+  account: ['profile', 'settings'],
+} as const satisfies Record<AppBottomSheetGroupId, ReadonlyArray<AppDrawerItem['id']>>;
+
+export function bottomSheetItemsForGroup(
+  group: AppBottomSheetGroupId
+): ReadonlyArray<AppDrawerItem> {
+  return BOTTOM_SHEET_ITEM_IDS[group].map((id) => {
+    const item = APP_DRAWER_ITEMS.find((candidate) => candidate.id === id);
+    if (!item) throw new Error(`Missing bottom navigation item: ${id}`);
+    return item;
+  });
+}
+
 export function drawerItemsForGroup(group: AppDrawerGroupId): ReadonlyArray<AppDrawerItem> {
   return APP_DRAWER_ITEMS.filter((item) => item.group === group);
 }
@@ -203,6 +270,17 @@ export function drawerWidth(viewportWidth: number): number {
 
 function canonicalDrawerPath(pathname: string): string {
   return pathname === '/rank' ? APP_ROUTE_ALIASES.rank : pathname;
+}
+
+export function bottomNavigationDestinationForPath(pathname: string): AppPrimaryDestinationId {
+  const canonicalPath = canonicalDrawerPath(pathname);
+  if (canonicalPath === '/inicio' || canonicalPath.startsWith('/inicio/')) return 'home';
+  if (canonicalPath === '/explorar' || canonicalPath.startsWith('/explorar/')) return 'home';
+
+  const activeItem = APP_DRAWER_ITEMS.find((item) =>
+    isDrawerRouteActive(canonicalPath, item.href)
+  );
+  return activeItem?.group ?? 'home';
 }
 
 export function isDrawerRouteActive(pathname: string, href: AppDrawerHref): boolean {
