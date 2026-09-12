@@ -56,8 +56,10 @@ test('Ranking aparece no drawer e a rota antiga redireciona', () => {
   assert.match(rankTab, /<Redirect href=\{APP_ROUTE_ALIASES\.rank\}/);
 });
 
-test('o drawer é a única navegação primária visível', () => {
+test('a barra inferior é a única navegação primária visível', () => {
   assert.match(tabsLayout, /<Drawer/);
-  assert.match(tabsLayout, /KadDrawerContent/);
+  assert.match(tabsLayout, /<KadBottomNavigation \/>/);
+  assert.match(tabsLayout, /drawerContent=\{\(\) => null\}/);
+  assert.doesNotMatch(tabsLayout, /KadDrawerContent/);
   assert.doesNotMatch(tabsLayout, /tabBar|bottom-tabs/);
 });
