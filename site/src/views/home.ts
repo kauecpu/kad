@@ -86,19 +86,21 @@ export function homeView(state: SiteState, levelState?: LevelState): ViewModel {
         </aside>
       </div>
 
-      ${achievementCard}
-
+      <div class="home-planning">
+      <div class="home-planning__main">
       ${section('Um plano curto, em ordem', `<div class="study-plan">${todayPlan}</div>`, {
         eyebrow: 'HOJE',
         action: button('Buscar questões', { route: '/questoes/buscar', variant: 'ghost', size: 'sm', iconName: 'Search' }),
       })}
-
-      <div class="study-desk__lower">
         ${section('Atividade recente', recent, { eyebrow: 'SEU HISTÓRICO' })}
+      </div>
+      <div class="home-planning__context">
         <aside class="study-objective">
           <p class="eyebrow">PRÓXIMO OBJETIVO</p>
           ${focus ? `<div class="study-objective__heading"><strong>${escapeHtml(focus.shortName)}</strong>${savedFocus ? badge('Salvo', 'success') : badge('Sugestão', 'accent')}</div><h2>${escapeHtml(focus.title)}</h2><p>${escapeHtml(focus.organ)} · ${escapeHtml(focus.state)}</p>${button(savedFocus ? 'Ver minha meta' : 'Conhecer concurso', { route: `/concursos/${focus.id}`, variant: 'secondary' })}` : `<h2>Escolha uma direção</h2><p>Salve um concurso para organizar seu percurso.</p>${button('Explorar concursos', { route: '/concursos', variant: 'secondary' })}`}
         </aside>
+        ${achievementCard}
+      </div>
       </div>
     </div>`,
   };

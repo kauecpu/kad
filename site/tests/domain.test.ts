@@ -16,14 +16,16 @@ import { matchRoute, shouldOpenStudyHome } from '../src/core/router.ts';
 import { questionSessionView, questionsIndexView } from '../src/views/questions.ts';
 import { createSimulation, simulationScore, simulationsView } from '../src/views/simulations.ts';
 import { profileView, settingsView } from '../src/views/profile.ts';
-import { rankingView } from '../src/views/explore.ts';
+import { concursosView, rankingView } from '../src/views/explore.ts';
+import { homeView } from '../src/views/home.ts';
 import { levelProgress } from '../../contracts/levels.ts';
 import { stackHeader } from '../src/ui/layout.ts';
 import {
-  isMobileMoreActive,
+  homeNavigationItem,
+  isNavigationGroupActive,
   isNavigationItemActive,
-  mobilePrimaryNavigation,
-  mobileSecondaryNavigation,
+  navigationExperienceForPathname,
+  navigationExperiences,
   navigationGroups,
 } from '../src/ui/navigation.ts';
 import { getCatalog } from '../src/data/catalog.ts';
@@ -37,6 +39,30 @@ function memoryStorage(): StorageLike {
     removeItem: (key: string) => { values.delete(key); },
   };
 }
+
+test('cinco famílias têm composições web e preservam ações sem dados fictícios', () => {
+  const state = createStore(memoryStorage()).getState();
+  const level = { owner: null, status: 'ready' as const, progress: levelProgress(0), pending: 0, storageError: false, achievements: [], notices: [] };
+  const home = homeView(state).content;
+  assert.match(home, /home-planning__main/);
+  assert.match(home, /home-planning__context/);
+  assert.match(home, /data-route="\/questoes"/);
+  const study = questionsIndexView(state).content;
+  assert.match(study, /study-catalog__workspace/);
+  assert.match(study, /aria-label="Atalhos de revisão"/);
+  const prepare = concursosView(state, { q: 'inexistente-123456' }).content;
+  assert.match(prepare, /aria-label="Filtrar concursos"/);
+  assert.match(prepare, /preparation-catalog__results/);
+  assert.match(prepare, /Nenhum concurso encontrado/);
+  const track = rankingView(state, {}, { status: 'idle', snapshot: null, error: '', savingPreference: false }).content;
+  assert.match(track, /ranking-overview/);
+  assert.match(track, /Entre para participar/);
+  assert.doesNotMatch(track, /class="ranking-row/);
+  const account = profileView(state, level).content;
+  assert.match(account, /profile-workspace__account/);
+  assert.match(account, /profile-workspace__progress/);
+  assert.match(account, /data-route="\/configuracoes"/);
+});
 
 test('estado local registra resposta, atividade e restaura dados persistidos', () => {
   const storage = memoryStorage();
@@ -78,17 +104,21 @@ test('páginas internas mantêm um único título e explicam o modo visitante', 
 
 test('catálogo de navegação preserva rotas, grupos e estado ativo', () => {
   assert.deepEqual(navigationGroups.map((group) => group.label), ['Estudar', 'Preparar', 'Acompanhar', 'Conta']);
-  assert.equal(mobilePrimaryNavigation.length, 4);
-  assert.ok(mobilePrimaryNavigation.every((item) => !mobileSecondaryNavigation.some((secondary) => secondary.href === item.href)));
-  assert.ok(mobileSecondaryNavigation.some((item) => item.href === '/concursos'));
-  assert.ok(mobileSecondaryNavigation.some((item) => item.href === '/perfil'));
-  assert.ok(mobileSecondaryNavigation.some((item) => item.href === '/configuracoes'));
+  assert.equal(homeNavigationItem.href, '/inicio');
+  assert.equal(navigationGroups[0].items.some((item) => item.href === '/inicio'), false);
+  assert.deepEqual(navigationExperiences.map((item) => item.label), ['Início', 'Estudar', 'Preparar', 'Acompanhar', 'Conta']);
+  const destinations = navigationGroups.flatMap((group) => group.items);
+  for (const route of ['/concursos', '/perfil', '/configuracoes']) {
+    assert.ok(destinations.some((item) => item.href === route));
+  }
   assert.equal(isNavigationItemActive('/questoes', '/questoes/disciplina/portugues'), true);
   assert.equal(isNavigationItemActive('/inicio', '/inicio/detalhe'), false);
-  assert.equal(isMobileMoreActive('/concursos/tj-sp'), true);
-  assert.equal(isMobileMoreActive('/perfil'), true);
-  assert.equal(isMobileMoreActive('/configuracoes'), true);
-  assert.equal(isMobileMoreActive('/questoes/buscar'), false);
+  assert.equal(navigationExperienceForPathname('/inicio').id, 'home');
+  assert.equal(navigationExperienceForPathname('/questoes/buscar').id, 'study');
+  assert.equal(navigationExperienceForPathname('/redacao').id, 'prepare');
+  assert.equal(navigationExperienceForPathname('/ranking').id, 'track');
+  assert.equal(navigationExperienceForPathname('/configuracoes').id, 'account');
+  assert.equal(isNavigationGroupActive('prepare', '/concursos/tj-sp'), true);
 });
 
 test('ranking autenticado renderiza somente o snapshot confirmado e escapa identidades', () => {
