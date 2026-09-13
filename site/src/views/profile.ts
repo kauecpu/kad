@@ -157,10 +157,8 @@ export function profileView(state: SiteState, levelState: LevelState, ranking: R
     title: 'Meu perfil',
     subtitle: 'Identidade, progresso e conquistas',
     content: `<div class="study-settings profile-workspace">
+      <div class="profile-workspace__account">
       <section class="profile-identity" aria-label="Identidade da conta">${avatar(state.profile.name, 'md', state.profile.avatarUri)}<div class="profile-identity__copy"><p class="eyebrow">SEU PERFIL PÚBLICO</p><h2>${escapeHtml(state.profile.name)}</h2>${state.auth.mode === 'authenticated' && state.profile.username ? `<strong class="profile-identity__username">@${escapeHtml(state.profile.username)}</strong>` : ''}<p>${escapeHtml(state.profile.targetRole || 'Meta de concurso ainda não definida')}</p><div class="question-meta">${badge(state.auth.mode === 'authenticated' ? 'Conta sincronizada' : 'Modo visitante', state.auth.mode === 'authenticated' ? 'success' : 'warning')}${badge(subscriptionPlanName(state.subscription.plan).replace('KAD ', '').replace('Plano ', ''), 'accent')}</div></div>${button('Editar perfil', { route: '/perfil/editar', variant: 'secondary', iconName: 'PenLine' })}</section>
-
-      ${levelModule(levelState)}
-      ${achievementGallery(levelState, params.conquistas)}
 
       <section class="profile-preparation" aria-labelledby="profile-preparation-title"><h2 id="profile-preparation-title">Minha preparação</h2><div class="profile-preparation__panel">
         ${settingRow(['Flag', 'Meta de concurso', state.profile.targetRole || 'Escolher minha meta', '/meta'])}
@@ -168,6 +166,11 @@ export function profileView(state: SiteState, levelState: LevelState, ranking: R
         ${profileRankingPosition(ranking, state.auth.mode === 'authenticated')}
       </div></section>
       <button class="profile-settings-shortcut" type="button" data-route="/configuracoes"><span class="profile-settings-shortcut__icon">${icon('Settings')}</span><span><strong>Configurações</strong><small>Conta, aparência, privacidade e assinatura</small></span>${icon('ArrowRight')}</button>
+      </div>
+      <div class="profile-workspace__progress">
+      ${levelModule(levelState)}
+      ${achievementGallery(levelState, params.conquistas)}
+      </div>
     </div>`,
   };
 }

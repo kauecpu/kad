@@ -303,9 +303,7 @@ function closeNavigation({ restoreFocus = true }: { restoreFocus?: boolean } = {
   document.body.classList.remove('nav-open');
   setNavigationExpanded(false);
   const appColumn = document.querySelector<HTMLElement>('.app-column');
-  const mobileTabs = document.querySelector<HTMLElement>('.mobile-tabs');
   if (appColumn) appColumn.inert = false;
-  if (mobileTabs) mobileTabs.inert = false;
   if (restoreFocus && navigationTrigger?.isConnected) navigationTrigger.focus({ preventScroll: true });
   navigationTrigger = null;
 }
@@ -315,9 +313,7 @@ function openNavigation(trigger: HTMLElement): void {
   document.body.classList.add('nav-open');
   setNavigationExpanded(true);
   const appColumn = document.querySelector<HTMLElement>('.app-column');
-  const mobileTabs = document.querySelector<HTMLElement>('.mobile-tabs');
   if (appColumn) appColumn.inert = true;
-  if (mobileTabs) mobileTabs.inert = true;
   globalThis.requestAnimationFrame(() => {
     document.querySelector<HTMLElement>('.sidebar__close')?.focus({ preventScroll: true });
   });

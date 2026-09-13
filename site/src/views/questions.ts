@@ -66,6 +66,7 @@ export function questionsIndexView(state: SiteState): ViewModel {
 
       ${performance.total ? `<aside class="catalog-progress" aria-label="Seu progresso nas questões"><div><p class="eyebrow">CONTINUAR</p><strong>${formatCount(performance.total, 'questão respondida', 'questões respondidas')}</strong><span>${formatPercent(performance.accuracy)} de acerto até agora</span></div>${button('Revisar erros', { route: '/questoes/revisar?tipo=erradas', variant: 'ghost', iconName: 'RotateCcw' })}</aside>` : ''}
 
+      <div class="study-catalog__workspace">
       ${section('Matérias', `<div class="subject-index">${disciplineRows}</div>`, {
         eyebrow: 'ESCOLHA ONDE PRATICAR',
         action: button('Ver todos os filtros', { route: '/questoes/buscar', variant: 'ghost', size: 'sm', iconName: 'SlidersHorizontal' }),
@@ -77,6 +78,7 @@ export function questionsIndexView(state: SiteState): ViewModel {
         <button type="button" data-route="/questoes/revisar?tipo=erradas">${icon('RotateCcw')}Erradas <strong>${performance.wrong}</strong></button>
         <button type="button" data-route="/concursos">${icon('Building2')}Por concurso</button>
       </nav>
+      </div>
     </div>`,
   };
 }

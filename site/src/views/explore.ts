@@ -53,15 +53,20 @@ export function concursosView(state: SiteState, params: ViewParams = {}, savedOn
         description: 'Compare vagas, salários, datas e comece a estudar pelas questões relacionadas.',
         actions: button('Ver concursos salvos', { route: '/concursos/salvos', iconName: 'Bookmark' }),
       })}
-      <form class="filter-bar filter-panel filter-panel--contest" data-form="contest-search">
+      <div class="preparation-catalog">
+      <form class="filter-bar filter-panel filter-panel--contest" data-form="contest-search" aria-label="Filtrar concursos">
+        <h2 class="preparation-catalog__filter-title">Refinar busca</h2>
         <div class="field"><label for="contest-q">Buscar concurso</label><input class="input" id="contest-q" name="q" value="${escapeHtml(params.q ?? '')}" placeholder="Órgão, banca, cargo ou estado" /></div>
         <div class="field"><label for="contest-status">Situação</label><select class="select" id="contest-status" name="status"><option value="">Todas as situações</option>${statuses.map((status) => `<option value="${status}" ${params.status === status ? 'selected' : ''}>${status[0].toUpperCase()}${status.slice(1)}</option>`).join('')}</select></div>
         <div class="field"><label for="contest-region">Região</label><select class="select" id="contest-region" name="region"><option value="">Todas as regiões</option>${regions.map((region) => `<option value="${escapeHtml(region)}" ${params.region === region ? 'selected' : ''}>${escapeHtml(region)}</option>`).join('')}</select></div>
         <input type="hidden" name="savedOnly" value="${savedOnly ? '1' : ''}" />
         ${button('Filtrar', { type: 'submit', iconName: 'Filter' })}
       </form>
+      <div class="preparation-catalog__results">
       <div class="toolbar"><div><p class="eyebrow">OPORTUNIDADES</p><h2>${formatCount(filtered.length, 'concurso', 'concursos')}</h2></div>${!savedOnly ? button('Meus concursos', { route: '/concursos/salvos', variant: 'secondary', iconName: 'Bookmark' }) : ''}</div>
       ${filtered.length ? `<div class="contest-grid">${filtered.map((concurso) => contestCard(concurso, state)).join('')}</div>` : emptyState(savedOnly ? 'Nenhum concurso salvo' : 'Nenhum concurso encontrado', savedOnly ? 'Salve oportunidades para acompanhar tudo em um só lugar.' : 'Tente remover um filtro ou pesquisar por outro termo.', { route: '/concursos', actionLabel: 'Explorar concursos' })}
+      </div>
+      </div>
     `,
   };
 }
@@ -113,7 +118,7 @@ function rankingRow(entry: RankingEntry): string {
 export function rankingView(state: SiteState, params: ViewParams = {}, ranking: RankingUiState): ViewModel {
   const period: RankingPeriod = params.period === 'month' || params.period === 'all' ? params.period : 'today';
   const periodOptions: [RankingPeriod, string][] = [['today', 'Hoje'], ['month', 'Mês'], ['all', 'Geral']];
-  const periodControl = `<div class="ranking-period" aria-label="Período do ranking"><span class="eyebrow">PERÍODO</span><div class="segmented" role="group">${periodOptions.map(([value, label]) => `<button type="button" data-action="ranking-period" data-period="${value}" class="${period === value ? 'is-active' : ''}" aria-pressed="${period === value}">${label}</button>`).join('')}</div></div>`;
+  const periodControl = `<header class="ranking-overview"><div><p class="eyebrow">ACOMPANHAR</p><h2>Seu estudo em perspectiva.</h2><p>Compare a classificação por período. Só entra na contagem o XP confirmado pelo KAD.</p></div><div class="ranking-period" aria-label="Período do ranking"><span class="eyebrow">PERÍODO</span><div class="segmented" role="group" aria-label="Selecionar período">${periodOptions.map(([value, label]) => `<button type="button" data-action="ranking-period" data-period="${value}" class="${period === value ? 'is-active' : ''}" aria-pressed="${period === value}">${label}</button>`).join('')}</div></div></header>`;
 
   if (state.auth.mode !== 'authenticated') {
     return {

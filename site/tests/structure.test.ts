@@ -231,28 +231,27 @@ test('melhorias de interface preservam semântica, privacidade e linguagem de pr
   assert.match(simulationsView, /questão disponível/);
   assert.doesNotMatch(simulationsView, /versão web|Frontend|Treino fiel ao app/);
   assert.match(styles, /--text-subtle: #5f5f5f/);
-  assert.match(styles, /scroll-padding-bottom/);
 });
 
-test('correções móveis reservam espaço para navegação e ampliam alvos de toque', async () => {
+test('site móvel mantém rolagem da página e alvos de toque acessíveis', async () => {
   const [baseStyles, appStyles, profile] = await Promise.all([
     source('src/styles/base.css'),
     source('src/styles/app.css'),
     source('src/views/profile.ts'),
   ]);
 
-  assert.match(baseStyles, /--mobile-tabs-clearance:/);
+  assert.doesNotMatch(baseStyles, /--mobile-tabs/);
   assert.match(baseStyles, /\.segmented button \{ min-height: 44px/);
   assert.match(baseStyles, /\.chip \{ min-height: 44px/);
-  assert.match(appStyles, /\.app-column \{ height: calc\(100vh - var\(--mobile-tabs-clearance\)\)/);
-  assert.match(appStyles, /\.mobile-tabs \{[^}]+height: var\(--mobile-tabs-height\)/);
+  assert.doesNotMatch(appStyles, /mobile-tabs|nav-link--compact/);
+  assert.doesNotMatch(appStyles, /\.app-column\s*\{[^}]*overflow-y: auto/);
   assert.match(appStyles, /\.question-map button \{ min-width: 44px; min-height: 44px/);
   assert.match(appStyles, /\.comment__actions button \{[^}]+min-height: 44px/);
   assert.match(appStyles, /\.achievement-filters button \{[^}]+min-height: 44px/);
   assert.match(profile, /achievement-filters/);
 });
 
-test('navegação interna agrupa tarefas e oferece no máximo cinco destinos móveis', async () => {
+test('navegação web agrupa tarefas e mantém acesso pelo menu do cabeçalho', async () => {
   const [navigation, layout, main, styles] = await Promise.all([
     source('src/ui/navigation.ts'),
     source('src/ui/layout.ts'),
@@ -262,14 +261,22 @@ test('navegação interna agrupa tarefas e oferece no máximo cinco destinos mó
 
   for (const group of ['Estudar', 'Preparar', 'Acompanhar', 'Conta']) assert.match(navigation, new RegExp(`label: '${group}'`));
   for (const route of ['/questoes', '/simulados', '/trilhas', '/concursos', '/perfil', '/configuracoes']) assert.match(navigation, new RegExp(`href: '${route}'`));
-  assert.match(layout, /mobilePrimaryNavigation\.map/);
-  assert.match(layout, /<span>Mais<\/span>/);
+  assert.doesNotMatch(layout, /mobile-tabs|mobilePrimaryNavigation/);
+  assert.match(layout, /topbar__menu/);
+  assert.match(layout, /sidebar__home/);
+  assert.match(layout, /topbar__experience/);
+  assert.match(layout, /data-navigation-experience/);
+  assert.doesNotMatch(layout, /<span>Mais<\/span>/);
   assert.match(layout, /sidebar__group/);
   assert.match(main, /navigationTrigger/);
   assert.match(main, /closeNavigation\(\)/);
   assert.match(main, /event\.key === 'Tab'/);
   assert.match(styles, /\.sidebar__navigation \{[^}]+overflow-y: auto/);
-  assert.match(styles, /\.nav-link--more \{[^}]+background: transparent/);
+  assert.match(styles, /\.app-shell--family-home/);
+  assert.match(styles, /\.app-shell--family-study/);
+  assert.match(styles, /\.app-shell--family-prepare/);
+  assert.match(styles, /\.app-shell--family-track/);
+  assert.match(styles, /\.app-shell--family-account/);
 });
 
 test('hierarquia interna prioriza cabeçalho compacto, ação e revelação progressiva', async () => {
@@ -431,7 +438,6 @@ test('PR 3 adiciona identidade roxa e energia amarela somente às áreas interna
   assert.match(styles, /:root\[data-theme='dark'\] \.app-shell\s*\{[\s\S]*--energy:\s*#ffd84a/);
   assert.match(styles, /\.app-shell \.nav-link\.is-active[\s\S]*inset 6px 0 0[^;]*var\(--energy\)/);
   assert.match(styles, /\.app-shell \.home-weekly \.progress__fill\s*\{[^}]*background:\s*var\(--energy\)/);
-  assert.match(styles, /\.app-shell \.mobile-tabs \.nav-link--compact\.is-active/);
   assert.match(styles, /\.app-shell \.home-intro::before/);
   assert.match(styles, /\.app-shell \.workspace-hero::after/);
   assert.doesNotMatch(styles, /\.public-shell\s*\{[^}]*--energy:/);
