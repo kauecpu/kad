@@ -149,6 +149,17 @@
 .web-workspace .profile-workspace, .web-workspace .ranking-workspace { width: 100%; max-width: none; }
 .web-workspace .achievement-filters { flex-wrap: wrap; overflow: visible; }
 .web-workspace .achievement-filters button { border-radius: 6px; }
+.web-workspace .profile-workspace > .achievement-gallery { grid-column: 1 / -1; min-width: 0; }
+.web-workspace .achievement-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.web-workspace .achievement-item { padding: 24px; gap: 18px; align-items: start; }
+.web-workspace .achievement-item__copy { gap: 8px; }
+.web-workspace .achievement-item h3 { font-size: 1rem; }
+.web-workspace .achievement-item p { font-size: .875rem; line-height: 1.5; }
+.web-workspace .achievement-item small { font-size: .8rem; }
+@media (max-width: 700px) {
+  .web-workspace .achievement-list { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .web-workspace .achievement-item { padding: 18px; gap: 14px; }
+}
 .web-workspace .ranking-overview { padding: 32px; background: var(--editorial); color: var(--editorial-text); border: 0; align-items: center; }
 .web-workspace .ranking-overview > div > p:last-child { color: var(--editorial-muted); }
 .web-workspace .ranking-overview .eyebrow { color: var(--energy); }

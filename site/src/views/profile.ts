@@ -169,8 +169,8 @@ export function profileView(state: SiteState, levelState: LevelState, ranking: R
       </div>
       <div class="profile-workspace__progress">
       ${levelModule(levelState)}
-      ${achievementGallery(levelState, params.conquistas)}
       </div>
+      ${achievementGallery(levelState, params.conquistas)}
     </div>`,
   };
 }

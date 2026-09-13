@@ -5,6 +5,13 @@ import { URL as NodeUrl, fileURLToPath } from 'node:url';
 
 const projectUrl = new NodeUrl('../', import.meta.url);
 
+test('conquistas ocupam uma seção própria, fora da coluna de progresso', async () => {
+  const [profile, css] = await Promise.all([source('src/views/profile.ts'), source('src/styles/workspace.css')]);
+  assert.match(profile, /\$\{levelModule\(levelState\)\}\s*<\/div>\s*\$\{achievementGallery\(levelState, params.conquistas\)\}/);
+  assert.match(css, /\.profile-workspace > \.achievement-gallery \{ grid-column: 1 \/ -1;/);
+  assert.match(css, /@media \(max-width: 700px\)\s*\{\s*\.web-workspace \.achievement-list \{ grid-template-columns: minmax\(0, 1fr\)/);
+});
+
 async function source(path: string): Promise<string> {
   return readFile(fileURLToPath(new NodeUrl(path, projectUrl)), 'utf8');
 }
