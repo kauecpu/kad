@@ -5,6 +5,27 @@ import { URL as NodeUrl, fileURLToPath } from 'node:url';
 
 const projectUrl = new NodeUrl('../', import.meta.url);
 
+test('quadros editoriais compartilham preto e amarelo sem afetar a área pública', async () => {
+  const css = await source('src/styles/workspace.css');
+  assert.match(css, /\.web-workspace\.app-shell :is\(\.catalog-intro, \.journey-intro, \.workspace-hero\) \{ background: var\(--editorial\)/);
+  assert.match(css, /\.workspace-hero\) \.eyebrow \{ color: var\(--energy\)/);
+  assert.match(css, /\.workspace-hero\) \.button--primary \{ background: var\(--energy\)/);
+});
+
+test('configurações agrupam seções em colunas independentes sem reordenar por CSS', async () => {
+  const [profile, css] = await Promise.all([source('src/views/profile.ts'), source('src/styles/workspace.css')]);
+  assert.equal((profile.match(/class="settings-workspace__column"/g) ?? []).length, 2);
+  assert.match(css, /\.settings-workspace__column \{ display: grid; min-width: 0; gap: 22px; align-content: start;/);
+});
+
+test('conquistas ocupam uma seção própria, fora da coluna de progresso', async () => {
+  const [profile, css] = await Promise.all([source('src/views/profile.ts'), source('src/styles/workspace.css')]);
+  assert.match(profile, /\$\{levelModule\(levelState\)\}\s*<button class="profile-settings-shortcut"[^]*?<\/button>\s*<\/div>\s*\$\{achievementGallery\(levelState, params.conquistas\)\}/);
+  assert.match(css, /\.profile-workspace__progress \{ grid-column: 2; grid-row: 2; align-self: stretch; align-content: space-between;/);
+  assert.match(css, /\.profile-workspace > \.achievement-gallery \{ grid-column: 1 \/ -1;/);
+  assert.match(css, /@media \(max-width: 700px\)\s*\{\s*\.web-workspace \.achievement-list \{ grid-template-columns: minmax\(0, 1fr\)/);
+});
+
 async function source(path: string): Promise<string> {
   return readFile(fileURLToPath(new NodeUrl(path, projectUrl)), 'utf8');
 }
@@ -231,28 +252,29 @@ test('melhorias de interface preservam semântica, privacidade e linguagem de pr
   assert.match(simulationsView, /questão disponível/);
   assert.doesNotMatch(simulationsView, /versão web|Frontend|Treino fiel ao app/);
   assert.match(styles, /--text-subtle: #5f5f5f/);
-  assert.match(styles, /scroll-padding-bottom/);
 });
 
-test('correções móveis reservam espaço para navegação e ampliam alvos de toque', async () => {
+test('site móvel mantém rolagem da página e alvos de toque acessíveis', async () => {
   const [baseStyles, appStyles, profile] = await Promise.all([
     source('src/styles/base.css'),
     source('src/styles/app.css'),
     source('src/views/profile.ts'),
   ]);
 
-  assert.match(baseStyles, /--mobile-tabs-clearance:/);
+  const workspaceStyles = await source('src/styles/workspace.css');
+  assert.doesNotMatch(workspaceStyles, /--mobile-tabs/);
+  assert.match(workspaceStyles, /html:has\(\.web-workspace\) \{ scroll-padding-bottom: 24px/);
   assert.match(baseStyles, /\.segmented button \{ min-height: 44px/);
   assert.match(baseStyles, /\.chip \{ min-height: 44px/);
-  assert.match(appStyles, /\.app-column \{ height: calc\(100vh - var\(--mobile-tabs-clearance\)\)/);
-  assert.match(appStyles, /\.mobile-tabs \{[^}]+height: var\(--mobile-tabs-height\)/);
+  assert.doesNotMatch(appStyles, /mobile-tabs|nav-link--compact/);
+  assert.doesNotMatch(appStyles, /\.app-column\s*\{[^}]*overflow-y: auto/);
   assert.match(appStyles, /\.question-map button \{ min-width: 44px; min-height: 44px/);
   assert.match(appStyles, /\.comment__actions button \{[^}]+min-height: 44px/);
   assert.match(appStyles, /\.achievement-filters button \{[^}]+min-height: 44px/);
   assert.match(profile, /achievement-filters/);
 });
 
-test('navegação interna agrupa tarefas e oferece no máximo cinco destinos móveis', async () => {
+test('navegação web agrupa tarefas e mantém acesso pelo menu do cabeçalho', async () => {
   const [navigation, layout, main, styles] = await Promise.all([
     source('src/ui/navigation.ts'),
     source('src/ui/layout.ts'),
@@ -262,14 +284,22 @@ test('navegação interna agrupa tarefas e oferece no máximo cinco destinos mó
 
   for (const group of ['Estudar', 'Preparar', 'Acompanhar', 'Conta']) assert.match(navigation, new RegExp(`label: '${group}'`));
   for (const route of ['/questoes', '/simulados', '/trilhas', '/concursos', '/perfil', '/configuracoes']) assert.match(navigation, new RegExp(`href: '${route}'`));
-  assert.match(layout, /mobilePrimaryNavigation\.map/);
-  assert.match(layout, /<span>Mais<\/span>/);
-  assert.match(layout, /sidebar__group/);
+  assert.doesNotMatch(layout, /mobile-tabs|mobilePrimaryNavigation/);
+  assert.match(layout, /topbar__menu/);
+  assert.match(layout, /navigationExperiences\.map/);
+  assert.match(layout, /topbar__experience/);
+  assert.match(layout, /data-navigation-experience/);
+  assert.doesNotMatch(layout, /<span>Mais<\/span>/);
+  assert.match(layout, /area-navigation/);
   assert.match(main, /navigationTrigger/);
   assert.match(main, /closeNavigation\(\)/);
   assert.match(main, /event\.key === 'Tab'/);
   assert.match(styles, /\.sidebar__navigation \{[^}]+overflow-y: auto/);
-  assert.match(styles, /\.nav-link--more \{[^}]+background: transparent/);
+  assert.match(styles, /\.app-shell--family-home/);
+  assert.match(styles, /\.app-shell--family-study/);
+  assert.match(styles, /\.app-shell--family-prepare/);
+  assert.match(styles, /\.app-shell--family-track/);
+  assert.match(styles, /\.app-shell--family-account/);
 });
 
 test('hierarquia interna prioriza cabeçalho compacto, ação e revelação progressiva', async () => {
@@ -369,7 +399,7 @@ test('início interno adota composição editorial com navegação lateral prese
   assert.match(home, /class="study-desk"/);
   assert.match(home, /studyNextAction/);
   assert.match(home, /class="study-plan"/);
-  assert.match(home, /class="weekly-focus"/);
+  assert.match(home, /class="weekly-focus home-weekly"/);
   assert.doesNotMatch(home, /class="hero-card"/);
   assert.doesNotMatch(home, /class="action-grid"/);
   assert.match(styles, /\.study-desk__continuity \{[^}]+grid-template-columns:/);
@@ -431,7 +461,6 @@ test('PR 3 adiciona identidade roxa e energia amarela somente às áreas interna
   assert.match(styles, /:root\[data-theme='dark'\] \.app-shell\s*\{[\s\S]*--energy:\s*#ffd84a/);
   assert.match(styles, /\.app-shell \.nav-link\.is-active[\s\S]*inset 6px 0 0[^;]*var\(--energy\)/);
   assert.match(styles, /\.app-shell \.home-weekly \.progress__fill\s*\{[^}]*background:\s*var\(--energy\)/);
-  assert.match(styles, /\.app-shell \.mobile-tabs \.nav-link--compact\.is-active/);
   assert.match(styles, /\.app-shell \.home-intro::before/);
   assert.match(styles, /\.app-shell \.workspace-hero::after/);
   assert.doesNotMatch(styles, /\.public-shell\s*\{[^}]*--energy:/);

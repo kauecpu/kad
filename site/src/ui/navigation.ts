@@ -10,12 +10,24 @@ export type NavigationGroup = {
   items: readonly NavigationItem[];
 };
 
+export type NavigationExperienceId = 'home' | NavigationGroup['id'];
+
+export type NavigationExperience = NavigationItem & {
+  id: NavigationExperienceId;
+  description: string;
+};
+
+export const homeNavigationItem: NavigationItem = {
+  href: '/inicio',
+  label: 'Início',
+  icon: 'Home',
+};
+
 export const navigationGroups: readonly NavigationGroup[] = [
   {
     id: 'study',
     label: 'Estudar',
     items: [
-      { href: '/inicio', label: 'Início', icon: 'Home' },
       { href: '/questoes', label: 'Questões', icon: 'BookOpen' },
       { href: '/simulados', label: 'Simulados', icon: 'Timer' },
       { href: '/trilhas', label: 'Trilhas', icon: 'Compass' },
@@ -48,24 +60,28 @@ export const navigationGroups: readonly NavigationGroup[] = [
   },
 ] as const;
 
-export const mobilePrimaryNavigation: readonly NavigationItem[] = [
-  { href: '/inicio', label: 'Início', icon: 'Home' },
-  { href: '/questoes', label: 'Questões', icon: 'BookOpen' },
-  { href: '/simulados', label: 'Simulados', icon: 'Timer' },
-  { href: '/trilhas', label: 'Trilhas', icon: 'Compass' },
+export const navigationExperiences: readonly NavigationExperience[] = [
+  { id: 'home', ...homeNavigationItem, description: 'Visão geral e continuidade' },
+  { id: 'study', href: '/questoes', label: 'Estudar', icon: 'BookOpen', description: 'Questões, simulados e trilhas' },
+  { id: 'prepare', href: '/concursos', label: 'Preparar', icon: 'Target', description: 'Concursos, redação e acervo' },
+  { id: 'track', href: '/ranking', label: 'Acompanhar', icon: 'ChartNoAxesCombined', description: 'Progresso e classificação' },
+  { id: 'account', href: '/perfil', label: 'Conta', icon: 'UserRound', description: 'Perfil e preferências' },
 ] as const;
 
-export const mobileSecondaryNavigation: readonly NavigationItem[] = [
-  ...navigationGroups.flatMap((group) => group.items).filter(
-    (item) => !mobilePrimaryNavigation.some((primary) => primary.href === item.href),
-  ),
-] as const;
+export function navigationExperienceForPathname(pathname: string): NavigationExperience {
+  if (pathname === '/inicio') return navigationExperiences[0];
+  if (/^\/(questoes|simulados|trilhas)(\/|$)/.test(pathname)) return navigationExperiences[1];
+  if (/^\/(concursos|redacao|flashcards|biblioteca)(\/|$)/.test(pathname)) return navigationExperiences[2];
+  if (/^\/(ranking)(\/|$)/.test(pathname)) return navigationExperiences[3];
+  if (/^\/(perfil|configuracoes|meta)(\/|$)/.test(pathname)) return navigationExperiences[4];
+  return navigationExperiences[0];
+}
+
+export function isNavigationGroupActive(groupId: NavigationGroup['id'], pathname: string): boolean {
+  return navigationExperienceForPathname(pathname).id === groupId;
+}
 
 export function isNavigationItemActive(href: string, pathname: string): boolean {
   if (href === '/inicio') return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-export function isMobileMoreActive(pathname: string): boolean {
-  return mobileSecondaryNavigation.some((item) => isNavigationItemActive(item.href, pathname));
 }

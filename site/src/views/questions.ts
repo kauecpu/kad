@@ -43,6 +43,11 @@ function questionResultCard(question: Question, state: SiteState): string {
 export function questionsIndexView(state: SiteState): ViewModel {
   const { disciplines, questions } = getCatalog();
   const performance = questionsPerformance(state.answers);
+  const questionDiscipline = new Map(questions.map((question) => [question.id, question.discipline]));
+  const byDiscipline = disciplines.map((discipline) => {
+    const answers = Object.values(state.answers).filter((answer) => questionDiscipline.get(answer.questionId) === discipline.name);
+    return { name: discipline.name, total: answers.length, accuracy: answers.length ? answers.filter((answer) => answer.isCorrect).length / answers.length * 100 : 0 };
+  }).filter((item) => item.total).sort((a, b) => b.total - a.total).slice(0, 4);
   const disciplineRows = disciplines.map((discipline, index) => {
     const available = questions.filter((question) => question.discipline === discipline.name);
     const answered = available.filter((question) => state.answers[question.id]).length;
@@ -59,13 +64,15 @@ export function questionsIndexView(state: SiteState): ViewModel {
     title: 'Questões',
     subtitle: `${formatCount(questions.length, 'questão disponível', 'questões disponíveis')} para praticar`,
     content: `<div class="study-catalog">
-      <header class="catalog-intro" aria-labelledby="questions-overview">
+      <div class="study-summary"><header class="catalog-intro" aria-labelledby="questions-overview">
         <div><p class="eyebrow">BANCO DE QUESTÕES</p><h2 id="questions-overview">Encontre uma matéria e comece.</h2><p>Continue pelo seu histórico ou escolha uma disciplina. Filtros avançados ficam disponíveis quando você precisar.</p></div>
         <div class="catalog-intro__actions">${button('Procurar questões', { route: '/questoes/buscar', iconName: 'Search' })}${button('Desafio rápido', { route: '/questoes/desafio', variant: 'secondary', iconName: 'Zap' })}</div>
       </header>
+      <aside class="discipline-performance" aria-label="Desempenho por disciplina"><p class="eyebrow">DESEMPENHO</p><h2>Por disciplina</h2>${byDiscipline.length ? byDiscipline.map((item) => `<div class="discipline-performance__row"><div><span>${escapeHtml(item.name)}</span><strong>${formatPercent(item.accuracy)}</strong></div>${progress(item.accuracy, `Acerto em ${item.name}`)}</div>`).join('') : '<p>Responda suas primeiras questões para acompanhar a precisão em cada matéria.</p>'}</aside></div>
 
       ${performance.total ? `<aside class="catalog-progress" aria-label="Seu progresso nas questões"><div><p class="eyebrow">CONTINUAR</p><strong>${formatCount(performance.total, 'questão respondida', 'questões respondidas')}</strong><span>${formatPercent(performance.accuracy)} de acerto até agora</span></div>${button('Revisar erros', { route: '/questoes/revisar?tipo=erradas', variant: 'ghost', iconName: 'RotateCcw' })}</aside>` : ''}
 
+      <div class="study-catalog__workspace">
       ${section('Matérias', `<div class="subject-index">${disciplineRows}</div>`, {
         eyebrow: 'ESCOLHA ONDE PRATICAR',
         action: button('Ver todos os filtros', { route: '/questoes/buscar', variant: 'ghost', size: 'sm', iconName: 'SlidersHorizontal' }),
@@ -77,6 +84,7 @@ export function questionsIndexView(state: SiteState): ViewModel {
         <button type="button" data-route="/questoes/revisar?tipo=erradas">${icon('RotateCcw')}Erradas <strong>${performance.wrong}</strong></button>
         <button type="button" data-route="/concursos">${icon('Building2')}Por concurso</button>
       </nav>
+      </div>
     </div>`,
   };
 }

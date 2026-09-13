@@ -2,9 +2,9 @@ import { escapeHtml } from '../core/utils.ts';
 import { backendStateMessage, type BackendState } from '../core/backend-state.ts';
 import { avatar, button, icon } from './components.ts';
 import {
-  isMobileMoreActive,
+  navigationExperiences,
   isNavigationItemActive,
-  mobilePrimaryNavigation,
+  navigationExperienceForPathname,
   navigationGroups,
   type NavigationItem,
 } from './navigation.ts';
@@ -17,9 +17,9 @@ function backendStatus(state: BackendState, compact = false): string {
   }
   return `<aside class="backend-status backend-status--${copy.tone}" data-backend-status role="status"><strong>${escapeHtml(copy.label)}</strong><span>${escapeHtml(copy.description)}</span></aside>`;
 }
-function navLink(item: NavigationItem, pathname: string, compact = false): string {
+function navLink(item: NavigationItem, pathname: string): string {
   const active = isNavigationItemActive(item.href, pathname);
-  return `<a href="${item.href}" data-route="${item.href}" class="nav-link ${active ? 'is-active' : ''} ${compact ? 'nav-link--compact' : ''}" ${active ? 'aria-current="page"' : ''}>${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`;
+  return `<a href="${item.href}" data-route="${item.href}" class="nav-link ${active ? 'is-active' : ''}" ${active ? 'aria-current="page"' : ''}>${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`;
 }
 
 export function publicLayout(content: string, { simple = false, dark = false, backendState }: { simple?: boolean; dark?: boolean; backendState: BackendState } ): string {
@@ -60,8 +60,10 @@ export function appLayout(content: string, { pathname, title, subtitle, state, b
   const profile = state.profile;
   const dark = document.documentElement.dataset.theme === 'dark';
   const experience = experienceArchetype(pathname);
+  const navigationExperience = navigationExperienceForPathname(pathname);
+  const group = navigationGroups.find((item) => item.id === navigationExperience.id);
   return `
-    <div class="app-shell app-shell--${experience}${pathname.startsWith('/perfil') || pathname === '/configuracoes' ? ' app-shell--profile' : ''}" data-study-environment="${experience}">
+    <div class="app-shell web-workspace app-shell--${experience} app-shell--family-${navigationExperience.id}${pathname.startsWith('/perfil') || pathname === '/configuracoes' ? ' app-shell--profile' : ''}" data-study-environment="${experience}" data-navigation-experience="${navigationExperience.id}">
       <aside class="sidebar" id="main-navigation">
         <div class="sidebar__header">
           <a href="/inicio" data-route="/inicio" class="brand brand--sidebar" aria-label="KAD Concursos — início">
@@ -70,16 +72,19 @@ export function appLayout(content: string, { pathname, title, subtitle, state, b
           <button class="icon-button sidebar__close" type="button" data-action="close-menu" aria-label="Fechar menu">${icon('X')}</button>
         </div>
         <nav class="sidebar__navigation" aria-label="Navegação principal">
-          ${navigationGroups.map((group) => `<section class="sidebar__group" aria-labelledby="nav-group-${group.id}">
-            <h2 class="sidebar__label" id="nav-group-${group.id}">${escapeHtml(group.label)}</h2>
-            <div class="sidebar__nav">${group.items.map((item) => navLink(item, pathname)).join('')}</div>
-          </section>`).join('')}
+          <p class="sidebar__label">Navegação</p>
+          ${navigationExperiences.map((item) => `<a href="${item.href}" data-route="${item.href}" class="nav-link ${item.id === navigationExperience.id ? 'is-active' : ''}" ${item.id === navigationExperience.id ? 'aria-current="true"' : ''}>${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`).join('')}
         </nav>
+        <div class="sidebar__footer"><p class="eyebrow">Sua preparação</p><strong>${escapeHtml(profile.targetRole || 'Um passo de cada vez.')}</strong><a href="/meta" data-route="/meta">Organizar minha meta ${icon('ArrowRight')}</a></div>
       </aside>
       <div class="app-column">
         <header class="topbar">
           <button class="icon-button topbar__menu" type="button" data-action="open-menu" aria-controls="main-navigation" aria-expanded="false" aria-label="Abrir menu">${icon('Menu')}</button>
-          <div class="topbar__title"><h1>${escapeHtml(title)}</h1>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div>
+          <div class="topbar__title">
+            <span class="topbar__experience">${icon(navigationExperience.icon)}${escapeHtml(navigationExperience.label)}</span>
+            <h1>${escapeHtml(title)}</h1>
+            ${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}
+          </div>
           <div class="topbar__actions">
             ${backendStatus(backendState, true)}
             <button class="desktop-search" type="button" data-route="/questoes/buscar">${icon('Search')}<span>Buscar questões</span><kbd>Ctrl K</kbd></button>
@@ -87,12 +92,8 @@ export function appLayout(content: string, { pathname, title, subtitle, state, b
             <button class="avatar-button" type="button" data-route="/perfil" aria-label="Abrir perfil">${avatar(profile.name, 'sm', profile.avatarUri)}</button>
           </div>
         </header>
-        <main id="conteudo" class="page-content" tabindex="-1">${content}</main>
+        <main id="conteudo" class="page-content" tabindex="-1">${group ? `<nav class="area-navigation" aria-label="Ferramentas de ${escapeHtml(group.label)}">${group.items.map((item) => navLink(item, pathname)).join('')}</nav>` : ''}${content}</main>
       </div>
-      <nav class="mobile-tabs" aria-label="Navegação principal">
-        ${mobilePrimaryNavigation.map((item) => navLink(item, pathname, true)).join('')}
-        <button class="nav-link nav-link--compact nav-link--more ${isMobileMoreActive(pathname) ? 'is-active' : ''}" type="button" data-action="open-menu" aria-controls="main-navigation" aria-expanded="false" aria-label="Abrir mais destinos">${icon('Menu')}<span>Mais</span></button>
-      </nav>
       <button class="nav-scrim" type="button" data-action="close-menu" aria-label="Fechar menu"></button>
     </div>`;
 }
