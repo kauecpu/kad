@@ -165,10 +165,10 @@ export function profileView(state: SiteState, levelState: LevelState, ranking: R
         <div class="profile-metrics"><button type="button" data-route="/perfil/desempenho"><small>Desempenho</small><strong>${performance.total ? formatPercent(performance.accuracy) : '--'}</strong><span>${formatCount(performance.total, 'questão respondida', 'questões respondidas')}</span></button><button type="button" data-route="/concursos/salvos"><small>Concursos salvos</small><strong>${state.savedConcursos.length}</strong><span>${formatCount(state.savedConcursos.length, 'concurso salvo', 'concursos salvos')}</span></button></div>
         ${profileRankingPosition(ranking, state.auth.mode === 'authenticated')}
       </div></section>
-      <button class="profile-settings-shortcut" type="button" data-route="/configuracoes"><span class="profile-settings-shortcut__icon">${icon('Settings')}</span><span><strong>Configurações</strong><small>Conta, aparência, privacidade e assinatura</small></span>${icon('ArrowRight')}</button>
       </div>
       <div class="profile-workspace__progress">
       ${levelModule(levelState)}
+      <button class="profile-settings-shortcut" type="button" data-route="/configuracoes"><span class="profile-settings-shortcut__icon">${icon('Settings')}</span><span><strong>Configurações</strong><small>Conta, aparência, privacidade e assinatura</small></span>${icon('ArrowRight')}</button>
       </div>
       ${achievementGallery(levelState, params.conquistas)}
     </div>`,

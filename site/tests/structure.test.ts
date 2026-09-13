@@ -7,7 +7,8 @@ const projectUrl = new NodeUrl('../', import.meta.url);
 
 test('conquistas ocupam uma seção própria, fora da coluna de progresso', async () => {
   const [profile, css] = await Promise.all([source('src/views/profile.ts'), source('src/styles/workspace.css')]);
-  assert.match(profile, /\$\{levelModule\(levelState\)\}\s*<\/div>\s*\$\{achievementGallery\(levelState, params.conquistas\)\}/);
+  assert.match(profile, /\$\{levelModule\(levelState\)\}\s*<button class="profile-settings-shortcut"[^]*?<\/button>\s*<\/div>\s*\$\{achievementGallery\(levelState, params.conquistas\)\}/);
+  assert.match(css, /\.profile-workspace__progress \{ grid-column: 2; grid-row: 2; align-self: stretch; align-content: space-between;/);
   assert.match(css, /\.profile-workspace > \.achievement-gallery \{ grid-column: 1 \/ -1;/);
   assert.match(css, /@media \(max-width: 700px\)\s*\{\s*\.web-workspace \.achievement-list \{ grid-template-columns: minmax\(0, 1fr\)/);
 });
