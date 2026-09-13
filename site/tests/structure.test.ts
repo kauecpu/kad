@@ -5,6 +5,19 @@ import { URL as NodeUrl, fileURLToPath } from 'node:url';
 
 const projectUrl = new NodeUrl('../', import.meta.url);
 
+test('quadros editoriais compartilham preto e amarelo sem afetar a área pública', async () => {
+  const css = await source('src/styles/workspace.css');
+  assert.match(css, /\.web-workspace\.app-shell :is\(\.catalog-intro, \.journey-intro, \.workspace-hero\) \{ background: var\(--editorial\)/);
+  assert.match(css, /\.workspace-hero\) \.eyebrow \{ color: var\(--energy\)/);
+  assert.match(css, /\.workspace-hero\) \.button--primary \{ background: var\(--energy\)/);
+});
+
+test('configurações agrupam seções em colunas independentes sem reordenar por CSS', async () => {
+  const [profile, css] = await Promise.all([source('src/views/profile.ts'), source('src/styles/workspace.css')]);
+  assert.equal((profile.match(/class="settings-workspace__column"/g) ?? []).length, 2);
+  assert.match(css, /\.settings-workspace__column \{ display: grid; min-width: 0; gap: 22px; align-content: start;/);
+});
+
 test('conquistas ocupam uma seção própria, fora da coluna de progresso', async () => {
   const [profile, css] = await Promise.all([source('src/views/profile.ts'), source('src/styles/workspace.css')]);
   assert.match(profile, /\$\{levelModule\(levelState\)\}\s*<button class="profile-settings-shortcut"[^]*?<\/button>\s*<\/div>\s*\$\{achievementGallery\(levelState, params.conquistas\)\}/);

@@ -194,13 +194,17 @@ export function settingsView(state: SiteState, ranking: RankingUiState = IDLE_RA
     title: 'Configurações',
     subtitle: 'Conta, privacidade e site',
     content: `<div class="study-settings settings-workspace">
+      <div class="settings-workspace__column">
       <section class="settings-section"><header><h2>Conta</h2><p>Dados privados e segurança do acesso</p></header><div>${settingRow(['UserRound', 'Dados pessoais', isAuthenticated ? state.profile.email : 'Perfil salvo somente neste navegador', '/perfil/editar'])}${state.profile.phone ? `<div class="settings-static-row"><span class="settings-row__icon">${icon('Phone')}</span><span><strong>Telefone</strong><small>${escapeHtml(state.profile.phone)}</small></span></div>` : ''}${isAuthenticated ? settingRow(['LockKeyhole', 'Alterar senha', 'Atualize sua senha de acesso', '/perfil/senha']) : ''}</div></section>
       <section class="settings-section"><header><h2>Aparência e acessibilidade</h2></header>${themeControl}</section>
       <section class="settings-section"><header><h2>Notificações</h2></header><div class="settings-info"><span class="settings-row__icon">${icon('BellOff')}</span><p>O KAD ainda não envia notificações. Quando esse recurso existir, os controles aparecerão aqui.</p></div></section>
+      <section class="settings-section"><header><h2>Ajuda</h2></header><div>${settingRow(['MessageCircle', 'Fale com o KAD', 'Envie uma sugestão, dúvida ou problema', '/perfil/feedback'])}</div></section>
+      </div>
+      <div class="settings-workspace__column">
       <section class="settings-section"><header><h2>Privacidade</h2><p>Visibilidade e controle dos seus dados</p></header><div>${rankingControl}${settingRow(['FileText', 'Termos de Uso', 'Regras para utilização do KAD', '/termos'])}${settingRow(['ShieldCheck', 'Política de Privacidade', 'Como seus dados são tratados', '/privacidade'])}${performance.total ? `<button class="settings-row settings-row--warning" type="button" data-action="reset-performance"><span class="settings-row__icon">${icon('RotateCcw')}</span><span class="settings-row__copy"><strong>Zerar desempenho</strong><span>Apaga todas as respostas registradas</span></span></button>` : ''}${settingRow(['Trash2', isAuthenticated ? 'Excluir conta' : 'Apagar dados deste navegador', isAuthenticated ? 'Remove a conta e todos os seus dados' : 'Remove respostas, salvos e preferências locais', '/perfil/excluir'], true)}</div></section>
       <section class="settings-section"><header><h2>Plano e assinatura</h2></header><div class="settings-plan"><div><strong>${escapeHtml(subscriptionPlanName(state.subscription.plan))}</strong><p>${subscriptionHasAccess(state.subscription) ? 'Acesso premium confirmado pelo servidor.' : 'Questões ilimitadas, sem cobrança e sem prazo.'}</p></div>${button('Gerenciar plano', { route: '/perfil/planos', variant: 'secondary', iconName: 'CreditCard', className: 'full-width' })}</div></section>
-      <section class="settings-section"><header><h2>Ajuda</h2></header><div>${settingRow(['MessageCircle', 'Fale com o KAD', 'Envie uma sugestão, dúvida ou problema', '/perfil/feedback'])}</div></section>
       <section class="settings-section"><header><h2>Sessão</h2></header><div><button class="settings-row" type="button" data-action="sign-out"><span class="settings-row__icon">${icon('LogOut')}</span><span class="settings-row__copy"><strong>${isAuthenticated ? 'Sair da conta' : 'Sair do modo visitante'}</strong><span>${escapeHtml(state.profile.email || 'Encerrar esta sessão')}</span></span></button></div></section>
+      </div>
     </div>`,
   };
 }

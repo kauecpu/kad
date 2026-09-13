@@ -2,6 +2,17 @@
 
 Referência aprovada: [Figma](https://www.figma.com/design/RwFgHBgAQCoNnX345fgIo9).
 
+## Refinamento aprovado após a revisão visual
+
+Os quadros editoriais de Estudar e Preparar e os acessos de Início/Preparar
+passaram a usar preto e amarelo, seguindo a referência do Ranking escolhida
+pelo responsável. Navegação roxa e cores semânticas foram preservadas.
+Configurações usa duas colunas independentes (uma em telas pequenas), sem
+alinhar cartões de alturas diferentes por linhas. Conquistas ocupa largura
+total; o atalho de configurações fica abaixo do nível, à direita no desktop.
+Verificação deste refinamento: 82 testes do site e 489 da raiz aprovados;
+nove rotas em 1440, 1024, 768 e 390 px, claro/escuro, sem overflow horizontal.
+
 O ambiente de estudo usa cinco destinos principais: Início, Estudar, Preparar,
 Acompanhar e Conta. As ferramentas de cada área ficam em navegação contextual,
 com URLs existentes e indicação de seleção. No celular a página mantém sua
