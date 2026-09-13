@@ -49,10 +49,15 @@ export function concursosView(state: SiteState, params: ViewParams = {}, savedOn
       ${savedOnly ? stackHeader(title, formatCount(filtered.length, 'concurso salvo', 'concursos salvos')) : workspaceHero({
         id: 'contests-overview',
         eyebrow: 'FOCO DA META',
-        title: 'Encontre o concurso que combina com seu próximo passo.',
+        title: 'Planeje hoje. Chegue pronto.',
         description: 'Compare vagas, salários, datas e comece a estudar pelas questões relacionadas.',
         actions: button('Ver concursos salvos', { route: '/concursos/salvos', iconName: 'Bookmark' }),
       })}
+      ${!savedOnly ? `<nav class="preparation-resources" aria-label="Recursos de preparação">
+        <a class="experience-card experience-card--study" href="/redacao" data-route="/redacao"><span class="eyebrow">REDAÇÃO</span><h3>Da proposta ao texto.</h3><span class="experience-card__action">Praticar escrita ${icon('ArrowRight')}</span></a>
+        <a class="experience-card" href="/flashcards" data-route="/flashcards"><span class="eyebrow">FLASHCARDS</span><h3>Revisão no seu ritmo.</h3><span class="experience-card__action">Abrir baralhos ${icon('ArrowRight')}</span></a>
+        <a class="experience-card" href="/biblioteca" data-route="/biblioteca"><span class="eyebrow">BIBLIOTECA</span><h3>Seu acervo de estudo.</h3><span class="experience-card__action">Explorar recursos ${icon('ArrowRight')}</span></a>
+      </nav>` : ''}
       <div class="preparation-catalog">
       <form class="filter-bar filter-panel filter-panel--contest" data-form="contest-search" aria-label="Filtrar concursos">
         <h2 class="preparation-catalog__filter-title">Refinar busca</h2>

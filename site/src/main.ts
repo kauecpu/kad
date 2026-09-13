@@ -1,5 +1,6 @@
 import './styles/base.css';
 import './styles/app.css';
+import './styles/workspace.css';
 
 import { getCatalog, replacePublishedCatalog } from './data/catalog.ts';
 import { back, currentRoute, matchRoute, navigate, shouldOpenStudyHome, subscribeRouter } from './core/router.ts';

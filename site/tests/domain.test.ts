@@ -78,6 +78,22 @@ test('estado local registra resposta, atividade e restaura dados persistidos', (
   assert.ok(Object.values(restored.activityByDate).flat().includes(question.id));
 });
 
+test('desempenho por disciplina considera somente respostas de questões publicadas', () => {
+  const scoped = createStore(memoryStorage());
+  const question = getCatalog().questions[0];
+  assert.ok(question);
+  assert.doesNotMatch(questionsIndexView(scoped.getState()).content, /class="discipline-performance__row"/);
+  scoped.update((draft) => recordAnswer(draft, question, question.correct));
+  const state = scoped.getState();
+  const content = questionsIndexView(state).content;
+  assert.match(content, /class="discipline-performance__row"/);
+  assert.ok(content.includes(`Acerto em ${question.discipline}`));
+  assert.match(content, /aria-valuenow="100"/);
+  const removedQuestionState = structuredClone(state);
+  removedQuestionState.answers = { removed: { ...state.answers[question.id], questionId: 'removed' } };
+  assert.doesNotMatch(questionsIndexView(removedQuestionState).content, /class="discipline-performance__row"/);
+});
+
 test('contagens usam singular somente para uma unidade', () => {
   assert.equal(formatCount(0, 'questão', 'questões'), '0 questões');
   assert.equal(formatCount(1, 'questão', 'questões'), '1 questão');

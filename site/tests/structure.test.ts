@@ -240,7 +240,9 @@ test('site móvel mantém rolagem da página e alvos de toque acessíveis', asyn
     source('src/views/profile.ts'),
   ]);
 
-  assert.doesNotMatch(baseStyles, /--mobile-tabs/);
+  const workspaceStyles = await source('src/styles/workspace.css');
+  assert.doesNotMatch(workspaceStyles, /--mobile-tabs/);
+  assert.match(workspaceStyles, /html:has\(\.web-workspace\) \{ scroll-padding-bottom: 24px/);
   assert.match(baseStyles, /\.segmented button \{ min-height: 44px/);
   assert.match(baseStyles, /\.chip \{ min-height: 44px/);
   assert.doesNotMatch(appStyles, /mobile-tabs|nav-link--compact/);
@@ -263,11 +265,11 @@ test('navegação web agrupa tarefas e mantém acesso pelo menu do cabeçalho', 
   for (const route of ['/questoes', '/simulados', '/trilhas', '/concursos', '/perfil', '/configuracoes']) assert.match(navigation, new RegExp(`href: '${route}'`));
   assert.doesNotMatch(layout, /mobile-tabs|mobilePrimaryNavigation/);
   assert.match(layout, /topbar__menu/);
-  assert.match(layout, /sidebar__home/);
+  assert.match(layout, /navigationExperiences\.map/);
   assert.match(layout, /topbar__experience/);
   assert.match(layout, /data-navigation-experience/);
   assert.doesNotMatch(layout, /<span>Mais<\/span>/);
-  assert.match(layout, /sidebar__group/);
+  assert.match(layout, /area-navigation/);
   assert.match(main, /navigationTrigger/);
   assert.match(main, /closeNavigation\(\)/);
   assert.match(main, /event\.key === 'Tab'/);
@@ -376,7 +378,7 @@ test('início interno adota composição editorial com navegação lateral prese
   assert.match(home, /class="study-desk"/);
   assert.match(home, /studyNextAction/);
   assert.match(home, /class="study-plan"/);
-  assert.match(home, /class="weekly-focus"/);
+  assert.match(home, /class="weekly-focus home-weekly"/);
   assert.doesNotMatch(home, /class="hero-card"/);
   assert.doesNotMatch(home, /class="action-grid"/);
   assert.match(styles, /\.study-desk__continuity \{[^}]+grid-template-columns:/);

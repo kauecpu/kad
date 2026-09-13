@@ -2,6 +2,7 @@ import { getCatalog } from '../data/catalog.ts';
 import { escapeHtml, formatCount, formatPercent, localDay, questionsPerformance } from '../core/utils.ts';
 import { badge, button, icon, progress, section, studyNextAction, studyPlanRow } from '../ui/components.ts';
 import { achievementIconName } from '../ui/gamification.ts';
+import { navigationExperiences } from '../ui/navigation.ts';
 import type { SiteState, ViewModel } from '../types/domain.ts';
 import type { LevelState } from '../../../contracts/level-tracker.ts';
 import { nextLockedAchievement } from '../../../contracts/achievements.ts';
@@ -77,21 +78,20 @@ export function homeView(state: SiteState, levelState?: LevelState): ViewModel {
           actionLabel: performance.total ? 'Continuar estudo' : 'Responder primeira questão',
           secondary: button('Montar simulado', { route: '/simulados', variant: 'ghost', iconName: 'Timer' }),
         })}
-        <aside class="weekly-focus" aria-label="Meta da semana">
+        <aside class="home-agenda" aria-label="Próximos passos"><p class="eyebrow">HOJE</p><h2>Seu próximo passo</h2><div class="study-plan">${todayPlan}</div></aside>
+      </div>
+
+      ${section('Acesso rápido', `<nav class="experience-grid" aria-label="Áreas do KAD">${navigationExperiences.filter((item) => item.id !== 'home').map((item) => `<a class="experience-card experience-card--${item.id}" href="${item.href}" data-route="${item.href}"><span class="eyebrow">${escapeHtml(item.label)}</span>${icon(item.icon)}<h3>${escapeHtml(item.description)}</h3><span class="experience-card__action">Explorar ${icon('ArrowRight')}</span></a>`).join('')}</nav>`, { eyebrow: 'SUA PREPARAÇÃO, ORGANIZADA' })}
+
+        <aside class="weekly-focus home-weekly" aria-label="Meta da semana">
           <p class="eyebrow">Meta da semana</p>
           <div class="weekly-focus__value"><strong>${weeklyAnswered} de ${state.preferences.weeklyGoal}</strong><span>questões</span></div>
           ${progress(weeklyProgress, `Meta semanal: ${weeklyAnswered} de ${state.preferences.weeklyGoal}`, weeklyProgress >= 100 ? 'success' : 'warning')}
           <p>${weeklyMessage}</p>
           ${button('Ajustar meta', { route: '/meta', variant: 'ghost', size: 'sm', iconName: 'Settings2' })}
         </aside>
-      </div>
-
       <div class="home-planning">
       <div class="home-planning__main">
-      ${section('Um plano curto, em ordem', `<div class="study-plan">${todayPlan}</div>`, {
-        eyebrow: 'HOJE',
-        action: button('Buscar questões', { route: '/questoes/buscar', variant: 'ghost', size: 'sm', iconName: 'Search' }),
-      })}
         ${section('Atividade recente', recent, { eyebrow: 'SEU HISTÓRICO' })}
       </div>
       <div class="home-planning__context">

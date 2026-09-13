@@ -1957,7 +1957,7 @@ div.profile-ranking { cursor: default; }
 }
 
 @media (max-width: 680px) {
-  :root { --topbar-height: 82px; }
+  .app-shell { --topbar-height: 82px; }
   .topbar { gap: 10px; padding-block: 8px; }
   .topbar__experience { font-size: .56rem; }
   .topbar__title h1 { font-size: 1.04rem; }
