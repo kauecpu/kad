@@ -109,7 +109,7 @@ export function StudyMomentumCard({ momentum, onGoalChange }: StudyMomentumCardP
 
       <View style={[styles.momentumBottom, { borderTopColor: colors.border }]}>
         <View style={styles.streakRow}>
-          <Ionicons name="flame-outline" size={20} color={colors.warning} />
+          <Ionicons name="flame-outline" size={20} color={colors.energy} />
           <View style={styles.streakCopy}>
             <Text style={[styles.streakTitle, { color: colors.text }]}>{streakLabel}</Text>
             <Text style={[styles.streakDescription, { color: colors.textMuted }]}>

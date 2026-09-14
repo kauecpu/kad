@@ -21,8 +21,8 @@ export function NextAchievementCard() {
       accessibilityRole="button"
       accessibilityLabel={`Próxima conquista: ${next.title}. ${next.value} de ${next.threshold}. Abrir perfil`}
       style={({ pressed }) => [styles.card, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}>
-      <View style={[styles.icon, { backgroundColor: colors.warningSoft }]}>
-        <Ionicons name={next.icon as keyof typeof Ionicons.glyphMap} size={22} color={colors.warning} />
+      <View style={[styles.icon, { backgroundColor: colors.energySoft }]}>
+        <Ionicons name={next.icon as keyof typeof Ionicons.glyphMap} size={22} color={colors.energy} />
       </View>
       <View style={styles.copy}>
         <Text style={[styles.eyebrow, { color: colors.textSubtle }]}>PRÓXIMA CONQUISTA</Text>

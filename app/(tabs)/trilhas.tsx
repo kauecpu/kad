@@ -520,7 +520,7 @@ export default function TrailsScreen() {
                             </View>
 
                             <View style={[styles.tip, { borderColor: colors.border }]}>
-                              <Ionicons name="bulb-outline" size={19} color={colors.warning} />
+                              <Ionicons name="bulb-outline" size={19} color={colors.accent} />
                               <View style={styles.tipText}>
                                 <Text style={[styles.tipLabel, { color: colors.text }]}>Dica</Text>
                                 <Text style={[styles.tipDescription, { color: colors.textMuted }]}>
