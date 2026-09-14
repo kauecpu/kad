@@ -65,28 +65,28 @@ const light = {
 export type ThemeColors = typeof light;
 
 const dark: ThemeColors = {
-  background: '#0B1118',
-  surface: '#121A23',
-  surfaceRaised: '#17212C',
-  surfaceAlt: '#1A2430',
-  surfaceSunken: '#070C12',
+  background: '#050505',
+  surface: '#0D0D0D',
+  surfaceRaised: '#141414',
+  surfaceAlt: '#1A1A1A',
+  surfaceSunken: '#000000',
 
-  text: '#F4F7FA',
-  textMuted: '#B4C0CC',
-  textSubtle: '#82909F',
+  text: '#F5F5F5',
+  textMuted: '#B8B8B8',
+  textSubtle: '#949494',
 
-  border: '#263241',
-  borderStrong: '#3C4B5D',
+  border: '#2A2A2A',
+  borderStrong: '#454545',
 
   primary: '#F4CD4D',
   primarySoft: '#302711',
   primaryStrong: '#FFD866',
-  onPrimary: '#0B1118',
+  onPrimary: '#0A0A0A',
   brandSurfaceStrong: '#F4CD4D',
   brandSurfaceDeep: '#C68A00',
-  onBrand: '#0B1118',
-  onBrandMuted: '#2B2108',
-  brandTrace: 'rgba(11, 17, 24, 0.20)',
+  onBrand: '#0A0A0A',
+  onBrandMuted: '#202020',
+  brandTrace: 'rgba(10, 10, 10, 0.20)',
 
   success: '#5DD39E',
   successSoft: '#112C24',
@@ -112,10 +112,10 @@ const dark: ThemeColors = {
   insightSoft: '#10302C',
 
   tabActive: '#F4CD4D',
-  tabInactive: '#8D9AA8',
+  tabInactive: '#A0A0A0',
   tabActiveSurface: '#302711',
   focusRing: '#F4CD4D',
-  overlay: 'rgba(2, 6, 12, 0.72)',
+  overlay: 'rgba(0, 0, 0, 0.76)',
   shadow: '#000000',
 };
 
