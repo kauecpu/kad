@@ -35,7 +35,7 @@ function questionResultCard(question: Question, state: SiteState): string {
   return `<button class="list-row result-row" type="button" data-action="open-question" data-question-id="${escapeHtml(question.id)}">
       <span class="list-row__icon">${icon(answer ? (answer.isCorrect ? 'CheckCircle2' : 'XCircle') : 'BookOpen')}</span>
       <span class="list-row__copy"><strong>${escapeHtml(question.topic)}</strong><span>${escapeHtml(question.discipline)} · ${escapeHtml(question.board)} · ${question.year}</span></span>
-      ${answer ? badge(answer.isCorrect ? 'Acertada' : 'Errada', answer.isCorrect ? 'success' : 'danger') : badge(question.difficulty)}
+      ${answer ? badge(answer.isCorrect ? 'Acertada' : 'Errada', answer.isCorrect ? 'success' : 'danger') : question.difficulty ? badge(question.difficulty) : ''}
       ${icon('ChevronRight')}
     </button>`;
 }
@@ -245,13 +245,13 @@ export function questionSessionView(state: SiteState, params: ViewParams, ui: Qu
       <div class="study-layout">
         ${card(`
           <div class="toolbar">
-            <div class="question-meta">${badge(question.board, 'neutral')}${badge(String(question.year), 'neutral')}${badge(question.difficulty, 'accent')}</div>
+            <div class="question-meta">${badge(question.board, 'neutral')}${badge(String(question.year), 'neutral')}${question.difficulty ? badge(question.difficulty, 'accent') : ''}</div>
             <button class="icon-button" type="button" data-action="toggle-favorite" data-question-id="${escapeHtml(question.id)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${icon(favorite ? 'BookmarkCheck' : 'Bookmark')}</button>
           </div>
           <p class="question-statement">${escapeHtml(question.statement)}</p>
           <fieldset ${ui.studyReady === false ? 'disabled' : ''} style="border:0;padding:0;margin:0;min-width:0"><legend class="sr-only">Alternativas</legend><div class="options">${options}</div></fieldset>
           ${ui.studySyncMessage ? `<p role="status">${escapeHtml(ui.studySyncMessage)}</p>${button('Sincronizar progresso', { action: 'sync-study', variant: 'ghost' })}` : ''}
-          ${answer ? `<div class="explanation"><strong>${answer.isCorrect ? 'Resposta correta' : `Resposta incorreta · gabarito ${question.correct}`}</strong><p>${escapeHtml(question.explanation)}</p>${communityAccuracy ? `<small>${formatPercent(communityAccuracy.accuracy)} de acerto entre ${communityAccuracy.totalAnswers} ${communityAccuracy.totalAnswers === 1 ? 'resposta registrada' : 'respostas registradas'}.</small>` : ''}</div>` : ''}
+          ${answer ? `<div class="explanation"><strong>${answer.isCorrect ? 'Resposta correta' : `Resposta incorreta · gabarito ${question.correct}`}</strong>${question.explanation ? `<p>${escapeHtml(question.explanation)}</p>` : ''}${communityAccuracy ? `<small>${formatPercent(communityAccuracy.accuracy)} de acerto entre ${communityAccuracy.totalAnswers} ${communityAccuracy.totalAnswers === 1 ? 'resposta registrada' : 'respostas registradas'}.</small>` : ''}</div>` : ''}
           <div class="study-controls">
             ${button('Anterior', { action: 'previous-question', variant: 'secondary', iconName: 'ArrowLeft', disabled: index === 0 })}
             <div class="toolbar__group">${answer ? button('Tentar novamente', { action: 'retry-question', variant: 'ghost', iconName: 'RotateCcw', attrs: `data-question-id="${escapeHtml(question.id)}"` }) : ''}${forwardButton}</div>

@@ -379,6 +379,7 @@ button.list-row:hover { background: var(--surface-alt); }
 .option { display: grid; min-height: 54px; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--surface); color: var(--text); padding: 11px 13px; text-align: left; cursor: pointer; }
 .option:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-soft); }
 .option__letter { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px; background: var(--surface-alt); font-size: 0.78rem; font-weight: 800; }
+.option > span:nth-child(2) { white-space: pre-line; }
 .option.is-selected { border-color: var(--primary); background: var(--primary-soft); }
 .option.is-correct { border-color: var(--success); background: var(--success-soft); }
 .option.is-wrong { border-color: var(--danger); background: var(--danger-soft); }

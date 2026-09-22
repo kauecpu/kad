@@ -3,6 +3,7 @@ import './styles/app.css';
 import './styles/workspace.css';
 
 import { getCatalog, replacePublishedCatalog } from './data/catalog.ts';
+import { loadLocalDraft } from './services/local-draft.ts';
 import { back, currentRoute, matchRoute, navigate, shouldOpenStudyHome, subscribeRouter } from './core/router.ts';
 import {
   archiveCard as archiveFlashcard,
@@ -1915,7 +1916,19 @@ const confirmationBootstrap = currentRoute().pathname === '/confirmar-email'
     })
   : Promise.resolve();
 
-void initializeSupabase().then((configured) => {
+if (import.meta.env.DEV && import.meta.env.VITE_KAD_LOCAL_PILOT === '1') {
+  // Explicit local-only pilot: no auth bootstrap, remote catalog or production writes.
+  replacePublishedCatalog({ questions: [], concursos: [] });
+  void loadLocalDraft().then((questions) => {
+    replacePublishedCatalog({ questions, concursos: [] });
+    backendState = classifyBackendState({ configured: false });
+    render();
+  }).catch((error: unknown) => {
+    replacePublishedCatalog({ questions: [], concursos: [] });
+    toast(error instanceof Error ? error.message : 'Falha ao carregar o piloto local.');
+    render();
+  });
+} else void initializeSupabase().then((configured) => {
   if (!configured || !supabaseConfigured) {
     backendState = classifyBackendState({ configured: false, loading: false, loadedFromRemote: false });
     render();
