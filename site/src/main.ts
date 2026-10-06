@@ -253,6 +253,8 @@ function requiredElement<T extends Element>(selector: string): T {
 
 const root = requiredElement<HTMLElement>('#app');
 const announcer = requiredElement<HTMLElement>('#announcer');
+let recoveryError = 'interrupted';
+const pendingPasswordForms = new Set<string>();
 
 const ui: UiState = {
   questionIndex: 0,
@@ -385,7 +387,7 @@ function resolveView(route: Route, state: SiteState): ViewModel {
   if (pathname === '/cadastro') return authView('cadastro', { returnTo: validateCheckoutReturn(params.returnTo) ?? undefined });
   if (pathname === '/recuperar-senha') return recoveryView('request');
   if (pathname === '/confirmar-email') return recoveryView('confirmation', params);
-  if (pathname === '/nova-senha') return recoveryView('new-password', { ...params, recoveryStatus: ui.recoveryStatus });
+  if (pathname === '/nova-senha') return recoveryView('new-password', { ...params, recoveryStatus: ui.recoveryStatus, recoveryError });
   if (pathname === '/onboarding') return onboardingView(state);
   if (pathname === '/termos') return legalView('termos');
   if (pathname === '/privacidade') return legalView('privacidade');
@@ -888,7 +890,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
 
   if (formName === 'recovery') {
     const result = await requestPasswordRecovery(values.email);
-    updateFormMessage(form, result.ok ? 'Confira seu e-mail para continuar.' : result.offline ? 'A recuperação de conta não está disponível neste ambiente.' : result.message, result.ok ? 'success' : 'error');
+    updateFormMessage(form, result.ok ? 'Se o endereço estiver cadastrado, você receberá o link. Abra-o neste mesmo navegador. Não é necessário enviar outro pedido agora.' : result.offline ? 'A recuperação de conta não está disponível neste ambiente.' : result.message, result.ok ? 'success' : 'error');
     return;
   }
 
@@ -911,8 +913,18 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       ? await updateRecoveredPassword(values.password)
       : await updateAccountPassword(values.currentPassword, values.password);
     if (result.ok) {
-      updateFormMessage(form, 'Senha atualizada com sucesso.', 'success');
-      setTimeout(() => navigate('/perfil'), 700);
+      const recovered = formName === 'new-password';
+      if (recovered) {
+        ui.recoveryStatus = 'invalid';
+        recoveryError = 'interrupted';
+        store.switchOwner(null);
+        await levelTracker.selectOwner(null);
+      }
+      const message = 'warning' in result && result.warning === 'logout-failed'
+        ? 'Senha alterada, mas não foi possível encerrar todas as sessões. Entre com a nova senha e confira sua conta.'
+        : recovered ? 'Senha atualizada. Entre com a nova senha.' : 'Senha atualizada com sucesso.';
+      toast(message);
+      navigate(recovered ? '/entrar' : '/perfil', { replace: true });
     } else updateFormMessage(form, result.offline ? 'Entre em uma conta conectada para alterar a senha.' : result.message, 'error');
     return;
   }
@@ -1759,7 +1771,23 @@ document.addEventListener('submit', (event) => {
   const form = event.target instanceof Element ? event.target.closest<HTMLFormElement>('form[data-form]') : null;
   if (!(form instanceof HTMLFormElement)) return;
   event.preventDefault();
-  void handleForm(form);
+  const kind = form.dataset.form ?? '';
+  if (!['recovery', 'new-password'].includes(kind)) {
+    void handleForm(form);
+    return;
+  }
+  if (pendingPasswordForms.has(kind)) return;
+  pendingPasswordForms.add(kind);
+  const submits = [...form.querySelectorAll<HTMLButtonElement>('button[type="submit"]')];
+  submits.forEach(button => { button.disabled = true; });
+  form.setAttribute('aria-busy', 'true');
+  void handleForm(form).catch(() => {
+    updateFormMessage(form, 'Não foi possível concluir a operação. Tente novamente mais tarde.', 'error');
+  }).finally(() => {
+    pendingPasswordForms.delete(kind);
+    submits.forEach(button => { button.disabled = false; });
+    form.removeAttribute('aria-busy');
+  });
 });
 
 document.addEventListener('change', (event) => {
@@ -1880,10 +1908,14 @@ void levelTracker.selectOwner(null);
 applyTheme();
 render({ routeChanged: true });
 
-const recoveryBootstrap = currentRoute().pathname === '/nova-senha'
-  ? completePasswordRecoveryCallback(globalThis.location.href)
+const recoveryCallbackUrl = currentRoute().pathname === '/nova-senha' ? globalThis.location.href : null;
+// Remove authorization material from history immediately, not only after an awaited request.
+if (recoveryCallbackUrl) globalThis.history.replaceState({}, '', '/nova-senha');
+const recoveryBootstrap = recoveryCallbackUrl
+  ? completePasswordRecoveryCallback(recoveryCallbackUrl)
     .then(async (result) => {
       ui.recoveryStatus = result.ok ? 'ready' : 'invalid';
+      recoveryError = !result.ok && !result.offline ? result.code ?? 'technical' : 'technical';
       if (result.ok && result.user?.id) {
         await levelTracker.selectOwner(result.user.id);
         store.switchOwner(result.user.id);
@@ -1892,11 +1924,12 @@ const recoveryBootstrap = currentRoute().pathname === '/nova-senha'
           draft.profile.email = result.user.email ?? draft.profile.email;
         });
       }
-      navigate('/nova-senha', { replace: true });
+      if (currentRoute().pathname === '/nova-senha') render();
     })
     .catch(() => {
       ui.recoveryStatus = 'invalid';
-      navigate('/nova-senha', { replace: true });
+      recoveryError = 'technical';
+      if (currentRoute().pathname === '/nova-senha') render();
     })
   : Promise.resolve();
 
