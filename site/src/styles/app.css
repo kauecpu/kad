@@ -314,7 +314,7 @@
 .filter-panel--contest { grid-template-columns: minmax(240px, 1.5fr) repeat(2, minmax(150px, .55fr)) auto; }
 .filter-panel--short { grid-template-columns: minmax(260px, 1.5fr) minmax(210px, .7fr) auto; }
 .question-search-panel { display: grid; border-block: 1px solid var(--border); }
-.question-search-panel__primary { display: grid; grid-template-columns: minmax(260px, 1.5fr) minmax(200px, .7fr) auto; align-items: end; gap: 12px; padding: 18px 0; }
+.question-search-panel__primary { display: grid; grid-template-columns: minmax(260px, 1.5fr) minmax(200px, .7fr) auto auto; align-items: end; gap: 12px; padding: 18px 0; }
 .filter-disclosure { border-top: 1px solid var(--border); }
 .filter-disclosure summary { display: flex; min-height: 52px; align-items: center; gap: 9px; color: var(--text-muted); padding: 4px 0; font-size: .78rem; font-weight: 750; cursor: pointer; list-style: none; }
 .filter-disclosure summary::-webkit-details-marker { display: none; }

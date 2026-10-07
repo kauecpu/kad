@@ -1,0 +1,124 @@
+{
+  "testedAt": "2026-10-07T23:49:10.221Z",
+  "base": "http://127.0.0.1:5200",
+  "project": "npaoyezfwmgauirrlyog",
+  "approvedPackageSha256": "5691ba0be978e6659879fd19c4db1db25a0606aad2aed7561e137e3c271054ac",
+  "catalog": [
+    {
+      "id": "q-b8b8cda2684340923cbe4075b90149429ce674a45a66369f5b90527baee8309e",
+      "number": 36,
+      "publishedContentSha256": "748d22f6c4ba1bed6e62da95db4aeb7e509f4311b46bea7da9bcf66fb1ec3d08",
+      "approvedContentSha256": "e3af302808da25241fb1f308cc1a164e29d0827eb785a9b09043401611024334",
+      "differences": [
+        "statement"
+      ]
+    },
+    {
+      "id": "q-3830b8378c2ef98911791d0095cf04352a97bf00a881096f505a6eae7a352e58",
+      "number": 64,
+      "publishedContentSha256": "52b2f2726fa76251db8b578d888fd3dfd62a60f71076098832f56857f0a935b2",
+      "approvedContentSha256": "52b2f2726fa76251db8b578d888fd3dfd62a60f71076098832f56857f0a935b2",
+      "differences": []
+    },
+    {
+      "id": "q-3a78ecd4318c4b4322a16cae5ad6751eee8dbb35d232e12aa9eafaab5f0db351",
+      "number": 44,
+      "publishedContentSha256": "d24ddb44d9e8a8b48b5504c775c113b532a0450a7ca73ba8c200efa78cae3895",
+      "approvedContentSha256": "d24ddb44d9e8a8b48b5504c775c113b532a0450a7ca73ba8c200efa78cae3895",
+      "differences": []
+    },
+    {
+      "id": "q-417d4e3314b99cea5f825dcd12d0525b9493a4e515cf7f8a918ad0021698cee9",
+      "number": 42,
+      "publishedContentSha256": "08f760017d9c328f54873980ca4e4ce705a2fdddd4e2dd006fea2e8d4d6bff6d",
+      "approvedContentSha256": "08f760017d9c328f54873980ca4e4ce705a2fdddd4e2dd006fea2e8d4d6bff6d",
+      "differences": []
+    },
+    {
+      "id": "q-76d7963cbf100ffa7612fdfccbb11296c87fb87eded0777501eef4ed0f0e1d04",
+      "number": 45,
+      "publishedContentSha256": "8c4f3bd1bda09fce772647a399ac6420b520cfb71c5f1a3c11f501488bb801a1",
+      "approvedContentSha256": "91ad4010b4e288a40237878ef83fc7b0e1aefdb5453e0211b3a614fa0b6d6c5c",
+      "differences": [
+        "statement",
+        "alternatives"
+      ]
+    },
+    {
+      "id": "q-c20523c2d24ad4ab9952ff046f9b6ee65141edb38e51832a546d70717597509a",
+      "number": 53,
+      "publishedContentSha256": "0d6959df9bc04de3944c88f71c4a0d36bec22076a147b3bc20d6985a4172d16a",
+      "approvedContentSha256": "0d6959df9bc04de3944c88f71c4a0d36bec22076a147b3bc20d6985a4172d16a",
+      "differences": []
+    },
+    {
+      "id": "q-d78331c6e09d2b8e5fcf9463b0ed32462028e186f92a3e0011939bafa678ad57",
+      "number": 68,
+      "publishedContentSha256": "23b4b7f3adbd995a5da7869d900da373317097aeb72bbeee216de0938a3bef8e",
+      "approvedContentSha256": "23b4b7f3adbd995a5da7869d900da373317097aeb72bbeee216de0938a3bef8e",
+      "differences": []
+    },
+    {
+      "id": "q-ed287814da5fe68e3e1f218c42cd64e2daf2970b9a7473db2be4e5ea5f671785",
+      "number": 69,
+      "publishedContentSha256": "2d7a909cbdbfe8e44a8dc3ab22a07ca2c5b2e264a06a5dfb7ce2967238b30209",
+      "approvedContentSha256": "2552cbc95b2657a0017fba38499b8f0fc1ec1da72caa8eeab7cbdc797bacd8b9",
+      "differences": [
+        "statement"
+      ]
+    },
+    {
+      "id": "q-ee13f36debe48d65b07546545e2e9854528dce2f76e1f3bd02ad962ddecfdc61",
+      "number": 21,
+      "publishedContentSha256": "3fd58bb1c9a95d4d8ab2079386d8c8bb874d1ddf332a90c8082b2ce1036e1e3d",
+      "approvedContentSha256": "9b9cc51fc3cfa07c792c8c35a15a0e97db6957d639fd8a3f786a7eea6faca3cc",
+      "differences": [
+        "alternatives"
+      ]
+    },
+    {
+      "id": "q-f18350429455c2adb0a46223c7a783e8164dc7725b27336e8db1a40aeb72d03c",
+      "number": 18,
+      "publishedContentSha256": "983d458f698dc1e9f5d85bae7c57febf81c3c92ac23d39ee7530c43f5a1402f3",
+      "approvedContentSha256": "67ccf100f4c2ce20d2814267f1bdad5e39df90700f194b00095ffa9f7af01585",
+      "differences": [
+        "statement"
+      ]
+    }
+  ],
+  "passed": [
+    "real public catalog loaded; published content compared to approved package",
+    "text + board + year + discipline + subject + topic, with catalog-derived options",
+    "correct answer, repeated click guarded, favorite and return preserving filters",
+    "unanswered session keeps feedback and supports next/previous",
+    "answered/unanswered/correct/wrong/favorites filters",
+    "answer and favorite survive reload and closing/reopening a tab",
+    "error review opens saved answer and returns to review",
+    "empty text, no matches and clear filters",
+    "network loss after catalog load: answer, favorite, search, reconnect and reload",
+    "desktop/tablet/mobile, both themes, reduced motion and keyboard focus",
+    "simulated initial connection failure + delayed real retry; no demo leakage",
+    "simulated empty catalog has an honest empty state",
+    "no production requests, remote mutations or page errors"
+  ],
+  "screenshots": [
+    "search-1440-dark.png",
+    "study-1440-dark.png",
+    "search-1440-light.png",
+    "study-1440-light.png",
+    "search-1024-dark.png",
+    "study-1024-dark.png",
+    "search-1024-light.png",
+    "study-1024-light.png",
+    "search-768-dark.png",
+    "study-768-dark.png",
+    "search-768-light.png",
+    "study-768-light.png",
+    "search-390-dark.png",
+    "study-390-dark.png",
+    "search-390-light.png",
+    "study-390-light.png"
+  ],
+  "remoteWritesAttempted": [],
+  "pageErrors": []
+}

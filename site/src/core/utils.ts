@@ -135,6 +135,7 @@ export function matchesPack(question?: Question | null, pack?: ConcursoPack | nu
 export type QuestionFilter = {
   keyword?: string;
   discipline?: string;
+  subject?: string;
   topic?: string;
   board?: string;
   difficulty?: string;
@@ -143,9 +144,10 @@ export type QuestionFilter = {
 };
 
 export function filterQuestions(questions: readonly Question[], filters: QuestionFilter = {}): Question[] {
-  const keyword = normalizeText(filters.keyword);
+  const keyword = normalizeText(filters.keyword).replace(/\s+/g, ' ');
   return questions.filter((question) => {
     if (filters.discipline && question.discipline !== filters.discipline) return false;
+    if (filters.subject && question.subject !== filters.subject) return false;
     if (filters.topic && question.topic !== filters.topic) return false;
     if (filters.board && question.board !== filters.board) return false;
     if (filters.difficulty && question.difficulty !== filters.difficulty) return false;
@@ -161,7 +163,7 @@ export function filterQuestions(questions: readonly Question[], filters: Questio
       question.role,
       question.institution,
       question.concurso,
-    ].join(' ')).includes(keyword);
+    ].join(' ')).replace(/\s+/g, ' ').includes(keyword);
   });
 }
 

@@ -8,6 +8,10 @@ type Environment = {
 export default {
   fetch(request: Request, env: Environment): Promise<Response> {
     const url = new URL(request.url);
+    if (url.hostname === 'www.kadconcursos.com.br') {
+      url.hostname = 'kadconcursos.com.br';
+      return Promise.resolve(Response.redirect(url, 308));
+    }
     if (request.method === 'GET' && url.pathname === '/api/public-config') {
       return Promise.resolve(Response.json({
         environment: env.KAD_ENV ?? null,

@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { ownedStudyRequest } from '@/contracts/study-request.ts';
 import { resolvePublicSupabaseConfig } from '@/contracts/deployment-environment.ts';
-import { parseRecoveryCallback } from '../core/auth-callback.ts';
+import { parseRecoveryCallback, recoveryCallbackFailure } from '../core/auth-callback.ts';
+import { createRecoveryRequest, recoveryFailure, recoveryMessage } from '../core/password-recovery.ts';
 import { signOutLocally } from '../core/auth-actions.ts';
 import { buildSignupMetadata } from '../core/auth-profile.ts';
 import { isEssayDocument, isSimulationSession } from '../core/user-sync.ts';
@@ -70,6 +71,7 @@ export type RemoteFlashcards = {
 
 let supabase: SupabaseClient | null = null;
 let passwordSecurity: ReturnType<typeof createPasswordSecurity> | null = null;
+let recoveryRequest: ReturnType<typeof createRecoveryRequest> | null = null;
 let initialization: Promise<boolean> | null = null;
 export let supabaseConfigured = false;
 
@@ -114,6 +116,10 @@ export function initializeSupabase(): Promise<boolean> {
     if (!resolved.ok) return false;
     supabase = createBrowserClient(resolved.value.url, resolved.value.publishableKey);
     passwordSecurity = createPasswordSecurity(supabase.auth);
+    const recoveryAuth = supabase.auth;
+    recoveryRequest = createRecoveryRequest(email => recoveryAuth.resetPasswordForEmail(email, {
+      redirectTo: new URL('/nova-senha', globalThis.location.origin).toString(),
+    }));
     supabaseConfigured = true;
     return true;
   })();
@@ -494,31 +500,42 @@ export async function cancelRemoteSubscription(
 }
 
 export async function requestPasswordRecovery(email: string): Promise<OfflineResult | FailureResult | SuccessResult> {
-  const remote = await client();
-  if (!remote) return { ok: false, offline: true };
-  const redirectTo = new URL('/nova-senha', globalThis.location.origin).toString();
-  const { error } = await remote.auth.resetPasswordForEmail(email, { redirectTo });
-  return error
-    ? { ok: false, message: 'Não foi possível enviar as instruções agora.' }
-    : { ok: true };
+  await initializeSupabase();
+  if (!recoveryRequest) return { ok: false, offline: true };
+  const result = await recoveryRequest(email);
+  return result.ok ? result : { ok: false, code: result.reason, message: recoveryMessage(result.reason).message };
 }
 
 export async function completePasswordRecoveryCallback(callbackUrl: string): Promise<AuthResult> {
+  const callback = parseRecoveryCallback(callbackUrl, globalThis.location.origin);
+  if (!callback) {
+    const reason = recoveryCallbackFailure(callbackUrl, globalThis.location.origin);
+    return { ok: false, code: reason, message: recoveryMessage(reason).message };
+  }
   await initializeSupabase();
   if (!passwordSecurity) return { ok: false, offline: true };
-  const callback = parseRecoveryCallback(callbackUrl, globalThis.location.origin);
-  if (!callback) return { ok: false, message: 'Este link não é válido ou não foi iniciado neste navegador.' };
-  const session = await passwordSecurity.completeRecovery(callback);
-  if (!session) return { ok: false, message: 'Este link expirou ou já foi utilizado.' };
-  const user = await getCurrentUser();
-  return user
-    ? { ok: true, user }
-    : { ok: false, message: 'Não foi possível confirmar a conta recuperada.' };
+  const result = await passwordSecurity.completeRecovery(callback);
+  if (!result.ok) return { ok: false, code: result.reason, message: recoveryMessage(result.reason).message };
+  try {
+    const remote = await client();
+    const confirmed = await remote!.auth.getUser();
+    if (confirmed.error) {
+      const reason = recoveryFailure(confirmed.error);
+      return { ok: false, code: reason, message: recoveryMessage(reason).message };
+    }
+    const user = confirmed.data.user;
+    return user?.id === result.session.user.id
+      ? { ok: true, user }
+      : { ok: false, code: 'session-mismatch', message: recoveryMessage('session-mismatch').message };
+  } catch (error) {
+    const reason = recoveryFailure(error);
+    return { ok: false, code: reason, message: recoveryMessage(reason).message };
+  }
 }
 
 export async function updateRecoveredPassword(
   password: string,
-): Promise<OfflineResult | FailureResult | SuccessResult> {
+): Promise<OfflineResult | FailureResult | (SuccessResult & { warning?: string })> {
   await initializeSupabase();
   if (!passwordSecurity) return { ok: false, offline: true };
   const result = await passwordSecurity.updateRecovered(password);
@@ -526,7 +543,8 @@ export async function updateRecoveredPassword(
     ? result
     : { ok: false, message: result.reason === 'recovery-not-validated'
       ? 'Valide um novo link de recuperação antes de alterar a senha.'
-      : 'Não foi possível atualizar a senha agora.' };
+      : result.reason === 'update-in-progress' ? 'A atualização já está em andamento.'
+      : recoveryMessage(result.reason).message };
 }
 
 export async function updateAccountPassword(
