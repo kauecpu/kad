@@ -501,6 +501,13 @@ test('build do site inclui o adaptador e o fallback exigidos pela hospedagem', a
   assert.match(viteConfig, /viteEnvironment: \{ name: 'server' \}/);
   assert.match(worker, /env\.ASSETS\.fetch/);
   assert.match(worker, /new URL\('\/'/);
+  assert.match(worker, /url\.hostname === 'www\.kadconcursos\.com\.br'/);
+  assert.match(worker, /Response\.redirect\(url, 308\)/);
+  assert.match(wranglerConfig, /"name": "kad-concursos"/);
+  assert.match(wranglerConfig, /"preview_urls": false/);
+  assert.match(wranglerConfig, /"pattern": "kadconcursos\.com\.br"/);
+  assert.match(wranglerConfig, /"pattern": "www\.kadconcursos\.com\.br"/);
+  assert.match(wranglerConfig, /"custom_domain": true/);
   assert.match(wranglerConfig, /"binding": "ASSETS"/);
   assert.match(wranglerConfig, /"not_found_handling": "single-page-application"/);
   assert.match(seoScript, /dist\/client\/index\.html/);

@@ -1,8 +1,20 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "kad-concursos-teste",
+  "name": "kad-concursos",
   "compatibility_date": "2026-05-22",
   "main": "./server/index.ts",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "kadconcursos.com.br",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.kadconcursos.com.br",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
