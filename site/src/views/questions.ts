@@ -13,12 +13,19 @@ import {
 import { badge, button, card, emptyState, icon, progress, section, subjectIndexRow } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
 import type { Question, SiteState, UiState, ViewModel } from '../types/domain.ts';
+import type { BackendState } from '../core/backend-state.ts';
 
 type ViewParams = Record<string, string | undefined>;
-type AnswerStatus = 'unanswered' | 'correct' | 'wrong' | 'favorites' | undefined;
+type AnswerStatus = 'answered' | 'unanswered' | 'correct' | 'wrong' | 'favorites' | undefined;
 type QuestionUiState = Pick<UiState, 'questionIndex' | 'visitedQuestionIds' | 'studySyncMessage' | 'studyReady'>;
 const sessions = new WeakMap<QuestionUiState, { key: string; catalog: Question[]; questions: Question[] }>();
 export function resetQuestionSession(ui: QuestionUiState): void { sessions.delete(ui); }
+
+export function questionCatalogStatusView(backend: BackendState): ViewModel | null {
+  if (backend.content === 'loading') return { title: 'Questões', content: '<p role="status" aria-live="polite">Carregando o catálogo de questões…</p>' };
+  if (backend.content === 'unavailable') return { title: 'Questões', content: emptyState('Não foi possível carregar as questões', 'Confira sua conexão e tente novamente. Seus registros neste navegador continuam preservados.', { action: 'retry-question-catalog', actionLabel: 'Tentar novamente' }) };
+  return null;
+}
 
 function sessionQuestions(state: SiteState, params: ViewParams, ui: QuestionUiState): Question[] {
   const key = JSON.stringify(params);
@@ -26,13 +33,16 @@ function sessionQuestions(state: SiteState, params: ViewParams, ui: QuestionUiSt
   const existing = sessions.get(ui);
   if (existing?.key === key && existing.catalog === catalog) return existing.questions;
   const questions = questionsForSession(params, state);
+  if (params.start) ui.questionIndex = Math.max(0, questions.findIndex(question => question.id === params.start));
   sessions.set(ui, { key, catalog, questions });
   return questions;
 }
 
-function questionResultCard(question: Question, state: SiteState): string {
+function questionResultCard(question: Question, state: SiteState, params: ViewParams = {}): string {
   const answer = state.answers[question.id];
-  return `<button class="list-row result-row" type="button" data-action="open-question" data-question-id="${escapeHtml(question.id)}">
+  const query = new URLSearchParams(Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])));
+  query.set('start', question.id);
+  return `<button class="list-row result-row" type="button" data-action="open-question" data-question-id="${escapeHtml(question.id)}" data-search="${escapeHtml(query.toString())}">
       <span class="list-row__icon">${icon(answer ? (answer.isCorrect ? 'CheckCircle2' : 'XCircle') : 'BookOpen')}</span>
       <span class="list-row__copy"><strong>${escapeHtml(question.topic)}</strong><span>${escapeHtml(question.discipline)} · ${escapeHtml(question.board)} · ${question.year}</span></span>
       ${answer ? badge(answer.isCorrect ? 'Acertada' : 'Errada', answer.isCorrect ? 'success' : 'danger') : question.difficulty ? badge(question.difficulty) : ''}
@@ -113,6 +123,7 @@ export function disciplineView(slug: string, state: SiteState): ViewModel {
 }
 
 function applyAnswerStatus(questions: Question[], state: SiteState, status: AnswerStatus | string): Question[] {
+  if (status === 'answered') return questions.filter((question) => Boolean(state.answers[question.id]));
   if (status === 'unanswered') return questions.filter((question) => !state.answers[question.id]);
   if (status === 'correct') return questions.filter((question) => state.answers[question.id]?.isCorrect);
   if (status === 'wrong') return questions.filter((question) => state.answers[question.id] && !state.answers[question.id].isCorrect);
@@ -123,6 +134,11 @@ function applyAnswerStatus(questions: Question[], state: SiteState, status: Answ
 export function searchView(state: SiteState, params: ViewParams = {}): ViewModel {
   const { questions, disciplines } = getCatalog();
   const boards = unique(questions.map((question) => question.board)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const years = unique(questions.map(question => String(question.year))).sort((a, b) => Number(b) - Number(a));
+  const subjects = unique(questions.map(question => question.subject)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const topics = unique(questions.map(question => question.topic)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const advanced = Boolean(params.board || params.status || params.year || params.subject || params.topic);
+  const selectField = (name: string, label: string, all: string, options: string[]) => `<div class="field"><label for="question-${name}">${label}</label><select class="select" id="question-${name}" name="${name}"><option value="">${all}</option>${options.map(value => `<option value="${escapeHtml(value)}" ${params[name] === value ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}</select></div>`;
   const filtered = applyAnswerStatus(filterQuestions(questions, params), state, params.status);
   const hasSearch = Object.values(params).some(Boolean);
   const serializedParams = new URLSearchParams(
@@ -138,17 +154,22 @@ export function searchView(state: SiteState, params: ViewParams = {}): ViewModel
           <div class="field"><label for="question-keyword">Palavra-chave</label><input class="input" id="question-keyword" name="keyword" value="${escapeHtml(params.keyword ?? '')}" placeholder="Enunciado, assunto, banca ou cargo" /></div>
           <div class="field"><label for="question-discipline">Disciplina</label><select class="select" id="question-discipline" name="discipline"><option value="">Todas as disciplinas</option>${disciplines.map((item) => `<option value="${escapeHtml(item.name)}" ${params.discipline === item.name ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
           ${button('Buscar', { type: 'submit', iconName: 'Search' })}
+          ${button('Limpar filtros', { route: '/questoes/buscar', variant: 'ghost' })}
         </div>
-        <details class="filter-disclosure" ${params.board || params.status ? 'open' : ''}>
-          <summary>${icon('SlidersHorizontal')}<span>Mais filtros</span>${params.board || params.status ? badge('Ativos', 'accent') : ''}${icon('ChevronDown')}</summary>
+        <details class="filter-disclosure" ${advanced ? 'open' : ''}>
+          <summary>${icon('SlidersHorizontal')}<span>Mais filtros</span>${advanced ? badge('Ativos', 'accent') : ''}${icon('ChevronDown')}</summary>
           <div class="question-search-panel__advanced">
             <div class="field"><label for="question-board">Banca</label><select class="select" id="question-board" name="board"><option value="">Todas as bancas</option>${boards.map((item) => `<option value="${escapeHtml(item)}" ${params.board === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')}</select></div>
-            <div class="field"><label for="question-status">Situação</label><select class="select" id="question-status" name="status"><option value="">Qualquer situação</option><option value="unanswered" ${params.status === 'unanswered' ? 'selected' : ''}>Não respondidas</option><option value="correct" ${params.status === 'correct' ? 'selected' : ''}>Acertadas</option><option value="wrong" ${params.status === 'wrong' ? 'selected' : ''}>Erradas</option></select></div>
+            ${selectField('year', 'Ano', 'Todos os anos', years)}
+            ${selectField('subject', 'Matéria', 'Todas as matérias', subjects)}
+            ${selectField('topic', 'Assunto', 'Todos os assuntos', topics)}
+            <div class="field"><label for="question-status">Situação</label><select class="select" id="question-status" name="status"><option value="">Qualquer situação</option><option value="answered" ${params.status === 'answered' ? 'selected' : ''}>Respondidas</option><option value="unanswered" ${params.status === 'unanswered' ? 'selected' : ''}>Não respondidas</option><option value="correct" ${params.status === 'correct' ? 'selected' : ''}>Acertadas</option><option value="wrong" ${params.status === 'wrong' ? 'selected' : ''}>Erradas</option><option value="favorites" ${params.status === 'favorites' ? 'selected' : ''}>Favoritas</option></select></div>
           </div>
         </details>
       </form>
       <div class="toolbar"><div><p class="eyebrow">RESULTADOS</p><h2>${formatCount(filtered.length, 'questão', 'questões')}</h2></div>${filtered.length ? button('Estudar resultados', { action: 'study-search-results', iconName: 'Play', attrs: `data-search="${escapeHtml(serializedParams.toString())}"` }) : ''}</div>
-      ${filtered.length ? `<div class="dashboard-main result-list">${filtered.slice(0, 40).map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState(hasSearch ? 'Nenhuma questão encontrada' : 'Seu banco inteiro está pronto', hasSearch ? 'Tente remover um filtro ou usar termos mais amplos.' : 'Use os filtros acima ou comece com todas as questões.', { action: 'study-all-questions', actionLabel: 'Praticar todas' })}
+      ${state.auth.mode === 'visitor' ? '<p class="muted" role="note">Suas respostas e favoritas ficam somente neste navegador. Entre em uma conta para manter um histórico separado e sincronizado.</p>' : ''}
+      ${filtered.length ? `<div class="dashboard-main result-list">${filtered.map((question) => questionResultCard(question, state, params)).join('')}</div>` : emptyState(questions.length ? 'Nenhuma questão encontrada' : 'Nenhuma questão disponível', hasSearch && questions.length ? 'Tente remover um filtro ou usar termos mais amplos.' : 'O catálogo ainda não possui questões disponíveis para estudar.')}
     `,
   };
 }
@@ -162,12 +183,12 @@ export function reviewView(type: string | undefined, state: SiteState): ViewMode
   };
   const reviewType = type === 'erradas' || type === 'acertadas' ? type : 'favoritas';
   const [title, subtitle] = labels[reviewType];
-  const status = type === 'favoritas' ? 'favorites' : type === 'erradas' ? 'wrong' : 'correct';
+  const status = reviewType === 'favoritas' ? 'favorites' : reviewType === 'erradas' ? 'wrong' : 'correct';
   const filtered = applyAnswerStatus(questions, state, status);
   return {
     title,
     subtitle,
-    content: `${stackHeader(title, formatCount(filtered.length, 'questão', 'questões'))}${filtered.length ? `<div class="dashboard-main result-list">${filtered.map((question) => questionResultCard(question, state)).join('')}</div>` : emptyState('Nada para revisar agora', 'Continue praticando e volte quando houver questões nesta lista.', { route: '/questoes', actionLabel: 'Praticar questões' })}`,
+    content: `${stackHeader(title, formatCount(filtered.length, 'questão', 'questões'))}${filtered.length ? `<div class="dashboard-main result-list">${filtered.map((question) => questionResultCard(question, state, { status, origin: reviewType })).join('')}</div>` : emptyState('Nada para revisar agora', 'Continue praticando e volte quando houver questões nesta lista.', { route: '/questoes', actionLabel: 'Praticar questões' })}`,
   };
 }
 
@@ -180,6 +201,8 @@ export function questionsForSession(params: ViewParams, state: SiteState): Quest
     result = filterQuestions(questions, {
       keyword: params.keyword,
       discipline: params.discipline,
+      subject: params.subject,
+      year: params.year,
       topic: params.topic,
       board: params.board,
       difficulty: params.difficulty,
@@ -235,12 +258,17 @@ export function questionSessionView(state: SiteState, params: ViewParams, ui: Qu
   const forwardButton = isLastQuestion
     ? button(forwardLabel, { route: '/perfil/desempenho', iconName: 'CheckCircle2' })
     : button(forwardLabel, { action: 'next-question', iconName: 'ChevronRight' });
+  const searchParams = new URLSearchParams(Object.entries(params).filter((entry): entry is [string, string] => ['keyword', 'discipline', 'subject', 'topic', 'board', 'year', 'status'].includes(entry[0]) && Boolean(entry[1])));
+  const fromReview = ['favoritas', 'erradas', 'acertadas'].includes(params.origin ?? '');
+  const returnRoute = fromReview ? `/questoes/revisar?tipo=${params.origin}` : `/questoes/buscar${searchParams.size ? `?${searchParams}` : ''}`;
 
   return {
     title,
     subtitle: `Questão ${index + 1} de ${questions.length}`,
     content: `
       ${stackHeader(title, `${question.discipline} · ${question.topic}`)}
+      ${button(fromReview ? 'Voltar à revisão' : 'Voltar à busca', { route: returnRoute, variant: 'ghost', iconName: 'ArrowLeft' })}
+      ${state.auth.mode === 'visitor' ? '<p class="muted" role="note">Suas respostas e favoritas ficam somente neste navegador.</p>' : ''}
       ${progress(progressValue, `Questão ${index + 1} de ${questions.length}`)}
       <div class="study-layout">
         ${card(`
@@ -250,7 +278,7 @@ export function questionSessionView(state: SiteState, params: ViewParams, ui: Qu
           </div>
           <p class="question-statement">${escapeHtml(question.statement)}</p>
           <fieldset ${ui.studyReady === false ? 'disabled' : ''} style="border:0;padding:0;margin:0;min-width:0"><legend class="sr-only">Alternativas</legend><div class="options">${options}</div></fieldset>
-          ${ui.studySyncMessage ? `<p role="status">${escapeHtml(ui.studySyncMessage)}</p>${button('Sincronizar progresso', { action: 'sync-study', variant: 'ghost' })}` : ''}
+          ${ui.studySyncMessage ? `<p role="status">${escapeHtml(ui.studySyncMessage)}</p>${state.auth.mode === 'authenticated' ? button('Sincronizar progresso', { action: 'sync-study', variant: 'ghost' }) : ''}` : ''}
           ${answer ? `<div class="explanation"><strong>${answer.isCorrect ? 'Resposta correta' : `Resposta incorreta · gabarito ${question.correct}`}</strong>${question.explanation ? `<p>${escapeHtml(question.explanation)}</p>` : ''}${communityAccuracy ? `<small>${formatPercent(communityAccuracy.accuracy)} de acerto entre ${communityAccuracy.totalAnswers} ${communityAccuracy.totalAnswers === 1 ? 'resposta registrada' : 'respostas registradas'}.</small>` : ''}</div>` : ''}
           <div class="study-controls">
             ${button('Anterior', { action: 'previous-question', variant: 'secondary', iconName: 'ArrowLeft', disabled: index === 0 })}

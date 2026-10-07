@@ -98,6 +98,7 @@ import { homeView } from './views/home.ts';
 import {
   disciplineView,
   questionSessionView,
+  questionCatalogStatusView,
   questionsIndexView,
   quickChallengeView,
   resetQuestionSession,
@@ -380,6 +381,10 @@ function notFoundView(): ViewModel {
 
 function resolveView(route: Route, state: SiteState): ViewModel {
   const { pathname, params } = route;
+  if (pathname === '/questoes' || pathname.startsWith('/questoes/')) {
+    const catalogStatus = questionCatalogStatusView(backendState);
+    if (catalogStatus) return catalogStatus;
+  }
   if (pathname === '/') return welcomeView();
   if (pathname === '/entrar') return authView('entrar', { returnTo: validateCheckoutReturn(params.returnTo) ?? undefined });
   if (pathname === '/cadastro') return authView('cadastro', { returnTo: validateCheckoutReturn(params.returnTo) ?? undefined });
@@ -1303,9 +1308,11 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'open-question') {
-    if (target.dataset.questionId) navigate(`/questoes/sessao?id=${encodeURIComponent(target.dataset.questionId)}`);
+    if (target.dataset.search) navigate(`/questoes/sessao?${target.dataset.search}`);
+    else if (target.dataset.questionId) navigate(`/questoes/sessao?id=${encodeURIComponent(target.dataset.questionId)}`);
     return;
   }
+  if (action === 'retry-question-catalog') { await refreshQuestionCatalog(); return; }
   if (action === 'study-all-questions') return navigate('/questoes/sessao');
   if (action === 'study-search-results') return navigate(`/questoes/sessao?${target.dataset.search ?? ''}`);
   if (action === 'answer-question') {
@@ -1952,27 +1959,36 @@ if (import.meta.env.DEV && import.meta.env.VITE_KAD_LOCAL_PILOT === '1') {
     if (!user || bootstrapVersion !== studyHydrationVersion) return;
     await hydrateAuthenticatedUser(user);
   }).catch(() => toast('Não foi possível verificar sua sessão. Tente entrar novamente.'));
-  loadPublishedContent()
-    .then((content) => {
-      replacePublishedCatalog(content);
-      backendState = classifyBackendState({
-        configured: true,
-        loading: false,
-        loadedFromRemote: true,
-        questionCount: content.questions.length,
-        concursoCount: content.concursos.length,
-      });
-      render();
-    })
-    .catch(() => {
-      // Em uma falha configurada, não apresentamos o catálogo local como se fosse remoto.
-      replacePublishedCatalog({ questions: [], concursos: [] });
-      backendState = classifyBackendState({
-        configured: true,
-        loading: false,
-        error: 'published-content-unavailable',
-        loadedFromRemote: false,
-      });
-      render();
-    });
+  void refreshQuestionCatalog();
 });
+
+let catalogRequestPending = false;
+async function refreshQuestionCatalog(): Promise<void> {
+  if (catalogRequestPending) return;
+  catalogRequestPending = true;
+  backendState = classifyBackendState({ configured: true, loading: true });
+  render();
+  try {
+    const content = await loadPublishedContent();
+    replacePublishedCatalog(content);
+    backendState = classifyBackendState({
+      configured: true,
+      loading: false,
+      loadedFromRemote: true,
+      questionCount: content.questions.length,
+      concursoCount: content.concursos.length,
+    });
+  } catch {
+    // Em uma falha configurada, não apresentamos o catálogo local como se fosse remoto.
+    replacePublishedCatalog({ questions: [], concursos: [] });
+    backendState = classifyBackendState({
+      configured: true,
+      loading: false,
+      error: 'published-content-unavailable',
+      loadedFromRemote: false,
+    });
+  } finally {
+    catalogRequestPending = false;
+    render();
+  }
+}
