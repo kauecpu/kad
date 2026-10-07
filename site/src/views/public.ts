@@ -1,6 +1,7 @@
 import { badge, button, card, icon, passwordField } from '../ui/components.ts';
 import { kadSignalMark } from '../ui/brand.ts';
 import { escapeHtml } from '../core/utils.ts';
+import { recoveryMessage } from '../core/password-recovery.ts';
 import { getCatalog } from '../data/catalog.ts';
 import type { SiteState, ViewModel } from '../types/domain.ts';
 
@@ -320,18 +321,19 @@ export function recoveryView(kind: RecoveryViewKind = 'request', params: Record<
   const isConfirmation = kind === 'confirmation';
   const title = isNewPassword ? 'Nova senha' : isConfirmation ? 'Confirmar e-mail' : 'Recuperar senha';
   const description = isNewPassword
-    ? 'Defina uma nova senha segura para sua conta.'
+    ? 'Defina uma nova senha segura. Não atualize nem feche esta página antes de salvar.'
     : isConfirmation
       ? 'Abra o link enviado por e-mail ou use o código de 6 dígitos, quando disponível.'
-      : 'Enviaremos as instruções para o endereço cadastrado.';
+      : 'Peça o link e abra-o neste mesmo navegador e endereço. Se o e-mail abrir outro navegador, copie o link para cá.';
   const formName = isNewPassword ? 'new-password' : isConfirmation ? 'confirmation' : 'recovery';
   if (isNewPassword && params.recoveryStatus !== 'ready') {
     const checking = params.recoveryStatus === 'checking';
+    const failure = recoveryMessage(params.recoveryError ?? 'interrupted');
     return {
       title,
       description,
       layout: 'public-simple',
-      content: `<section class="auth-page">${card(`<div class="auth-card__heading"><p class="eyebrow">SEGURANÇA</p><h1>${checking ? 'Validando link' : 'Link inválido'}</h1><p>${checking ? 'Aguarde enquanto confirmamos esta recuperação neste navegador.' : 'Solicite um novo e-mail de recuperação para definir sua senha.'}</p></div>${checking ? '' : button('Solicitar novo link', { route: '/recuperar-senha', size: 'lg', className: 'full-width' })}`, 'auth-card')}</section>`,
+      content: `<section class="auth-page">${card(`<div class="auth-card__heading"><p class="eyebrow">SEGURANÇA</p><h1>${checking ? 'Validando link' : failure.title}</h1><p role="status">${checking ? 'Aguarde enquanto confirmamos esta recuperação neste navegador.' : failure.message}</p></div>${checking ? '' : button('Voltar à recuperação', { route: '/recuperar-senha', size: 'lg', className: 'full-width' })}`, 'auth-card')}</section>`,
     };
   }
   return {
@@ -348,7 +350,7 @@ export function recoveryView(kind: RecoveryViewKind = 'request', params: Record<
           <div class="field"><label for="recovery-email">E-mail</label><input class="input" id="recovery-email" name="email" type="email" autocomplete="email" value="${escapeHtml(params.email ?? '')}" required /></div>
           ${isConfirmation ? `<div class="field"><label for="confirmation-code">Código de 6 dígitos (se estiver no e-mail)</label><input class="input" id="confirmation-code" name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required /></div>` : ''}
         `}
-        <p class="form-message" data-form-message></p>
+        <p class="form-message" role="status" aria-live="polite" data-form-message></p>
         ${button(isNewPassword ? 'Salvar nova senha' : isConfirmation ? 'Confirmar código' : 'Enviar instruções', { type: 'submit', size: 'lg', className: 'full-width' })}
         ${isConfirmation ? button('Reenviar código', { action: 'resend-confirmation', variant: 'ghost', className: 'full-width' }) : ''}
       </form>
