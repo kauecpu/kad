@@ -2,6 +2,7 @@ import { getCatalog } from '../data/catalog.ts';
 import { clamp, escapeHtml, filterQuestions, formatCount, formatPercent, formatTimer, matchesPack, randomId, shuffle, unique } from '../core/utils.ts';
 import { badge, button, card, emptyState, icon, metricRing, progress, section, stat, workspaceHero } from '../ui/components.ts';
 import { stackHeader } from '../ui/layout.ts';
+import { subscriptionHasAccess } from '../core/subscription.ts';
 import type { SiteSimulationSession, SiteState, ViewModel } from '../types/domain.ts';
 
 type ViewParams = Record<string, string | undefined>;
@@ -124,7 +125,18 @@ export function simulationsView(state: SiteState): ViewModel {
   };
 }
 
-export function simulationConfigView(params: ViewParams = {}): ViewModel {
+export function simulationConfigView(params: ViewParams = {}, state?: SiteState): ViewModel {
+  if (!state || state.auth.mode !== 'authenticated' || !state.auth.userId || !subscriptionHasAccess(state.subscription)) {
+    const authenticated = state?.auth.mode === 'authenticated' && Boolean(state.auth.userId);
+    return {
+      title: 'Configurar simulado',
+      content: `${stackHeader('Simulado personalizado')}${emptyState(
+        authenticated ? 'Este recurso exige uma assinatura válida' : 'Entre para configurar seu simulado',
+        'O simulado rápido continua disponível. Seus simulados salvos e resultados permanecem acessíveis.',
+        { route: authenticated ? '/perfil/planos' : '/entrar', actionLabel: authenticated ? 'Ver planos' : 'Entrar' },
+      )}`,
+    };
+  }
   const { questions, disciplines, packs } = getCatalog();
   const boards = unique(questions.map((question) => question.board)).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const selectedPack = packs.find((pack) => pack.id === params.packId);
