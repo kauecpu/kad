@@ -24,6 +24,7 @@ import { mergeEssayDocuments, mergeSimulationSessions, nextSyncTimestamp, touchS
 import { displayNameFromMetadata } from './core/auth-profile.ts';
 import { classifyBackendState, type BackendState } from './core/backend-state.ts';
 import { subscriptionHasAccess } from './core/subscription.ts';
+import { createSimulationAccess } from './core/simulation-access.ts';
 import { checkoutProgressAfterPolling, createCheckoutRequestScope, withPaymentTimeout } from './core/payment-polling.ts';
 import { createPaymentActionScope } from './core/payment-actions.ts';
 import {
@@ -155,6 +156,10 @@ const rankingResources = new Map<string, RankingUiState>();
 let gamificationNoticeElement: HTMLElement | null = null;
 let gamificationNoticeTimer: ReturnType<typeof setTimeout> | null = null;
 const checkoutRequestScope = createCheckoutRequestScope();
+const simulationAccess = createSimulationAccess(() => {
+  const route = currentRoute();
+  return { userId: store.getOwnerId(), route: `${route.pathname}${route.search}` };
+}, loadRemoteSubscription);
 const checkoutReturnStorage = (() => {
   try { return globalThis.sessionStorage; } catch { return null; }
 })();
@@ -405,7 +410,7 @@ function resolveView(route: Route, state: SiteState): ViewModel {
   const discipline = matchRoute('/questoes/disciplina/:slug', pathname);
   if (discipline) return disciplineView(discipline.slug, state);
   if (pathname === '/simulados') return simulationsView(state);
-  if (pathname === '/simulados/configurar') return simulationConfigView(params);
+  if (pathname === '/simulados/configurar') return simulationConfigView(params, state);
   if (pathname === '/simulados/em-andamento') return simulationPlayerView(state);
   if (pathname === '/simulados/resultado') return simulationResultView(state, params.id);
   if (pathname === '/ranking') return rankingView(state, params, rankingState(state.auth.userId, rankingPeriod(params)));
@@ -985,17 +990,27 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
 
   if (formName === 'simulation-config') {
     const shuffleQuestions = form.elements.namedItem('shuffleQuestions');
-    const session = createSimulation({
-      ...values,
-      shuffleQuestions: shuffleQuestions instanceof HTMLInputElement ? shuffleQuestions.checked : false,
+    updateFormMessage(form, 'Verificando acesso à assinatura…');
+    const access = await simulationAccess.check(() => {
+      const session = createSimulation({
+        ...values,
+        shuffleQuestions: shuffleQuestions instanceof HTMLInputElement ? shuffleQuestions.checked : false,
+      });
+      if (!session) {
+        updateFormMessage(form, 'Nenhuma questão corresponde a esses filtros.', 'error');
+        return;
+      }
+      store.update((draft) => { draft.simulations.current = session; });
+      queueSimulationSync(session);
+      navigate('/simulados/em-andamento');
     });
-    if (!session) {
-      updateFormMessage(form, 'Nenhuma questão corresponde a esses filtros.', 'error');
+    if (access === 'stale') return;
+    if (access !== 'allowed') {
+      if (access === 'login') navigate('/entrar');
+      else if (access === 'subscription') navigate('/perfil/planos');
+      else updateFormMessage(form, 'Não foi possível verificar sua assinatura. Tente novamente; nenhum simulado foi criado.', 'error');
       return;
     }
-    store.update((draft) => { draft.simulations.current = session; });
-    queueSimulationSync(session);
-    navigate('/simulados/em-andamento');
     return;
   }
 
@@ -1645,6 +1660,7 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'sign-out') {
+    simulationAccess.clear();
     studyHydrationVersion++;
     paymentActionScope.clear();
     checkoutDiscoveryVersion += 1;
@@ -1857,6 +1873,7 @@ globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change
 globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener('change', startAuthStoryTimer);
 
 subscribeRouter(() => {
+  simulationAccess.clear();
   paymentActionScope.clear();
   render({ routeChanged: true });
 });
@@ -1900,7 +1917,7 @@ studySync.subscribe(() => {
   if (snapshot.ready) store.update(draft => { draft.answers = snapshot.answers; });
   else render();
 });
-store.subscribe(() => { selectStudyOwner(); render(); });
+store.subscribe(() => { simulationAccess.sync(); selectStudyOwner(); render(); });
 selectStudyOwner();
 globalThis.addEventListener('online', () => { void studySync.sync(); });
 globalThis.addEventListener('focus', () => { void studySync.sync(); });

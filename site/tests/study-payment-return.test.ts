@@ -32,6 +32,7 @@ test('return handlers preserve study sync and subscription refresh without cross
     },
     studySync: { subscribe() {}, selectOwner: (next: string) => { selected.push(next); }, sync: async () => { syncs++; } },
     paymentActionScope: { observe: () => { const captured = owner; return { userId: captured, isCurrent: () => owner === captured }; } },
+    simulationAccess: { sync() {} },
     loadRemoteSubscription: async () => { reads++; return new Promise(resolve => { complete = resolve; }); },
     withPaymentTimeout: (request: Promise<unknown>) => request,
     ui: { visitedQuestionIds: new Set(), questionIndex: 0 }, levelReviewReady: new Set(),
