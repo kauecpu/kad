@@ -59,7 +59,7 @@ Deno.serve(async (request) => {
 
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authorization }, fetch: boundedFetch },
-      auth: { persistSession: false },
+      auth: { persistSession: false, autoRefreshToken: false },
     });
     const {
       data: { user },
