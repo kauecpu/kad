@@ -55,7 +55,7 @@ test('não libera compra pendente ou SKU diferente', () => {
   );
 });
 
-test('mantém acesso durante cancelamento ou cobrança pendente até expirar', () => {
+test('mantém acesso durante cancelamento pago e grace period até expirar', () => {
   const canceled = classifyGooglePurchase({
     subscriptionState: 'SUBSCRIPTION_STATE_CANCELED',
     lineItems: [{ productId: 'kad_diamond_annual', expiryTime: future, autoRenewingPlan: { autoRenewEnabled: false } }],
@@ -63,12 +63,28 @@ test('mantém acesso durante cancelamento ou cobrança pendente até expirar', (
   assert.equal(canceled.ok && canceled.status, 'canceled');
   assert.equal(canceled.ok && canceled.entitled, true);
 
-  const onHold = classifyGooglePurchase({
-    subscriptionState: 'SUBSCRIPTION_STATE_ON_HOLD',
+  const grace = classifyGooglePurchase({
+    subscriptionState: 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD',
     lineItems: [{ productId: 'kad_diamond_annual', expiryTime: future }],
   }, 'kad_diamond_annual', now);
-  assert.equal(onHold.ok && onHold.status, 'past_due');
-  assert.equal(onHold.ok && onHold.entitled, true);
+  assert.equal(grace.ok && grace.entitled, true);
+});
+
+test('hold, pausa, pendência cancelada e estados desconhecidos nunca concedem acesso', () => {
+  for (const subscriptionState of [
+    'SUBSCRIPTION_STATE_ON_HOLD', 'SUBSCRIPTION_STATE_PAUSED',
+    'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED',
+    'SUBSCRIPTION_STATE_UNSPECIFIED', 'future-google-state', undefined,
+  ]) {
+    const result = classifyGooglePurchase({ subscriptionState,
+      lineItems: [{ productId: 'kad_diamond_annual', expiryTime: future, autoRenewingPlan: { autoRenewEnabled: true } }],
+    }, 'kad_diamond_annual', now);
+    assert.equal(result.ok && result.entitled, false, subscriptionState ?? 'missing state');
+    if (result.ok) {
+      assert.equal(result.status, 'expired');
+      assert.equal(result.autoRenew, false);
+    }
+  }
 });
 
 test('não concede acesso a assinatura expirada ou sem expiry válido', () => {

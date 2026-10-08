@@ -538,15 +538,17 @@ function startPageTimers(route: Route, state: SiteState): void {
       if (store.getState().simulations.current?.status === 'completed') navigate('/simulados/resultado', { replace: true });
     }, 1000);
   }
-  if (route.pathname === '/redacao' && route.params.topic && route.params.stage !== 'review') {
-    let elapsed = state.essays[route.params.topic]?.elapsedSeconds ?? 0;
+  if (route.pathname === '/redacao' && route.params.topic && route.params.stage !== 'review'
+    && getCatalog().essayTopics.some(topic => topic.id === route.params.topic)) {
+    const topicId = route.params.topic;
+    let elapsed = Object.hasOwn(state.essays, topicId) ? state.essays[topicId]?.elapsedSeconds ?? 0 : 0;
     ui.essayTimer = setInterval(() => {
-      const topicId = route.params.topic;
       const timer = document.querySelector('[data-essay-timer]');
       elapsed += 1;
       if (elapsed % 5 === 0) {
         store.update((draft) => {
-          const essay = draft.essays[topicId] ?? { content: '', elapsedSeconds: 0, updatedAt: new Date().toISOString() };
+          const essay = (Object.hasOwn(draft.essays, topicId) ? draft.essays[topicId] : undefined)
+            ?? { topicId, content: '', elapsedSeconds: 0, status: 'draft' as const, updatedAt: new Date().toISOString() };
           essay.elapsedSeconds = elapsed;
           essay.updatedAt = new Date().toISOString();
           draft.essays[topicId] = essay;
@@ -804,11 +806,16 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
 function persistEssayBuffer(): void {
   if (!ui.essayBuffer) return;
   const { topicId, content } = ui.essayBuffer;
+  if (!getCatalog().essayTopics.some(topic => topic.id === topicId)) {
+    ui.essayBuffer = null;
+    return;
+  }
   let saved: SiteState['essays'][string] | null = null;
   store.update((draft) => {
-    const current = draft.essays[topicId] ?? { elapsedSeconds: 0 };
+    const current = (Object.hasOwn(draft.essays, topicId) ? draft.essays[topicId] : undefined) ?? { elapsedSeconds: 0 };
     draft.essays[topicId] = {
       ...current,
+      topicId,
       content,
       status: 'draft',
       updatedAt: new Date().toISOString(),
