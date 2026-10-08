@@ -262,6 +262,9 @@ test('site móvel mantém rolagem da página e alvos de toque acessíveis', asyn
   ]);
 
   const workspaceStyles = await source('src/styles/workspace.css');
+  assert.doesNotMatch(baseStyles, /--mobile-tabs/);
+  assert.match(baseStyles, /html \{ scroll-padding-bottom: 24px/);
+  assert.match(baseStyles, /\.toast \{ right: 16px; bottom: calc\(16px \+ env\(safe-area-inset-bottom\)\)/);
   assert.doesNotMatch(workspaceStyles, /--mobile-tabs/);
   assert.match(workspaceStyles, /html:has\(\.web-workspace\) \{ scroll-padding-bottom: 24px/);
   assert.match(baseStyles, /\.segmented button \{ min-height: 44px/);
