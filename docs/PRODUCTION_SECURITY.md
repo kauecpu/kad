@@ -6,6 +6,10 @@ copiado para este arquivo, para commits, logs ou Pull Requests.
 
 ## Proteções versionadas
 
+Proteções contra abuso e rollout do CAPTCHA estão detalhados em
+[`ABUSE_PROTECTION.md`](ABUSE_PROTECTION.md). Essa implementação não significa
+que as novas cotas ou o CAPTCHA já estejam ativos nos ambientes remotos.
+
 - Todas as tabelas de aplicação em `public` e `private` usam RLS.
 - Funções `SECURITY DEFINER` usam `search_path` vazio e nomes qualificados.
 - A migration `202610080001_production_security_baseline.sql` remove execução

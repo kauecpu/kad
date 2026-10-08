@@ -14,6 +14,7 @@ for (const scenario of ['confirmed','wrong-resource','unconfirmed-status','timeo
       const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
       if (url.hostname === 'database.invalid') {
         if (url.pathname === '/auth/v1/user') return Response.json({ id: '10000000-0000-4000-8000-000000000001' });
+        if (url.pathname.endsWith('/consume_abuse_limit')) return Response.json([{ allowed: true, retry_after_seconds: 0 }]);
         if (url.pathname.endsWith('/subscriptions')) return Response.json({ provider: 'mercado_pago',
           provider_subscription_id: 'synthetic-sub',cancel_at_period_end: false,current_period_end: '2030-02-01T00:00:00Z' });
         if (url.pathname.endsWith('/sync_mercado_pago_subscription')) {

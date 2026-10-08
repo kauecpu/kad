@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { boundedFetch, enforceAbuseLimit, logSecurityEvent, readRequestObject, RequestBodyError, securityResponse } from '../_shared/abuse-protection.ts';
 
 const configuredWebOrigins = (Deno.env.get('ALLOWED_WEB_ORIGINS') ?? '')
   .split(',')
@@ -23,6 +24,7 @@ function responseHeaders(origin: string | null) {
 }
 
 Deno.serve(async (request) => {
+  const requestId = crypto.randomUUID();
   const origin = request.headers.get('Origin');
   const corsHeaders = responseHeaders(origin);
 
@@ -56,8 +58,8 @@ Deno.serve(async (request) => {
     }
 
     const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authorization } },
-      auth: { persistSession: false },
+      global: { headers: { Authorization: authorization }, fetch: boundedFetch },
+      auth: { persistSession: false, autoRefreshToken: false },
     });
     const {
       data: { user },
@@ -67,41 +69,53 @@ Deno.serve(async (request) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
     }
 
-    const body = (await request.json().catch(() => null)) as {
-      currentPassword?: unknown;
-    } | null;
+    const body = await readRequestObject(request, 24576);
     const currentPassword =
       typeof body?.currentPassword === 'string' ? body.currentPassword : '';
-    if (!currentPassword || !user.email) {
+    const captchaToken = typeof body.captchaToken === 'string' ? body.captchaToken : undefined;
+    if (!currentPassword || currentPassword.length > 4096 || (captchaToken?.length ?? 0) > 2048 || !user.email) {
       return Response.json(
         { error: 'Password confirmation required' },
         { status: 400, headers: corsHeaders }
       );
     }
 
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      global: { fetch: boundedFetch },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const blocked = await enforceAbuseLimit(adminClient, user.id, 'account_delete', origin, requestId);
+    if (blocked) return blocked;
     const verificationClient = createClient(supabaseUrl, anonKey, {
+      global: { fetch: boundedFetch },
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const { data: verification, error: verificationError } =
       await verificationClient.auth.signInWithPassword({
         email: user.email,
         password: currentPassword,
+        options: { captchaToken },
       });
     if (verificationError || verification.user?.id !== user.id) {
+      if (verificationError?.code === 'captcha_failed') {
+        return securityResponse('captcha_failed', 400, origin, requestId);
+      }
       return Response.json(
         { error: 'Password confirmation failed' },
         { status: 403, headers: corsHeaders }
       );
     }
 
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
     if (deleteError) throw deleteError;
 
     return Response.json({ ok: true }, { headers: corsHeaders });
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyError) {
+      logSecurityEvent('account_delete', error.code, requestId);
+      return securityResponse(error.code, error.status, origin, requestId);
+    }
+    logSecurityEvent('account_delete', 'deletion_unavailable', requestId);
     return Response.json(
       { error: 'Unable to delete account' },
       { status: 500, headers: corsHeaders }

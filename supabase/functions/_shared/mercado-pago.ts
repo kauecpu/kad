@@ -213,7 +213,8 @@ export function paymentWebhookUrl(): string {
 export async function mercadoPagoRequest<T>(
   path: string,
   init: RequestInit = {},
-  timeoutMs = MERCADO_PAGO_REQUEST_TIMEOUT_MS
+  timeoutMs = MERCADO_PAGO_REQUEST_TIMEOUT_MS,
+  requestFetch: typeof fetch = fetch
 ): Promise<T> {
   const accessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')?.trim();
   if (!accessToken) throw new Error('MERCADO_PAGO_ACCESS_TOKEN is missing');
@@ -225,7 +226,7 @@ export async function mercadoPagoRequest<T>(
   let response: Response;
   let body: { code?: unknown; error?: unknown } | null;
   try {
-    response = await fetch(`${MERCADO_PAGO_API_URL}${path}`, {
+    response = await requestFetch(`${MERCADO_PAGO_API_URL}${path}`, {
       ...init,
       signal: timeoutController.signal,
       headers: {

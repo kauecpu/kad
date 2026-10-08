@@ -1,3 +1,10 @@
+.auth-captcha-dialog { width: min(440px, calc(100vw - 16px)); max-width: none; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); }
+.auth-captcha-dialog::backdrop { background: rgb(0 0 0 / 55%); }
+.auth-captcha-dialog h2 { font-size: 18px; margin: 0 0 12px; }
+.auth-captcha-dialog iframe { width: calc(100% + 32px); margin-inline: -16px; height: 220px; border: 0; }
+.auth-captcha-dialog button { min-height: 44px; padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); cursor: pointer; }
+.auth-captcha-dialog button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
 :root {
   color-scheme: light;
   --background: #f7f7f6;
