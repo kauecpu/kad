@@ -5,6 +5,27 @@ import { URL as NodeUrl, fileURLToPath } from 'node:url';
 
 const projectUrl = new NodeUrl('../', import.meta.url);
 
+test('quadros editoriais compartilham preto e amarelo sem afetar a área pública', async () => {
+  const css = await source('src/styles/workspace.css');
+  assert.match(css, /\.web-workspace\.app-shell :is\(\.catalog-intro, \.journey-intro, \.workspace-hero\) \{ background: var\(--editorial\)/);
+  assert.match(css, /\.workspace-hero\) \.eyebrow \{ color: var\(--energy\)/);
+  assert.match(css, /\.workspace-hero\) \.button--primary \{ background: var\(--energy\)/);
+});
+
+test('configurações agrupam seções em colunas independentes sem reordenar por CSS', async () => {
+  const [profile, css] = await Promise.all([source('src/views/profile.ts'), source('src/styles/workspace.css')]);
+  assert.equal((profile.match(/class="settings-workspace__column"/g) ?? []).length, 2);
+  assert.match(css, /\.settings-workspace__column \{ display: grid; min-width: 0; gap: 22px; align-content: start;/);
+});
+
+test('conquistas ocupam uma seção própria, fora da coluna de progresso', async () => {
+  const [profile, css] = await Promise.all([source('src/views/profile.ts'), source('src/styles/workspace.css')]);
+  assert.match(profile, /\$\{levelModule\(levelState\)\}\s*<button class="profile-settings-shortcut"[^]*?<\/button>\s*<\/div>\s*\$\{achievementGallery\(levelState, params.conquistas\)\}/);
+  assert.match(css, /\.profile-workspace__progress \{ grid-column: 2; grid-row: 2; align-self: stretch; align-content: space-between;/);
+  assert.match(css, /\.profile-workspace > \.achievement-gallery \{ grid-column: 1 \/ -1;/);
+  assert.match(css, /@media \(max-width: 700px\)\s*\{\s*\.web-workspace \.achievement-list \{ grid-template-columns: minmax\(0, 1fr\)/);
+});
+
 async function source(path: string): Promise<string> {
   return readFile(fileURLToPath(new NodeUrl(path, projectUrl)), 'utf8');
 }
@@ -240,7 +261,12 @@ test('site móvel mantém rolagem da página e alvos de toque acessíveis', asyn
     source('src/views/profile.ts'),
   ]);
 
+  const workspaceStyles = await source('src/styles/workspace.css');
   assert.doesNotMatch(baseStyles, /--mobile-tabs/);
+  assert.match(baseStyles, /html \{ scroll-padding-bottom: 24px/);
+  assert.match(baseStyles, /\.toast \{ right: 16px; bottom: calc\(16px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.doesNotMatch(workspaceStyles, /--mobile-tabs/);
+  assert.match(workspaceStyles, /html:has\(\.web-workspace\) \{ scroll-padding-bottom: 24px/);
   assert.match(baseStyles, /\.segmented button \{ min-height: 44px/);
   assert.match(baseStyles, /\.chip \{ min-height: 44px/);
   assert.doesNotMatch(appStyles, /mobile-tabs|nav-link--compact/);
@@ -263,11 +289,11 @@ test('navegação web agrupa tarefas e mantém acesso pelo menu do cabeçalho', 
   for (const route of ['/questoes', '/simulados', '/trilhas', '/concursos', '/perfil', '/configuracoes']) assert.match(navigation, new RegExp(`href: '${route}'`));
   assert.doesNotMatch(layout, /mobile-tabs|mobilePrimaryNavigation/);
   assert.match(layout, /topbar__menu/);
-  assert.match(layout, /sidebar__home/);
+  assert.match(layout, /navigationExperiences\.map/);
   assert.match(layout, /topbar__experience/);
   assert.match(layout, /data-navigation-experience/);
   assert.doesNotMatch(layout, /<span>Mais<\/span>/);
-  assert.match(layout, /sidebar__group/);
+  assert.match(layout, /area-navigation/);
   assert.match(main, /navigationTrigger/);
   assert.match(main, /closeNavigation\(\)/);
   assert.match(main, /event\.key === 'Tab'/);
@@ -376,7 +402,7 @@ test('início interno adota composição editorial com navegação lateral prese
   assert.match(home, /class="study-desk"/);
   assert.match(home, /studyNextAction/);
   assert.match(home, /class="study-plan"/);
-  assert.match(home, /class="weekly-focus"/);
+  assert.match(home, /class="weekly-focus home-weekly"/);
   assert.doesNotMatch(home, /class="hero-card"/);
   assert.doesNotMatch(home, /class="action-grid"/);
   assert.match(styles, /\.study-desk__continuity \{[^}]+grid-template-columns:/);
@@ -478,6 +504,13 @@ test('build do site inclui o adaptador e o fallback exigidos pela hospedagem', a
   assert.match(viteConfig, /viteEnvironment: \{ name: 'server' \}/);
   assert.match(worker, /env\.ASSETS\.fetch/);
   assert.match(worker, /new URL\('\/'/);
+  assert.match(worker, /url\.hostname === 'www\.kadconcursos\.com\.br'/);
+  assert.match(worker, /Response\.redirect\(url, 308\)/);
+  assert.match(wranglerConfig, /"name": "kad-concursos"/);
+  assert.match(wranglerConfig, /"preview_urls": false/);
+  assert.match(wranglerConfig, /"pattern": "kadconcursos\.com\.br"/);
+  assert.match(wranglerConfig, /"pattern": "www\.kadconcursos\.com\.br"/);
+  assert.match(wranglerConfig, /"custom_domain": true/);
   assert.match(wranglerConfig, /"binding": "ASSETS"/);
   assert.match(wranglerConfig, /"not_found_handling": "single-page-application"/);
   assert.match(seoScript, /dist\/client\/index\.html/);

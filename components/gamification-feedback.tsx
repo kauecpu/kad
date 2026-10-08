@@ -60,8 +60,8 @@ export function GamificationFeedback() {
       onRequestClose={() => setActive(null)}>
       <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
         <View accessibilityRole="alert" style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={[styles.icon, { backgroundColor: colors.warningSoft }]}>
-            <Ionicons name={(primary?.icon ?? 'star') as keyof typeof Ionicons.glyphMap} size={30} color={colors.warning} />
+          <View style={[styles.icon, { backgroundColor: colors.energySoft }]}>
+            <Ionicons name={(primary?.icon ?? 'star') as keyof typeof Ionicons.glyphMap} size={30} color={colors.energy} />
           </View>
           <Text style={[styles.eyebrow, { color: colors.primary }]}>{title.toLocaleUpperCase('pt-BR')}</Text>
           <Text style={[styles.title, { color: colors.text }]}>{primary?.title ?? 'Você subiu de nível'}</Text>

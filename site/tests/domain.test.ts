@@ -78,6 +78,22 @@ test('estado local registra resposta, atividade e restaura dados persistidos', (
   assert.ok(Object.values(restored.activityByDate).flat().includes(question.id));
 });
 
+test('desempenho por disciplina considera somente respostas de questões publicadas', () => {
+  const scoped = createStore(memoryStorage());
+  const question = getCatalog().questions[0];
+  assert.ok(question);
+  assert.doesNotMatch(questionsIndexView(scoped.getState()).content, /class="discipline-performance__row"/);
+  scoped.update((draft) => recordAnswer(draft, question, question.correct));
+  const state = scoped.getState();
+  const content = questionsIndexView(state).content;
+  assert.match(content, /class="discipline-performance__row"/);
+  assert.ok(content.includes(`Acerto em ${question.discipline}`));
+  assert.match(content, /aria-valuenow="100"/);
+  const removedQuestionState = structuredClone(state);
+  removedQuestionState.answers = { removed: { ...state.answers[question.id], questionId: 'removed' } };
+  assert.doesNotMatch(questionsIndexView(removedQuestionState).content, /class="discipline-performance__row"/);
+});
+
 test('contagens usam singular somente para uma unidade', () => {
   assert.equal(formatCount(0, 'questão', 'questões'), '0 questões');
   assert.equal(formatCount(1, 'questão', 'questões'), '1 questão');
@@ -338,20 +354,20 @@ test('senhas exigem reautenticação ou callback de recuperação validado', asy
   type AuthCall =
     | ['exchange', string, { flowId: string }]
     | ['update', { password: string; current_password?: string }]
-    | ['signOut', { scope: 'others' }];
+    | ['signOut', { scope: 'others' | 'local' }];
   const calls: AuthCall[] = [];
   let currentUserId = 'user-a';
   const auth = {
     exchangeCodeForSession: async (code: string, options: { flowId: string }) => {
       calls.push(['exchange', code, options]);
-      return { data: { session: { user: { id: 'user-a' } } }, error: null };
+      return { data: { session: { user: { id: 'user-a' } }, redirectType: 'recovery' }, error: null };
     },
     getUser: async () => ({ data: { user: { id: currentUserId } } }),
     updateUser: async (payload: { password: string; current_password?: string }) => {
       calls.push(['update', payload]);
       return { error: null };
     },
-    signOut: async (options: { scope: 'others' }) => { calls.push(['signOut', options]); },
+    signOut: async (options: { scope: 'others' | 'local' }) => { calls.push(['signOut', options]); },
   };
   const security = createPasswordSecurity(auth);
 
@@ -374,7 +390,7 @@ test('senhas exigem reautenticação ou callback de recuperação validado', asy
   });
   assert.deepEqual(
     await security.completeRecovery({ code: 'codigo', flowId: 'flow-12345678' }),
-    { user: { id: 'user-a' } },
+    { ok: true, session: { user: { id: 'user-a' } } },
   );
   assert.deepEqual(await security.updateRecovered('recuperada'), { ok: true });
   assert.ok(calls.some((call) => call[0] === 'exchange' && call[2].flowId === 'flow-12345678'));

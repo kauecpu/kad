@@ -66,8 +66,8 @@ function RankingPosition({ sessionId }: { sessionId?: string }) {
       accessibilityRole="button"
       accessibilityLabel={position ? `Posição no ranking: ${position.rank}` : 'Ver ranking'}
       style={({ pressed }) => [styles.rankingRow, { borderTopColor: colors.border }, pressed && { backgroundColor: colors.surfaceAlt }]}>
-      <View style={[styles.targetIcon, { backgroundColor: colors.warningSoft }]}>
-        {loading ? <ActivityIndicator size="small" color={colors.warning} /> : <Ionicons name="trophy-outline" size={19} color={colors.warning} />}
+      <View style={[styles.targetIcon, { backgroundColor: colors.energySoft }]}>
+        {loading ? <ActivityIndicator size="small" color={colors.energy} /> : <Ionicons name="trophy-outline" size={19} color={colors.energy} />}
       </View>
       <View style={styles.targetCopy}>
         <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Posição no ranking</Text>
@@ -87,6 +87,7 @@ export default function PerfilScreen() {
   const { profile, performance, canViewStatistics, savedConcursos, updateProfileAvatar } = useApp();
   const { session, isConfigured } = useAuth();
   const primaryAction = profileHeroAction({ isAuthenticated: Boolean(session), isAuthConfigured: isConfigured });
+  const primaryActionDisabled = !primaryAction.href;
   const targetRole = profile.targetRole?.trim();
   const performanceValue = canViewStatistics && performance.total > 0 ? formatPercent(performance.accuracy) : '--';
   const performanceDescription = canViewStatistics
@@ -131,13 +132,13 @@ export default function PerfilScreen() {
               accessibilityLabel={primaryAction.label}
               accessibilityHint={primaryAction.description}
               accessibilityState={{ disabled: !primaryAction.href }}
-              style={({ pressed }) => [styles.primaryAction, { backgroundColor: colors.primary }, pressed && styles.pressed, !primaryAction.href && styles.disabled]}>
-              <Ionicons name={session ? 'create-outline' : 'cloud-upload-outline'} size={19} color="#FFFFFF" />
+              style={({ pressed }) => [styles.primaryAction, { backgroundColor: primaryActionDisabled ? colors.primarySoft : colors.primary }, pressed && styles.pressed]}>
+              <Ionicons name={session ? 'create-outline' : 'cloud-upload-outline'} size={19} color={primaryActionDisabled ? colors.primary : colors.onPrimary} />
               <View style={styles.primaryActionCopy}>
-                <Text style={styles.primaryActionLabel}>{primaryAction.label}</Text>
-                <Text style={styles.primaryActionDescription}>{primaryAction.description}</Text>
+                <Text style={[styles.primaryActionLabel, { color: primaryActionDisabled ? colors.primary : colors.onPrimary }]}>{primaryAction.label}</Text>
+                <Text style={[styles.primaryActionDescription, { color: primaryActionDisabled ? colors.primary : colors.onPrimary }]}>{primaryAction.description}</Text>
               </View>
-              {primaryAction.href ? <Ionicons name="arrow-forward" size={18} color="#FFFFFF" /> : null}
+              {primaryAction.href ? <Ionicons name="arrow-forward" size={18} color={primaryActionDisabled ? colors.primary : colors.onPrimary} /> : null}
             </Pressable>
           </View>
         </Card>
@@ -225,8 +226,8 @@ const styles = StyleSheet.create({
   userDetail: { fontSize: FontSize.small, lineHeight: 18 },
   primaryAction: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, borderRadius: Radius.md },
   primaryActionCopy: { minWidth: 0, flex: 1, gap: 2 },
-  primaryActionLabel: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  primaryActionDescription: { color: 'rgba(252,250,255,0.80)', fontSize: FontSize.small, lineHeight: 18 },
+  primaryActionLabel: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  primaryActionDescription: { opacity: 0.8, fontSize: FontSize.small, lineHeight: 18 },
   preparationPanel: { borderWidth: 1, borderRadius: Radius.lg, overflow: 'hidden' },
   targetRow: { minHeight: 74, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg },
   rankingRow: { minHeight: 82, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg },
@@ -244,5 +245,4 @@ const styles = StyleSheet.create({
   settingsCopy: { minWidth: 0, flex: 1, gap: 3 },
   settingsTitle: { fontSize: FontSize.heading, fontWeight: FontWeight.bold },
   pressed: { opacity: 0.84, transform: [{ scale: 0.99 }] },
-  disabled: { opacity: 0.58 },
 });

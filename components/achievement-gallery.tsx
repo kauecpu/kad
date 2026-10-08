@@ -28,9 +28,9 @@ export function AchievementGallery() {
           <Text style={[styles.eyebrow, { color: colors.primary }]}>CONQUISTAS</Text>
           <Text style={[styles.title, { color: colors.text }]}>{unlocked} de {state.achievements.length} desbloqueadas</Text>
         </View>
-        <View style={[styles.counter, { backgroundColor: colors.warningSoft }]}>
-          <Ionicons name="trophy-outline" size={18} color={colors.warning} />
-          <Text style={[styles.counterText, { color: colors.warning }]}>{unlocked}</Text>
+        <View style={[styles.counter, { backgroundColor: colors.energySoft }]}>
+          <Ionicons name="trophy-outline" size={18} color={colors.energy} />
+          <Text style={[styles.counterText, { color: colors.energy }]}>{unlocked}</Text>
         </View>
       </View>
 
@@ -52,9 +52,9 @@ export function AchievementGallery() {
               key={item.key}
               accessible
               accessibilityLabel={`${item.title}. ${item.description}. ${complete ? 'Desbloqueada' : `${item.value} de ${item.threshold}`}`}
-              style={[styles.item, { backgroundColor: complete ? colors.warningSoft : colors.surfaceAlt, borderColor: complete ? colors.warning : colors.border }]}>
+              style={[styles.item, { backgroundColor: complete ? colors.energySoft : colors.surfaceAlt, borderColor: complete ? colors.energy : colors.border }]}>
               <View style={[styles.icon, { backgroundColor: complete ? colors.surface : colors.surfaceSunken }]}>
-                <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={22} color={complete ? colors.warning : colors.textSubtle} />
+                <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={22} color={complete ? colors.energy : colors.textSubtle} />
               </View>
               <View style={styles.copy}>
                 <View style={styles.titleLine}>

@@ -1,7 +1,9 @@
 import './styles/base.css';
 import './styles/app.css';
+import './styles/workspace.css';
 
 import { getCatalog, replacePublishedCatalog } from './data/catalog.ts';
+import { loadLocalDraft } from './services/local-draft.ts';
 import { back, currentRoute, matchRoute, navigate, shouldOpenStudyHome, subscribeRouter } from './core/router.ts';
 import {
   archiveCard as archiveFlashcard,
@@ -96,6 +98,7 @@ import { homeView } from './views/home.ts';
 import {
   disciplineView,
   questionSessionView,
+  questionCatalogStatusView,
   questionsIndexView,
   quickChallengeView,
   resetQuestionSession,
@@ -251,6 +254,8 @@ function requiredElement<T extends Element>(selector: string): T {
 
 const root = requiredElement<HTMLElement>('#app');
 const announcer = requiredElement<HTMLElement>('#announcer');
+let recoveryError = 'interrupted';
+const pendingPasswordForms = new Set<string>();
 
 const ui: UiState = {
   questionIndex: 0,
@@ -378,12 +383,16 @@ function notFoundView(): ViewModel {
 
 function resolveView(route: Route, state: SiteState): ViewModel {
   const { pathname, params } = route;
+  if (pathname === '/questoes' || pathname.startsWith('/questoes/')) {
+    const catalogStatus = questionCatalogStatusView(backendState);
+    if (catalogStatus) return catalogStatus;
+  }
   if (pathname === '/') return welcomeView();
   if (pathname === '/entrar') return authView('entrar', { returnTo: validateCheckoutReturn(params.returnTo) ?? undefined });
   if (pathname === '/cadastro') return authView('cadastro', { returnTo: validateCheckoutReturn(params.returnTo) ?? undefined });
   if (pathname === '/recuperar-senha') return recoveryView('request');
   if (pathname === '/confirmar-email') return recoveryView('confirmation', params);
-  if (pathname === '/nova-senha') return recoveryView('new-password', { ...params, recoveryStatus: ui.recoveryStatus });
+  if (pathname === '/nova-senha') return recoveryView('new-password', { ...params, recoveryStatus: ui.recoveryStatus, recoveryError });
   if (pathname === '/onboarding') return onboardingView(state);
   if (pathname === '/termos') return legalView('termos');
   if (pathname === '/privacidade') return legalView('privacidade');
@@ -886,7 +895,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
 
   if (formName === 'recovery') {
     const result = await requestPasswordRecovery(values.email);
-    updateFormMessage(form, result.ok ? 'Confira seu e-mail para continuar.' : result.offline ? 'A recuperação de conta não está disponível neste ambiente.' : result.message, result.ok ? 'success' : 'error');
+    updateFormMessage(form, result.ok ? 'Se o endereço estiver cadastrado, você receberá o link. Abra-o neste mesmo navegador. Não é necessário enviar outro pedido agora.' : result.offline ? 'A recuperação de conta não está disponível neste ambiente.' : result.message, result.ok ? 'success' : 'error');
     return;
   }
 
@@ -909,8 +918,18 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       ? await updateRecoveredPassword(values.password)
       : await updateAccountPassword(values.currentPassword, values.password);
     if (result.ok) {
-      updateFormMessage(form, 'Senha atualizada com sucesso.', 'success');
-      setTimeout(() => navigate('/perfil'), 700);
+      const recovered = formName === 'new-password';
+      if (recovered) {
+        ui.recoveryStatus = 'invalid';
+        recoveryError = 'interrupted';
+        store.switchOwner(null);
+        await levelTracker.selectOwner(null);
+      }
+      const message = 'warning' in result && result.warning === 'logout-failed'
+        ? 'Senha alterada, mas não foi possível encerrar todas as sessões. Entre com a nova senha e confira sua conta.'
+        : recovered ? 'Senha atualizada. Entre com a nova senha.' : 'Senha atualizada com sucesso.';
+      toast(message);
+      navigate(recovered ? '/entrar' : '/perfil', { replace: true });
     } else updateFormMessage(form, result.offline ? 'Entre em uma conta conectada para alterar a senha.' : result.message, 'error');
     return;
   }
@@ -1301,9 +1320,11 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'open-question') {
-    if (target.dataset.questionId) navigate(`/questoes/sessao?id=${encodeURIComponent(target.dataset.questionId)}`);
+    if (target.dataset.search) navigate(`/questoes/sessao?${target.dataset.search}`);
+    else if (target.dataset.questionId) navigate(`/questoes/sessao?id=${encodeURIComponent(target.dataset.questionId)}`);
     return;
   }
+  if (action === 'retry-question-catalog') { await refreshQuestionCatalog(); return; }
   if (action === 'study-all-questions') return navigate('/questoes/sessao');
   if (action === 'study-search-results') return navigate(`/questoes/sessao?${target.dataset.search ?? ''}`);
   if (action === 'answer-question') {
@@ -1757,7 +1778,23 @@ document.addEventListener('submit', (event) => {
   const form = event.target instanceof Element ? event.target.closest<HTMLFormElement>('form[data-form]') : null;
   if (!(form instanceof HTMLFormElement)) return;
   event.preventDefault();
-  void handleForm(form);
+  const kind = form.dataset.form ?? '';
+  if (!['recovery', 'new-password'].includes(kind)) {
+    void handleForm(form);
+    return;
+  }
+  if (pendingPasswordForms.has(kind)) return;
+  pendingPasswordForms.add(kind);
+  const submits = [...form.querySelectorAll<HTMLButtonElement>('button[type="submit"]')];
+  submits.forEach(button => { button.disabled = true; });
+  form.setAttribute('aria-busy', 'true');
+  void handleForm(form).catch(() => {
+    updateFormMessage(form, 'Não foi possível concluir a operação. Tente novamente mais tarde.', 'error');
+  }).finally(() => {
+    pendingPasswordForms.delete(kind);
+    submits.forEach(button => { button.disabled = false; });
+    form.removeAttribute('aria-busy');
+  });
 });
 
 document.addEventListener('change', (event) => {
@@ -1878,10 +1915,14 @@ void levelTracker.selectOwner(null);
 applyTheme();
 render({ routeChanged: true });
 
-const recoveryBootstrap = currentRoute().pathname === '/nova-senha'
-  ? completePasswordRecoveryCallback(globalThis.location.href)
+const recoveryCallbackUrl = currentRoute().pathname === '/nova-senha' ? globalThis.location.href : null;
+// Remove authorization material from history immediately, not only after an awaited request.
+if (recoveryCallbackUrl) globalThis.history.replaceState({}, '', '/nova-senha');
+const recoveryBootstrap = recoveryCallbackUrl
+  ? completePasswordRecoveryCallback(recoveryCallbackUrl)
     .then(async (result) => {
       ui.recoveryStatus = result.ok ? 'ready' : 'invalid';
+      recoveryError = !result.ok && !result.offline ? result.code ?? 'technical' : 'technical';
       if (result.ok && result.user?.id) {
         await levelTracker.selectOwner(result.user.id);
         store.switchOwner(result.user.id);
@@ -1890,11 +1931,12 @@ const recoveryBootstrap = currentRoute().pathname === '/nova-senha'
           draft.profile.email = result.user.email ?? draft.profile.email;
         });
       }
-      navigate('/nova-senha', { replace: true });
+      if (currentRoute().pathname === '/nova-senha') render();
     })
     .catch(() => {
       ui.recoveryStatus = 'invalid';
-      navigate('/nova-senha', { replace: true });
+      recoveryError = 'technical';
+      if (currentRoute().pathname === '/nova-senha') render();
     })
   : Promise.resolve();
 
@@ -1914,7 +1956,19 @@ const confirmationBootstrap = currentRoute().pathname === '/confirmar-email'
     })
   : Promise.resolve();
 
-void initializeSupabase().then((configured) => {
+if (import.meta.env.DEV && import.meta.env.VITE_KAD_LOCAL_PILOT === '1') {
+  // Explicit local-only pilot: no auth bootstrap, remote catalog or production writes.
+  replacePublishedCatalog({ questions: [], concursos: [] });
+  void loadLocalDraft().then((questions) => {
+    replacePublishedCatalog({ questions, concursos: [] });
+    backendState = classifyBackendState({ configured: false });
+    render();
+  }).catch((error: unknown) => {
+    replacePublishedCatalog({ questions: [], concursos: [] });
+    toast(error instanceof Error ? error.message : 'Falha ao carregar o piloto local.');
+    render();
+  });
+} else void initializeSupabase().then((configured) => {
   if (!configured || !supabaseConfigured) {
     backendState = classifyBackendState({ configured: false, loading: false, loadedFromRemote: false });
     render();
@@ -1938,27 +1992,36 @@ void initializeSupabase().then((configured) => {
     if (!user || bootstrapVersion !== studyHydrationVersion) return;
     await hydrateAuthenticatedUser(user);
   }).catch(() => toast('Não foi possível verificar sua sessão. Tente entrar novamente.'));
-  loadPublishedContent()
-    .then((content) => {
-      replacePublishedCatalog(content);
-      backendState = classifyBackendState({
-        configured: true,
-        loading: false,
-        loadedFromRemote: true,
-        questionCount: content.questions.length,
-        concursoCount: content.concursos.length,
-      });
-      render();
-    })
-    .catch(() => {
-      // Em uma falha configurada, não apresentamos o catálogo local como se fosse remoto.
-      replacePublishedCatalog({ questions: [], concursos: [] });
-      backendState = classifyBackendState({
-        configured: true,
-        loading: false,
-        error: 'published-content-unavailable',
-        loadedFromRemote: false,
-      });
-      render();
-    });
+  void refreshQuestionCatalog();
 });
+
+let catalogRequestPending = false;
+async function refreshQuestionCatalog(): Promise<void> {
+  if (catalogRequestPending) return;
+  catalogRequestPending = true;
+  backendState = classifyBackendState({ configured: true, loading: true });
+  render();
+  try {
+    const content = await loadPublishedContent();
+    replacePublishedCatalog(content);
+    backendState = classifyBackendState({
+      configured: true,
+      loading: false,
+      loadedFromRemote: true,
+      questionCount: content.questions.length,
+      concursoCount: content.concursos.length,
+    });
+  } catch {
+    // Em uma falha configurada, não apresentamos o catálogo local como se fosse remoto.
+    replacePublishedCatalog({ questions: [], concursos: [] });
+    backendState = classifyBackendState({
+      configured: true,
+      loading: false,
+      error: 'published-content-unavailable',
+      loadedFromRemote: false,
+    });
+  } finally {
+    catalogRequestPending = false;
+    render();
+  }
+}

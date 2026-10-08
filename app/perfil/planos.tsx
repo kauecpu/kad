@@ -52,13 +52,8 @@ const PLAN_LABEL: Record<SubscriptionPlan, string> = {
   circle: 'KAD Círculo',
 };
 
-const PLAN_GRADIENTS = {
-  light: ['#27104F', '#5520A7', '#7C3AED'],
-  dark: ['#160B2C', '#34146B', '#5B21B6'],
-} as const;
-
 export default function PlansScreen() {
-  const { colors, scheme } = useTheme();
+  const { colors } = useTheme();
   const { width, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -265,21 +260,21 @@ export default function PlansScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
         <LinearGradient
-          colors={PLAN_GRADIENTS[scheme]}
+          colors={[colors.brandSurfaceStrong, colors.brandSurfaceDeep]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}>
-          <View style={[styles.heroGlow, styles.noPointerEvents]} />
-          <View style={[styles.heroFacetOne, styles.noPointerEvents]} />
-          <View style={[styles.heroFacetTwo, styles.noPointerEvents]} />
+          <View style={[styles.heroGlow, styles.noPointerEvents, { backgroundColor: colors.brandTrace }]} />
+          <View style={[styles.heroFacetOne, styles.noPointerEvents, { backgroundColor: colors.brandTrace }]} />
+          <View style={[styles.heroFacetTwo, styles.noPointerEvents, { backgroundColor: colors.energy, opacity: 0.12 }]} />
           <View style={styles.heroEyebrowRow}>
-            <View style={styles.heroDot} />
-            <Text style={styles.heroEyebrow}>PLANOS KAD</Text>
+            <View style={[styles.heroDot, { backgroundColor: colors.energy }]} />
+            <Text style={[styles.heroEyebrow, { color: colors.onBrand }]}>PLANOS KAD</Text>
           </View>
-          <Text style={styles.heroTitle} accessibilityRole="header">
+          <Text style={[styles.heroTitle, { color: colors.onBrand }]} accessibilityRole="header">
             Pratique sem travas. Evolua com direção.
           </Text>
-          <Text style={styles.heroDescription}>
+          <Text style={[styles.heroDescription, { color: colors.onBrandMuted }]}>
             Questões ilimitadas para todos. Platina e Diamante transformam respostas em uma visão clara da sua evolução.
           </Text>
           <View style={styles.heroPromises}>
@@ -404,10 +399,11 @@ export default function PlansScreen() {
 }
 
 function HeroPromise({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.heroPromise}>
-      <Ionicons name={icon} size={16} color="#F8CE62" />
-      <Text style={styles.heroPromiseText}>{label}</Text>
+    <View style={[styles.heroPromise, { backgroundColor: colors.brandTrace, borderColor: colors.brandTrace }]}>
+      <Ionicons name={icon} size={16} color={colors.onBrand} />
+      <Text style={[styles.heroPromiseText, { color: colors.onBrand }]}>{label}</Text>
     </View>
   );
 }
@@ -661,7 +657,6 @@ const styles = StyleSheet.create({
     right: -80,
     top: -110,
     borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.10)',
   },
   heroFacetOne: {
     position: 'absolute',
@@ -669,7 +664,6 @@ const styles = StyleSheet.create({
     height: 390,
     right: 80,
     top: -60,
-    backgroundColor: 'rgba(255,255,255,0.055)',
     transform: [{ rotate: '27deg' }],
   },
   heroFacetTwo: {
@@ -678,14 +672,13 @@ const styles = StyleSheet.create({
     height: 360,
     right: 5,
     top: -35,
-    backgroundColor: 'rgba(248,206,98,0.10)',
     transform: [{ rotate: '27deg' }],
   },
   heroEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  heroDot: { width: 7, height: 7, borderRadius: Radius.pill, backgroundColor: '#F8CE62' },
-  heroEyebrow: { color: '#F8CE62', fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 1.1 },
-  heroTitle: { maxWidth: 620, color: '#FFFFFF', fontSize: 34, lineHeight: 39, fontWeight: FontWeight.bold, letterSpacing: -0.8 },
-  heroDescription: { maxWidth: 600, color: '#E7DDF5', fontSize: FontSize.body, lineHeight: 22 },
+  heroDot: { width: 7, height: 7, borderRadius: Radius.pill },
+  heroEyebrow: { fontSize: FontSize.tiny, fontWeight: FontWeight.bold, letterSpacing: 1.1 },
+  heroTitle: { maxWidth: 620, fontSize: 34, lineHeight: 39, fontWeight: FontWeight.bold, letterSpacing: -0.8 },
+  heroDescription: { maxWidth: 600, fontSize: FontSize.body, lineHeight: 22 },
   heroPromises: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.xs },
   heroPromise: {
     flexDirection: 'row',
@@ -694,11 +687,9 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.11)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
   },
-  heroPromiseText: { color: '#FFFFFF', fontSize: FontSize.small, fontWeight: FontWeight.semibold },
+  heroPromiseText: { fontSize: FontSize.small, fontWeight: FontWeight.semibold },
   currentCard: { gap: Spacing.md, borderWidth: 1 },
   currentHeader: {
     flexDirection: 'row',

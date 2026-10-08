@@ -56,16 +56,18 @@ test('o destaque acompanha rotas canônicas, descendentes e o alias antigo', () 
   assert.equal(isDrawerRouteActive('/simulados', '/questoes'), false);
 });
 
-test('o layout oficial remove Tabs e registra Drawer com gesto, overlay e conteúdo customizado', () => {
+test('o layout mantém o navegador de rotas sem exibir a barra lateral', () => {
   const layout = source('../app/(tabs)/_layout.tsx');
 
   assert.match(layout, /import \{ Drawer \} from 'expo-router\/drawer'/);
   assert.doesNotMatch(layout, /\bTabs\b|tabBar/);
-  assert.match(layout, /drawerContent=\{\(props\) => <KadDrawerContent \{\.\.\.props\} \/>\}/);
-  assert.match(layout, /swipeEnabled: true/);
-  assert.match(layout, /swipeEdgeWidth:/);
+  assert.match(layout, /drawerContent=\{\(\) => null\}/);
+  assert.match(layout, /drawerType: 'front'/);
+  assert.match(layout, /swipeEnabled: false/);
+  assert.match(layout, /width: 0/);
+  assert.match(layout, /display: 'none'/);
   assert.match(layout, /overlayColor: colors\.overlay/);
-  assert.match(layout, /drawerWidth\(width\)/);
+  assert.doesNotMatch(layout, /KadDrawerContent|drawerWidth\(|useWindowDimensions/);
 });
 
 test('o conteúdo rolável fecha o drawer sem aguardar a animação e destaca a rota atual', () => {
@@ -84,16 +86,14 @@ test('o conteúdo rolável fecha o drawer sem aguardar a animação e destaca a 
   assert.ok(minHeight && Number(minHeight[1]) >= 48);
 });
 
-test('o cabeçalho oferece botão explícito de menu com alvo mínimo', () => {
+test('o cabeçalho não exibe mais o botão do menu lateral', () => {
   const header = source('../components/ui/screen-header.tsx');
   const menuButton = source('../components/ui/drawer-menu-button.tsx');
 
   assert.match(header, /onMenu/);
   assert.match(header, /<DrawerMenuButton onPress=\{onMenu\}/);
-  assert.match(menuButton, /accessibilityLabel="Abrir menu"/);
-  assert.match(menuButton, /accessibilityRole="button"/);
-  assert.match(menuButton, /width:\s*48/);
-  assert.match(menuButton, /height:\s*48/);
+  assert.match(menuButton, /return null/);
+  assert.doesNotMatch(menuButton, /Pressable|accessibilityLabel="Abrir menu"/);
 });
 
 test('todas as telas principais conectam o botão ao Drawer sem remover ações existentes', () => {

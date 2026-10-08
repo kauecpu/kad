@@ -84,13 +84,13 @@ export default function FeedbackScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.introCard}>
-            <View style={styles.introIcon}>
-              <Ionicons name="chatbubble-ellipses-outline" size={23} color="#FFFFFF" />
+            <View style={[styles.introIcon, { backgroundColor: colors.brandTrace }]}>
+              <Ionicons name="chatbubble-ellipses-outline" size={23} color={colors.onPrimary} />
             </View>
             <View style={styles.introCopy}>
-              <Text style={styles.introEyebrow}>TESTE FECHADO</Text>
-              <Text style={styles.introTitle}>Sua experiência ajuda a decidir o próximo passo.</Text>
-              <Text style={styles.introText}>
+              <Text style={[styles.introEyebrow, { color: colors.onPrimary }]}>TESTE FECHADO</Text>
+              <Text style={[styles.introTitle, { color: colors.onPrimary }]}>Sua experiência ajuda a decidir o próximo passo.</Text>
+              <Text style={[styles.introText, { color: colors.onPrimary }]}>
                 Envie uma ideia, dúvida ou problema. A equipe receberá a mensagem no painel do KAD.
               </Text>
             </View>
@@ -267,23 +267,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.md,
-    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   introCopy: { flex: 1, gap: Spacing.sm },
   introEyebrow: {
-    color: 'rgba(255,255,255,0.72)',
+    opacity: 0.72,
     fontSize: FontSize.tiny,
     fontWeight: FontWeight.bold,
     letterSpacing: 1,
   },
   introTitle: {
-    color: '#FFFFFF',
     fontSize: FontSize.title,
     lineHeight: 29,
     fontWeight: FontWeight.bold,
     letterSpacing: -0.4,
   },
-  introText: { color: 'rgba(255,255,255,0.82)', fontSize: FontSize.small, lineHeight: 20 },
+  introText: { opacity: 0.82, fontSize: FontSize.small, lineHeight: 20 },
   form: { gap: Spacing.xl },
   fieldGroup: { gap: Spacing.md },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

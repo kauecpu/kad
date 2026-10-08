@@ -12,6 +12,18 @@ const featuredCard = readFileSync(
   new NodeURL('../components/ui/featured-card.tsx', import.meta.url),
   'utf8'
 );
+const bottomNavigation = readFileSync(
+  new NodeURL('../components/kad-bottom-navigation.tsx', import.meta.url),
+  'utf8'
+);
+const achievementGallery = readFileSync(
+  new NodeURL('../components/achievement-gallery.tsx', import.meta.url),
+  'utf8'
+);
+const rankingScreen = readFileSync(
+  new NodeURL('../app/(tabs)/ranking.tsx', import.meta.url),
+  'utf8'
+);
 
 const semanticTokens = [
   'brandSurfaceStrong',
@@ -57,11 +69,96 @@ function contrastRatio(foreground: string, background: string) {
   return (light + 0.05) / (dark + 0.05);
 }
 
+function isNeutralHex(hex: string) {
+  assert.match(hex, /^#[0-9A-F]{6}$/i);
+  const [red, green, blue] = hex
+    .slice(1)
+    .match(/.{2}/g)!
+    .map((channel) => Number.parseInt(channel, 16));
+  return red === green && green === blue;
+}
+
 test('os temas expõem a mesma identidade semântica de progresso', () => {
   for (const theme of ['light', 'dark'] as const) {
     const block = themeBlock(theme);
     for (const token of semanticTokens) {
       assert.ok(tokenValue(block, token));
+    }
+  }
+});
+
+test('amarelo conduz ações e navegação enquanto roxo identifica gamificação', () => {
+  const light = themeBlock('light');
+  const dark = themeBlock('dark');
+
+  assert.equal(tokenValue(light, 'primary'), '#7A5700');
+  assert.equal(tokenValue(light, 'primarySoft'), '#FFF4C2');
+  assert.equal(tokenValue(dark, 'primary'), '#F4CD4D');
+  assert.equal(tokenValue(dark, 'primarySoft'), '#302711');
+  assert.equal(tokenValue(light, 'energy'), '#6D28D9');
+  assert.equal(tokenValue(dark, 'energy'), '#C4B5FD');
+
+  assert.match(bottomNavigation, /backgroundColor: active \? colors\.primary : colors\.primarySoft/);
+  assert.match(bottomNavigation, /active && \{ backgroundColor: colors\.tabActiveSurface \}/);
+  assert.match(bottomNavigation, /color: active \? colors\.tabActive : colors\.tabInactive/);
+  assert.match(achievementGallery, /colors\.energySoft/);
+  assert.match(achievementGallery, /colors\.energy/);
+  assert.match(rankingScreen, /entry\.rank <= 3 \? colors\.energySoft/);
+});
+
+test('o tema escuro usa superfícies e textos neutros sem dominante azul', () => {
+  const block = themeBlock('dark');
+
+  for (const token of [
+    'background',
+    'surface',
+    'surfaceRaised',
+    'surfaceAlt',
+    'surfaceSunken',
+    'text',
+    'textMuted',
+    'textSubtle',
+    'border',
+    'borderStrong',
+    'tabInactive',
+  ] as const) {
+    assert.ok(isNeutralHex(tokenValue(block, token)), `${token} precisa ser neutro no tema escuro`);
+  }
+
+  for (const [foregroundToken, backgroundToken] of [
+    ['text', 'background'],
+    ['text', 'surfaceRaised'],
+    ['textMuted', 'surface'],
+    ['textSubtle', 'surfaceAlt'],
+    ['tabInactive', 'surface'],
+  ] as const) {
+    const ratio = contrastRatio(
+      tokenValue(block, foregroundToken),
+      tokenValue(block, backgroundToken)
+    );
+    assert.ok(
+      ratio >= 4.5,
+      `dark.${foregroundToken} precisa contrastar com ${backgroundToken}; recebeu ${ratio.toFixed(2)}`
+    );
+  }
+});
+
+test('ações, navegação ativa e gamificação mantêm contraste AA nos dois temas', () => {
+  for (const theme of ['light', 'dark'] as const) {
+    const block = themeBlock(theme);
+    for (const [foregroundToken, backgroundToken] of [
+      ['onPrimary', 'primary'],
+      ['tabActive', 'tabActiveSurface'],
+      ['energy', 'energySoft'],
+    ] as const) {
+      const ratio = contrastRatio(
+        tokenValue(block, foregroundToken),
+        tokenValue(block, backgroundToken)
+      );
+      assert.ok(
+        ratio >= 4.5,
+        `${theme}.${foregroundToken} precisa contrastar com ${backgroundToken}; recebeu ${ratio.toFixed(2)}`
+      );
     }
   }
 });
