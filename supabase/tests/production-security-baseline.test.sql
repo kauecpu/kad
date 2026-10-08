@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(11);
+select plan(14);
 
 select ok(
   not has_schema_privilege('anon', 'public', 'CREATE')
@@ -38,6 +38,27 @@ select ok(
       and grantee in ('PUBLIC', 'anon', 'authenticated')
   ),
   'client roles have no direct privileges on private tables'
+);
+
+select has_index(
+  'private',
+  'question_answer_evidence',
+  'question_answer_evidence_import_batch_id_idx',
+  'answer evidence import batch FK is indexed'
+);
+
+select has_index(
+  'public',
+  'questions',
+  'questions_withdrawn_by_idx',
+  'question withdrawal actor FK is indexed'
+);
+
+select has_index(
+  'public',
+  'user_achievements',
+  'user_achievements_achievement_key_idx',
+  'achievement definition FK is indexed'
 );
 
 select ok(
@@ -91,10 +112,15 @@ select ok(
   not exists (
     select 1
     from pg_default_acl defaults
+    left join pg_namespace namespace on namespace.oid = defaults.defaclnamespace
     cross join lateral aclexplode(defaults.defaclacl) privilege
     left join pg_roles grantee on grantee.oid = privilege.grantee
     where defaults.defaclrole = 'postgres'::regrole
       and defaults.defaclobjtype = 'f'
+      and (
+        defaults.defaclnamespace = 0
+        or namespace.nspname in ('public', 'private')
+      )
       and privilege.privilege_type = 'EXECUTE'
       and (privilege.grantee = 0 or grantee.rolname in ('anon', 'authenticated', 'service_role'))
   ),

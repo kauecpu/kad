@@ -11,6 +11,14 @@ const migration = readFileSync(
   'utf8'
 );
 
+const advisorFollowup = readFileSync(
+  new NodeURL(
+    '../supabase/migrations/202610080002_security_advisor_followup.sql',
+    import.meta.url
+  ),
+  'utf8'
+);
+
 const config = readFileSync(new NodeURL('../supabase/config.toml', import.meta.url), 'utf8');
 const checklist = readFileSync(
   new NodeURL('../docs/PRODUCTION_SECURITY.md', import.meta.url),
@@ -83,6 +91,24 @@ test('future public relations require explicit client grants', () => {
     /alter default privileges for role postgres in schema public\s+revoke all on sequences from anon, authenticated/
   );
   assert.match(migration, /revoke create on schema public from public, anon, authenticated/);
+});
+
+test('advisor-reported foreign keys have supporting indexes', () => {
+  assert.match(
+    migration,
+    /create index if not exists question_answer_evidence_import_batch_id_idx\s+on private\.question_answer_evidence \(import_batch_id\)/
+  );
+  assert.match(
+    migration,
+    /create index if not exists questions_withdrawn_by_idx\s+on public\.questions \(withdrawn_by\)/
+  );
+});
+
+test('advisor follow-up indexes the achievement definition foreign key', () => {
+  assert.match(
+    advisorFollowup,
+    /create index if not exists user_achievements_achievement_key_idx\s+on public\.user_achievements \(achievement_key\)/
+  );
 });
 
 test('baseline preserves the critical authenticated and service RPCs', () => {

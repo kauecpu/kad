@@ -51,6 +51,7 @@ app-example
 
 # Supabase CLI local state
 supabase/.temp/
+supabase/.branches/
 
 # Approved local question pilot (never commit exam content)
 site/.local-pilot/

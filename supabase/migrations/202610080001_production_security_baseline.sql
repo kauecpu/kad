@@ -8,6 +8,17 @@ revoke usage on schema private from anon;
 revoke all on all tables in schema private from public, anon, authenticated;
 revoke all on all sequences in schema private from public, anon, authenticated;
 
+-- Both production and staging advisors reported these foreign-key lookups
+-- without a supporting index. Keep the indexes partial because the relations
+-- intentionally allow NULL when the actor or source batch is removed.
+create index if not exists question_answer_evidence_import_batch_id_idx
+on private.question_answer_evidence (import_batch_id)
+where import_batch_id is not null;
+
+create index if not exists questions_withdrawn_by_idx
+on public.questions (withdrawn_by)
+where withdrawn_by is not null;
+
 -- PostgreSQL grants EXECUTE on new functions to PUBLIC by default. Supabase also
 -- adds direct API-role grants in public. Make every future RPC opt-in instead.
 alter default privileges for role postgres
