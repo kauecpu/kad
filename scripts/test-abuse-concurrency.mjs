@@ -1,8 +1,9 @@
 // Disposable native PostgreSQL only. Refuses remote targets and populated schemas.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 import { paymentBootstrap } from '../tests/helpers/payment-database.ts';
 
 if (!['localhost','127.0.0.1'].includes(process.env.PGHOST)
@@ -36,9 +37,26 @@ function query(sql) {
     child.stdin.end(sql);
   });
 }
-assert.equal(await query("select host(inet_server_addr()) || ':' || current_database()"), '127.0.0.1:kad_abuse_test');
+let expectedAddress = '127.0.0.1';
+if (process.env.KAD_TEST_CONTAINER_ID) {
+  // Docker NAT changes inet_server_addr(). Prove the exact CI-owned container
+  // and its loopback port binding, never accept an arbitrary expected IP.
+  assert.equal(process.env.GITHUB_ACTIONS, 'true');
+  assert.match(process.env.KAD_TEST_CONTAINER_ID, /^[a-f0-9]{64}$/);
+  const { stdout } = await promisify(execFile)('docker', ['inspect', process.env.KAD_TEST_CONTAINER_ID]);
+  const [container] = JSON.parse(stdout);
+  assert.equal(container.State.Running, true);
+  assert.equal(container.Config.Image, 'postgres:17');
+  const bindings = container.NetworkSettings.Ports['5432/tcp'];
+  assert.ok(bindings.some(binding => binding.HostIp === '127.0.0.1' && binding.HostPort === env.PGPORT));
+  const addresses = Object.values(container.NetworkSettings.Networks).map(network => network.IPAddress);
+  assert.equal(addresses.length, 1);
+  expectedAddress = addresses[0];
+  assert.ok(expectedAddress);
+}
+assert.equal(await query("select host(inet_server_addr()) || ':' || current_database()"), `${expectedAddress}:kad_abuse_test`);
 assert.equal(await query("select count(*) from information_schema.tables where table_schema in ('public','private','auth')"), '0', 'Requires an empty disposable database');
-console.log('Verified loopback and empty kad_abuse_test; only synthetic fixtures will be written.');
+console.log('Verified loopback target (native or exact CI container) and empty kad_abuse_test; synthetic fixtures only.');
 const bootstrap = paymentBootstrap.replace('create role anon; create role authenticated; create role service_role;', () => `
   do $$begin
     if not exists(select from pg_roles where rolname='anon') then create role anon; end if;

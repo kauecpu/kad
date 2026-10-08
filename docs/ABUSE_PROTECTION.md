@@ -205,7 +205,9 @@ Somente contas fictícias, clocks/serviços simulados e banco local foram usados
   de webhook/cancelamento; executar `deno test --allow-env` nesses quatro arquivos.
 - `scripts/test-abuse-concurrency.mjs`: exige `PGHOST=127.0.0.1`, banco vazio
   `PGDATABASE=kad_abuse_test`, sem `PGSERVICE`. Confere endereço do servidor antes
-  de escrever. `psql` na CI; opcional `PG_TEST_DRIVER` aponta para módulo `pg`
+  de escrever. Na CI confere também o ID, imagem e binding loopback do contêiner
+  Docker criado pelo job, porque o servidor informa o IP interno após NAT; não
+  aceita um IP esperado arbitrário. `psql` na CI; opcional `PG_TEST_DRIVER` aponta para módulo `pg`
   instalado externamente (não incluído no app).
 - PostgreSQL nativo **18.4**, somente `127.0.0.1:55439`, confirmou **24 conexões =
   5 permitidas + 19 negadas**, usuários separados, janela expirada, reaplicação
@@ -227,6 +229,11 @@ Somente contas fictícias, clocks/serviços simulados e banco local foram usados
 Turnstile reais, SMTP real, WebView em dispositivo Android/iOS e configurações
 Cloudflare/Supabase remotas. Mocks não demonstram que um token real é aceito pelo
 provedor. Não declarar aprovação completa para ativação em produção.
+
+O `npm ci` da CI também informou 52 avisos de vulnerabilidade nas dependências
+(19 moderados, 32 altos, 1 crítico), sem triagem de alcançabilidade nesta tarefa.
+Não representam 52 falhas confirmadas do produto; exigem análise separada antes
+de uma aprovação global de segurança. Não foram feitas atualizações em massa.
 
 Pendência separada encontrada na base: `_shared/google-play.ts` ainda permite
 acesso para ON_HOLD/PAUSED e usa fallback ativo para estado desconhecido. Não
