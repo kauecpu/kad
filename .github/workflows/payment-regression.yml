@@ -31,5 +31,13 @@ jobs:
           PGPORT: 5432
           PGUSER: postgres
           PGDATABASE: kad_payment_test
-      - name: Webhook HTTP contracts (isolated provider mocks)
-        run: npx --yes deno@2.2.6 test --allow-env supabase/functions/mercado-pago-webhook/index.test.ts supabase/functions/cancel-subscription/index.test.ts
+      - name: Atomic abuse limits (disposable PostgreSQL)
+        run: |
+          createdb kad_abuse_test
+          PGDATABASE=kad_abuse_test node --no-warnings scripts/test-abuse-concurrency.mjs
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+      - name: HTTP contracts (isolated provider mocks)
+        run: npx --yes deno@2.2.6 test --allow-env supabase/functions/mercado-pago-webhook/index.test.ts supabase/functions/cancel-subscription/index.test.ts supabase/functions/_shared/abuse-protection.test.ts supabase/functions/abuse-http.test.ts

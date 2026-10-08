@@ -1,8 +1,13 @@
+import { captchaPage } from './captcha-page.ts';
+import { captchaEnabled } from '../../contracts/auth-captcha.ts';
+
 type Environment = {
   ASSETS: { fetch(request: Request): Promise<Response> };
   KAD_ENV?: string;
   SUPABASE_URL?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
+  AUTH_CAPTCHA_ENABLED?: string;
+  TURNSTILE_SITE_KEY?: string;
 };
 
 export default {
@@ -17,12 +22,18 @@ export default {
         environment: env.KAD_ENV ?? null,
         url: env.SUPABASE_URL ?? null,
         publishableKey: env.SUPABASE_PUBLISHABLE_KEY ?? null,
+        captchaEnabled: env.AUTH_CAPTCHA_ENABLED ?? 'false',
       }, {
         headers: {
           'Cache-Control': 'no-store',
           'X-Content-Type-Options': 'nosniff',
         },
       }));
+    }
+    if (request.method === 'GET' && url.pathname === '/auth/captcha') {
+      let enabled = false;
+      try { enabled = captchaEnabled(env.AUTH_CAPTCHA_ENABLED); } catch { /* invalid config fails closed */ }
+      return Promise.resolve(captchaPage(enabled ? env.TURNSTILE_SITE_KEY : undefined));
     }
     const fallbackUrl = new URL('/', request.url);
     return env.ASSETS.fetch(new Request(fallbackUrl, request));
