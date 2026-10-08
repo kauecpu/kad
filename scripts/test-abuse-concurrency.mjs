@@ -83,4 +83,39 @@ for (const role of ['anon','authenticated']) {
 await query(`update private.abuse_limit_counters set window_started_at=clock_timestamp()-interval '901 seconds' where user_id='${a}';`);
 assert.equal(await query(consume(a)),'t');
 console.log('PASS: 24 concurrent connections = 5 allowed + 19 denied; independent users; replay; expiry; direct RPC/table denials.');
+
+// Force cleanup batches to overlap: the first request prunes the second user's
+// expired row, while the next cleanup would prune the first user's row. Only
+// a disposable fixture trigger delays cleanup; no sleeps in production SQL.
+await query(`
+  insert into auth.users select ('20000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid from generate_series(1,64) i;
+  insert into private.abuse_limit_counters
+    select id, 'account_delete', clock_timestamp()-interval '2 days', 1,
+      clock_timestamp()-interval '1 day' + row_number() over(order by id)*interval '1 second'
+    from auth.users where id::text like '20000000-%';
+  create function private.fixture_cleanup_pause() returns trigger language plpgsql as $$
+    begin perform pg_sleep(2); return null; end$$;
+  create trigger fixture_cleanup_pause after delete on private.abuse_limit_counters
+    for each statement execute function private.fixture_cleanup_pause();
+`);
+const consumeResult = (sql) => query(sql).then(value => ({value}), error => ({error: error.message}));
+const firstCleanup = consumeResult(`set application_name='kad-abuse-cleanup-first';
+  ${consume('20000000-0000-4000-8000-000000000064')}`);
+try {
+  let reachedCleanup = false;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (await query("select count(*) from pg_stat_activity where application_name='kad-abuse-cleanup-first' and wait_event='PgSleep'") === '1') {
+      reachedCleanup = true; break;
+    }
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.ok(reachedCleanup, 'first request reached cleanup fixture barrier');
+  const outcomes = await Promise.all([firstCleanup, consumeResult(consume('20000000-0000-4000-8000-000000000001'))]);
+  assert.deepEqual(outcomes, [{value:'t'}, {value:'t'}], 'cleanup must not deadlock concurrent consumers');
+  assert.equal(await query("select count(*) from private.abuse_limit_counters where user_id::text like '20000000-%' and attempts=1 and expires_at>clock_timestamp()"),'2');
+  console.log('PASS: overlapping expired-counter cleanup does not deadlock or erase newly confirmed attempts.');
+} finally {
+  await firstCleanup;
+  await query('drop trigger fixture_cleanup_pause on private.abuse_limit_counters; drop function private.fixture_cleanup_pause();');
+}
 console.log('This tests native Postgres, not the Supabase Auth/gateway/HTTP stack.');

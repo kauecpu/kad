@@ -84,6 +84,11 @@ horário fixo, um administrador pode agendar a função privada de limpeza com o
 agendador já disponível, após aprovação; nada foi agendado nesta tarefa.
 Não armazenamos IP, token de compra, senha, JWT nem corpo no contador.
 
+O consumo bloqueia e atualiza seu próprio contador **antes** da limpeza. Nenhum
+novo bloqueio de linha ocorre depois dela. Isso evita que duas limpezas em lotes
+removam os contadores uma da outra e travem os inserts seguintes. O relógio é
+consultado novamente após obter o bloqueio da linha, inclusive se houve espera.
+
 ## IP e Cloudflare
 
 Não foi comprovada uma cadeia de proxies confiáveis até as Edge Functions.
@@ -139,6 +144,10 @@ troca de senha autenticada e renovação de sessão conservam contratos existent
 Expo web usa iframe apenas se a página do desafio estiver no mesmo domínio;
 caso contrário informa configuração incompatível. O KAD Site é o frontend web
 oficial e já atende esse requisito.
+
+No app, a conclusão também confere o nonce da tentativa ainda pendente. Eventos
+ou timers atrasados de uma WebView fechada não encerram nem entregam token à
+tentativa seguinte.
 
 Ordem futura, **não executada**:
 
@@ -199,8 +208,8 @@ da plataforma antes de ativar captura adicional de requisições.
 
 Somente contas fictícias, clocks/serviços simulados e banco local foram usados.
 
-- `npm run check`: **513 testes aprovados**, tipos e lint aprovados.
-- `npm --prefix site run check`: **117 testes aprovados**, tipos e build aprovados.
+- `npm run check`: **514 testes aprovados**, tipos e lint aprovados.
+- `npm --prefix site run check`: **121 testes aprovados**, tipos e build aprovados.
 - Deno: **41 testes aprovados** em `_shared/abuse-protection.test.ts`, `abuse-http.test.ts`, testes existentes
   de webhook/cancelamento; executar `deno test --allow-env` nesses quatro arquivos.
 - `scripts/test-abuse-concurrency.mjs`: exige `PGHOST=127.0.0.1`, banco vazio
@@ -212,6 +221,22 @@ Somente contas fictícias, clocks/serviços simulados e banco local foram usados
 - PostgreSQL nativo **18.4**, somente `127.0.0.1:55439`, confirmou **24 conexões =
   5 permitidas + 19 negadas**, usuários separados, janela expirada, reaplicação
   e negação de acesso direto. CI usa PostgreSQL17 e repete o teste em banco próprio.
+- Revisão adicional em PostgreSQL18.4, `127.0.0.1:55440`, banco descartável vazio:
+  dois lotes concorrentes com 64 contadores expirados reproduziram `40P01`
+  (`deadlock detected`) antes da correção. Depois, ambas as requisições passaram,
+  mantendo as duas tentativas novas. O teste usa uma pausa somente em trigger de
+  fixture e também está no script de concorrência da CI. Migration ainda não
+  publicada: a correção altera o arquivo deste PR, sem mudança remota.
+- Callback/timer antigo do CAPTCHA reproduziu encerramento indevido da tentativa
+  seguinte antes da correção; a regressão passa após vincular a conclusão ao nonce.
+  Testes do serviço web agora executam os cinco fluxos reais com Auth simulado,
+  flag desativada, desafio cancelado e troca de conta antes da exclusão.
+- Advisors executados **apenas nessa base de fixtures**, não nos projetos remotos:
+  segurança retornou dois INFO de RLS sem policies nas tabelas privadas
+  (negação intencional de acesso direto) e um WARN de `search_path` no helper
+  fictício `private.set_updated_at` de `tests/helpers/payment-database.ts`, que
+  não é criado pela migration deste PR. Performance não retornou WARN/ERROR.
+  Isso não constitui auditoria do schema completo nem do Supabase hospedado.
 - PGlite complementa permissões/retenção e regressão de checkout, reconciliação
   e feedback. Fixtures HTTP provam que bloqueio não chama o provedor custoso.
 - `site/scripts/test-auth-captcha-browser.mjs`: Playwright externo via

@@ -10,16 +10,18 @@ type Result = { token?: string; error?: string };
 
 export function useAuthCaptcha() {
   const [challenge, setChallenge] = useState<{ url: string; nonce: string }>();
-  const pending = useRef<((result: Result) => void) | null>(null);
+  const pending = useRef<{ nonce: string; resolve: (result: Result) => void } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const finish = useCallback((result: Result) => {
+  const finish = useCallback((nonce: string, result: Result) => {
+    // A queued event from a dismissed WebView must not finish the next attempt.
+    if (pending.current?.nonce !== nonce) return;
     clearTimeout(timer.current);
-    const resolve = pending.current; pending.current = null;
-    setChallenge(undefined); resolve?.(result);
+    const { resolve } = pending.current; pending.current = null;
+    setChallenge(undefined); resolve(result);
   }, []);
   useEffect(() => () => {
     clearTimeout(timer.current);
-    pending.current?.({ error: CAPTCHA_MESSAGE }); pending.current = null;
+    pending.current?.resolve({ error: CAPTCHA_MESSAGE }); pending.current = null;
   }, []);
   const requestCaptcha = useCallback(async (): Promise<Result> => {
     try {
@@ -28,13 +30,16 @@ export function useAuthCaptcha() {
       const url = captchaPageUrl(process.env.EXPO_PUBLIC_AUTH_CAPTCHA_URL);
       const nonce = Crypto.randomUUID();
       return await new Promise<Result>(resolve => {
-        pending.current = resolve;
+        pending.current = { nonce, resolve };
         setChallenge({ url, nonce });
-        timer.current = setTimeout(() => finish({ error: CAPTCHA_MESSAGE }), 125000);
+        timer.current = setTimeout(() => finish(nonce, { error: CAPTCHA_MESSAGE }), 125000);
       });
     } catch { return { error: CAPTCHA_MESSAGE }; }
   }, [finish]);
-  return { requestCaptcha, captchaView: <CaptchaModal challenge={challenge} finish={finish} /> };
+  const finishChallenge = useCallback((result: Result) => {
+    if (challenge) finish(challenge.nonce, result);
+  }, [challenge, finish]);
+  return { requestCaptcha, captchaView: <CaptchaModal challenge={challenge} finish={finishChallenge} /> };
 }
 
 function CaptchaModal({ challenge, finish }: { challenge?: { url: string; nonce: string }; finish: (result: Result) => void }) {

@@ -56,13 +56,13 @@ begin
   -- Same key coordinates all Edge instances; clock is sampled AFTER the lock.
   perform pg_advisory_xact_lock(hashtextextended('kad_abuse:' || p_operation || ':' || p_user_id::text, 0));
   v_now := clock_timestamp();
-  perform private.prune_abuse_limit_counters();
   insert into private.abuse_limit_counters values (
     p_user_id, p_operation, v_now, 0,
     v_now + make_interval(secs => v_policy.window_seconds) + interval '24 hours'
   ) on conflict (user_id, operation) do nothing;
   select * into strict v_counter from private.abuse_limit_counters
     where user_id = p_user_id and operation = p_operation for update;
+  v_now := clock_timestamp();
   if v_now >= v_counter.window_started_at + make_interval(secs => v_policy.window_seconds) then
     v_counter.window_started_at := v_now;
     v_counter.attempts := 0;
@@ -71,14 +71,18 @@ begin
     return query select false, greatest(1, ceil(extract(epoch from (
       v_counter.window_started_at + make_interval(secs => v_policy.window_seconds) - v_now
     )))::integer);
-    return;
+  else
+    update private.abuse_limit_counters set
+      window_started_at = v_counter.window_started_at,
+      attempts = v_counter.attempts + 1,
+      expires_at = v_counter.window_started_at + make_interval(secs => v_policy.window_seconds) + interval '24 hours'
+      where user_id = p_user_id and operation = p_operation;
+    return query select true, 0;
   end if;
-  update private.abuse_limit_counters set
-    window_started_at = v_counter.window_started_at,
-    attempts = v_counter.attempts + 1,
-    expires_at = v_counter.window_started_at + make_interval(secs => v_policy.window_seconds) + interval '24 hours'
-    where user_id = p_user_id and operation = p_operation;
-  return query select true, 0;
+  -- Finish locking/updating our own row BEFORE opportunistic cleanup. Otherwise
+  -- two cleaners can delete each other's target and deadlock on the next insert.
+  -- No blocking row acquisition follows cleanup; other active rows are skipped.
+  perform private.prune_abuse_limit_counters();
 end;
 $$;
 revoke all on function public.consume_abuse_limit(uuid, text)
