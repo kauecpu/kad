@@ -538,17 +538,21 @@ function startPageTimers(route: Route, state: SiteState): void {
       if (store.getState().simulations.current?.status === 'completed') navigate('/simulados/resultado', { replace: true });
     }, 1000);
   }
-  if (route.pathname === '/redacao' && route.params.topic && route.params.stage !== 'review') {
-    let elapsed = state.essays[route.params.topic]?.elapsedSeconds ?? 0;
+  if (route.pathname === '/redacao' && route.params.topic && route.params.stage !== 'review'
+    && getCatalog().essayTopics.some(topic => topic.id === route.params.topic)) {
+    const topicId = route.params.topic;
+    let elapsed = Object.hasOwn(state.essays, topicId) ? state.essays[topicId]?.elapsedSeconds ?? 0 : 0;
     ui.essayTimer = setInterval(() => {
-      const topicId = route.params.topic;
       const timer = document.querySelector('[data-essay-timer]');
       elapsed += 1;
       if (elapsed % 5 === 0) {
         store.update((draft) => {
-          const essay = draft.essays[topicId] ?? { content: '', elapsedSeconds: 0, updatedAt: new Date().toISOString() };
-          essay.elapsedSeconds = elapsed;
-          essay.updatedAt = new Date().toISOString();
+          const current = Object.hasOwn(draft.essays, topicId) ? draft.essays[topicId] : undefined;
+          // Older local drafts may lack the identity/status required by the RPC.
+          const essay = {
+            content: '', status: 'draft' as const, ...current,
+            topicId, elapsedSeconds: elapsed, updatedAt: nextSyncTimestamp(current?.updatedAt),
+          };
           draft.essays[topicId] = essay;
           queueEssaySync(essay);
         }, { silent: true });
@@ -804,14 +808,21 @@ function render({ routeChanged = false }: { routeChanged?: boolean } = {}): void
 function persistEssayBuffer(): void {
   if (!ui.essayBuffer) return;
   const { topicId, content } = ui.essayBuffer;
+  if (!getCatalog().essayTopics.some(topic => topic.id === topicId)) {
+    ui.essayBuffer = null;
+    return;
+  }
   let saved: SiteState['essays'][string] | null = null;
   store.update((draft) => {
-    const current = draft.essays[topicId] ?? { elapsedSeconds: 0 };
+    const current = Object.hasOwn(draft.essays, topicId) ? draft.essays[topicId] : undefined;
     draft.essays[topicId] = {
+      elapsedSeconds: 0,
       ...current,
+      topicId,
       content,
       status: 'draft',
-      updatedAt: new Date().toISOString(),
+      submittedAt: undefined,
+      updatedAt: nextSyncTimestamp(current?.updatedAt),
     };
     saved = structuredClone(draft.essays[topicId]);
   }, { silent: true });
@@ -1448,10 +1459,10 @@ document.addEventListener('click', async (event) => {
   if (action === 'answer-simulation') {
     const questionId = target.dataset.questionId;
     const selected = target.dataset.alternative;
-    if (!questionId || !isAlternativeId(selected)) return;
+    if (!questionId || !isAlternativeId(selected) || state.simulations.current?.status !== 'active') return;
     store.update((draft) => {
       const session = draft.simulations.current;
-      if (!session || session.status === 'completed') return;
+      if (!session || session.status !== 'active') return;
       session.answers[questionId] = selected;
       session.updatedAt = nextSyncTimestamp(session.updatedAt);
     });
@@ -1479,8 +1490,10 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'pause-simulation' || action === 'resume-simulation') {
+    const expectedStatus = action === 'pause-simulation' ? 'active' : 'paused';
+    if (state.simulations.current?.status !== expectedStatus) return;
     store.update((draft) => {
-      if (!draft.simulations.current) return;
+      if (draft.simulations.current?.status !== expectedStatus) return;
       draft.simulations.current = touchSimulationSession({
         ...draft.simulations.current,
         status: action === 'pause-simulation' ? 'paused' : 'active',
