@@ -4,6 +4,52 @@ Estas alterações tratam a autorização de simulados no servidor, os estados d
 assinatura Google Play e o parâmetro de tema da redação no site. O PR não aplica
 migrations nem publica o site ou Edge Functions em produção.
 
+## Correções da revisão do PR #109 (2026-10-09)
+
+Quatro regressões reproduziram as duas falhas antes da correção: relógio do
+cliente adiantado/atrasado e revalidação de token Google antigo com outra
+assinatura válida (Google ou Mercado Pago). Todas falhavam por perda de estado,
+não por ausência de ambiente, e passaram após as migrations abaixo.
+
+- `20261009210911_google_play_entitlement_revalidation.sql`: incorporada
+  **sem alterações de conteúdo ou identificador** do commit `9395790` do #113.
+  Revoga somente a compra revalidada, preserva outra assinatura válida, serializa
+  atualizações Google por conta e mantém grants/assinatura do RPC. A resposta
+  continua descrevendo o token enviado, não promete que ele está válido só porque
+  existe outro direito de acesso. O restante do #113 continua separado.
+- `20261009231430_preserve_simulation_sync_version.sql`: mantém `updated_at` como
+  versão do cliente, já consumida pelo app/site, e acrescenta `persisted_at` para
+  o horário do servidor. Substitui apenas o trigger de simulados, sem modificar o
+  trigger compartilhado de outras tabelas. O RPC ignora versões antigas ou iguais,
+  rejeita versões nulas/infinitas e mantém bloqueios de assinatura e identidade.
+
+A migração de simulados recupera a versão legada de `payload.updatedAt` quando
+é uma data válida e finita; sem ela, mantém o cursor antigo. Guarda o horário
+antigo em `persisted_at` e não altera payloads, respostas ou histórico. A
+reaplicação não refaz essa conversão. Nenhuma migration publicada anteriormente
+foi reescrita. Os clientes existentes mantêm os mesmos parâmetros de RPC e campos
+de leitura. Não há garantia de reconstruir uma versão legada ausente ou progresso
+que já tenha sido perdido. A resolução entre aparelhos continua por versão de
+snapshot, não por combinação automática de respostas concorrentes.
+
+Validação desta correção:
+
+- `npm run check`: 523 testes; tipos e lint.
+- `npm --prefix site run check`: 129 testes; tipos e build.
+- Deno: 41 contratos HTTP com provedores simulados.
+- Recorte de banco/Google/regressões: 14 testes aprovados (incluídos nos 523).
+- PostgreSQL nativo descartável em `127.0.0.1:55442/kad_pr109_review`: 12 compras
+  simultâneas geram um registro; revogação concorrente preserva outro token;
+  12 snapshots fora de ordem preservam o mais novo e 12 repetições conflitantes
+  de mesma versão não o apagam. Também verificados isolamento, conclusão,
+  reaplicação e grants/search_path. Contas e compras são fictícias.
+- `supabase db advisors --local --type security`: bloqueado por conexão recusada
+  em `127.0.0.1:54322`; a revisão de grants no Postgres não substitui esse advisor.
+
+Não houve teste Google real, alteração de staging/produção ou deploy. Os 13
+cenários de navegador abaixo pertencem à validação anterior: o frontend não foi
+alterado nesta correção e não houve nova execução desses cenários.
+
 ## Atualização após o PR #114
 
 A branch foi integrada à `main` `6e6a341` em 2026-10-09 sem reescrever o histórico.
@@ -13,18 +59,19 @@ temas, recuperação de rascunhos legados, sincronização com identidade válid
 mensagem sem confirmação falsa e bloqueio de respostas durante a pausa.
 
 O escopo restante em relação à main é a proteção server-side dos simulados e o
-classificador Google, com seus testes e esta documentação. Não há migração nova,
-alteração de dependências ou aplicação de SQL em ambientes externos nesta
-atualização. O teste de banco também aplica/reaplica as migrations de simulados e
+classificador Google, com seus testes e esta documentação. Na atualização inicial
+`7fc6dd5` não houve migration nova; a revisão posterior acrescenta as duas acima.
+Não há alteração de dependências ou aplicação de SQL em ambientes externos.
+O teste de banco também aplica/reaplica as migrations de simulados e
 limites de uso no mesmo PGlite descartável: a cota já esgotada, suas permissões e
 o histórico devem continuar intactos.
 
-O PR #113 continua separado. Ele complementa a revalidação financeira Google
-(inclusive a preservação de outra assinatura válida) e a publicação segura do
-Worker; este PR não incorpora nem substitui esses ajustes. Os cenários Google
+O PR #113 continua separado, exceto pela migration financeira e seu teste agora
+incorporados aqui. As alterações de Worker/Cloudflare/HTTP daquele PR não foram
+incluídas nem substituídas. Os cenários Google
 abaixo usam fixtures e não demonstram integração com uma conta Play real.
 
-Verificações repetidas nesta combinação:
+Verificações da combinação inicial (`7fc6dd5`, antes da revisão acima):
 
 - `npm run check`: 517 testes, tipos e lint aprovados.
 - `npm --prefix site run check`: 129 testes, tipos e build aprovados.
@@ -75,8 +122,8 @@ com vencimento futuro válido. Cancelar renovação não remove o período já p
 interno `expired`, com `entitled: false`. Esse valor interno expressa ausência de
 direito de acesso, não uma tradução literal do estado Google.
 
-A resposta não autorizada chega ao RPC existente `apply_google_play_purchase`,
-que revoga o acesso anterior sem duplicar a assinatura. Compras `PENDING`
+A resposta não autorizada chega ao RPC `apply_google_play_purchase` atualizado,
+que revoga a compra suspensa sem duplicar nem substituir outra assinatura válida. Compras `PENDING`
 continuam retornando `purchase_pending`; credenciais e validação do token não mudam.
 Veja o [ciclo de vida documentado pelo Google](https://developer.android.com/google/play/billing/lifecycle/subscriptions).
 
@@ -96,13 +143,16 @@ alteram protótipos ou geram sincronizações. Temas válidos mantêm texto e te
 
 O responsável deve revisar o PR e validar em staging antes de publicar:
 
-1. Aplicar a nova migration, conferir permissões e testar duas contas isoladas:
+1. Planejar e aplicar as migrations pendentes deste PR em ambiente isolado,
+   inclusive as duas correções da revisão; conferir permissões e duas contas:
    assinante cria uma sessão; conta sem assinatura recebe erro; nenhuma lê a outra.
 2. Publicar a Edge Function que importa `google-play.ts` e revalidar compras de
    teste suspensas. Conferir a revogação no banco, sem usar compras reais.
 3. Publicar o site e testar tema válido e URL com tema inválido.
 
-A migration não exige backfill e aceita reaplicação. Em caso de falha, prefira
+As migrations aceitam reaplicação. A de autorização não exige backfill; a de
+versão recupera os metadados legados como descrito acima, preservando payloads.
+Em caso de falha, prefira
 suspender a escrita desse RPC sem restaurar a versão que dispensava assinatura.
 Como há migrations posteriores na main, confira o histórico e a lista exata de
 pendências de cada ambiente antes de planejar a aplicação dessa migration antiga.
@@ -117,7 +167,10 @@ revoke execute on function public.sync_simulation_session(
 ```
 
 A medida pausa sincronizações, preserva registros e leitura do histórico. Após
-corrigir o problema, reaplique a definição e os grants da migration. Para um
+corrigir o problema, reaplique a migration **mais recente** de versão de simulados
+e seus grants. Não reinstale apenas a definição antiga nem o trigger genérico:
+isso reintroduziria perda de progresso. Preserve `persisted_at` e os cursores;
+não remova a coluna para reverter a aplicação. Para um
 problema no classificador Google, suspenda a validação de novas compras até a
 correção; restaurar o classificador anterior voltaria a conceder acesso indevido.
 
