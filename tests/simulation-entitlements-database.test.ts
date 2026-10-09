@@ -43,10 +43,27 @@ test('simulado: autorização server-side, transição segura, retomada e isolam
     await sync('legacy'); // Existing data must survive migration.
     await db.exec('reset role');
     const before = (await db.query('select * from public.simulation_sessions')).rows;
+    // A deployment may already have the newer abuse migration. Applying this
+    // previously pending migration must not reset quotas or broaden its grants.
+    const abuse = await sql('20261008215543_abuse_protection.sql');
+    await db.exec(abuse);
+    await db.exec('set role service_role');
+    const consume = () => db.query<{ allowed: boolean }>(
+      'select * from public.consume_abuse_limit($1,$2)', [A, 'account_delete']);
+    for (let i = 0; i < 5; i++) assert.equal((await consume()).rows[0].allowed, true);
+    assert.equal((await consume()).rows[0].allowed, false);
+    await db.exec('reset role');
+    const quotaBefore = (await db.query('select * from private.abuse_limit_counters')).rows;
     await db.exec(await sql(migration));
     await db.exec(await sql(migration)); // Rerunnable, no duplicate/history loss.
     assert.deepEqual((await db.query('select * from public.simulation_sessions')).rows, before);
+    assert.deepEqual((await db.query('select * from private.abuse_limit_counters')).rows, quotaBefore);
+    await db.exec(abuse); // Also prove the newer migration can follow this one.
+    await db.exec('set role service_role');
+    assert.equal((await consume()).rows[0].allowed, false);
+    await db.exec('reset role');
     await asUser();
+    await assert.rejects(consume(), /permission denied/);
     await assert.rejects(sync('free-pending'), /subscription_required/);
     assert.equal((await db.query('select session_id from public.simulation_sessions')).rows.length, 1);
     for (const status of ['expired', 'canceled', 'active', 'past_due']) {

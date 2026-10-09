@@ -1,4 +1,7 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
+import { requestAuthCaptcha } from './auth-captcha.ts';
+import { captchaAuthMessage, captchaSessionAuthorization } from '../../../contracts/auth-captcha.ts';
+import { edgeAbuseMessage } from '../../../contracts/abuse-errors.ts';
 import { ownedStudyRequest } from '@/contracts/study-request.ts';
 import { resolvePublicSupabaseConfig } from '@/contracts/deployment-environment.ts';
 import { parseRecoveryCallback, recoveryCallbackFailure } from '../core/auth-callback.ts';
@@ -117,9 +120,14 @@ export function initializeSupabase(): Promise<boolean> {
     supabase = createBrowserClient(resolved.value.url, resolved.value.publishableKey);
     passwordSecurity = createPasswordSecurity(supabase.auth);
     const recoveryAuth = supabase.auth;
-    recoveryRequest = createRecoveryRequest(email => recoveryAuth.resetPasswordForEmail(email, {
-      redirectTo: new URL('/nova-senha', globalThis.location.origin).toString(),
-    }));
+    recoveryRequest = createRecoveryRequest(async email => {
+      const captcha = await requestAuthCaptcha();
+      if (captcha.error) return { error: { code: 'captcha_failed' } };
+      return recoveryAuth.resetPasswordForEmail(email, {
+        redirectTo: new URL('/nova-senha', globalThis.location.origin).toString(),
+        captchaToken: captcha.token,
+      });
+    });
     supabaseConfigured = true;
     return true;
   })();
@@ -134,26 +142,31 @@ async function client(): Promise<SupabaseClient | null> {
 export async function signIn(email: string, password: string): Promise<AuthResult> {
   const remote = await client();
   if (!remote) return { ok: false, offline: true };
-  const { data, error } = await remote.auth.signInWithPassword({ email, password });
+  const captcha = await requestAuthCaptcha();
+  if (captcha.error) return { ok: false, message: captcha.error };
+  const { data, error } = await remote.auth.signInWithPassword({ email, password, options: { captchaToken: captcha.token } });
   return error
-    ? { ok: false, message: 'Não foi possível entrar. Confira seus dados e tente novamente.' }
+    ? { ok: false, message: captchaAuthMessage(error) ?? 'Não foi possível entrar. Confira seus dados e tente novamente.' }
     : { ok: true, user: data.user };
 }
 
 export async function signUp({ name, email, password, returnTo }: { name: string; email: string; password: string; returnTo?: string }): Promise<SignUpResult> {
   const remote = await client();
   if (!remote) return { ok: false, offline: true };
+  const captcha = await requestAuthCaptcha();
+  if (captcha.error) return { ok: false, message: captcha.error };
   const confirmationRoute = confirmationRouteWithCheckout(returnTo);
   const { data, error } = await remote.auth.signUp({
     email,
     password,
     options: {
       data: buildSignupMetadata(name),
+      captchaToken: captcha.token,
       emailRedirectTo: new URL(confirmationRoute, globalThis.location.origin).toString(),
     },
   });
   return error
-    ? { ok: false, message: 'Não foi possível criar a conta agora.' }
+    ? { ok: false, message: captchaAuthMessage(error) ?? 'Não foi possível criar a conta agora.' }
     : { ok: true, user: data.user, requiresConfirmation: !data.session, authenticated: Boolean(data.session) };
 }
 
@@ -200,13 +213,15 @@ export async function verifyEmailOtp(email: string, token: string): Promise<Auth
 export async function resendEmailConfirmation(email: string, returnTo?: string): Promise<OfflineResult | FailureResult | SuccessResult> {
   const remote = await client();
   if (!remote) return { ok: false, offline: true };
+  const captcha = await requestAuthCaptcha();
+  if (captcha.error) return { ok: false, message: captcha.error };
   const { error } = await remote.auth.resend({
     type: 'signup',
     email,
-    options: { emailRedirectTo: new URL(confirmationRouteWithCheckout(returnTo), globalThis.location.origin).toString() },
+    options: { emailRedirectTo: new URL(confirmationRouteWithCheckout(returnTo), globalThis.location.origin).toString(), captchaToken: captcha.token },
   });
   return error
-    ? { ok: false, message: 'Não foi possível reenviar o código agora.' }
+    ? { ok: false, message: captchaAuthMessage(error) ?? 'Não foi possível reenviar o código agora.' }
     : { ok: true };
 }
 
@@ -481,6 +496,8 @@ export async function cancelRemoteSubscription(
   if (!headers) return { ok: false, code: 'session_changed', message: 'Sua sessão mudou. Entre novamente antes de continuar.' };
   const { error } = await remote.functions.invoke('cancel-subscription', { body: {}, headers });
   if (!error) return { ok: true };
+  const abuseMessage = await edgeAbuseMessage(error);
+  if (abuseMessage) return { ok: false, message: abuseMessage };
   let code: string | undefined;
   const context = typeof error === 'object' && error !== null && 'context' in error
     ? error.context
@@ -927,9 +944,15 @@ export async function loadQuestionCommunityAccuracy(questionId: string): Promise
 export async function deleteRemoteAccount(currentPassword: string): Promise<OfflineResult | FailureResult | SuccessResult> {
   const remote = await client();
   if (!remote) return { ok: false, offline: true };
-  const { error } = await remote.functions.invoke('delete-account', { body: { currentPassword } });
+  const { data: before, error: sessionError } = await remote.auth.getSession();
+  if (sessionError || !before.session) return { ok: false, message: 'Entre novamente antes de excluir a conta.' };
+  const captcha = await requestAuthCaptcha();
+  if (captcha.error) return { ok: false, message: captcha.error };
+  const headers = await captchaSessionAuthorization(before.session.user.id, () => remote.auth.getSession());
+  if (!headers) return { ok: false, message: 'Sua sessão mudou. Entre novamente antes de excluir a conta.' };
+  const { error } = await remote.functions.invoke('delete-account', { body: { currentPassword, captchaToken: captcha.token }, headers });
   return error
-    ? { ok: false, message: 'Não foi possível excluir a conta. Confira sua senha e tente novamente.' }
+    ? { ok: false, message: await edgeAbuseMessage(error) ?? 'Não foi possível excluir a conta. Confira sua senha e tente novamente.' }
     : { ok: true };
 }
 

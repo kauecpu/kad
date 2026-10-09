@@ -4,6 +4,41 @@ Estas alterações tratam a autorização de simulados no servidor, os estados d
 assinatura Google Play e o parâmetro de tema da redação no site. O PR não aplica
 migrations nem publica o site ou Edge Functions em produção.
 
+## Atualização após o PR #114
+
+A branch foi integrada à `main` `6e6a341` em 2026-10-09 sem reescrever o histórico.
+Os dois conflitos (`site/src/main.ts` e `site/tests/essay-security.test.ts`) foram
+resolvidos mantendo integralmente a versão mais recente do #114: validação de
+temas, recuperação de rascunhos legados, sincronização com identidade válida,
+mensagem sem confirmação falsa e bloqueio de respostas durante a pausa.
+
+O escopo restante em relação à main é a proteção server-side dos simulados e o
+classificador Google, com seus testes e esta documentação. Não há migração nova,
+alteração de dependências ou aplicação de SQL em ambientes externos nesta
+atualização. O teste de banco também aplica/reaplica as migrations de simulados e
+limites de uso no mesmo PGlite descartável: a cota já esgotada, suas permissões e
+o histórico devem continuar intactos.
+
+O PR #113 continua separado. Ele complementa a revalidação financeira Google
+(inclusive a preservação de outra assinatura válida) e a publicação segura do
+Worker; este PR não incorpora nem substitui esses ajustes. Os cenários Google
+abaixo usam fixtures e não demonstram integração com uma conta Play real.
+
+Verificações repetidas nesta combinação:
+
+- `npm run check`: 517 testes, tipos e lint aprovados.
+- `npm --prefix site run check`: 129 testes, tipos e build aprovados.
+- Contratos HTTP no Deno 2.2.6, conforme o workflow: 41 aprovados, serviços
+  externos simulados.
+- `site/scripts/study-regressions-browser.mjs`: 13 cenários aprovados, sem erros
+  de página; Worker compilado em localhost e tráfego externo interceptado.
+- Testes específicos de simulados, Google, limites, redação e pausa: 17 aprovados.
+
+As dependências locais ausentes foram resolvidas reutilizando a instalação
+compatível já existente; manifestos e lockfiles continuam iguais à main.
+Os avisos prévios de bundle acima de 500 kB e `VITE_SITE_URL` ausente permanecem.
+Esses resultados não aprovam aplicação de migrations ou publicação em produção.
+
 ## Simulados no servidor
 
 A migration `20261008003639_enforce_simulation_entitlements.sql` mantém a assinatura
@@ -69,6 +104,10 @@ O responsável deve revisar o PR e validar em staging antes de publicar:
 
 A migration não exige backfill e aceita reaplicação. Em caso de falha, prefira
 suspender a escrita desse RPC sem restaurar a versão que dispensava assinatura.
+Como há migrations posteriores na main, confira o histórico e a lista exata de
+pendências de cada ambiente antes de planejar a aplicação dessa migration antiga.
+Não use uma atualização indiscriminada do banco para contornar a ordem; esta
+atualização do PR não aplica nem marca migrations remotamente.
 Com autorização operacional, aplique em uma transação:
 
 ```sql
@@ -92,6 +131,9 @@ Os testes do site executam as funções reais de timer e buffer com relógio sim
 
 Execute `npm run check` na raiz e `npm --prefix site run check`. Não há chamadas
 reais ao Google nem alterações em bancos externos nesses testes.
+Repita também `site/scripts/study-regressions-browser.mjs` no servidor local
+compilado, conforme `site/README.md`: ele cobre os 13 cenários de questões,
+simulado e redação preservados do #114, com tráfego externo interceptado.
 
 O Supabase local não estava ativo: `supabase db advisors --local --type security`
 falhou por conexão recusada em `127.0.0.1:54322`. Antes do deploy, execute os
