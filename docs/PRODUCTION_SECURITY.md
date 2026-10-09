@@ -1,5 +1,9 @@
 # Segurança de produção do KAD
 
+Estado mais recente e sequência pendente: [rollout de segurança de 2026-10-09](SECURITY_ROLLOUT_2026-10-09.md).
+Produção continua até `20260828220803`; a homologação já recebeu a correção Google
+`20261009210911` e o validador v2. As fotografias de 2026-10-08 abaixo são históricas.
+
 Este documento separa as proteções versionadas no repositório das configurações
 que precisam ser conferidas no painel do Supabase. Nenhum segredo deve ser
 copiado para este arquivo, para commits, logs ou Pull Requests.

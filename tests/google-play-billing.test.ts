@@ -55,7 +55,7 @@ test('não libera compra pendente ou SKU diferente', () => {
   );
 });
 
-test('mantém acesso durante cancelamento ou cobrança pendente até expirar', () => {
+test('mantém somente o período pago no cancelamento e suspende ON_HOLD', () => {
   const canceled = classifyGooglePurchase({
     subscriptionState: 'SUBSCRIPTION_STATE_CANCELED',
     lineItems: [{ productId: 'kad_diamond_annual', expiryTime: future, autoRenewingPlan: { autoRenewEnabled: false } }],
@@ -68,7 +68,35 @@ test('mantém acesso durante cancelamento ou cobrança pendente até expirar', (
     lineItems: [{ productId: 'kad_diamond_annual', expiryTime: future }],
   }, 'kad_diamond_annual', now);
   assert.equal(onHold.ok && onHold.status, 'past_due');
-  assert.equal(onHold.ok && onHold.entitled, true);
+  assert.equal(onHold.ok && onHold.entitled, false);
+});
+
+for (const state of ['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD', 'SUBSCRIPTION_STATE_CANCELED']) {
+  for (const expiryTime of [future, now.toISOString(), '2026-08-01T00:00:00Z', 'invalid', undefined]) {
+    test(`${state} requires a future valid expiry (${expiryTime})`, () => {
+      const result = classifyGooglePurchase({ subscriptionState: state,
+        lineItems: [{ productId: 'kad_platinum_monthly', expiryTime }] }, 'kad_platinum_monthly', now);
+      assert.equal(result.ok && result.entitled, expiryTime === future);
+    });
+  }
+}
+
+for (const state of ['SUBSCRIPTION_STATE_ON_HOLD', 'SUBSCRIPTION_STATE_PAUSED', 'SUBSCRIPTION_STATE_EXPIRED',
+  'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED', 'SUBSCRIPTION_STATE_UNSPECIFIED', 'FUTURE_UNKNOWN_STATE', undefined]) {
+  test(`${state} never grants access even with future expiry`, () => {
+    const result = classifyGooglePurchase({ subscriptionState: state,
+      lineItems: [{ productId: 'kad_diamond_monthly', expiryTime: future,
+        autoRenewingPlan: { autoRenewEnabled: true } }] }, 'kad_diamond_monthly', now);
+    assert.equal(result.ok && result.entitled, false);
+    assert.equal(result.ok && result.autoRenew, false);
+  });
+}
+
+test('rejects prototype names as product IDs', () => {
+  for (const productId of ['__proto__', 'constructor', 'toString']) {
+    assert.deepEqual(classifyGooglePurchase({ lineItems: [{ productId, expiryTime: future }] }, productId, now),
+      { ok: false, code: 'invalid_request' });
+  }
 });
 
 test('não concede acesso a assinatura expirada ou sem expiry válido', () => {
