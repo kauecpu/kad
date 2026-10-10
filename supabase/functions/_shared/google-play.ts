@@ -46,8 +46,15 @@ export function classifyGooglePurchase(
   const expiry = lineItem.expiryTime ? new Date(lineItem.expiryTime) : null;
   const expiryMs = expiry?.getTime() ?? Number.NaN;
   const hasValidExpiry = Number.isFinite(expiryMs);
-  const expired = !hasValidExpiry || expiryMs <= now.getTime()
-    || purchase.subscriptionState === 'SUBSCRIPTION_STATE_EXPIRED';
+  // A future expiry alone is not an entitlement. Account hold is not grace.
+  // Unknown states fail closed using the existing non-entitled contract, so a
+  // previously linked purchase can also have its stale access revoked by the RPC.
+  const entitledState = [
+    'SUBSCRIPTION_STATE_ACTIVE',
+    'SUBSCRIPTION_STATE_IN_GRACE_PERIOD',
+    'SUBSCRIPTION_STATE_CANCELED',
+  ].includes(purchase.subscriptionState ?? '');
+  const expired = !hasValidExpiry || expiryMs <= now.getTime() || !entitledState;
   if (purchase.subscriptionState === 'SUBSCRIPTION_STATE_PENDING') {
     return { ok: false, code: 'purchase_pending' };
   }
@@ -61,12 +68,6 @@ export function classifyGooglePurchase(
     autoRenew = false;
   } else if (purchase.subscriptionState === 'SUBSCRIPTION_STATE_CANCELED') {
     status = 'canceled';
-    autoRenew = false;
-  } else if (
-    purchase.subscriptionState === 'SUBSCRIPTION_STATE_ON_HOLD'
-    || purchase.subscriptionState === 'SUBSCRIPTION_STATE_PAUSED'
-  ) {
-    status = 'past_due';
     autoRenew = false;
   } else {
     status = 'active';
