@@ -1,5 +1,9 @@
 # Proteção contra abuso — implementação e ativação
 
+Atualização de 2026-10-09: veja [correções, evidências e plano de promoção](SECURITY_ROLLOUT_2026-10-09.md).
+As cotas foram verificadas em homologação; produção continua sem essa migration.
+O documento abaixo preserva o registro original do PR112, inclusive suas limitações à época.
+
 Base auditada: `f5b94c32f0bd66ad542911a05392a95bdc8f636f` (`main`, 2026-10-08).
 Branch: `codex/abuse-protection`. Nenhuma migration, configuração ou função remota
 foi alterada nesta tarefa. Não confundir este código com proteção já publicada.
