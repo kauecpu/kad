@@ -38,8 +38,8 @@ export function classifyGooglePurchase(
   requestedProductId: string,
   now = new Date(),
 ): GooglePurchaseClassification {
+  if (!Object.hasOwn(GOOGLE_PRODUCT_CATALOG, requestedProductId)) return { ok: false, code: 'invalid_request' };
   const catalogEntry = GOOGLE_PRODUCT_CATALOG[requestedProductId];
-  if (!catalogEntry) return { ok: false, code: 'invalid_request' };
   const lineItem = purchase.lineItems?.find((item) => item.productId === requestedProductId);
   if (!lineItem) return { ok: false, code: 'product_mismatch' };
 
@@ -60,7 +60,7 @@ export function classifyGooglePurchase(
   }
 
   let status: 'active' | 'past_due' | 'canceled' | 'expired';
-  let entitled = true;
+  let entitled = false;
   let autoRenew = lineItem.autoRenewingPlan?.autoRenewEnabled === true;
   if (expired) {
     status = 'expired';
@@ -68,9 +68,16 @@ export function classifyGooglePurchase(
     autoRenew = false;
   } else if (purchase.subscriptionState === 'SUBSCRIPTION_STATE_CANCELED') {
     status = 'canceled';
+    entitled = true;
     autoRenew = false;
-  } else {
+  } else if (purchase.subscriptionState === 'SUBSCRIPTION_STATE_ACTIVE'
+    || purchase.subscriptionState === 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD') {
     status = 'active';
+    entitled = true;
+  } else {
+    // Persist a negative validation instead of leaving previous access active.
+    status = 'expired';
+    autoRenew = false;
   }
 
   return {

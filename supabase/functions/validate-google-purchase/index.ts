@@ -77,10 +77,26 @@ Deno.serve(async (request) => {
   const packageName = Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME');
   const serviceAccountJson = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
   const authorization = request.headers.get('Authorization');
-  if (!supabaseUrl || !anonKey || !serviceRoleKey || !packageName || !serviceAccountJson) {
+  if (!authorization) return bodyError('unauthorized', 401, origin, 'Unauthorized');
+  if (!supabaseUrl || !anonKey) {
+    return bodyError('server_not_configured', 500, origin, 'Authentication is not configured');
+  }
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authorization }, fetch: boundedFetch },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  let userId: string;
+  try {
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) return bodyError('unauthorized', 401, origin, 'Unauthorized');
+    userId = user.id;
+  } catch {
+    return bodyError('authentication_unavailable', 503, origin, 'Authentication is temporarily unavailable');
+  }
+
+  if (!serviceRoleKey || !packageName || !serviceAccountJson) {
     return bodyError('server_not_configured', 500, origin, 'Google Play validation is not configured');
   }
-  if (!authorization) return bodyError('unauthorized', 401, origin, 'Unauthorized');
 
   let input: { productId?: unknown; purchaseToken?: unknown };
   try {
@@ -96,19 +112,12 @@ Deno.serve(async (request) => {
     return bodyError('invalid_request', 400, origin, 'Product and purchase token are required');
   }
 
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authorization }, fetch: boundedFetch },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: { user }, error: userError } = await userClient.auth.getUser();
-  if (userError || !user) return bodyError('unauthorized', 401, origin, 'Unauthorized');
-
   try {
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       global: { fetch: boundedFetch },
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const blocked = await enforceAbuseLimit(admin, user.id, 'google_purchase_validate', origin, requestId);
+    const blocked = await enforceAbuseLimit(admin, userId, 'google_purchase_validate', origin, requestId);
     if (blocked) return blocked;
     const account = JSON.parse(serviceAccountJson) as ServiceAccount;
     const token = await accessToken(account);
@@ -128,7 +137,7 @@ Deno.serve(async (request) => {
     }
 
     const { data, error } = await admin.rpc('apply_google_play_purchase', {
-      p_user_id: user.id,
+      p_user_id: userId,
       p_purchase_token: purchaseToken,
       p_product_id: productId,
       p_order_id: state.orderId,
