@@ -2,6 +2,8 @@ import { kadEnvironmentProjects } from '../../contracts/deployment-environment.t
 
 export type SecurityEnvironment = { KAD_ENV?: string; SECURITY_HSTS_MAX_AGE?: string };
 
+const JSON_LD_SCRIPT_HASH = "'sha256-B3Fc+wsyStPfj2h21EO1h1WXrQMmrYhM01CfLmGhbGg='";
+
 /** Explicit known origins also cover legacy builds with build-time Supabase config. */
 export function siteContentSecurityPolicy(environment?: string): string {
   const projects = environment === 'staging' || environment === 'production'
@@ -9,7 +11,7 @@ export function siteContentSecurityPolicy(environment?: string): string {
   const origins = projects.map(project => `https://${project.projectRef}.supabase.co`);
   const sockets = origins.map(origin => origin.replace('https:', 'wss:'));
   return [
-    "default-src 'none'", "script-src 'self'", "style-src 'self'",
+    "default-src 'none'", `script-src 'self' ${JSON_LD_SCRIPT_HASH}`, "style-src 'self'",
     // Existing progress bars, deck colors and rings use inline style attributes.
     // This exception does not allow inline scripts or inline <style> elements.
     "style-src-attr 'unsafe-inline'",
@@ -27,6 +29,8 @@ export function withSecurityHeaders(response: Response, request: Request, env: S
   headers.set('X-Frame-Options', new URL(request.url).pathname === '/auth/captcha' ? 'SAMEORIGIN' : 'DENY');
   if (!headers.has('Referrer-Policy')) headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  if (new URL(request.url).hostname.endsWith('.workers.dev')) headers.set('X-Robots-Tag', 'noindex, nofollow');
   // Opt-in, bounded rollout. No preload or inheritance to unreviewed subdomains.
   if (new URL(request.url).protocol === 'https:' && /^(0|[1-9]\d{0,7})$/.test(env.SECURITY_HSTS_MAX_AGE ?? '')
     && Number(env.SECURITY_HSTS_MAX_AGE) <= 31536000) {

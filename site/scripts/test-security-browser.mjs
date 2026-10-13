@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 
 const base = process.env.KAD_TEST_SITE_URL ?? 'http://127.0.0.1:4186';
+const reducedRollout = process.env.KAD_TEST_CAPTCHA_DISABLED === 'true';
 assert.equal(new URL(base).hostname, '127.0.0.1', 'Requires local Worker');
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE
   ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : 'playwright');
@@ -43,6 +44,30 @@ try {
     await page.waitForFunction(() => document.querySelector('#app').textContent.trim().length > 100);
     violations.push(...await page.evaluate(() => window.__cspViolations));
   }
+  if (reducedRollout) {
+    const config = await (await context.request.get(base + '/api/public-config')).json();
+    assert.equal(config.captchaEnabled, 'false');
+    for (const [path, formName, endpoint] of [['/entrar', 'login', '/auth/v1/token'], ['/recuperar-senha', 'recovery', '/auth/v1/recover'], ['/cadastro', 'signup', '/auth/v1/signup']]) {
+      await page.goto(base + path);
+      const form = page.locator(`form[data-form="${formName}"]`).filter({ visible: true });
+      await form.locator('input[name="email"]').fill('fixture@example.invalid');
+      if (formName !== 'recovery') await form.locator('input[name="password"]').fill('Fixture-password-123!');
+      if (formName === 'signup') {
+        await form.locator('input[name="name"]').fill('Conta Fictícia');
+        await form.locator('input[name="passwordConfirmation"]').fill('Fixture-password-123!');
+      }
+      const submitted = page.waitForResponse(response => new URL(response.url()).pathname === endpoint);
+      await form.locator('button[type="submit"]').click();
+      await submitted;
+      assert.equal(await page.locator('.auth-captcha-dialog').count(), 0);
+      assert.equal(authCalls.at(-1).body.gotrue_meta_security?.captcha_token, undefined);
+      violations.push(...await page.evaluate(() => window.__cspViolations));
+    }
+    assert.equal(authCalls.length, 3);
+    assert.deepEqual(violations, []);
+    assert.deepEqual(errors, []);
+    console.log('PASS reduced rollout: built Worker routes/assets and login/signup/recovery without CAPTCHA; no CSP violations/page errors; Auth mocked, no real account writes.');
+  } else {
   await page.goto(base + '/entrar');
   const form = page.locator('form[data-form="login"]').filter({ visible: true });
   await form.locator('input[name="email"]').fill('fixture@example.invalid');
@@ -82,4 +107,5 @@ try {
   assert.deepEqual(violations, []);
   assert.deepEqual(errors, []);
   console.log('PASS built Worker/browser: routes, JS/CSS/assets, login/signup/recovery, challenge iframe + nonce CSP, mocked tokens forwarded to Auth; no CSP violations/page errors; no real provider traffic.');
+  }
 } finally { await browser.close(); }

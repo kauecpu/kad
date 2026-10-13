@@ -12,6 +12,9 @@ type Environment = SecurityEnvironment & {
 };
 
 async function route(request: Request, env: Environment): Promise<Response> {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } });
+  }
   const url = new URL(request.url);
   if (url.hostname === 'www.kadconcursos.com.br') {
     url.hostname = 'kadconcursos.com.br';

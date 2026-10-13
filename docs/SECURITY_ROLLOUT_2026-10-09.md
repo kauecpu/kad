@@ -1,5 +1,51 @@
 # Segurança: correções e promoção dos ambientes
 
+## Rollout reduzido aprovado em 13/10/2026
+
+O responsável autorizou preparar o PR #113 para merge com CAPTCHA desativado,
+deixando sua ativação e Google Play real para uma etapa separada. Esta decisão
+substitui o bloqueio geral de publicação do relato histórico abaixo apenas para
+esse escopo reduzido; não declara concluídas as homologações externas.
+
+O PR #113 incorpora a integração do #110 (`4857eff`) com `main` (`dfd6757`).
+Aceitar primeiro #110 e depois #113. Ambos preservam assets, rotas de autenticação,
+CSP com nonce do desafio, HEAD e cabeçalhos de erros. Não há novas migrations
+no diff atual contra a main. Merge não deve executar um deploy de funções Google.
+
+`site/wrangler.jsonc` fixa `AUTH_CAPTCHA_ENABLED: "false"`. Uma regressão confere
+essa configuração, a resposta pública e a ausência de carregamento do provedor
+na página desativada. O painel Auth/Attack Protection de produção
+(`tknxtwwwoqwbzddplzzg`, nome legado `kad-dev`) foi consultado: CAPTCHA já estava
+desativado. Nenhuma configuração remota de Auth foi modificada. Não distribuir
+esse rollout se outro operador ativar a exigência no Auth antes da publicação.
+
+Provas locais do código integrado:
+
+- #110: 523 testes do aplicativo e 145 do site; tipos, lint e build aprovados;
+  auditoria das dependências do site com zero vulnerabilidades.
+- #113: 546 testes do aplicativo e 146 do site; tipos, lint e build aprovados;
+  58 testes HTTP Deno 2.2.6 aprovados, sem permissão de rede e com provedores simulados.
+- Worker compilado + Chromium: rotas, JS/CSS/assets, login, cadastro e recuperação
+  funcionam no modo desativado, sem diálogo CAPTCHA, violações de CSP ou erros JS.
+  Auth é simulado: esses testes não criam contas nem enviam e-mails reais.
+- Também passaram os fluxos com widget fictício ativado e o contrato isolado de
+  origem/nonce forjados, expiração, erro, cancelamento, timeout, nova tentativa,
+  configuração desativada e limpeza. Todo tráfego externo foi simulado/bloqueado.
+- O SHA-256 do Worker compilado de #110 e #113 é idêntico. A configuração de
+  deploy do #113 acrescenta somente a flag explícita desativada.
+
+CAPTCHA/Turnstile real, WebView em aparelhos físicos, Google Play/RTDN real,
+SMTP/MFA e promoção de funções/banco permanecem atividades operacionais
+separadas. HSTS continua opt-in. Os relatos e gates históricos abaixo dizem
+respeito à ativação completa, não à aprovação global de segurança.
+
+Reprodução do modo desativado: compilar o site, iniciar o Worker local usando a
+configuração gerada em `site/dist/server/wrangler.json`, fornecer apenas valores
+públicos fictícios do ambiente staging, definir `KAD_TEST_SITE_URL` para a URL
+loopback e `KAD_TEST_CAPTCHA_DISABLED=true`, e executar
+`site/scripts/test-security-browser.mjs`. `PLAYWRIGHT_MODULE` aponta para uma
+instalação auxiliar de Playwright/Chromium, fora das dependências do produto.
+
 ## Atualização de integração do PR #113 (10/10/2026 UTC)
 
 Base atualizada: `dfd6757` (`main`, já contendo o PR #109). O relato inicial

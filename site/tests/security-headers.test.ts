@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import worker from '../server/index.ts';
@@ -95,4 +96,47 @@ test('HEAD preserves dedicated API/challenge headers without returning SPA or bo
     assert.equal(response.headers.get('Cache-Control'), 'no-store');
     assert.match(response.headers.get('Content-Type')!, path.includes('/api/') ? /application\/json/ : /text\/html/);
   }
+});
+
+test('unused methods are rejected on canonical and www hosts before assets', async () => {
+  for (const host of ['kadconcursos.com.br', 'www.kadconcursos.com.br']) {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']) {
+      let assetCalls = 0;
+      const response = await worker.fetch(new Request(`https://${host}/assets/main.js`, { method }), {
+        ASSETS: { fetch: async () => { assetCalls += 1; return new Response('unexpected'); } },
+      });
+      assert.equal(response.status, 405);
+      assert.equal(response.headers.get('Allow'), 'GET, HEAD');
+      assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');
+      assert.equal(assetCalls, 0);
+    }
+  }
+});
+
+test('temporary workers.dev hosts are not indexed', async () => {
+  const response = await worker.fetch(new Request('https://kad-concursos.preview.workers.dev/inicio'), env);
+  assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, nofollow');
+  const canonical = await worker.fetch(new Request('https://kadconcursos.com.br/'), env);
+  assert.equal(canonical.headers.get('X-Robots-Tag'), null);
+});
+
+test('CSP permits only the exact static JSON-LD script hash', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const jsonLd = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(jsonLd);
+  const hash = createHash('sha256').update(jsonLd).digest('base64');
+  const response = await worker.fetch(new Request('https://kadconcursos.com.br/'), env);
+  assert.ok(response.headers.get('Content-Security-Policy')?.includes(`'sha256-${hash}'`));
+});
+
+test('approved reduced rollout keeps CAPTCHA off without disabling Auth protection remotely', async () => {
+  const config = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+  assert.equal(config.vars.AUTH_CAPTCHA_ENABLED, 'false');
+  const rollout = { ...env, ...config.vars, TURNSTILE_SITE_KEY: 'fixture-public-key' };
+  const response = await worker.fetch(new Request('https://fixture.invalid/api/public-config'), rollout);
+  assert.equal((await response.json()).captchaEnabled, 'false');
+  const challenge = await worker.fetch(new Request('https://fixture.invalid/auth/captcha'), rollout);
+  const html = await challenge.text();
+  assert.match(html, /Verificação indisponível/);
+  assert.doesNotMatch(html, /src="https:\/\/challenges.cloudflare.com/);
 });
