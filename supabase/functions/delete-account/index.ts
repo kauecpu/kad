@@ -7,6 +7,9 @@ const configuredWebOrigins = (Deno.env.get('ALLOWED_WEB_ORIGINS') ?? '')
   .filter(Boolean);
 
 const allowedWebOrigins = new Set([
+  // Only account deletion adds these hosts; preserve the shared configuration.
+  'https://kadconcursos.com.br',
+  'https://www.kadconcursos.com.br',
   'http://localhost:8081',
   'http://127.0.0.1:8081',
   'http://localhost:8082',
@@ -21,6 +24,15 @@ function responseHeaders(origin: string | null) {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     Vary: 'Origin',
   };
+}
+
+function withDeletionCors(response: Response, origin: string | null) {
+  // Shared security responses must use this function's allowlist too, while
+  // retaining Retry-After, request correlation, status, body and cache policy.
+  for (const [name, value] of Object.entries(responseHeaders(origin))) {
+    response.headers.set(name, value);
+  }
+  return response;
 }
 
 Deno.serve(async (request) => {
@@ -85,7 +97,7 @@ Deno.serve(async (request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const blocked = await enforceAbuseLimit(adminClient, user.id, 'account_delete', origin, requestId);
-    if (blocked) return blocked;
+    if (blocked) return withDeletionCors(blocked, origin);
     const verificationClient = createClient(supabaseUrl, anonKey, {
       global: { fetch: boundedFetch },
       auth: { persistSession: false, autoRefreshToken: false },
@@ -98,7 +110,7 @@ Deno.serve(async (request) => {
       });
     if (verificationError || verification.user?.id !== user.id) {
       if (verificationError?.code === 'captcha_failed') {
-        return securityResponse('captcha_failed', 400, origin, requestId);
+        return withDeletionCors(securityResponse('captcha_failed', 400, origin, requestId), origin);
       }
       return Response.json(
         { error: 'Password confirmation failed' },
@@ -113,7 +125,7 @@ Deno.serve(async (request) => {
   } catch (error) {
     if (error instanceof RequestBodyError) {
       logSecurityEvent('account_delete', error.code, requestId);
-      return securityResponse(error.code, error.status, origin, requestId);
+      return withDeletionCors(securityResponse(error.code, error.status, origin, requestId), origin);
     }
     logSecurityEvent('account_delete', 'deletion_unavailable', requestId);
     return Response.json(

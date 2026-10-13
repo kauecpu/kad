@@ -91,6 +91,30 @@ consultado novamente após obter o bloqueio da linha, inclusive se houve espera.
 
 ## IP e Cloudflare
 
+### CORS isolado da exclusão de conta
+
+`delete-account` aceita explicitamente `https://kadconcursos.com.br` e
+`https://www.kadconcursos.com.br`, além das origens locais e das entradas já
+configuradas em `ALLOWED_WEB_ORIGINS`. A comparação é exata: não libera HTTP,
+subdomínios arbitrários, sufixos falsos, portas extras ou `Origin: null`.
+Requisições nativas sem `Origin` continuam permitidas **somente com identidade
+válida e confirmação de senha**; CORS não substitui autenticação.
+
+Essa lista adicional existe apenas na função de exclusão. Não é necessário
+sobrescrever o segredo compartilhado, alterar `_shared/http.ts` ou republicar
+funções de pagamento. Erros de CAPTCHA, entrada inválida e proteção contra abuso
+recebem o mesmo CORS local, preservando status/corpo, `Retry-After`,
+`X-Request-ID`, cabeçalhos expostos e `Cache-Control: no-store`.
+
+Os testes HTTP isolados incluem origens oficiais/configuradas/nativas, preflight,
+origens falsas, senha inválida, autenticação obrigatória, 429, 503 e CAPTCHA.
+Para implantação, validar primeiro com contas descartáveis em homologação,
+manter `verify_jwt=true` e publicar **apenas `delete-account`**. Depois conferir
+preflight dos hosts oficiais, rejeição de origem falsa e POST anônimo negado.
+Não excluir contas reais para testar produção. Guardar a versão anterior da
+função permite reverter apenas seu código, sem tocar no banco ou em segredos.
+Essa correção não configura Turnstile, WAF, SMTP nem limites por IP.
+
 Não foi comprovada uma cadeia de proxies confiáveis até as Edge Functions.
 Por isso **não usamos** `X-Forwarded-For` ou `CF-Connecting-IP` enviados ao
 Supabase como identidade: qualquer cliente pode forjá-los acessando a origem
