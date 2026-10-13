@@ -8,6 +8,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   weak_password: `Use uma senha mais forte, com pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`,
   over_email_send_rate_limit: 'Aguarde um momento antes de solicitar outro e-mail.',
   over_request_rate_limit: 'Muitas tentativas. Aguarde um momento e tente novamente.',
+  captcha_failed: 'Não foi possível concluir a verificação de segurança. Tente novamente.',
   otp_expired: 'Código inválido ou expirado. Solicite um novo código.',
   otp_disabled: 'A confirmação por código está temporariamente indisponível.',
   same_password: 'A nova senha deve ser diferente da senha atual.',

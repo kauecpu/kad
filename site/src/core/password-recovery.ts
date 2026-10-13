@@ -1,11 +1,12 @@
 export type RecoveryFailure =
   | 'invalid-link' | 'interrupted' | 'expired' | 'expired-or-used'
   | 'session-missing' | 'session-mismatch' | 'network' | 'rate-limit'
-  | 'recent-request' | 'weak-password' | 'same-password' | 'technical';
+  | 'recent-request' | 'weak-password' | 'same-password' | 'technical' | 'captcha';
 
 export function recoveryFailure(error: unknown): RecoveryFailure {
   const value = error && typeof error === 'object' ? error as { code?: string; name?: string; status?: number } : {};
   switch (value.code) {
+    case 'captcha_failed': return 'captcha';
     case 'pkce_code_verifier_not_found':
     case 'session_not_found':
     case 'session_expired': return 'session-missing';
@@ -28,6 +29,7 @@ export function recoveryFailure(error: unknown): RecoveryFailure {
 }
 
 const messages: Record<RecoveryFailure, { title: string; message: string }> = {
+  captcha: { title: 'Verificação de segurança', message: 'Não foi possível concluir a verificação de segurança. Tente novamente.' },
   'invalid-link': { title: 'Link incompleto ou inválido', message: 'Este endereço não contém os dados necessários. Abra o link completo do e-mail de recuperação.' },
   interrupted: { title: 'Recuperação não validada nesta página', message: 'Se você atualizou ou fechou a página após validar o link, a autorização para trocar a senha foi encerrada. Inicie uma nova recuperação.' },
   expired: { title: 'Link expirado', message: 'O prazo deste link terminou. Solicite um novo e-mail de recuperação.' },

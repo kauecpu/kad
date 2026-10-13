@@ -1,4 +1,5 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
+import { edgeAbuseMessage } from '@/contracts/abuse-errors';
 
 import { DEFAULT_SUBSCRIPTION } from '@/data/user';
 import {
@@ -28,6 +29,7 @@ export type GooglePurchaseValidation = {
   currentPeriodEnd?: string;
   autoRenew?: boolean;
   message?: string;
+  temporarilyBlocked?: boolean;
 };
 
 export async function loadRemoteSubscription(userId: string): Promise<Subscription> {
@@ -77,7 +79,7 @@ export async function createSubscriptionCheckout(
     body: { plan, billingCycle },
   });
   if (error) {
-    return { ok: false, message: checkoutErrorMessage(await edgeFunctionErrorCode(error)) };
+    return { ok: false, message: await edgeAbuseMessage(error) ?? checkoutErrorMessage(await edgeFunctionErrorCode(error)) };
   }
   if (!isTrustedPaymentCheckoutUrl(data?.checkoutUrl)) {
     return { ok: false, message: 'O provedor retornou um endereço de pagamento inválido.' };
@@ -91,6 +93,8 @@ export async function cancelRemoteSubscription(): Promise<SubscriptionActionResu
   }
   const { error } = await supabase.functions.invoke('cancel-subscription', { body: {} });
   if (!error) return { ok: true };
+  const abuseMessage = await edgeAbuseMessage(error);
+  if (abuseMessage) return { ok: false, message: abuseMessage };
   const code = await edgeFunctionErrorCode(error);
   if (code === 'store_managed') {
     return { ok: false, message: 'Gerencie esta assinatura diretamente na loja do aparelho.' };
@@ -128,7 +132,10 @@ async function invokeGoogleValidation(purchase: StorePurchase): Promise<GooglePu
     },
   });
   if (error) {
-    return { ok: false, entitled: false, message: googlePurchaseError(await edgeFunctionErrorCode(error)) };
+    const code = await edgeFunctionErrorCode(error);
+    return { ok: false, entitled: false,
+      temporarilyBlocked: code === 'rate_limited' || code === 'abuse_protection_unavailable',
+      message: await edgeAbuseMessage(error) ?? googlePurchaseError(code) };
   }
   if (!data || data.ok !== true) {
     return {
@@ -192,6 +199,10 @@ export async function restoreGoogleSubscriptions(): Promise<
   let processed = 0;
   for (const purchase of restored.value) {
     const result = await settleGooglePurchase(purchase);
+    if (result.validation?.temporarilyBlocked) {
+      // Keep confirmed results, leave remaining purchases unfinished for an explicit retry.
+      return { ok: false, restored: processed, entitled, message: result.message };
+    }
     if (!result.ok || !result.validation) continue;
     processed += 1;
     if (result.validation.entitled) entitled += 1;

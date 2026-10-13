@@ -6,6 +6,7 @@ import {
   type GooglePurchase,
 } from '../_shared/google-play.ts';
 import { corsHeaders, jsonResponse, rejectDisallowedOrigin } from '../_shared/http.ts';
+import { boundedFetch, enforceAbuseLimit, logSecurityEvent, readRequestObject, RequestBodyError, securityResponse } from '../_shared/abuse-protection.ts';
 
 type ServiceAccount = { client_email?: string; private_key?: string };
 
@@ -44,7 +45,7 @@ async function accessToken(account: ServiceAccount) {
     key,
     new TextEncoder().encode(`${header}.${claim}`),
   );
-  const response = await fetch('https://oauth2.googleapis.com/token', {
+  const response = await boundedFetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -63,6 +64,7 @@ function bodyError(code: string, status: number, origin: string | null, error: s
 }
 
 Deno.serve(async (request) => {
+  const requestId = crypto.randomUUID();
   const origin = request.headers.get('Origin');
   const rejectedOrigin = rejectDisallowedOrigin(request);
   if (rejectedOrigin) return rejectedOrigin;
@@ -82,28 +84,36 @@ Deno.serve(async (request) => {
 
   let input: { productId?: unknown; purchaseToken?: unknown };
   try {
-    input = await request.json();
-  } catch {
-    return bodyError('invalid_request', 400, origin, 'Invalid JSON body');
+    input = await readRequestObject(request, 16384);
+  } catch (error) {
+    const failure = error instanceof RequestBodyError ? error : new RequestBodyError('invalid_request', 400);
+    logSecurityEvent('google_purchase_validate', failure.code, requestId);
+    return securityResponse(failure.code, failure.status, origin, requestId);
   }
   const productId = typeof input.productId === 'string' ? input.productId : '';
   const purchaseToken = typeof input.purchaseToken === 'string' ? input.purchaseToken : '';
-  if (!GOOGLE_PRODUCT_CATALOG[productId] || !purchaseToken || purchaseToken.length > 4096) {
+  if (!Object.hasOwn(GOOGLE_PRODUCT_CATALOG, productId) || !purchaseToken || purchaseToken.length > 4096) {
     return bodyError('invalid_request', 400, origin, 'Product and purchase token are required');
   }
 
   const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authorization } },
+    global: { headers: { Authorization: authorization }, fetch: boundedFetch },
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: { user }, error: userError } = await userClient.auth.getUser();
   if (userError || !user) return bodyError('unauthorized', 401, origin, 'Unauthorized');
 
   try {
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      global: { fetch: boundedFetch },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const blocked = await enforceAbuseLimit(admin, user.id, 'google_purchase_validate', origin, requestId);
+    if (blocked) return blocked;
     const account = JSON.parse(serviceAccountJson) as ServiceAccount;
     const token = await accessToken(account);
     const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(packageName)}/purchases/subscriptionsv2/tokens/${encodeURIComponent(purchaseToken)}`;
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const response = await boundedFetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (response.status === 404) return bodyError('invalid_purchase', 422, origin, 'Purchase token not found');
     if (!response.ok) return bodyError('google_unavailable', 502, origin, 'Google Play could not verify the purchase');
     const purchase = await response.json() as GooglePurchase;
@@ -117,9 +127,6 @@ Deno.serve(async (request) => {
           : 'Invalid product');
     }
 
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
     const { data, error } = await admin.rpc('apply_google_play_purchase', {
       p_user_id: user.id,
       p_purchase_token: purchaseToken,
@@ -131,7 +138,7 @@ Deno.serve(async (request) => {
       p_entitled: state.entitled,
     });
     if (error) {
-      console.error('apply_google_play_purchase failed', error.message);
+      logSecurityEvent('google_purchase_validate', 'purchase_rejected', requestId);
       return bodyError('purchase_rejected', 422, origin, 'Purchase could not be linked to this account');
     }
     const result = Array.isArray(data) ? data[0] : data;
@@ -144,8 +151,8 @@ Deno.serve(async (request) => {
       currentPeriodEnd: result?.current_period_end ?? state.expiresAt ?? undefined,
       autoRenew: Boolean(result?.auto_renew),
     }, 200, origin);
-  } catch (error) {
-    console.error('validate-google-purchase failed', error instanceof Error ? error.message : error);
+  } catch {
+    logSecurityEvent('google_purchase_validate', 'google_unavailable', requestId);
     return bodyError('google_unavailable', 502, origin, 'Google Play validation is temporarily unavailable');
   }
 });

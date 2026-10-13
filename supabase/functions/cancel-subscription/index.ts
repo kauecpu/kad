@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { mercadoPagoRequest } from '../_shared/mercado-pago.ts';
 import { classifyCheckoutFailure } from '../_shared/payment-checkout.ts';
 import { logPaymentFailure } from '../_shared/payment-observability.ts';
+import { boundedFetch, enforceAbuseLimit, logSecurityEvent, readRequestObject, RequestBodyError, securityResponse } from '../_shared/abuse-protection.ts';
 import {
   corsHeaders,
   jsonResponse,
@@ -10,6 +11,7 @@ import {
 } from '../_shared/http.ts';
 
 Deno.serve(async (request) => {
+  const requestId = crypto.randomUUID();
   const requestStartedAt = Date.now();
   const origin = request.headers.get('Origin');
   const rejectedOrigin = rejectDisallowedOrigin(request);
@@ -37,7 +39,7 @@ Deno.serve(async (request) => {
   }
 
   const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authorization } },
+    global: { headers: { Authorization: authorization }, fetch: boundedFetch },
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const {
@@ -49,9 +51,13 @@ Deno.serve(async (request) => {
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
+    global: { fetch: boundedFetch },
     auth: { persistSession: false, autoRefreshToken: false },
   });
   try {
+    await readRequestObject(request, 1024, true);
+    const blocked = await enforceAbuseLimit(admin, user.id, 'subscription_cancel', origin, requestId);
+    if (blocked) return blocked;
     const { data: subscription, error: subscriptionError } = await admin
       .from('subscriptions')
       .select(
@@ -87,7 +93,9 @@ Deno.serve(async (request) => {
       {
         method: 'PUT',
         body: JSON.stringify({ status: 'canceled' }),
-      }
+      },
+      undefined,
+      boundedFetch
     );
     if (confirmed.id !== subscription.provider_subscription_id
       || !['canceled', 'cancelled'].includes(String(confirmed.status))
@@ -108,7 +116,12 @@ Deno.serve(async (request) => {
       origin
     );
   } catch (error) {
+    if (error instanceof RequestBodyError) {
+      logSecurityEvent('subscription_cancel', error.code, requestId);
+      return securityResponse(error.code, error.status, origin, requestId);
+    }
     const reason = classifyCheckoutFailure(error);
+    logSecurityEvent('subscription_cancel', reason, requestId);
     logPaymentFailure({
       operation: 'subscription_cancel',
       category: reason,

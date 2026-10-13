@@ -15,6 +15,9 @@ import {
 import { AppState, Platform } from 'react-native';
 
 import { authErrorMessage } from '@/lib/auth-errors';
+import { useAuthCaptcha } from '@/hooks/use-auth-captcha';
+import { edgeAbuseMessage } from '@/contracts/abuse-errors';
+import { captchaSessionAuthorization } from '@/contracts/auth-captcha';
 import {
   EMAIL_OTP_LENGTH,
   authCodeFromUrl,
@@ -36,6 +39,7 @@ type AuthActionResult = {
 };
 
 type AuthContextValue = {
+  captchaView: ReactNode;
   session: Session | null;
   user: User | null;
   isLoading: boolean;
@@ -71,6 +75,7 @@ function missingConfiguration(): AuthActionResult {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { requestCaptcha, captchaView } = useAuthCaptcha();
   const [session, setSession] = useState<Session | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -200,8 +205,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthActionResult> => {
     if (!supabase) return missingConfiguration();
+    const captcha = await requestCaptcha();
+    if (captcha.error) return { ok: false, message: captcha.error };
     setLinkError(undefined);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: captcha.token } });
     if (error?.code === 'email_not_confirmed') {
       rememberPendingVerificationEmail(email);
     } else if (!error) {
@@ -214,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           requiresEmailConfirmation: error.code === 'email_not_confirmed',
         }
       : { ok: true };
-  }, [rememberPendingVerificationEmail]);
+  }, [rememberPendingVerificationEmail, requestCaptcha]);
 
   const signUp = useCallback(
     async (
@@ -223,11 +230,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: string
     ): Promise<AuthActionResult> => {
       if (!supabase) return missingConfiguration();
+      const captcha = await requestCaptcha();
+      if (captcha.error) return { ok: false, message: captcha.error };
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { name },
+          captchaToken: captcha.token,
           emailRedirectTo: Linking.createURL('auth/login'),
         },
       });
@@ -238,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       else rememberPendingVerificationEmail();
       return { ok: true, requiresEmailConfirmation: !data.session };
     },
-    [rememberPendingVerificationEmail]
+    [rememberPendingVerificationEmail, requestCaptcha]
   );
 
   const signOut = useCallback(async (): Promise<AuthActionResult> => {
@@ -281,13 +291,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const sendPasswordReset = useCallback(async (email: string): Promise<AuthActionResult> => {
     if (!supabase) return missingConfiguration();
+    const captcha = await requestCaptcha();
+    if (captcha.error) return { ok: false, message: captcha.error };
     setLinkError(undefined);
     setRecoveryReady(false);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: Linking.createURL('auth/nova-senha'),
+      captchaToken: captcha.token,
     });
     return error ? { ok: false, message: authErrorMessage(error) } : { ok: true };
-  }, []);
+  }, [requestCaptcha]);
 
   const verifyEmailCode = useCallback(async (
     email: string,
@@ -322,14 +335,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string
   ): Promise<AuthActionResult> => {
     if (!supabase) return missingConfiguration();
+    const captcha = await requestCaptcha();
+    if (captcha.error) return { ok: false, message: captcha.error };
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
-      options: { emailRedirectTo: Linking.createURL('auth/login') },
+      options: { emailRedirectTo: Linking.createURL('auth/login'), captchaToken: captcha.token },
     });
     if (!error) rememberPendingVerificationEmail(email);
     return error ? { ok: false, message: authErrorMessage(error) } : { ok: true };
-  }, [rememberPendingVerificationEmail]);
+  }, [rememberPendingVerificationEmail, requestCaptcha]);
 
   const updatePassword = useCallback(async (
     password: string,
@@ -366,10 +381,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { ok: false, message: 'Entre novamente para excluir sua conta.' };
     }
 
+    const captcha = await requestCaptcha();
+    if (captcha.error) return { ok: false, message: captcha.error };
+    const headers = await captchaSessionAuthorization(session.user.id, supabase.auth.getSession.bind(supabase.auth));
+    if (!headers) return { ok: false, message: 'Sua sessão mudou. Entre novamente antes de excluir a conta.' };
     const { error } = await supabase.functions.invoke('delete-account', {
-      body: { currentPassword },
+      body: { currentPassword, captchaToken: captcha.token },
+      headers,
     });
     if (error instanceof FunctionsHttpError) {
+      const abuseMessage = await edgeAbuseMessage(error);
+      if (abuseMessage) return { ok: false, message: abuseMessage };
       const response = error.context as Response;
       if (response.status === 403) return { ok: false, message: 'Senha atual incorreta.' };
       if (response.status === 401) {
@@ -381,10 +403,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setPendingVerificationEmail(undefined);
     return { ok: true };
-  }, [session]);
+  }, [session, requestCaptcha]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      captchaView,
       session,
       user: session?.user ?? null,
       isLoading,
@@ -406,6 +429,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       deleteRemoteAccount,
     }),
     [
+      captchaView,
       session,
       isLoading,
       isGuest,
@@ -432,4 +456,9 @@ export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth precisa ser usado dentro de AuthProvider.');
   return context;
+}
+
+/** Mounted inside AppProvider so the challenge respects the user's theme. */
+export function AuthCaptchaPortal() {
+  return useAuth().captchaView;
 }

@@ -8,7 +8,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppProvider, useApp, useAppTheme } from '@/providers/app-provider';
-import { AuthProvider, useAuth } from '@/providers/auth-provider';
+import { AuthCaptchaPortal, AuthProvider, useAuth } from '@/providers/auth-provider';
 import { Colors } from '@/constants/theme';
 import { resolveMotionDuration, resolveStackAnimation } from '@/constants/motion';
 import { authRouteAccess } from '@/lib/auth-routing';
@@ -135,6 +135,7 @@ export default function RootLayout() {
             <ConcursosProvider>
               <QuestionsProvider>
                 <AppProvider>
+                  <AuthCaptchaPortal />
                   <FlashcardsProvider>
                     <SimulationProvider>
                       <SearchProvider>
