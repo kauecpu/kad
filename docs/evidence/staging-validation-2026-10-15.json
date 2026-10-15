@@ -1,0 +1,484 @@
+{
+  "date": "2026-10-15",
+  "project": "npaoyezfwmgauirrlyog",
+  "decision": "HOLD: provider, email and UI release gates pending",
+  "correctiveMigration": "20261015150205_restore_abuse_limit_execute",
+  "migrations": [
+    {
+      "version": "202608010001",
+      "name": "auth_profiles"
+    },
+    {
+      "version": "202608010002",
+      "name": "user_study_data"
+    },
+    {
+      "version": "202608020001",
+      "name": "harden_database"
+    },
+    {
+      "version": "202608020002",
+      "name": "profile_usernames"
+    },
+    {
+      "version": "202608020003",
+      "name": "harden_auth_security"
+    },
+    {
+      "version": "202608020004",
+      "name": "admin_foundation"
+    },
+    {
+      "version": "202608020005",
+      "name": "editorial_concursos"
+    },
+    {
+      "version": "202608090001",
+      "name": "editorial_import_pipeline"
+    },
+    {
+      "version": "202608110001",
+      "name": "payments_subscriptions"
+    },
+    {
+      "version": "20260812024756",
+      "name": "harden_payment_subscriptions"
+    },
+    {
+      "version": "20260812211105",
+      "name": "harden_payment_subscriptions"
+    },
+    {
+      "version": "20260812221545",
+      "name": "grant_payment_edge_function_access"
+    },
+    {
+      "version": "20260812225749",
+      "name": "enforce_payment_edge_function_least_privilege"
+    },
+    {
+      "version": "20260815024009",
+      "name": "reconcile_remote_schema"
+    },
+    {
+      "version": "20260815024633",
+      "name": "complete_editorial_fk_indexes"
+    },
+    {
+      "version": "20260816010000",
+      "name": "user_feedback_inbox"
+    },
+    {
+      "version": "20260816030000",
+      "name": "sync_user_study_data"
+    },
+    {
+      "version": "20260820162703",
+      "name": "secure_question_attempts"
+    },
+    {
+      "version": "202608270001",
+      "name": "editorial_question_import_v2"
+    },
+    {
+      "version": "20260828220803",
+      "name": "controlled_question_publication"
+    },
+    {
+      "version": "20260828230000",
+      "name": "flashcards"
+    },
+    {
+      "version": "202608300001",
+      "name": "google_play_billing"
+    },
+    {
+      "version": "20260902040533",
+      "name": "payment_checkout_diagnostics"
+    },
+    {
+      "version": "20260902052712",
+      "name": "study_levels"
+    },
+    {
+      "version": "20260902150000",
+      "name": "payment_checkout_reconciliation"
+    },
+    {
+      "version": "20260903013128",
+      "name": "payment_checkout_reconciliation"
+    },
+    {
+      "version": "20260903014225",
+      "name": "payment_atomic_status_reason"
+    },
+    {
+      "version": "20260903043158",
+      "name": "payment_legacy_terminal_compatibility"
+    },
+    {
+      "version": "20260903082519",
+      "name": "get_latest_open_payment_checkout"
+    },
+    {
+      "version": "20260903220504",
+      "name": "payment_webhook_claims"
+    },
+    {
+      "version": "20260903220508",
+      "name": "payment_lifecycle_ordering"
+    },
+    {
+      "version": "20260903220512",
+      "name": "subscription_observed_state"
+    },
+    {
+      "version": "20260906104313",
+      "name": "gamification_ranking_achievements"
+    },
+    {
+      "version": "202610080001",
+      "name": "production_security_baseline"
+    },
+    {
+      "version": "202610080002",
+      "name": "security_advisor_followup"
+    },
+    {
+      "version": "20261008003639",
+      "name": "enforce_simulation_entitlements"
+    },
+    {
+      "version": "20261008215543",
+      "name": "abuse_protection"
+    },
+    {
+      "version": "20261009210911",
+      "name": "google_play_entitlement_revalidation"
+    },
+    {
+      "version": "20261009231430",
+      "name": "preserve_simulation_sync_version"
+    },
+    {
+      "version": "20261015150205",
+      "name": "restore_abuse_limit_execute"
+    }
+  ],
+  "permissions": {
+    "service_execute": true,
+    "authenticated_execute": false,
+    "anon_execute": false,
+    "direct_counter_select": false
+  },
+  "deployedFunctions": [
+    {
+      "name": "create-payment-checkout",
+      "version": 13,
+      "verify_jwt": true,
+      "hash": "3aed3daa0b752c515e6e0a3ecbbcb8cfb2fd782234179f5d6e981000be08310b",
+      "matchingFiles": 5,
+      "totalFiles": 5
+    },
+    {
+      "name": "mercado-pago-webhook",
+      "version": 15,
+      "verify_jwt": false,
+      "hash": "e3fae9174e05574cec53f9d6c7bd4c27c5b5e40a11fff66e3c3e672233ea485b",
+      "matchingFiles": 4,
+      "totalFiles": 4
+    },
+    {
+      "name": "reconcile-payment-checkout",
+      "version": 11,
+      "verify_jwt": true,
+      "hash": "dc8cb61273a0ff490712706f87fbc5f537a0218409610f9b7f094160770ee0dd",
+      "matchingFiles": 6,
+      "totalFiles": 6
+    },
+    {
+      "name": "validate-google-purchase",
+      "version": 3,
+      "verify_jwt": true,
+      "hash": "7e5d7f9b9fa2e554fb8a06d071afc08bc56506a233f4dc98bedb355806a89843",
+      "matchingFiles": 4,
+      "totalFiles": 4
+    }
+  ],
+  "httpPhases": [
+    {
+      "project": "npaoyezfwmgauirrlyog",
+      "run": "d2a4d85e-a01a-4b9a-ab48-dc132ea516a0",
+      "phase": "study",
+      "checks": [
+        {
+          "name": "real Auth login / profile ownership",
+          "result": "PASS"
+        },
+        {
+          "name": "wrong password rejected; refresh and getUser work",
+          "result": "PASS"
+        },
+        {
+          "name": "profile update + cross-user read/update denied",
+          "result": "PASS"
+        },
+        {
+          "name": "published questions, server-side answer and favorites",
+          "result": "PASS"
+        },
+        {
+          "name": "flashcards CRUD/review + owner constraints",
+          "result": "PASS"
+        },
+        {
+          "name": "essay sync persists newer document and isolates owners",
+          "result": "PASS"
+        },
+        {
+          "name": "gamification is idempotent; ranking starts opt-out",
+          "result": "PASS"
+        },
+        {
+          "name": "ordinary user denied admin; support fixture reads dashboard",
+          "result": "PASS"
+        },
+        {
+          "name": "feedback submission",
+          "result": "PASS"
+        },
+        {
+          "name": "free plan cannot create premium simulation or invoke backend limiter",
+          "result": "PASS"
+        },
+        {
+          "name": "logout a invalidates refresh",
+          "result": "PASS"
+        },
+        {
+          "name": "logout b invalidates refresh",
+          "result": "PASS"
+        },
+        {
+          "name": "logout c invalidates refresh",
+          "result": "PASS"
+        }
+      ],
+      "requests": 53,
+      "passed": 13,
+      "failed": 0
+    },
+    {
+      "project": "npaoyezfwmgauirrlyog",
+      "run": "d2a4d85e-a01a-4b9a-ab48-dc132ea516a0",
+      "phase": "paid",
+      "checks": [
+        {
+          "name": "real Auth login / profile ownership",
+          "result": "PASS"
+        },
+        {
+          "name": "fixture subscription read is isolated",
+          "result": "PASS"
+        },
+        {
+          "name": "premium simulation create/resume/finish + stale snapshot protection",
+          "result": "PASS"
+        },
+        {
+          "name": "logout a invalidates refresh",
+          "result": "PASS"
+        },
+        {
+          "name": "logout b invalidates refresh",
+          "result": "PASS"
+        },
+        {
+          "name": "logout c invalidates refresh",
+          "result": "PASS"
+        }
+      ],
+      "requests": 21,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "project": "npaoyezfwmgauirrlyog",
+      "run": "d2a4d85e-a01a-4b9a-ab48-dc132ea516a0",
+      "phase": "edge",
+      "checks": [
+        {
+          "name": "real Auth login / profile ownership",
+          "result": "PASS"
+        },
+        {
+          "name": "Edge authentication rejects anonymous requests",
+          "result": "PASS"
+        },
+        {
+          "name": "cancellation without subscription + actual distributed limit",
+          "result": "PASS"
+        },
+        {
+          "name": "checkout/reconciliation input validation without provider operation",
+          "result": "PASS"
+        },
+        {
+          "name": "Google validation configuration/input gate",
+          "result": "FAIL",
+          "detail": "HTTP 500; expected 400; code=server_not_configured"
+        },
+        {
+          "name": "unsigned payment webhook rejected",
+          "result": "PASS"
+        },
+        {
+          "name": "account deletion exact-origin CORS and wrong password",
+          "result": "PASS"
+        },
+        {
+          "name": "delete only disposable fixture after password confirmation",
+          "result": "PASS"
+        },
+        {
+          "name": "logout a invalidates refresh",
+          "result": "PASS"
+        },
+        {
+          "name": "logout b invalidates refresh",
+          "result": "PASS"
+        }
+      ],
+      "requests": 33,
+      "passed": 9,
+      "failed": 1
+    }
+  ],
+  "sqlAssertions": {
+    "googleEntitlementRevalidation": "PASS: active; past_due legacy flag denied; ownership transfer denied; separate active purchase preserved; final expiry and repeat denied",
+    "backendLimiter": "PASS: five attempts accepted, sixth rejected",
+    "mercadoPago": "PASS: webhook claim/busy/duplicate; payment ledger/period idempotency; refund then late approval; all synthetic changes rolled back"
+  },
+  "fixtureCleanup": [
+    {
+      "object": "auth.users",
+      "remaining": 0
+    },
+    {
+      "object": "auth.sessions",
+      "remaining": 0
+    },
+    {
+      "object": "auth.refresh_tokens",
+      "remaining": 0
+    },
+    {
+      "object": "auth.identities",
+      "remaining": 0
+    },
+    {
+      "object": "public.profiles",
+      "remaining": 0
+    },
+    {
+      "object": "public.essay_documents",
+      "remaining": 0
+    },
+    {
+      "object": "public.flashcard_decks",
+      "remaining": 0
+    },
+    {
+      "object": "public.flashcards",
+      "remaining": 0
+    },
+    {
+      "object": "public.flashcard_reviews",
+      "remaining": 0
+    },
+    {
+      "object": "public.google_play_purchases",
+      "remaining": 0
+    },
+    {
+      "object": "public.level_accounts",
+      "remaining": 0
+    },
+    {
+      "object": "public.level_events",
+      "remaining": 0
+    },
+    {
+      "object": "public.payment_checkout_sessions",
+      "remaining": 0
+    },
+    {
+      "object": "public.payment_transactions",
+      "remaining": 0
+    },
+    {
+      "object": "public.question_attempts",
+      "remaining": 0
+    },
+    {
+      "object": "public.question_favorites",
+      "remaining": 0
+    },
+    {
+      "object": "public.simulation_sessions",
+      "remaining": 0
+    },
+    {
+      "object": "public.subscriptions",
+      "remaining": 0
+    },
+    {
+      "object": "public.user_achievements",
+      "remaining": 0
+    },
+    {
+      "object": "public.user_feedback",
+      "remaining": 0
+    },
+    {
+      "object": "public.user_gamification_stats",
+      "remaining": 0
+    },
+    {
+      "object": "private.admin_users",
+      "remaining": 0
+    },
+    {
+      "object": "private.abuse_limit_counters",
+      "remaining": 0
+    },
+    {
+      "object": "private.payment_checkout_rate_limits",
+      "remaining": 0
+    },
+    {
+      "object": "fixture_feedback",
+      "remaining": 0
+    }
+  ],
+  "advisories": [
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "count": 14,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "count": 28,
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    },
+    {
+      "name": "auth_leaked_password_protection",
+      "level": "WARN",
+      "count": 1,
+      "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+    }
+  ]
+}

@@ -1,8 +1,10 @@
 # KAD: preparação da versão de lançamento
 
 Revisão em 15/10/2026. Base: `main@61b2bbf05a0958aa86c7f22dd19dd184103faa56`.
-Este documento registra a revisão, as correções locais e o plano de execução.
-Nenhuma migration ou Edge Function foi publicada nesta etapa.
+Este documento registra a revisão, as correções e o plano de execução em produção.
+A etapa inicial não publicou migrations ou funções. Na validação posterior,
+staging recebeu a correção e quatro funções; resultados e bloqueios estão em
+[validação de staging](STAGING_VALIDATION_2026-10-15.md). Produção não foi alterada.
 
 ## Decisão
 
@@ -19,10 +21,11 @@ de concessões não restaura essa RPC. Exclusão de conta, cancelamento e valida
 Google passam a falhar de forma fechada no limitador.
 
 Foi preparada a migration adicional
-`202610150001_restore_abuse_limit_execute.sql`. Ela concede execução somente a
+`20261015150205_restore_abuse_limit_execute.sql`. Ela concede execução somente a
 `service_role`, mantém `anon` e `authenticated` sem execução e não concede acesso
 às tabelas privadas. São **16 pendências históricas + 1 correção**, sem reescrever
-migrations já aplicadas. A correção também deve entrar em staging.
+migrations já aplicadas. A correção já entrou em staging; o arquivo local passou
+a usar o timestamp efetivamente registrado pelo Supabase, sem duplicar a versão.
 
 ## Revisão dos PRs
 
@@ -117,7 +120,7 @@ anteriores; os grupos são checkpoints de observação, não releases independen
 | 14 | `202610080001_production_security_baseline.sql` | Revogações, allowlist e índices; depende das RPCs anteriores | Revisar todas as permissões; manter operações sensíveis pausadas até a correção adicional |
 | 15 | `202610080002_security_advisor_followup.sql` | Índice de FK de conquistas | Índice válido, sem alteração de linhas |
 | 16 | `20261009210911_google_play_entitlement_revalidation.sql` | Revalidação/expiração Google sobre #2 | Revalidar a mesma compra é idempotente; compra sem direito não ativa plano |
-| +1 | `202610150001_restore_abuse_limit_execute.sql` | Restaura a concessão perdida em #14 | Backend executa o limitador; anônimo/autenticado e acesso direto às tabelas continuam negados |
+| +1 | `20261015150205_restore_abuse_limit_execute.sql` | Restaura a concessão perdida em #14 | Backend executa o limitador; anônimo/autenticado e acesso direto às tabelas continuam negados |
 
 As migrations #4, #10–13 contêm criações sem `IF NOT EXISTS`; um objeto já existente
 com versão ausente exige comparação de definição antes da execução. Não reparar
@@ -136,13 +139,14 @@ histórico somente para fazer o comando passar.
 3. **Ensaiar com dados representativos.** Restaurar cópia controlada em PostgreSQL
    compatível com produção, incluindo roles/RLS e dados legados. Rodar a ordem
    acima e os testes de concorrência. O ensaio PGlite deste pacote é complementar.
-4. **Validar staging.** Aplicar apenas a nova correção (as 39 antigas já constam),
-   publicar o candidato aprovado e testar conta comum/admin, estudos, exclusão,
-   pagamentos sandbox e Google. Não executar testes destrutivos com contas reais.
+4. **Concluir staging.** A correção já foi aplicada (40 versões) e os testes de
+   conta comum/suporte, estudos e exclusão passaram por API. Concluir os gates
+   de provedores, e-mail e interfaces registrados no relatório de staging;
+   repetir a validação no SHA integrado aprovado. Usar contas descartáveis.
 5. **Conferir o lote.** Usar a CLI vinculada ao ref de produção e revisar
    `supabase db push --linked --include-all --dry-run`. Deve apresentar exatamente
-   as 16 versões históricas acima e a correção adicional; staging deve apresentar
-   apenas a correção. Parar se houver qualquer divergência. `--include-all` é
+   as 16 versões históricas acima e a correção adicional; staging não deve
+   apresentar pendências. Parar se houver qualquer divergência. `--include-all` é
    necessário porque existem versões antigas ausentes antes das já registradas.
 6. **Janela de implantação.** Pausar entradas de checkout/cancelamento/exclusão,
    coordenar retentativas de webhook e drenar operações em curso. Aplicar com
