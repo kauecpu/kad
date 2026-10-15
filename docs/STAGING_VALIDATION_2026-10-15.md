@@ -11,6 +11,33 @@ Staging é `npaoyezfwmgauirrlyog`, chamado **kad-prod** no painel. Produção é
 `tknxtwwwoqwbzddplzzg`, chamada **kad-dev**. Todas as escritas desta validação foram
 direcionadas ao primeiro ref. Não houve deploy em produção nem merge dos PRs.
 
+## Continuação de e-mails e interface
+
+Google Play e pagamentos sandbox foram **adiados por solicitação do responsável**
+em 15/10/2026, enquanto as contas e credenciais dos provedores não estiverem
+disponíveis. O erro Google continua pendente; adiamento não equivale a aprovação
+de compra ou de cobrança para produção.
+
+Na continuação sobre `042c43b`, `npm run check` passou novamente com 523 testes,
+ensaio de migrations, TypeScript e lint. `npm --prefix site run check` passou com
+145 testes, TypeScript e build. A suíte cobre contratos e transporte de e-mails,
+assinatura do hook, redirecionamentos, recuperação de senha e estados de sessão;
+os provedores dos testes automatizados são simulados.
+
+A leitura pública de `/auth/v1/settings` em staging retornou HTTP 200: autenticação
+por e-mail habilitada, cadastro habilitado e confirmação de e-mail obrigatória.
+`send-auth-email` não aparece entre as funções publicadas nesse projeto. Isso não
+determina se o SMTP padrão ou um SMTP personalizado entrega mensagens; o envio
+real aguarda um endereço controlado indicado pelo responsável. Não houve envio
+nem alteração de SMTP, hook ou secrets nesta continuação.
+
+A validação visual não foi executada: a ferramenta de navegador negou acesso a
+`http://localhost:5173`. Mesmo após autorização explícita do responsável, a nova
+tentativa foi rejeitada por uma permissão salva ou política gerenciada. Não foram
+usados outros navegadores, portas ou automações para contornar esse bloqueio.
+Liberar a origem na configuração de acesso antes de retomar a inspeção visual;
+os testes automatizados e o build não comprovam layout, teclado ou responsividade.
+
 ## Banco e funções publicados
 
 O histórico de staging passou de 39 para **40 migrations**, com
