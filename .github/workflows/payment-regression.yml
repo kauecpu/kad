@@ -41,4 +41,4 @@ jobs:
           PGUSER: postgres
           KAD_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
       - name: HTTP contracts (isolated provider mocks)
-        run: npx --yes deno@2.2.6 test --allow-env supabase/functions/mercado-pago-webhook/index.test.ts supabase/functions/cancel-subscription/index.test.ts supabase/functions/_shared/abuse-protection.test.ts supabase/functions/abuse-http.test.ts
+        run: npx --yes deno@2.2.6 test --allow-env supabase/functions/mercado-pago-webhook/index.test.ts supabase/functions/cancel-subscription/index.test.ts supabase/functions/_shared/abuse-protection.test.ts supabase/functions/abuse-http.test.ts supabase/functions/validate-google-purchase/index.test.ts

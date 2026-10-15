@@ -5,6 +5,9 @@
   "main": "./server/index.ts",
   "workers_dev": true,
   "preview_urls": false,
+  "vars": {
+    "AUTH_CAPTCHA_ENABLED": "false"
+  },
   "routes": [
     {
       "pattern": "kadconcursos.com.br",
